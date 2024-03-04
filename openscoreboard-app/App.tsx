@@ -65,9 +65,9 @@ function ScoreboardNavigation() {
 
 
   useEffect(() => {
-
+if (!isLocalDatabase) {
     authStateListener((user) => {
-      if (!isLocalDatabase) {
+      
         if (user) {
 
           setIsSignedIn(true)
@@ -78,14 +78,14 @@ function ScoreboardNavigation() {
           setIsSignedIn(false)
           setDoneLoading(true)
         }
-      }
-      else {
-        setDoneLoading(true)
-      }
+      
+      
 
     })
-
-
+}
+else {
+        setDoneLoading(true)
+      }
   }, [])
 
   if (doneLoading) {

@@ -5,8 +5,7 @@ import firebase from 'firebase';
 let firebaseConfig = getFirebaseConfig()
 let db
 
-const firebaseApp = firebase.initializeApp(firebaseConfig);
-const analytics = firebase.analytics(firebaseApp)
+
 
 
 if (typeof window !== "undefined" && isLocalDatabase) {
@@ -17,6 +16,8 @@ if (typeof window !== "undefined" && isLocalDatabase) {
         https: window.location.protocol.includes("https") ? true: false, });
 }
 else {
+    const firebaseApp = firebase.initializeApp(firebaseConfig);
+    const analytics = firebase.analytics(firebaseApp)
     db = firebase.database()
 }
 
