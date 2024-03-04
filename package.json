@@ -12,9 +12,9 @@
     "build:app": "dotenvx run  --env-file=./.env.production -- npm run  --prefix ./openscoreboard-app build",
     "build:scoreboard": " dotenvx run  --env-file=./.env.production -- npm run  --prefix ./openscoreboard-scoreboard build",
     "build:editor": " dotenvx run  --env-file=./.env.production --  npm run  --prefix ./openscoreboard-editor build",
-    "dev:app": "dotenvx run --env-file=./.env.development.local --env-file=./.env.development -- npm start  --prefix ./openscoreboard-app",
-    "dev:scoreboard": " dotenvx run --env-file=./.env.development.local --env-file=./.env.development -- npm run  --prefix ./openscoreboard-scoreboard dev",
-    "dev:editor": " dotenvx run --env-file=./.env.development.local --env-file=./.env.development --  npm run  --prefix ./openscoreboard-editor dev",
+    "dev:app": "dotenvx run  --env-file=./.env.development -- npm start  --prefix ./openscoreboard-app",
+    "dev:scoreboard": " dotenvx run  --env-file=./.env.development -- npm run  --prefix ./openscoreboard-scoreboard dev",
+    "dev:editor": " dotenvx run  --env-file=./.env.development --  npm run  --prefix ./openscoreboard-editor dev",
     "dev": "concurrently --kill-others  \"npm start\" \"npm run dev:app\" \"npm run dev:scoreboard\" \"npm run dev:editor\""
   },
   "keywords": [],
