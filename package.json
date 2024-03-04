@@ -1,0 +1,40 @@
+{
+  "name": "openscoreboard",
+  "version": "0.1.0",
+  "description": "Open Scoreboard is a software that allows users to create custom scoreboards that can be added to live streams or other forms of video content, and providing a scorekeeping interface to allow for real time updates to scores.",
+  "main": "server.ts",
+  "exports": null,
+  "scripts": {
+    "start": "ts-node server.ts",
+    "build": "npm run build:prod",
+    "preinstall": "npm install --prefix ./openscoreboard-app && npm install --prefix ./openscoreboard-scoreboard && npm install --prefix ./openscoreboard-editor",
+    "build:prod": "dotenvx run  --env-file=./.env.production -- npm run build:app && npm run build:scoreboard && npm run build:editor ",
+    "build:app": "dotenvx run  --env-file=./.env.production -- npm run  --prefix ./openscoreboard-app build",
+    "build:scoreboard": " dotenvx run  --env-file=./.env.production -- npm run  --prefix ./openscoreboard-scoreboard build",
+    "build:editor": " dotenvx run  --env-file=./.env.production --  npm run  --prefix ./openscoreboard-editor build",
+    "dev:app": "dotenvx run --env-file=./.env.development.local --env-file=./.env.development -- npm start  --prefix ./openscoreboard-app",
+    "dev:scoreboard": " dotenvx run --env-file=./.env.development.local --env-file=./.env.development -- npm run  --prefix ./openscoreboard-scoreboard dev",
+    "dev:editor": " dotenvx run --env-file=./.env.development.local --env-file=./.env.development --  npm run  --prefix ./openscoreboard-editor dev",
+    "dev": "concurrently --kill-others  \"npm start\" \"npm run dev:app\" \"npm run dev:scoreboard\" \"npm run dev:editor\""
+  },
+  "keywords": [],
+  "author": "Jack McCarthy",
+  "license": "GPL-3.0-only",
+  "dependencies": {
+    "@dotenvx/dotenvx": "^0.20.0",
+    "acebase": "^1.26.2",
+    "acebase-server": "github:jackbmccarthy/acebase-server#master",
+    "concurrently": "^8.2.2",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.20",
+    "@typescript-eslint/parser": "^7.0.2",
+    "dotenv": "^16.4.5",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
+  }
+}

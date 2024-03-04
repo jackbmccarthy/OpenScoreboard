@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <style>
+    .gjs-clm-tags { display: none; }
+    body, html {
+  margin: 0;
+  font: caption;
+  height: 100%;
+}
+
+.gjs-pn-panel {
+  position: relative;
+
+}
+.gjs-pn-panels {
+  display: none;
+
+}
+
+.row {
+  display: flex;
+  justify-content: flex-start;
+  align-items: stretch;
+  flex-wrap: nowrap;
+}
+
+.column {
+  min-height: 75px;
+  flex-grow: 1;
+  flex-basis: 100%;
+  overflow: auto;
+}
+
+.editor-clm {
+  display: flex;
+  flex-direction: column;
+}
+
+.gjs-blocks-c {
+   justify-content: center;
+   height: auto;
+}
+
+.gjs-block {
+  width: auto;
+  font-size: 5px;
+  justify-content: center;
+  height: auto;
+  min-height: auto;
+}
+
+
+
+.gjs-cv-canvas {
+    width: 100%;
+    height: 100%;
+    top: 0;
+}
+
+.gjs-blocks-cs {
+    border: 1px solid rgba(191, 16, 16, 0.3);
+    border-top: none; 
+    flex: 1;
+}
+
+/* Theming */
+.gjs-one-bg {
+  background-color: #242A3B; 
+}
+
+.gjs-two-color {
+  color: #9ca8bb;
+}
+
+.gjs-three-bg {
+  background-color: #1E8FE1;
+  color: white;
+}
+.svg-container { 
+	display: inline-block;
+	position: relative;
+	width: 100%;
+	padding-bottom: 100%; 
+	vertical-align: middle; 
+	overflow: hidden; 
+}
+.svg-content { 
+	display: inline-block;
+	position: absolute;
+	top: 0;
+	left: 0;
+}
+.silex-form select {
+  width: 100%;
+  min-width: 15ch;
+  max-width: 30ch;
+  border: 1px solid var(--select-border);
+  border-radius: 0.25em;
+  padding: 0.25em 0.5em;
+  font-size: 1.25rem;
+  cursor: pointer;
+  line-height: 1.1;
+  background-color: #fff;
+  background-image: linear-gradient(to top, #f9f9f9, #fff 33%);
+}
+
+.gjs-four-color,
+.gjs-four-color-h:hover {
+  color: #1E8FE1;
+}
+  </style>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/fav.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open Scoreboard Editor</title>
+  </head>
+<body>
+ 
+ <div class="row" style="height:100%">
+  <div id="layers" class="column" style="flex-basis: 500px;">
+    <div id="layers-container"></div><div id="blocks"></div>
+  </div>
+<noscript><h2>Not running javascript</h2></noscript>
+  <div class="column editor-clm">
+     <div id="toppanel"></div>
+    <div id="gjs2" style="overflow:scroll;">
+      
+    </div>
+  </div>
+
+  <div id="style-manager"  style="height: 100%; background-color: #242A3B; width: 15vw;height: 100vh; overflow: scroll;" >
+    <div id="style-manager-container"></div>
+  </div>
+</div>
+<script type="module"  src="/main.ts" ></script>
+</body>
+</html>
+

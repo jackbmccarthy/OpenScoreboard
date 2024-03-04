@@ -1,0 +1,549 @@
+{"type": "fixedRowContainer",
+"style": {
+    "width": "559.5797576904297px",
+    "height": "139.74270629882812px",
+    "display": "flex",
+    "flex-direction": "row",
+    "align-items": "center",
+    "left": "25px",
+    "top": "35.015625px",
+    "position": "absolute"
+},
+"attributes": {
+    "id": "if1n"
+},
+"dmode": "absolute",
+"components": [
+    {
+        "type": "fixedColumnContainer",
+        "style": {
+            "height": "100%",
+            "display": "flex",
+            "flex-direction": "column",
+            "align-items": "center",
+            "background-color": "green",
+            "width": "100px"
+        },
+        "attributes": {
+            "id": "is4f"
+        },
+        "dmode": "absolute",
+        "components": [
+            {
+                "type": "text",
+                "attributes": {
+                    "id": "ij2ul"
+                },
+                "components": [
+                    {
+                        "type": "textnode",
+                        "content": "Game"
+                    }
+                ],
+                "style": {
+                    "padding": "10px"
+                }
+            },
+            {
+                "type": "playerNameContainer",
+                "attributes": {
+                    "id": "i8e3"
+                },
+                "dmode": "absolute",
+                "components": [
+                    {
+                        "type": "playerA",
+                        "style": {
+                            "flex": 1,
+                            "display": "flex",
+                            "justify-content": "flex-start",
+                            "align-items": "center"
+                        },
+                        "classes": [
+                            "playerA"
+                        ],
+                        "attributes": {
+                            "id": "ivu5z"
+                        }
+                    }
+                ],
+                "style": {
+                    "width": "100%",
+                    "height": "auto",
+                    "display": "flex",
+                    "padding": "1em",
+                    "background-color": "red",
+                    "flex": "1",
+                    "justify-content": "flex-start"
+                }
+            },
+            {
+                "type": "playerNameContainer",
+                "attributes": {
+                    "id": "ifie"
+                },
+                "dmode": "absolute",
+                "components": [
+                    {
+                        "type": "playerB",
+                        "style": {
+                            "flex": 1,
+                            "display": "flex",
+                            "justify-content": "flex-start",
+                            "align-items": "center"
+                        },
+                        "classes": [
+                            "playerB"
+                        ],
+                        "attributes": {
+                            "id": "ikhaj"
+                        }
+                    }
+                ],
+                "style": {
+                    "width": "100%",
+                    "height": "auto",
+                    "display": "flex",
+                    "padding": "1em",
+                    "background-color": "red",
+                    "flex": "1",
+                    "justify-content": "flex-start"
+                }
+            }
+        ]
+    },
+    {
+        "type": "fixedColumnContainer",
+        "style": {
+            "width": "60px",
+            "height": "100%",
+            "display": "flex",
+            "flex-direction": "column",
+            "align-items": "center",
+            "background-color": "green"
+        },
+        "attributes": {
+            "id": "ipd9"
+        },
+        "dmode": "absolute",
+        "components": [
+            {
+                "type": "text",
+                "attributes": {
+                    "id": "iv5py"
+                },
+                "components": [
+                    {
+                        "type": "textnode",
+                        "content": "1"
+                    }
+                ],
+                "style": {
+                    "padding": "10px"
+                }
+            },
+            {
+                "type": "game1AScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "game1AScore"
+                ],
+                "attributes": {
+                    "id": "ip2ap"
+                }
+            },
+            {
+                "type": "game1BScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "game1BScore"
+                ],
+                "attributes": {
+                    "id": "iqdmn"
+                }
+            }
+        ]
+    },
+    {
+        "type": "fixedColumnContainer",
+        "style": {
+            "width": "60px",
+            "height": "100%",
+            "display": "flex",
+            "flex-direction": "column",
+            "align-items": "center",
+            "background-color": "green"
+        },
+        "attributes": {
+            "id": "ikflo"
+        },
+        "dmode": "absolute",
+        "components": [
+            {
+                "type": "text",
+                "attributes": {
+                    "id": "iwoav"
+                },
+                "components": [
+                    {
+                        "type": "textnode",
+                        "content": "2"
+                    }
+                ],
+                "style": {
+                    "padding": "10px"
+                }
+            },
+            {
+                "type": "game2AScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "game2AScore"
+                ],
+                "attributes": {
+                    "id": "ius6w"
+                }
+            },
+            {
+                "type": "game2BScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "game2BScore"
+                ],
+                "attributes": {
+                    "id": "iaehg"
+                }
+            }
+        ]
+    },
+    {
+        "type": "fixedColumnContainer",
+        "style": {
+            "width": "60px",
+            "height": "100%",
+            "display": "flex",
+            "flex-direction": "column",
+            "align-items": "center",
+            "background-color": "green"
+        },
+        "attributes": {
+            "id": "i79te"
+        },
+        "dmode": "absolute",
+        "components": [
+            {
+                "type": "text",
+                "attributes": {
+                    "id": "imy2f"
+                },
+                "components": [
+                    {
+                        "type": "textnode",
+                        "content": "3"
+                    }
+                ],
+                "style": {
+                    "padding": "10px"
+                }
+            },
+            {
+                "type": "game3AScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "game3AScore"
+                ],
+                "attributes": {
+                    "id": "igi7k"
+                }
+            },
+            {
+                "type": "game3BScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "game3BScore"
+                ],
+                "attributes": {
+                    "id": "i1ohf"
+                }
+            }
+        ]
+    },
+    {
+        "type": "fixedColumnContainer",
+        "style": {
+            "width": "60px",
+            "height": "100%",
+            "display": "flex",
+            "flex-direction": "column",
+            "align-items": "center",
+            "background-color": "green"
+        },
+        "attributes": {
+            "id": "if2g"
+        },
+        "dmode": "absolute",
+        "components": [
+            {
+                "type": "text",
+                "attributes": {
+                    "id": "i1ckf"
+                },
+                "components": [
+                    {
+                        "type": "textnode",
+                        "content": "4"
+                    }
+                ],
+                "style": {
+                    "padding": "10px"
+                }
+            },
+            {
+                "type": "game4AScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "game4AScore"
+                ],
+                "attributes": {
+                    "id": "iz3s9"
+                }
+            },
+            {
+                "type": "game4BScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "game4BScore"
+                ],
+                "attributes": {
+                    "id": "ij7zg"
+                }
+            }
+        ]
+    },
+    {
+        "type": "fixedColumnContainer",
+        "style": {
+            "width": "60px",
+            "height": "100%",
+            "display": "flex",
+            "flex-direction": "column",
+            "align-items": "center",
+            "background-color": "green"
+        },
+        "attributes": {
+            "id": "i6jf"
+        },
+        "dmode": "absolute",
+        "components": [
+            {
+                "type": "text",
+                "attributes": {
+                    "id": "imw1j"
+                },
+                "components": [
+                    {
+                        "type": "textnode",
+                        "content": "5"
+                    }
+                ],
+                "style": {
+                    "padding": "10px"
+                }
+            },
+            {
+                "type": "game5AScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "game5AScore"
+                ],
+                "attributes": {
+                    "id": "i9qa8"
+                }
+            },
+            {
+                "type": "game5BScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "game5BScore"
+                ],
+                "attributes": {
+                    "id": "i408v"
+                }
+            }
+        ]
+    },
+    {
+        "type": "fixedColumnContainer",
+        "style": {
+            "width": "60px",
+            "height": "100%",
+            "display": "flex",
+            "flex-direction": "column",
+            "align-items": "center",
+            "background-color": "green"
+        },
+        "attributes": {
+            "id": "iyj9k"
+        },
+        "dmode": "absolute",
+        "components": [
+            {
+                "type": "text",
+                "attributes": {
+                    "id": "iyn1t"
+                },
+                "components": [
+                    {
+                        "tagName": "br",
+                        "void": true
+                    }
+                ],
+                "style": {
+                    "padding": "10px"
+                }
+            },
+            {
+                "type": "currentAGameScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "currentAGameScore"
+                ],
+                "attributes": {
+                    "id": "id119"
+                }
+            },
+            {
+                "type": "currentBGameScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "currentBGameScore"
+                ],
+                "attributes": {
+                    "id": "itr64"
+                }
+            }
+        ]
+    },
+    {
+        "type": "fixedColumnContainer",
+        "style": {
+            "width": "60px",
+            "height": "100%",
+            "display": "flex",
+            "flex-direction": "column",
+            "align-items": "center",
+            "background-color": "green"
+        },
+        "attributes": {
+            "id": "isg4y"
+        },
+        "dmode": "absolute",
+        "components": [
+            {
+                "type": "text",
+                "attributes": {
+                    "id": "ihkel"
+                },
+                "components": [
+                    {
+                        "tagName": "br",
+                        "void": true
+                    }
+                ],
+                "style": {
+                    "padding": "10px"
+                }
+            },
+            {
+                "type": "currentAMatchScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "currentAMatchScore"
+                ],
+                "attributes": {
+                    "id": "i6lk9"
+                }
+            },
+            {
+                "type": "currentBMatchScore",
+                "style": {
+                    "flex": 1,
+                    "display": "flex",
+                    "justify-content": "center",
+                    "align-items": "center"
+                },
+                "classes": [
+                    "currentBMatchScore"
+                ],
+                "attributes": {
+                    "id": "iby7q"
+                }
+            }
+        ]
+    }
+]}

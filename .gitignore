@@ -1,0 +1,6 @@
+package-lock.json
+*.acebase
+node_modules
+.env*.local
+.env.production
+.env.development

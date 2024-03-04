@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Open Scoreboard",
+    "slug": "openscoreboard",
+    "description": "Improve your live streams by adding Open Scoreboard, the easiest way to add to your production quality.",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "experiments": {
+      "baseUrl": "/app"
+    },
+    "userInterfaceStyle": "light",
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router"
+    ]
+  }
+}
