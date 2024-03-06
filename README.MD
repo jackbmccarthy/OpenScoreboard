@@ -18,7 +18,7 @@ This project is made of 4 different components:
 2. Install all the dependancies
 ``` shell
     npm install
-    npm run preinstall
+    npm run install:children
 ```
 3. Run the application in development mode.
 ``` shell
