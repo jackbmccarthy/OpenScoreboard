@@ -7,7 +7,7 @@ const allowedDevEnvFiles = ["./.env.development","./.env.development.local", ]
 dotenv.config({
     path:process.env.NODE_ENV ==="production"? allowedProdEnvFiles : allowedDevEnvFiles
 })
-const databaseName = process.env.DATABASE_NAME || "mydb"
+const databaseName = process.env.DATABASE_NAME || "openscoreboard"
 const databasePath = process.env.DATABASE_PATH || "./"
 
 
