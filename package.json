@@ -5,7 +5,6 @@
   "main": "server.ts",
   "exports": null,
   "scripts": {
-  
     "start": "ts-node server.ts",
     "build": "npm run build:prod",
     "build:tsc": "tsc --build",
@@ -23,7 +22,7 @@
   "author": "Jack McCarthy",
   "license": "GPL-3.0-only",
   "dependencies": {
-    "@dotenvx/dotenvx": "^0.20.0",
+    "@dotenvx/dotenvx": "^0.21.0",
     "acebase": "^1.26.2",
     "acebase-server": "github:jackbmccarthy/acebase-server#master",
     "concurrently": "^8.2.2",
@@ -39,5 +38,4 @@
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"
   }
- 
 }
