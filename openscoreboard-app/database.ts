@@ -5,9 +5,6 @@ import firebase from 'firebase';
 let firebaseConfig = getFirebaseConfig()
 let db
 
-
-
-
 if (typeof window !== "undefined" && isLocalDatabase) {
     db = new AceBaseClient({ 
         host: window.location.hostname, 
