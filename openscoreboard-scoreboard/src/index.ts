@@ -7,8 +7,8 @@ import { addCSS } from './addCSS';
 
 export let listenerRemovalList:{ (): void; }[] = []
 
-const resetListeners = (number)=>{
-    console.log("reset was ran", number)
+const resetListeners = ()=>{
+    
     if(listenerRemovalList.length > 0){
         for (const listenerRemoval of listenerRemovalList) {
             listenerRemoval()
@@ -89,7 +89,7 @@ async function setupDynamicURL(dynamicURLID,){
         tableNumber,
         scoreboardID} = details
         console.log(details)
-        resetListeners(1)
+        resetListeners()
         runScoreboard(scoreboardID,tableID,teammatchID,tableNumber)
 
         })
@@ -108,7 +108,7 @@ const  scoreboardID = params.get("sid");
 if (params.get("t") === "table" && (params.get("tid") !== null || params.get("tmid") !== null)) {
 
     
-    resetListeners(2)
+    resetListeners()
     runScoreboard(scoreboardID, tableID, teamMatchID, teamMatchTableNumber);
 }
 else if(dynamicURLID !== null && dynamicURLID.length > 0 ){

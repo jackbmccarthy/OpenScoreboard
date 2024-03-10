@@ -3,7 +3,7 @@ import { getBroadcastChannelName } from './getBroadcastChannelName';
 
 export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetListeners, addToListenerList ) => {
     //console.log(resetListeners)
-    resetListeners(3);
+    resetListeners();
     let currentMatch = currentMatchSnap.val();
     console.log(currentMatch)
     if(typeof currentMatch ==="object" && Object.keys(currentMatch).includes("cursor")){
