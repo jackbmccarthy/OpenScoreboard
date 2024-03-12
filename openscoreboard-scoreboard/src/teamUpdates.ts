@@ -1,7 +1,7 @@
 import db from '../database';
 import { getBroadcastChannelName } from './getBroadcastChannelName';
 
-export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetListeners, addToListenerList ) => {
+export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetListeners: {():void}, addToListenerList ) => {
     //console.log(resetListeners)
     resetListeners();
     let currentMatch = currentMatchSnap.val();

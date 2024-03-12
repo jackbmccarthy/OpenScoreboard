@@ -40,11 +40,11 @@ export async function runAllListeners(isInitialRun: boolean, tableID: string | n
             // let teamAImgURLRef = db.ref(`teamMatches/${teamMatchID}/teamAScore`);
             // let teamBImgURLRef = db.ref(`teamMatches/${teamMatchID}/teamBScore`);
 
-            teamTableRef.on("value", updateTeamMatch, isInitialRun, resetListeners, addToListenerList);
-            teamAIDRef.on("value", updateTeamAID, isInitialRun, resetListeners, addToListenerList);
-            teamBIDRef.on("value", updateTeamBID, isInitialRun, resetListeners, addToListenerList);
-            teamAScoreRef.on("value", updateTeamAScore, isInitialRun, resetListeners, addToListenerList);
-            teamBScoreRef.on("value", updateTeamBScore, isInitialRun, resetListeners, addToListenerList);
+            teamTableRef.on("value",(val)=>{updateTeamMatch(val, isInitialRun, resetListeners, addToListenerList)} );
+            teamAIDRef.on("value",(val)=>{updateTeamAID(val, isInitialRun, resetListeners, addToListenerList)} );
+            teamBIDRef.on("value",(val)=>{updateTeamBID(val, isInitialRun, resetListeners, addToListenerList)} );
+            teamAScoreRef.on("value",(val)=>{updateTeamAScore(val)} );
+            teamBScoreRef.on("value",(val)=>{updateTeamBScore(val)});
 
 
             addToListenerList(() => {
