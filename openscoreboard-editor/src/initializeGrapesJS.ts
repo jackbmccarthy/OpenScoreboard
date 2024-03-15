@@ -48,7 +48,7 @@ export function initializeGrapesJS(scoreboardID:string|null) {
             },
             upload: import.meta.env.VITE_FILE_UPLOAD_PATH || false,
             autoAdd: true,
-            //  embedAsBase64: true,
+             embedAsBase64: import.meta.env.VITE_IS_LOCAL_DATABASE === "false" ? false : true,
             //  uploadFile
         },
         panels: {
