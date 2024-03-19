@@ -1,11 +1,6 @@
 import React, { Component, useState } from 'react';
-import {  } from 'react-native';
-import firebase from 'firebase'
 import { Icon, Button, Text, Modal, FormControl,View, Spinner, } from 'native-base';
-import db, { getUserPath } from '../../database';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
-import { openScoreboardTheme } from "../../openscoreboardtheme";
-import Match from '../classes/Match';
 import { createNewMatch } from '../functions/scoring';
 import { createTeamMatchNewMatch } from '../functions/teammatches';
 import { supportedSports } from '../functions/sports';

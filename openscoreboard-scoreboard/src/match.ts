@@ -1,6 +1,7 @@
 
 export function getCurrentGameScore(match:MatchSettings) {
     if (match) {
+        console.log(match)
         if (match.isInBetweenGames) {
 
             for (let gameN = 1; gameN <= 9; gameN++) {

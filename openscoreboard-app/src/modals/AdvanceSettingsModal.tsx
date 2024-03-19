@@ -11,7 +11,6 @@ export function AdvanceSettingsModal(props) {
     const [showLoadingResetMatches, setShowLoadingResetMatches] = useState(false);
     const [confirmManualEndGame, setConfirmManualEndGame] = useState(false)
     const [loadingManualEndGame, setLoadingManualEndGame] = useState(false)
-
     const [bestOfGames, setBestOfGames] = useState(props.bestOf)
     const [pointsToWinGame, setPointsToWinGame] = useState(props.pointsToWinGame)
     const [changeServeEveryXPoints, setChangeServeEveryXPoints] = useState(props.changeServeEveryXPoints)
@@ -19,6 +18,8 @@ export function AdvanceSettingsModal(props) {
     const [selectedScoringType, setSelectedScoringType] = useState(props.scoringType)
     const matchScores = getMatchScore(props)
     const gamesPlayed = matchScores.a + matchScores.b
+
+    
 
     useEffect(() => {
         setBestOfGames(props.bestOf)

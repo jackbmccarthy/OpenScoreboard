@@ -172,7 +172,7 @@ export default class Match {
                 changeServeEveryXPoints:changeServeEveryXPoints,
                 enforceGameScore:enforceGameScore,
                 sportName:sportName,
-                scoringType:scoringType
+                scoringType:scoringType ? scoringType : scoringTypeDefault
             }
         }
         else{
