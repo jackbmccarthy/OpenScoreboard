@@ -3,7 +3,7 @@ import { getFirebaseConfig, isLocalDatabase } from './openscoreboard.config';
 import firebase from 'firebase';
 
 let firebaseConfig = getFirebaseConfig()
-let db
+let db :AceBaseClient | firebase.database.Database
 
 if (typeof window !== "undefined" && isLocalDatabase) {
     db = new AceBaseClient({ 

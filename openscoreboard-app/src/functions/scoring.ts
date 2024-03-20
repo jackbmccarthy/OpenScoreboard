@@ -33,13 +33,18 @@ export async function updateService(matchID, isAInitialServer, gameNumber, combi
                 db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
 
             break;
-    
+            case "pickleball":
+                //This function is not used in pickleball, only when creating a new game. 
+                // Also setting this to isSecondServer:true
+                db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
+                db.ref(`matches/${matchID}/isSecondServer`).set(true)
+            break;
         default:
             db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
 
             break;
     }
-    db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
+    
 
 
 }
