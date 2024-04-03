@@ -3,6 +3,7 @@ import { Button, View, Modal, AddIcon, Text } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { addTeamMatchCurrentMatch, getTeamMatchCurrentMatches } from '../functions/teammatches';
+import i18n from '../translations/translate';
 
 export function SelectTeamMatchTableModal(props) {
 
@@ -31,7 +32,7 @@ export function SelectTeamMatchTableModal(props) {
         }} isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Select Table</Modal.Header>
+                <Modal.Header>{i18n.t("selectTable")}</Modal.Header>
                 <Modal.Body>
                     <View>
                         {Object.entries(tableList).sort((a, b) => {

@@ -4,6 +4,7 @@ import { newImportedPlayer } from "./classes/Player";
 import jsonFlags from './flags/countries.json'
 import { addImportedPlayer, getMyPlayerLists } from "./functions/players";
 import LoadingPage from "./LoadingPage";
+import i18n from "./translations/translate";
 
 
 function validateCSV(csvString: string) {
@@ -84,12 +85,12 @@ export default function BulkAddPlayer() {
 
             <View>
                 <FormControl>
-                    <FormControl.Label>Player List ID</FormControl.Label>
+                    <FormControl.Label>{i18n.t("playerListID")}</FormControl.Label>
                     {
                         doneLoading ?
                             myPlayerLists.length > 0 ?
                                 <FormControl>
-                                    <FormControl.Label>Select Player List</FormControl.Label>
+                                    <FormControl.Label>{i18n.t("selectPlayerList")}</FormControl.Label>
 
                                     <Select onValueChange={(text) => {
                                         setSelectedPlayerListID(text)
@@ -104,14 +105,13 @@ export default function BulkAddPlayer() {
                                     </Select>
                                 </FormControl>
                                 :
-                                <Text>You currently have no player lists to use. Please go back, and add the players, then come back to utilize this feature.</Text>
+                                <Text>{i18n.t("noPlayerListsGoAdd")}</Text>
                             :
                             <LoadingPage></LoadingPage>
                     }
 
-                    <FormControl.Label>FirstName, LastName, Country Code</FormControl.Label>
-                    <TextField
-                        multiline
+                    <FormControl.Label>{i18n.t("csvColumnOrder")}</FormControl.Label>
+                    <TextField multiline
                         placeholder="CSV Values"
                         onChangeText={(text) => {
                             setCSVValue(text)
@@ -131,7 +131,7 @@ export default function BulkAddPlayer() {
                     {
                         loadingPlayers ? 
                         <Spinner></Spinner>:
-                        <Text>Submit</Text>
+                        <Text>{i18n.t("submit")}</Text>
                     }
                     
                 </Button>

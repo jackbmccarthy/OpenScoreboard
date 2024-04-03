@@ -4,6 +4,7 @@ import { openScoreboardButtonTextColor, openScoreboardColor } from "../../opensc
 import { endGame, getCurrentGameNumber, getCurrentGameScore, getMatchScore, isFinalGame, isGamePoint, isMatchFinished, MinusPoint, setIsGamePoint, setIsMatchPoint, updateService } from '../functions/scoring';
 import { getCombinedPlayerNames } from '../functions/players';
 import { addWinToTeamMatchTeamScore } from '../functions/teammatches';
+import i18n from '../translations/translate';
 
 export function GameWonConfirmationModal(props) {
     let { playerA, playerB, playerA2, playerB2 } = props;
@@ -41,14 +42,14 @@ export function GameWonConfirmationModal(props) {
                 <Modal.Body>
                     {loadingConfirmGame ?
                         <View alignItems={"center"} justifyContent={"center"} >
-                            <Text fontSize={"3xl"}>Finishing Game...</Text>
+                            <Text fontSize={"3xl"}>{i18n.t("finishingGame")}...</Text>
                             
                         </View>
 
 
                         :
                         <>
-                            <Text textAlign={"center"} fontSize={"4xl"} fontWeight={"bold"}> Game {gameNumber} Winner</Text>
+                            <Text textAlign={"center"} fontSize={"4xl"} fontWeight={"bold"}> {i18n.t("game")} {gameNumber} {i18n.t("winner")}</Text>
                             <Text textAlign={"center"} fontSize={"3xl"}>{isGameWinnerA(props) ? getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).a : getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).b}</Text>
                             <Text textAlign={"center"} fontSize={"4xl"}>{winnerScore(props)} - {loserScore(props)}</Text>
                         </>
@@ -83,7 +84,7 @@ export function GameWonConfirmationModal(props) {
                         >
                             {loadingConfirmGame ?
                                 <Spinner color={openScoreboardButtonTextColor}></Spinner> :
-                                <Text color={openScoreboardButtonTextColor}>Confirm</Text>}
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("confirm")}</Text>}
 
                         </Button>
                     </View>
@@ -93,7 +94,7 @@ export function GameWonConfirmationModal(props) {
                                 let scores = getCurrentGameScore(props);
                                 if (scores.a >= scores.b) {
                                     const newAScore = await MinusPoint(props.matchID, getCurrentGameNumber(props), "A");
-                                     updateService(props.matchID, props.isAInitialServer, gameNumber, newAScore + props[`game${gameNumber}BScore`], props.changeServeEveryXPoints, props.pointsToWinGame)
+                                     updateService(props.matchID, props.isAInitialServer, gameNumber, newAScore + props[`game${gameNumber}BScore`], props.changeServeEveryXPoints, props.pointsToWinGame,props.sportName, props.scoringType)
                                 if(isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) && isFinalGame({ ...props, [`game${gameNumber}AScore`]: newAScore })){
                                     //Match Point
                                     setIsMatchPoint(props.matchID, true)
@@ -113,7 +114,7 @@ export function GameWonConfirmationModal(props) {
                                 }
                                 else {
                                     const newBScore = await MinusPoint(props.matchID, getCurrentGameNumber(props), "B");
-                                    updateService(props.matchID, props.isAInitialServer, gameNumber, newBScore + props[`game${gameNumber}AScore`], props.changeServeEveryXPoints, props.pointsToWinGame)
+                                    updateService(props.matchID, props.isAInitialServer, gameNumber, newBScore + props[`game${gameNumber}AScore`], props.changeServeEveryXPoints, props.pointsToWinGame,props.sportName, props.scoringType)
                                if(isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) && isFinalGame({ ...props, [`game${gameNumber}BScore`]: newBScore })){
                                    //Match Point
                                    setIsMatchPoint(props.matchID, true)
@@ -133,7 +134,7 @@ export function GameWonConfirmationModal(props) {
                                 }
                             }}
                             variant={"ghost"}>
-                            <Text>No </Text>
+                            <Text>{i18n.t("no")} </Text>
                         </Button>
                     </View>
                 </Modal.Footer>

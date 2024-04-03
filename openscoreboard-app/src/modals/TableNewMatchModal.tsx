@@ -4,6 +4,7 @@ import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import { createNewMatch } from '../functions/scoring';
 import { createTeamMatchNewMatch } from '../functions/teammatches';
 import { supportedSports } from '../functions/sports';
+import i18n from '../translations/translate';
 
 
 export default function TableNewMatchModal(props){
@@ -18,9 +19,9 @@ export default function TableNewMatchModal(props){
         <Modal avoidKeyboard isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Create New Match</Modal.Header>
+                <Modal.Header>{i18n.t("createNewMatch")}</Modal.Header>
                 <Modal.Body>
-                    <Text>A match has not been created for this table/court yet.</Text>
+                    <Text>{i18n.t("noMatchCreated")}</Text>
                 </Modal.Body>
                 <Modal.Footer>
                     <Button disabled={loadingNewMatch}
@@ -41,7 +42,7 @@ export default function TableNewMatchModal(props){
                         {loadingNewMatch ? 
                         <Spinner color={openScoreboardButtonTextColor}></Spinner>
                         :
-                        <Text color={openScoreboardButtonTextColor}>Create Match</Text>
+                        <Text color={openScoreboardButtonTextColor}>{i18n.t("createMatch")}</Text>
 
                     }
                         

@@ -4,6 +4,7 @@ import { openScoreboardButtonTextColor, openScoreboardColor } from "../../opensc
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getPlayerFormatted } from '../functions/players';
 import { AddPoint, AWonRally_PB, BWonRally_PB, getCurrentGameNumber, getMatchScore, isFinalGame, isGameFinished, isGamePoint, MinusPoint, setIsGamePoint, setIsMatchPoint, setServerManually } from '../functions/scoring';
+import i18n from '../translations/translate';
 
 export function ScoringSidePickleball(props) {
 
@@ -183,8 +184,8 @@ export function ScoringSidePickleball(props) {
                         }}
 
                         borderStyle={"groove"} borderWidth="4" borderColor={"white"} flex={1}>
-                        <Text color={openScoreboardButtonTextColor} fontSize={"3xl"} flexWrap={"wrap"} fontWeight={"bold"} textAlign={"center"}>Rally</Text>
-                        <Text color={openScoreboardButtonTextColor} fontSize={"3xl"} flexWrap={"wrap"} fontWeight={"bold"} textAlign={"center"}>Won</Text>
+                        <Text color={openScoreboardButtonTextColor} fontSize={"3xl"} flexWrap={"wrap"} fontWeight={"bold"} textAlign={"center"}>{i18n.t("rally")}</Text>
+                        <Text color={openScoreboardButtonTextColor} fontSize={"3xl"} flexWrap={"wrap"} fontWeight={"bold"} textAlign={"center"}>{i18n.t("won")}</Text>
                         <View
                             justifyContent={"center"}
                             opacity={props.isManualServiceMode || (isA && props.isACurrentlyServing) || (!isA && !props.isACurrentlyServing) ? 1 : 0}

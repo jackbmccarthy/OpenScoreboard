@@ -11,6 +11,7 @@ import { EditPlayer } from './EditPlayer';
 import { EditScheduledMatchModal } from './modals/EditScheduledMatchModal';
 import { NewScheduledMatchModal } from './modals/NewScheduledMatchModal';
 import { ScheduledMatchItem } from './listitems/ScheduledMatchItem';
+import i18n from './translations/translate';
 
 
 
@@ -52,33 +53,33 @@ export default function ScheduledTableMatches(props) {
                 <View>
                     {
                         scheduledMatches.length > 0 ?
- <FlatList
-                        data={scheduledMatches.sort((a, b) => {
-                            return new Date(a[1]["startTime"]) > new Date(b[1]["startTime"]) ? -1 : 1
-                        })}
-                        renderItem={(match) => {
-                            return (
-                                <ScheduledMatchItem reload={loadScheduledMatches} {...props} setShowEditScheduledMatch={setShowEditScheduledMatch} setEditMatch={setEditMatch} {...match} ></ScheduledMatchItem>
-                            )
-                        }}
-                    />
-                        :
-                        <View justifyContent={"center"} alignItems="center">
+                            <FlatList
+                                data={scheduledMatches.sort((a, b) => {
+                                    return new Date(a[1]["startTime"]) > new Date(b[1]["startTime"]) ? -1 : 1
+                                })}
+                                renderItem={(match) => {
+                                    return (
+                                        <ScheduledMatchItem reload={loadScheduledMatches} {...props} setShowEditScheduledMatch={setShowEditScheduledMatch} setEditMatch={setEditMatch} {...match} ></ScheduledMatchItem>
+                                    )
+                                }}
+                            />
+                            :
+                            <View justifyContent={"center"} alignItems="center">
                                 <View>
-                                    <Text fontSize={"xl"} fontWeight="bold">You have no scheduled matches for this table.</Text>
+                                    <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noScheduledTables")}</Text>
                                     <View padding={2}>
                                         <Button
                                             onPress={() => {
-                                                setShowCreateTable(true)
+                                                setShowCreateNewScheduledMatch(true)
                                             }}
                                         >
-                                            <Text  color={openScoreboardButtonTextColor}>Create One!</Text>
+                                            <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
                                         </Button>
                                     </View>
                                 </View>
                             </View>
                     }
-                   
+
                     {
                         showCreateNewScheduledMatch ?
                             <NewScheduledMatchModal isOpen={showCreateNewScheduledMatch}

@@ -9,6 +9,7 @@ import Table from '../classes/Table';
 import { getMyPlayerLists } from '../functions/players';
 import { supportedSports } from '../functions/sports';
 import { createNewTable } from '../functions/tables';
+import i18n from '../translations/translate';
 
 
 
@@ -45,17 +46,17 @@ let [myPlayerLists, setMyPlayerLists] = useState([])
     <Modal avoidKeyboard isOpen={props.isOpen} onClose={() => { props.onClose()}}>
                     <Modal.Content>
                         <Modal.CloseButton></Modal.CloseButton>
-                        <Modal.Header>New Table</Modal.Header>
+                        <Modal.Header>{i18n.t("newTable")}</Modal.Header>
                         <Modal.Body>
                             <FormControl >
-                                <FormControl.Label>Table Name</FormControl.Label>
+                                <FormControl.Label>{i18n.t("tableName")}</FormControl.Label>
                                 <Input ref={tableNameInput} onChangeText={setTableName} />
                             </FormControl>
                             {
                         
                         myPlayerLists.length > 0 ?
 <FormControl>
-                        <FormControl.Label>Select Player List</FormControl.Label>
+                        <FormControl.Label>{i18n.t("selectPlayerList")}</FormControl.Label>
 
                         <Select onValueChange={(text)=>{
                             setSelectedPlayerListID(text)
@@ -76,7 +77,7 @@ let [myPlayerLists, setMyPlayerLists] = useState([])
                     }
                     <FormControl>
                         <FormControl.Label>
-                            Sport
+                            {i18n.t("sport")}
                         </FormControl.Label>
                         <Select selectedValue={selectedSport}
                         onValueChange={(sport)=>{
@@ -97,7 +98,7 @@ let [myPlayerLists, setMyPlayerLists] = useState([])
                                 supportedSports[selectedSport]?.hasScoringTypes ?
 <>
 <FormControl.Label>
-                            Scoring Type
+                            {i18n.t("scoringType")}
                         </FormControl.Label>
                         <Select selectedValue={selectedScoringType}
                         onValueChange={(type)=>{
@@ -128,7 +129,7 @@ let [myPlayerLists, setMyPlayerLists] = useState([])
                                 {
                                     isLoadingTable ?
                                     <Spinner></Spinner>:
-                                    <Text color={"white"}>Create Table</Text>
+                                    <Text color={"white"}>{i18n.t("createTable")}</Text>
                                 }
                                 
                             </Button> 

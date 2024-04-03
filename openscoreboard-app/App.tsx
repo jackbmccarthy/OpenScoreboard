@@ -21,6 +21,7 @@ import MyPlayerLists from './src/MyPlayerLists';
 import MyDynamicURLs from './src/MyDynamicURLs';
 import BulkAddPlayer from './src/BulkAddPlayers';
 import PlayerRegistration from './src/PlayerRegistration';
+import i18n from './src/translations/translate';
 
 export const linkingConfig = {
   screens: {
@@ -122,21 +123,21 @@ else {
             isSignedIn ? <>
               <ScoreboardStack.Group navigationKey={isSignedIn === true ? "user" : "guest"}>
                 <ScoreboardStack.Screen name="Home" component={Home} options={{ title: "Open Scoreboard" }} ></ScoreboardStack.Screen>
-                <ScoreboardStack.Screen  name={"MyTables"} component={MyTables} options={{ title: "My Tables" }} ></ScoreboardStack.Screen>
-                <ScoreboardStack.Screen name="ArchivedMatchList" component={ArchivedMatchList} options={{ title: "Archived Matches" }} ></ScoreboardStack.Screen>
-                <ScoreboardStack.Screen name="AddPlayers" component={AddPlayers} options={{ title: "Manage Players" }} />
-                <ScoreboardStack.Screen name="MyScoreboards" component={MyScoreboards} options={{ title: "My Scoreboards" }} />
-                <ScoreboardStack.Screen name="MyTeams" component={MyTeams} options={{ title: "My Teams" }} />
-                <ScoreboardStack.Screen name="MyTeamMatches" component={MyTeamMatches} options={{ title: "My Team Matches" }} />
-                <ScoreboardStack.Screen name="ScheduledTableMatches" component={ScheduledTableMatches} options={{ title: "Scheduled Matches" }} />
+                <ScoreboardStack.Screen  name={"MyTables"} component={MyTables} options={{ title: i18n.t("myTables") }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="ArchivedMatchList" component={ArchivedMatchList} options={{ title: i18n.t("archivedMatches") }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="AddPlayers" component={AddPlayers} options={{ title: i18n.t("managePlayers") }} />
+                <ScoreboardStack.Screen name="MyScoreboards" component={MyScoreboards} options={{ title: i18n.t("myScoreboards") }} />
+                <ScoreboardStack.Screen name="MyTeams" component={MyTeams} options={{ title: i18n.t("myTeams") }} />
+                <ScoreboardStack.Screen name="MyTeamMatches" component={MyTeamMatches} options={{ title: i18n.t("myTeamMatches") }} />
+                <ScoreboardStack.Screen name="ScheduledTableMatches" component={ScheduledTableMatches} options={{ title: i18n.t("scheduledMatches") }} />
                 <ScoreboardStack.Screen name="TableScoring" component={TableScoring} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="TeamMatchScoring" component={TableScoring} ></ScoreboardStack.Screen>
-                <ScoreboardStack.Screen name="MyAccount" component={MyAccount} options={{ title: "My Account" }} ></ScoreboardStack.Screen>
-                <ScoreboardStack.Screen name="MyPlayerLists" component={MyPlayerLists} options={{ title: "Player Lists" }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="MyAccount" component={MyAccount} options={{ title: i18n.t("myAccount") }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="MyPlayerLists" component={MyPlayerLists} options={{ title: i18n.t("playerLists") }} ></ScoreboardStack.Screen>
                 {/* <ScoreboardStack.Screen name="QRCodeScreen" component={QRCodeScreen}  ></ScoreboardStack.Screen> */}
-                <ScoreboardStack.Screen name="DynamicURLS" component={MyDynamicURLs} options={{ title: "Dynamic URLs" }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="DynamicURLS" component={MyDynamicURLs} options={{ title: i18n.t("dynamicURLs") }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="BulkAddPlayer" component={BulkAddPlayer} options={{ title: "Bulk Add Player" }} ></ScoreboardStack.Screen>
-                <ScoreboardStack.Screen name="PlayerRegistration" component={PlayerRegistration} options={{ title: "Player Registration Screen" }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="PlayerRegistration" component={PlayerRegistration} options={{ title: i18n.t("playerRegistrationScreen") }} ></ScoreboardStack.Screen>
 
               </ScoreboardStack.Group>
 

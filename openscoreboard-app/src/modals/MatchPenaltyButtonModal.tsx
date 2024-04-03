@@ -28,7 +28,7 @@ export function MatchPenaltyButtonModal(props) {
                 <Modal.Header>{i18n.t("managePenalties")}</Modal.Header>
                 <Modal.Body>
                     <FormControl>
-                        <FormControl.Label>{getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).a} Penalty</FormControl.Label>
+                        <FormControl.Label>{getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).a} {i18n.t("penalty")}</FormControl.Label>
                         <View padding={2} flex={1} flexDirection={"row"}>
                             <View padding={1} flex={1}>
                                 <Button
@@ -52,7 +52,7 @@ export function MatchPenaltyButtonModal(props) {
                             </View>
                         </View>
                         <Divider></Divider>
-                        <FormControl.Label>{getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).b} Penalty</FormControl.Label>
+                        <FormControl.Label>{getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).b} {i18n.t("penalty")}</FormControl.Label>
                         <View padding={2} flex={1} flexDirection={"row"}>
                             <View padding={1} flex={1}>
                                 <Button

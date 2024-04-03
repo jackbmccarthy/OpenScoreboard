@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Text, View } from 'native-base';
-import { openScoreboardButtonTextColor } from '../livettscoreboard.config';
+//import { openScoreboardButtonTextColor } from '../../openscoreboard.config';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { switchSides } from '../functions/scoring';
 import { AntDesign, FontAwesome5, Entypo } from '@expo/vector-icons';
+import i18n from '../translations/translate';
+import { openScoreboardButtonTextColor } from '../../openscoreboardtheme';
 
 export function CenterSettings(props) {
     let [serveLeft, setServeLeft] = useState(false);
@@ -31,7 +33,7 @@ export function CenterSettings(props) {
                             <AntDesign name="caretleft" size={24} color={openScoreboardButtonTextColor} />
                             : null}
 
-                        <Text color={openScoreboardButtonTextColor} fontWeight={"bold"} textAlign={"center"}>Serve</Text>
+                        <Text color={openScoreboardButtonTextColor} fontWeight={"bold"} textAlign={"center"}>{i18n.t("serve")}</Text>
                         {!serveLeft ?
                             <AntDesign name="caretright" size={24} color={openScoreboardButtonTextColor} />
                             : null}

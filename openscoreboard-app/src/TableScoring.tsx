@@ -25,6 +25,7 @@ import { addWinToTeamMatchTeamScore, getTeamMatchCurrentMatch } from './function
 import Unauthorized from './Unauthorized';
 import { getTablePassword } from './functions/tables';
 import { ScoringSidePickleball } from './components/ScoringSidePickleball';
+import Match from './classes/Match';
 
 
 export default function TableScoring(props) {

@@ -6,6 +6,7 @@ import { openScoreboardButtonTextColor, openScoreboardColor } from "../../opensc
 import LoadingPage from '../LoadingPage';
 import { EditTextItem } from '../components/EditTextItem';
 import { deleteTable, resetTablePassword } from '../functions/tables';
+import i18n from '../translations/translate';
 
 export function TableEditModal(props) {
     let [doneLoading, setDoneLoading] = useState(false);
@@ -34,7 +35,7 @@ export function TableEditModal(props) {
         }}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Edit Table</Modal.Header>
+                <Modal.Header>{i18n.t("editTable")}</Modal.Header>
                 <Modal.Body>
                     {doneLoading ?
                         <View width="100%" alignSelf="center" maxW="lg">
@@ -49,8 +50,8 @@ export function TableEditModal(props) {
                             {showConfirmPasswordReset ?
                                 <>
                                     <View padding={1}>
-                                        <Text fontSize={"lg"} textAlign="center" fontWeight="bold">Are you sure?</Text>
-                                        <Text>Anyone previously having access to keep score will need another share link to access the table.</Text>
+                                        <Text fontSize={"lg"} textAlign="center" fontWeight="bold">{i18n.t("areYouSure")}</Text>
+                                        <Text>{i18n.t("accessCutOff")}</Text>
 
                                     </View>
                                     <View flexDirection={"row"}>
@@ -60,14 +61,14 @@ export function TableEditModal(props) {
                                                 setReload(true);
                                                 setShowConfirmPasswordReset(false);
                                             }} variant={"outline"}>
-                                                <Text>Yes, Reset</Text>
+                                                <Text>{i18n.t("yesReset")}</Text>
                                             </Button>
                                         </View>
                                         <View padding={1} flex={1}>
                                             <Button onPress={() => {
                                                 setShowConfirmPasswordReset(false);
                                             }}>
-                                                <Text color={openScoreboardButtonTextColor}>No</Text>
+                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("no")}</Text>
                                             </Button>
                                         </View>
                                     </View>
@@ -80,12 +81,12 @@ export function TableEditModal(props) {
 
                                     alignItems: "center",
                                 }}>
-                                    <Text>Reset Share Access</Text>
+                                    <Text>{i18n.t("resetShareAccess")}</Text>
                                     <View>
                                         <Button onPress={() => {
                                             setShowConfirmPasswordReset(true);
                                         }}>
-                                            <Text color={openScoreboardButtonTextColor}>Reset</Text>
+                                            <Text color={openScoreboardButtonTextColor}>{i18n.t("reset")}</Text>
                                         </Button>
 
                                     </View>
@@ -93,7 +94,7 @@ export function TableEditModal(props) {
                             <Divider></Divider>
                             {showDeleteTable ?
                                 <View>
-                                    <Text>Delete the table, are you sure?</Text>
+                                    <Text>{i18n.t("deleteTableAreSure")}</Text>
                                     <View flexDirection={"row"}>
                                         <View flex={1} padding={1}>
                                             <Button variant={"outline"}
@@ -106,7 +107,7 @@ export function TableEditModal(props) {
                                             >{loadingDeleteTable ?
                                                 <Spinner color={openScoreboardColor}></Spinner>
                                                 :
-                                                <Text>Yes</Text>}
+                                                <Text>{i18n.t("yes")}</Text>}
 
 
                                             </Button>
@@ -117,14 +118,14 @@ export function TableEditModal(props) {
                                                     setShowDeleteTable(false);
                                                 }}
                                             >
-                                                <Text color={openScoreboardButtonTextColor}>No</Text>
+                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("no")}</Text>
                                             </Button>
                                         </View>
                                     </View>
                                 </View>
                                 :
                                 <View padding={1} justifyContent={"space-between"} alignItems={"center"} flexDirection={"row"}>
-                                    <Text>Delete Table</Text>
+                                    <Text>{i18n.t("deleteTable")}</Text>
                                     <Button variant={"ghost"} onPress={async () => {
                                         setShowDeleteTable(true);
                                     }}>

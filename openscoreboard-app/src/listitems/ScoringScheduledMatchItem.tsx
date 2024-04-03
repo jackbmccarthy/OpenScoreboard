@@ -3,6 +3,7 @@ import { Button, Text, View, Spinner, Divider } from 'native-base';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import { setScheduledTableMatchToCurrentMatch } from '../functions/tables';
 import { FontAwesome5 } from '@expo/vector-icons';
+import i18n from '../translations/translate';
 
 export function ScoringScheduledMatchItem(props) {
 
@@ -36,7 +37,7 @@ export function ScoringScheduledMatchItem(props) {
                                     {loadingNewMatch ?
                                         <Spinner color={openScoreboardButtonTextColor} />
                                         :
-                                        <Text color={openScoreboardButtonTextColor}>Confirm</Text>}
+                                        <Text color={openScoreboardButtonTextColor}>{i18n.t("confirm")}</Text>}
 
                                 </Button>
                             </View>
@@ -46,7 +47,7 @@ export function ScoringScheduledMatchItem(props) {
                                         setShowConfirm(false);
                                     }}
                                     variant={"ghost"}>
-                                    <Text>Back</Text>
+                                    <Text>{i18n.t("back")}</Text>
                                 </Button>
                             </View>
                         </>

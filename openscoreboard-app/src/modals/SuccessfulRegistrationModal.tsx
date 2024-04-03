@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Text, Button, View, Modal } from 'native-base';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
+import i18n from '../translations/translate';
 
 export function SuccessfulRegistrationModal({ onClose, isOpen }) {
 
@@ -28,10 +29,10 @@ export function SuccessfulRegistrationModal({ onClose, isOpen }) {
         <Modal isOpen={isOpen} onClose={() => { onClose(); }}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Player registered!</Modal.Header>
+                <Modal.Header>{i18n.t("playerRegistered")}</Modal.Header>
                 <Modal.Body>
-                    <Text>You have successfully registered.</Text>
-                    <Text>Screen will reset in {count} seconds.</Text>
+                    <Text>{i18n.t("registrationSuccess")}</Text>
+                    <Text>{i18n.t("screenResetIn")} {count} {i18n.t("seconds")}.</Text>
 
 
 
@@ -42,7 +43,7 @@ export function SuccessfulRegistrationModal({ onClose, isOpen }) {
                         <Button
                             onPress={() => { onClose(); }}
                         >
-                            <Text color={openScoreboardButtonTextColor}>Close</Text>
+                            <Text color={openScoreboardButtonTextColor}>{i18n.t("close")}</Text>
                         </Button>
                     </View>
                 </Modal.Footer>

@@ -3,6 +3,7 @@ import { Button, Text, View, Modal, FormControl, Switch, Divider, Radio } from '
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { getScoreboardSettings, setScoreboardSettings } from '../functions/scoreboards';
 import LoadingPage from '../LoadingPage';
+import i18n from '../translations/translate';
 export function EditScoreboardSettingsModal(props) {
     let [doneLoading, setDoneLoading] = useState(false)
     let [showDuringActiveMatch, setShowDuringActiveMatch] = useState(false)
@@ -66,7 +67,7 @@ export function EditScoreboardSettingsModal(props) {
         <Modal onClose={() => { props.onClose(); }} isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Scoreboard Settings</Modal.Header>
+                <Modal.Header>{i18n.t("scoreboardSettings")}</Modal.Header>
                 <Modal.Body>
                     {
                         doneLoading ?
@@ -76,19 +77,19 @@ export function EditScoreboardSettingsModal(props) {
                                 <Radio.Group value={radioButtonSetting} onChange={onSelectedRadioButton}>
                                     <View padding={1}>
                                         <Radio value='alwaysShow'>
-                                            Always Show
+                                            {i18n.t("alwaysShow")}
                                         </Radio>
                                     </View>
 
                                     <View padding={1}>
                                         <Radio value='showInBetweenGames'>
-                                            Show In Between Games
+                                            {i18n.t("showInBetweenGames")}
                                         </Radio>
                                     </View>
 
                                     <View padding={1}>
                                         <Radio value='showDuringActiveMatch' >
-                                            Show During Games
+                                            {i18n.t("showDuringGames")}
                                         </Radio>
                                     </View>
 
@@ -159,7 +160,7 @@ export function EditScoreboardSettingsModal(props) {
                                     props.onClose()
                                 }}
                             >
-                                <Text color={openScoreboardButtonTextColor}>Save</Text>
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>
                             </Button>
                         </View>
                         <View flex={1} padding={1}>
@@ -168,7 +169,7 @@ export function EditScoreboardSettingsModal(props) {
                                     props.onClose()
                                 }}
                             >
-                                <Text >Close</Text>
+                                <Text >{i18n.t("close")}</Text>
                             </Button>
                         </View>
                     </View>

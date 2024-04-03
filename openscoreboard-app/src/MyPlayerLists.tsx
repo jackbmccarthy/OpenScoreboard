@@ -8,6 +8,7 @@ import { getMyPlayerLists } from './functions/players';
 import LoadingPage from './LoadingPage';
 import { AddPlayerListModal } from './modals/AddPlayerListModal';
 import { PlayerListItem } from './listitems/PlayerListItem';
+import i18n from './translations/translate';
 
 export default function MyPlayerLists(props) {
     let [doneLoading, setDoneLoading] = useState(false)
@@ -66,14 +67,14 @@ export default function MyPlayerLists(props) {
                                 :
                                 <View justifyContent={"center"} alignItems="center">
                                     <View>
-                                        <Text fontSize={"xl"} fontWeight="bold">You have no Player Lists.</Text>
+                                        <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noPlayerLists")}</Text>
                                         <View padding={2}>
                                             <Button
                                                 onPress={() => {
                                                     setShowNewPlayerList(true)
                                                 }}
                                             >
-                                                <Text color={openScoreboardButtonTextColor}>Create One!</Text>
+                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
                                             </Button>
                                         </View>
                                     </View>

@@ -4,6 +4,7 @@ import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import { addPlayerList, getMyPlayerLists } from '../functions/players';
 import LoadingPage from '../LoadingPage';
 import { setPlayerListToTable } from '../functions/tables';
+import i18n from '../translations/translate';
 
 export function EditTablePlayerListModal(props) {
 
@@ -32,13 +33,13 @@ export function EditTablePlayerListModal(props) {
         }}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Edit Player List</Modal.Header>
+                <Modal.Header>{i18n.t("editPlayerList")}</Modal.Header>
                 <Modal.Body>
                     {
                         doneLoading ?
                         myPlayerLists.length > 0 ?
 <FormControl>
-                        <FormControl.Label>Select Player List</FormControl.Label>
+                        <FormControl.Label>{i18n.t("selectPlayerList")}</FormControl.Label>
 
                         <Select onValueChange={(text)=>{
                             setSelectedPlayerListID(text)
@@ -53,7 +54,7 @@ export function EditTablePlayerListModal(props) {
                         </Select>
                     </FormControl>
                     :
-                    <Text>You currently have no player lists to use. Please go back, and add the players, then come back to utilize this feature.</Text>
+                    <Text>{i18n.t("noPlayerListsGoAdd")}</Text>
                         :
                             <LoadingPage></LoadingPage>
                     }
@@ -75,7 +76,7 @@ export function EditTablePlayerListModal(props) {
                            
                            { loadingNewPlayerList  ?
                                 <Spinner color={openScoreboardButtonTextColor}></Spinner> :
-                                <Text color={openScoreboardButtonTextColor}>Save</Text>}
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>}
                                 
                         </Button>
                         : null}
@@ -86,7 +87,7 @@ export function EditTablePlayerListModal(props) {
                                 props.onClose(false);
                             }}
                         >
-                            <Text>Close</Text>
+                            <Text>{i18n.t("close")}</Text>
                         </Button>
                     </View>
                 </Modal.Footer>

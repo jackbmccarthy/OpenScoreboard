@@ -6,6 +6,7 @@ import { getCombinedPlayerNames } from '../functions/players';
 import { archiveMatchForTeamMatch, createTeamMatchNewMatch } from '../functions/teammatches';
 import { getScheduledTableMatches } from '../functions/tables';
 import { ScoringScheduledMatchItem } from '../listitems/ScoringScheduledMatchItem';
+import i18n from '../translations/translate';
 
 export function MatchFinishedModal(props) {
 
@@ -43,7 +44,7 @@ export function MatchFinishedModal(props) {
                     {
                         showScheduledMatches ?
                             <View>
-                                <Text fontSize={"xl"} fontWeight={"bold"} textAlign={"center"}>Select Match</Text>
+                                <Text fontSize={"xl"} fontWeight={"bold"} textAlign={"center"}>{i18n.t("selectMatch")}</Text>
                                 {
                                     scheduledMatches.length > 0 ?
                                         <FlatList
@@ -67,14 +68,14 @@ export function MatchFinishedModal(props) {
                                         :
                                         <View>
                                             <View padding={1}>
-                                                <Text textAlign={"center"}>There are no scheduled matches.</Text>
+                                                <Text textAlign={"center"}>{i18n.t("noScheduledMatches")}</Text>
                                             </View>
 
                                             <View>
                                                 <Button onPress={() => {
                                                     setShowScheduledMatches(false)
                                                 }} >
-                                                    <Text color={openScoreboardButtonTextColor}>Back</Text>
+                                                    <Text color={openScoreboardButtonTextColor}>{i18n.t("back")}</Text>
                                                 </Button>
                                             </View>
                                         </View>
@@ -85,14 +86,14 @@ export function MatchFinishedModal(props) {
                                     <Button onPress={() => {
                                         setShowScheduledMatches(false)
                                     }}>
-                                        <Text color={openScoreboardButtonTextColor}>Back</Text>
+                                        <Text color={openScoreboardButtonTextColor}>{i18n.t("back")}</Text>
                                     </Button>
                                 </View>
                             </View>
                             :
 
                             <>
-                                <Text textAlign={"center"} fontSize={"5xl"}>Match Finished</Text>
+                                <Text textAlign={"center"} fontSize={"5xl"}>{i18n.t("matchFinished")}</Text>
 
                                 <Text textAlign={"center"} fontSize={"3xl"}>{playerAWon ? getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).a : getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).b}</Text>
                                 <Text textAlign={"center"} fontSize={"4xl"}>{winnerScore(playerScore.a, playerScore.b)} - {loserScore(playerScore.a, playerScore.b)}</Text>
@@ -121,7 +122,7 @@ export function MatchFinishedModal(props) {
                                     >
                                         {loadingNewMatch ?
                                             <Spinner color={openScoreboardButtonTextColor}></Spinner> :
-                                            <Text color={openScoreboardButtonTextColor}>Start Another Match</Text>}
+                                            <Text color={openScoreboardButtonTextColor}>{i18n.t("startAnotherMatch")}</Text>}
 
                                     </Button>
                                 </View>
@@ -142,7 +143,7 @@ export function MatchFinishedModal(props) {
                                     >
                                         {loadingScheduledMatches ?
                                             <Spinner color={openScoreboardButtonTextColor}></Spinner> :
-                                            <Text color={openScoreboardButtonTextColor}>Select From Schedule Matches</Text>}
+                                            <Text color={openScoreboardButtonTextColor}>{i18n.t("selectFromScheduledMatches")}</Text>}
 
                                     </Button>
                                 </View>

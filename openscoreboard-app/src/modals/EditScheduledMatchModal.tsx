@@ -43,9 +43,13 @@ export function EditScheduledMatchModal(props) {
                 <Modal.Body>
                     {doneLoading ?
                         <View padding={2}>
-                            <MatchSetup matchID={props.matchID} isScheduling={true} scheduledMatchID={props.scheduledMatchID} schedMatchStartTime={props.scheduledMatchStartTime}
-                                updateMatchPlayer={updateMatchPlayer}
-                                {...newMatchData} player={editPlayer} setEditPlayer={setEditPlayer} {...props}></MatchSetup>
+                            <MatchSetup matchID={props.matchID} isScheduling={true} scheduledMatchID={props.scheduledMatchID} 
+                            schedMatchStartTime={props.scheduledMatchStartTime}
+                                
+                            updateMatchPlayer={updateMatchPlayer}
+                                {...newMatchData} 
+                                player={editPlayer} 
+                                setEditPlayer={setEditPlayer} {...props}></MatchSetup>
                         </View>
                         : <LoadingPage></LoadingPage>}
 

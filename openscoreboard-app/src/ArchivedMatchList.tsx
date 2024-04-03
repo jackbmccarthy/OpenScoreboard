@@ -6,6 +6,7 @@ import { FontAwesome } from '@expo/vector-icons'
 import { getArchivedMatchesForTable, getArchivedMatchesForTeamMatch } from './functions/scoring';
 import LoadingPage from './LoadingPage';
 import { ArchivedMatchItem } from './listitems/ArchivedMatchItem';
+import i18n from './translations/translate';
 
 export default function ArchivedMatchList(props) {
 
@@ -57,7 +58,7 @@ export default function ArchivedMatchList(props) {
                             :
                             <View justifyContent={"center"} alignItems="center">
                                 <View>
-                                    <Text fontSize={"xl"} fontWeight="bold">You have no archived matches for this table.</Text>
+                                    <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noArchivedMatchesTable")}</Text>
                                     
                                 </View>
                             </View>

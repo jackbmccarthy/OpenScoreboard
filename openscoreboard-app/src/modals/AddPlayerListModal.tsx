@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Text, Button, View, Input, Spinner, Modal, FormControl } from 'native-base';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import { addPlayerList } from '../functions/players';
+import i18n from '../translations/translate';
 
 export function AddPlayerListModal(props) {
 
@@ -29,10 +30,10 @@ export function AddPlayerListModal(props) {
         }}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Add New Player List</Modal.Header>
+                <Modal.Header>{i18n.t("addNewPlayerList")}</Modal.Header>
                 <Modal.Body>
                     <FormControl>
-                        <FormControl.Label>Name</FormControl.Label>
+                        <FormControl.Label>{i18n.t("name")}</FormControl.Label>
                         <Input
                         onSubmitEditing={(event)=>{
                             if(listName.length > 0){
@@ -52,7 +53,7 @@ export function AddPlayerListModal(props) {
                         >
                             {loadingNewPlayerList ?
                                 <Spinner color={openScoreboardButtonTextColor}></Spinner> :
-                                <Text color={openScoreboardButtonTextColor}>Add</Text>}
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("add")}</Text>}
 
                         </Button>
                     </View>
@@ -62,7 +63,7 @@ export function AddPlayerListModal(props) {
                                 props.onClose(false);
                             }}
                         >
-                            <Text>Close</Text>
+                            <Text>{i18n.t("close")}</Text>
                         </Button>
                     </View>
                 </Modal.Footer>

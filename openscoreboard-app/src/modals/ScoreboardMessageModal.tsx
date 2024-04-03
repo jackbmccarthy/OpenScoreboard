@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Text, View, Modal, FormControl } from 'native-base';
-import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
-import { setUsedTimeOut, startTimeOut } from '../functions/scoring';
-import { getCombinedPlayerNames } from '../functions/players';
+import { Button, Text, View, Modal, } from 'native-base';
+import { openScoreboardButtonTextColor,  } from "../../openscoreboardtheme";
+
 import { openBrowserAsync } from 'expo-web-browser';
-import { setStringAsync } from 'expo-clipboard';
+
+import i18n from '../translations/translate';
 export function ScoreboardMessageModal(props) {
 
 
@@ -12,9 +12,9 @@ export function ScoreboardMessageModal(props) {
         <Modal onClose={() => { props.onClose(); }} isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Edit Scoreboard</Modal.Header>
+                <Modal.Header>{i18n.t("editScoreboard")}</Modal.Header>
                 <Modal.Body>
-                    <Text>This editor is only supported on a computer, mobile devices might not work as intended.</Text>
+                    <Text>{i18n.t("editorMessage")}</Text>
                     <View padding={1}
                     >
                         <Button onPress={() => {
@@ -30,7 +30,7 @@ export function ScoreboardMessageModal(props) {
                  
                             openBrowserAsync(editorLink);
                         }}>
-                            <Text color={openScoreboardButtonTextColor}>Launch Scoreboard</Text>
+                            <Text color={openScoreboardButtonTextColor}>{i18n.t("launchScoreboard")}</Text>
 
                         </Button>
                         

@@ -4,6 +4,7 @@ import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import CopyButton from '../components/CopyButton';
 import ScoreboardLinkList from '../components/ScoreboardLinkList';
 import { subFolderPath } from '../../openscoreboard.config';
+import i18n from '../translations/translate';
 
 export function TeamMatchLinkModal(props) {
 
@@ -21,13 +22,13 @@ export function TeamMatchLinkModal(props) {
         <Modal isOpen={props.isOpen} onClose={() => { props.onClose(); }}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Get Table Links</Modal.Header>
+                <Modal.Header>{i18n.t("getTableLinks")}</Modal.Header>
                 <Modal.Body>
                     <View padding={1}>
                                     
                                     <FormControl>
-                                    <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">Score Keeping URL</Text>
-                                    <Text textAlign={"center"}>Share this link so someone else can keep score.</Text>
+                                    <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreKeepingURL")}</Text>
+                                    <Text textAlign={"center"}>{i18n.t("shareThisLink")}</Text>
                                         <View flexDirection={"row"}>
                                             <Input flex={1} isReadOnly value={scoreKeepingURL}></Input>
                                             <CopyButton text={scoreKeepingURL} />
@@ -35,7 +36,7 @@ export function TeamMatchLinkModal(props) {
 
                                     </FormControl>
                                 </View>
-                                <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">Scoreboard URL(s)</Text>
+                                <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreboardURLs")}</Text>
                                
 
                                 <ScoreboardLinkList isTeamMatch={true} teamMatchID={props.id}  tableID={props.tableID} {...props}></ScoreboardLinkList>

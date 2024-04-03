@@ -19,7 +19,7 @@ export function AdvanceSettingsModal(props) {
     const matchScores = getMatchScore(props)
     const gamesPlayed = matchScores.a + matchScores.b
 
-    
+
 
     useEffect(() => {
         setBestOfGames(props.bestOf)
@@ -171,7 +171,7 @@ export function AdvanceSettingsModal(props) {
                     </View>
 
                     <View padding={1}>
-                        <FormControl.Label>Points To Win Game</FormControl.Label>
+                        <FormControl.Label>{i18n.t("pointsToWinGame")}</FormControl.Label>
 
                         <View padding={1}>
                             <View flexDir={"row"}>
@@ -225,7 +225,7 @@ export function AdvanceSettingsModal(props) {
                     {supportedSports[props.sportName].hasScoringTypes ?
 
                         <View padding={1}>
-                            <FormControl.Label>Change Scoring Type</FormControl.Label>
+                            <FormControl.Label>{i18n.t("changeScoringType")}</FormControl.Label>
 
                             <View padding={1}>
                                 <View flexDir={"row"}>
@@ -262,7 +262,7 @@ export function AdvanceSettingsModal(props) {
 
 
                     <View padding={1}>
-                        <FormControl.Label>Change Server Every X Points</FormControl.Label>
+                        <FormControl.Label>{i18n.t("changeServerEveryXPoints")}</FormControl.Label>
 
                         <View padding={1}>
                             <View flexDir={"row"}>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, View, Text, Divider } from 'native-base';
 import { openScoreboardColor } from "../../openscoreboardtheme";
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import i18n from '../translations/translate';
 
 
 export function ScoreboardItem(props) {
@@ -17,14 +18,14 @@ export function ScoreboardItem(props) {
                     </View>
                     {showDelete ?
                         <View alignItems={"center"} flexDirection={"row"}>
-                            <Text fontSize={"xl"} fontWeight={"bold"}>Delete this scoreboard?</Text>
+                            <Text fontSize={"xl"} fontWeight={"bold"}>{i18n.t("deleteThisScoreboard")}?</Text>
                             <View padding={1}>
                                 <Button
                                     onPress={() => {
                                         props.onDelete(props.item[0]);
                                     }}
                                 >
-                                    <Text>Yes</Text>
+                                    <Text>{i18n.t("yes")}</Text>
                                 </Button>
                             </View>
                             <View padding={1}>
@@ -33,7 +34,7 @@ export function ScoreboardItem(props) {
                                         setShowDelete(false);
                                     }}
                                 >
-                                    <Text>No</Text>
+                                    <Text>{i18n.t("no")}</Text>
                                 </Button>
                             </View>
                         </View>

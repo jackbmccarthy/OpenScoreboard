@@ -2,7 +2,7 @@
 
 import React, { Component, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView,  Share } from 'react-native';
-import { Text, Button, Tab, Tabs, Container, Icon,View, ListItem, Body, Card, CardItem, NativeBaseProvider, Spinner, FormControl, Input, } from 'native-base';
+import { Text, Button,View, NativeBaseProvider, Spinner, FormControl, Input, } from 'native-base';
 //import { withNavigationFocus, NavigationEvents } from 'react-navigation';
 
 
@@ -14,6 +14,7 @@ import { SuccessfulRegistrationModal } from './modals/SuccessfulRegistrationModa
 import { getNewPlayer, newImportedPlayer } from './classes/Player';
 import { addImportedPlayer, getImportPlayerList, watchForPlayerListPasswordChange } from './functions/players';
 import Unauthorized from './Unauthorized';
+import i18n from './translations/translate';
 
 export default function PlayerRegistration({route, navigation}){
 
@@ -23,7 +24,7 @@ export default function PlayerRegistration({route, navigation}){
     let [unauthorized, setUnAuthorized] = useState(false)
 
     let [playerListExists, setPlayerListExists] = useState(false)
-    let [loadingPlayer, setLoadingPlayer] = useState()
+    let [loadingPlayer, setLoadingPlayer] = useState(false)
     let [showSuccess, setShowSuccess] = useState(false)
 
     useEffect(()=>{
@@ -54,26 +55,26 @@ if(!unauthorized){
             <View justifyContent={"center"} alignItems="center" width={"100%"}height={"100%"}>
                 
                 <View>
-                    <Text textAlign={"center"} lineHeight={"2xl"} fontSize={"3xl"}>Player Registration</Text>
-                    <Text  textAlign={"center"}  lineHeight={"2xl"} >Please register your name here.</Text>
+                    <Text textAlign={"center"} lineHeight={"2xl"} fontSize={"3xl"}>{i18n.t("playerRegistration")}</Text>
+                    <Text  textAlign={"center"}  lineHeight={"2xl"} >{i18n.t("registerHere")}</Text>
                
                 </View>
                 
                 <View maxWidth={"lg"}>
                     <FormControl>
-                        <FormControl.Label>First Name</FormControl.Label>
+                        <FormControl.Label>{i18n.t("firstName")}</FormControl.Label>
                         <Input value={firstName}
                         onChangeText={(text)=>{
                             setFirstName(text)
                         }}
                         type="text"></Input>
-                        <FormControl.Label>Last Name</FormControl.Label>
+                        <FormControl.Label>{i18n.t("lastName")}</FormControl.Label>
                         <Input value={lastName}
                         onChangeText={(text)=>{
                             setLastName(text)
                         }}
                         type="text"></Input>
-                        <FormControl.Label>Jersey Color</FormControl.Label>
+                        <FormControl.Label>{i18n.t("jerseyColor")}</FormControl.Label>
                         <JerseyColorOptions color={selectedColor} onSelect={(selectedColor)=>{
                             setSelectedColor(selectedColor)
                         }} ></JerseyColorOptions>
@@ -94,7 +95,7 @@ if(!unauthorized){
                                 loadingPlayer ?
 <Spinner  ></Spinner>
                                 :
-<Text color={openScoreboardButtonTextColor}>Register</Text>
+<Text color={openScoreboardButtonTextColor}>{i18n.t("register")}</Text>
                             }
                             
                             

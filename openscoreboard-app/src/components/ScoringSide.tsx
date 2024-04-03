@@ -3,7 +3,7 @@ import { Button, Spinner, Text, View } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { getPlayerFormatted } from '../functions/players';
-import { AddPoint, getCurrentGameNumber, getGameScore, getMatchScore, isFinalGame, isGameFinished, isGamePoint, MinusPoint, setIsGamePoint, setisManualMode, setIsMatchPoint, setServerManually, updateService } from '../functions/scoring';
+import { AddPoint, getCurrentGameNumber, getMatchScore, isFinalGame, isGameFinished, isGamePoint, MinusPoint, setIsGamePoint, setisManualMode, setIsMatchPoint, setServerManually, updateService } from '../functions/scoring';
 
 export function ScoringSide(props) {
 
@@ -99,7 +99,7 @@ export function ScoringSide(props) {
                             if (props.isA) {
                                 let newAScore = await AddPoint(props.matchID, gameNumber, "A")
                                 if (!manualServiceMode) {
-                                    await updateService(props.matchID, props.isAInitialServer, gameNumber, newAScore + props[`game${gameNumber}BScore`], props.changeServeEveryXPoints, props.pointsToWinGame)
+                                    await updateService(props.matchID, props.isAInitialServer, gameNumber, newAScore + props[`game${gameNumber}BScore`], props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType)
                                 }
                                 let isGameDone = isGameFinished(props.enforceGameScore, newAScore, props[`game${gameNumber}BScore`], props.pointsToWinGame)
                                 if (isGameDone) {
@@ -124,7 +124,7 @@ export function ScoringSide(props) {
                             else {
                                 let newBScore = await AddPoint(props.matchID, getCurrentGameNumber(props), "B")
                                 if (!manualServiceMode) {
-                                    await updateService(props.matchID, props.isAInitialServer, gameNumber, newBScore + props[`game${gameNumber}AScore`], props.changeServeEveryXPoints, props.pointsToWinGame)
+                                    await updateService(props.matchID, props.isAInitialServer, gameNumber, newBScore + props[`game${gameNumber}AScore`], props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType)
                                 }
                                 let isGameDone = isGameFinished(props.enforceGameScore, props[`game${gameNumber}AScore`], newBScore, props.pointsToWinGame)
                                 if (isGameDone) {
@@ -208,7 +208,7 @@ export function ScoringSide(props) {
                             let gameNumber = getCurrentGameNumber(props)
                             if (props.isA) {
                                 let newAScore = await MinusPoint(props.matchID, getCurrentGameNumber(props), "A")
-                                await updateService(props.matchID, props.isAInitialServer, gameNumber, newAScore + props[`game${gameNumber}BScore`], props.changeServeEveryXPoints, props.pointsToWinGame)
+                                await updateService(props.matchID, props.isAInitialServer, gameNumber, newAScore + props[`game${gameNumber}BScore`], props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType)
                                 if(isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) && isFinalGame({ ...props, [`game${gameNumber}AScore`]: newAScore })){
                                     //Match Point
                                     setIsMatchPoint(props.matchID, true)
@@ -227,7 +227,7 @@ export function ScoringSide(props) {
                             }
                             else {
                                 let newBScore = await MinusPoint(props.matchID, getCurrentGameNumber(props), "B")
-                                await updateService(props.matchID, props.isAInitialServer, gameNumber, newBScore + props[`game${gameNumber}AScore`], props.changeServeEveryXPoints, props.pointsToWinGame)
+                                await updateService(props.matchID, props.isAInitialServer, gameNumber, newBScore + props[`game${gameNumber}AScore`], props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType)
                                 if(isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) && isFinalGame({ ...props, [`game${gameNumber}BScore`]: newBScore })){
                                     //Match Point
                                     setIsMatchPoint(props.matchID, true)

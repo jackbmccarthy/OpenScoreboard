@@ -3,6 +3,7 @@ import { Text, Button, View, Divider, Spinner } from 'native-base';
 import { FontAwesome } from '@expo/vector-icons';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { deletePlayerList } from '../functions/players';
+import i18n from '../translations/translate';
 
 export function PlayerListItem(props) {
     let [showDelete, setShowDelete] = useState(false);
@@ -14,7 +15,7 @@ export function PlayerListItem(props) {
                 <View flexDirection={"row"} padding={1} justifyContent="space-evenly">
                 {showDelete ?
                     <View alignItems={"center"} flexDirection={"row"}>
-                        <Text fontSize={"xl"} fontWeight={"bold"}>Delete Player List?</Text>
+                        <Text fontSize={"xl"} fontWeight={"bold"}>{i18n.t("deletePlayerList")}?</Text>
                         <View padding={1}>
                             <Button variant={"ghost"}
                                 onPress={async () => {
@@ -32,7 +33,7 @@ export function PlayerListItem(props) {
                             { 
                             loadingDelete ?
                                 <Spinner color={openScoreboardColor}></Spinner>:
-                                <Text>Yes</Text>
+                                <Text>{i18n.t("yes")}</Text>
                             }
                                 
                             </Button>
@@ -43,7 +44,7 @@ export function PlayerListItem(props) {
                                     setShowDelete(false);
                                 }}
                             >
-                                <Text color={openScoreboardButtonTextColor}>No</Text>
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("no")}</Text>
                             </Button>
                         </View>
                     </View>

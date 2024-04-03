@@ -7,7 +7,6 @@ import { Button, View, NativeBaseProvider, FlatList, Fab, AddIcon, Input, Text }
 import { addNewScoreboard, getMyScoreboards, getScoreboardTypesList } from './functions/scoreboards';
 import { getUserPath } from '../database';
 import LoadingPage from './LoadingPage';
-import { liveTTScoreboardBackbroundColor } from '../openscoreboard.config';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 
@@ -20,6 +19,7 @@ import { TableLinkModal } from './modals/TableLinkModal';
 import { TeamMatchLinkModal } from './modals/TeamMatchLinkModal';
 import { EditTeamMatchModal } from './modals/EditTeamMatchModal';
 import { DeleteTeamMatchModal } from './modals/DeleteTeamMatchModal';
+import i18n from './translations/translate';
 
 export default function MyTeamMatches(props) {
 
@@ -143,14 +143,14 @@ export default function MyTeamMatches(props) {
 
                                 <View justifyContent={"center"} alignItems="center">
                                     <View>
-                                        <Text fontSize={"xl"} fontWeight="bold">You have no Team Matches.</Text>
+                                        <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noTeamMatches")}</Text>
                                         <View padding={2}>
                                             <Button
                                                 onPress={() => {
                                                     setShowNewTeamMatchModal(true)
                                                 }}
                                             >
-                                                <Text color={openScoreboardButtonTextColor}>Create One!</Text>
+                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
                                             </Button>
                                         </View>
                                     </View>

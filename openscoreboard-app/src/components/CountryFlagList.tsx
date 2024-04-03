@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { TouchableOpacity } from "react-native";
 import jsonFlags from '../flags/countries.json'
 import LoadingPage from "../LoadingPage";
+import i18n from "../translations/translate";
 
 
 function CountryFlagItem(props) {
@@ -69,7 +70,7 @@ export default function CountryFlagList(props) {
         return (
         <View overflowY={"hidden"} flex={1}>
             <View padding={1}>
-                <Input placeholder="Search Countries"
+                <Input placeholder={i18n.t("searchCountries")}
                     value={countrySearchText}
                     onChangeText={setCountrySearchText}
                 ></Input>

@@ -4,6 +4,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import { setStringAsync } from 'expo-clipboard';
+import i18n from '../translations/translate';
 
 
 export default function CopyButton({text}){
@@ -24,7 +25,7 @@ export default function CopyButton({text}){
             >
                 {
                     wasCopied ? 
-                    <Text color={openScoreboardButtonTextColor}>Copied!</Text>:
+                    <Text color={openScoreboardButtonTextColor}>{i18n.t("copied")}!</Text>:
                     <FontAwesome name="copy" color={openScoreboardButtonTextColor} size={24} />
                 }
                 

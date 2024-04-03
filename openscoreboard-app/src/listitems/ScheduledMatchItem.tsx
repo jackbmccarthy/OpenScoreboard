@@ -3,6 +3,7 @@ import { View, Text, Button, Divider } from 'native-base';
 import { FontAwesome } from '@expo/vector-icons';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { deleteScheduledTableMatch } from '../functions/scoring';
+import i18n from '../translations/translate';
 
 export function ScheduledMatchItem(props) {
 
@@ -13,7 +14,7 @@ export function ScheduledMatchItem(props) {
         <View>
             {deleteMatch ?
                 <View>
-                    <Text textAlign={"center"} fontSize="xl">Are you sure you want to delete this match?</Text>
+                    <Text textAlign={"center"} fontSize="xl">{i18n.t("areYouSureDeleteMatch")}?</Text>
                     <View flexDirection={"row"}>
                         <View flex={1} padding={1}>
                             <Button variant={"outline"}
@@ -24,14 +25,14 @@ export function ScheduledMatchItem(props) {
                                     props.reload();
                                 }}
                             >
-                                <Text>Yes</Text>
+                                <Text>{i18n.t("yes")}</Text>
                             </Button>
                         </View>
                         <View flex={1} padding={1}>
                             <Button onPress={() => {
                                 setDeleteMatch(false);
                             }}>
-                                <Text color={openScoreboardButtonTextColor}>No</Text>
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("no")}</Text>
                             </Button>
                         </View>
                     </View>

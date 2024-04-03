@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, View, Modal, FormControl, Input, Select, Text } from 'native-base';
 import { addNewScoreboard, getScoreboardTypesList } from '../functions/scoreboards';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
+import i18n from '../translations/translate';
 
 export function NewScoreBoardModal(props) {
 
@@ -14,10 +15,10 @@ export function NewScoreBoardModal(props) {
         <Modal onClose={() => { props.onClose(); }} isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>New Scoreboard</Modal.Header>
+                <Modal.Header>{i18n.t("newScoreboard")}</Modal.Header>
                 <Modal.Body>
                     <FormControl>
-                        <FormControl.Label>Scoreboard Name</FormControl.Label>
+                        <FormControl.Label>{i18n.t("scoreboardName")}</FormControl.Label>
                         <Input
                             value={scoreboardName}
                             onChangeText={setScoreboardName}
@@ -33,7 +34,7 @@ export function NewScoreBoardModal(props) {
                         props.onClose(true)
                     }}
                 >
-                    <Text color={openScoreboardButtonTextColor}>Create</Text>
+                    <Text color={openScoreboardButtonTextColor}>{i18n.t("create")}</Text>
                 </Button>
                 </View>
                     <View padding={1}><Button
@@ -41,7 +42,7 @@ export function NewScoreBoardModal(props) {
                             props.onClose(false);
                         }} variant="ghost"
                     >
-                        <Text>Close</Text>
+                        <Text>{i18n.t("close")}</Text>
                     </Button></View></Modal.Footer>
             </Modal.Content>
         </Modal>

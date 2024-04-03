@@ -32,7 +32,7 @@ export function ServiceSettingsModal(props) {
                                         await setInitialMatchServer(props.matchID, true);
                                         setLoadingMatchServer(false);
                                         let currentScore = getCurrentGameScore(props);
-                                        updateService(props.matchID, true, getCurrentGameNumber(props), currentScore.a + currentScore.b, props.changeServeEveryXPoints, props.pointsToWinGame);
+                                        updateService(props.matchID, true, getCurrentGameNumber(props), currentScore.a + currentScore.b, props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName,props.scoringType);
                                     }}
                                 >
                                     <Text color={isAInitialServer ? openScoreboardButtonTextColor : openScoreboardColor}>{getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).a}</Text>
@@ -47,7 +47,7 @@ export function ServiceSettingsModal(props) {
                                         await setInitialMatchServer(props.matchID, false);
                                         setLoadingMatchServer(false);
                                         let currentScore = getCurrentGameScore(props);
-                                        updateService(props.matchID, false, getCurrentGameNumber(props), currentScore.a + currentScore.b, props.changeServeEveryXPoints, props.pointsToWinGame);
+                                        updateService(props.matchID, false, getCurrentGameNumber(props), currentScore.a + currentScore.b, props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName,props.scoringType);
                                     }}
                                 >
                                     <Text color={isAInitialServer ? openScoreboardColor : openScoreboardButtonTextColor}>{getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).b}</Text>
@@ -64,7 +64,7 @@ export function ServiceSettingsModal(props) {
                                         setIsManual(false);
                                         setisManualMode(props.matchID, false);
                                         const {a,b} = getCurrentGameScore(props)
-                                        updateService(props.matchID, props.isAInitialServer,getCurrentGameNumber(props), a+b,props.changeServeEveryXPoints, props.pointsToWinGame )
+                                        updateService(props.matchID, props.isAInitialServer,getCurrentGameNumber(props), a+b,props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName,props.scoringType )
                                     }}
                                     backgroundColor={isManual ? "gray.300" : openScoreboardColor}>
                                     <Text color={isManual ? openScoreboardColor : openScoreboardButtonTextColor}>{i18n.t("auto")}</Text>

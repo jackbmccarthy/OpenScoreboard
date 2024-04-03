@@ -11,6 +11,7 @@ import LoadingPage from './LoadingPage';
 import { TableEditModal } from './modals/TableEditModal';
 import { TableLinkModal } from './modals/TableLinkModal';
 import { EditTablePlayerListModal } from './modals/EditTablePlayerListModal';
+import i18n from './translations/translate';
 
 
 
@@ -140,14 +141,14 @@ export default function MyTables(props) {
                                 :
                                 <View justifyContent={"center"} alignItems="center">
                                     <View>
-                                        <Text fontSize={"xl"} fontWeight="bold">You have no Tables.</Text>
+                                        <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noTables")}</Text>
                                         <View padding={2}>
                                             <Button
                                                 onPress={() => {
                                                     setShowCreateTable(true)
                                                 }}
                                             >
-                                                <Text color={openScoreboardButtonTextColor}>Create One!</Text>
+                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
                                             </Button>
                                         </View>
                                     </View>

@@ -6,6 +6,7 @@ import { newImportedPlayer } from '../classes/Player';
 import { newTeam } from '../classes/Team';
 import { v4 as uuidv4 } from 'uuid';
 import { TeamPlayerItem } from '../listitems/TeamPlayerItem';
+import i18n from '../translations/translate';
 
 export function NewTeamModal(props) {
 
@@ -105,15 +106,15 @@ export function NewTeamModal(props) {
         }} isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>{showAddPlayer ? "Add Team Player" : "New Team"}</Modal.Header>
+                <Modal.Header>{showAddPlayer ? i18n.t("addTeamPlayer") : i18n.t("newTeam")}</Modal.Header>
                 <Modal.Body>
                     {showAddPlayer ?
                         <FormControl>
-                            <FormControl.Label>First Name<Text color={"red"}>*</Text></FormControl.Label>
+                            <FormControl.Label>{i18n.t("firstName")}<Text color={"red"}>*</Text></FormControl.Label>
                             <Input ref={firstNameRef} value={firstName} onChangeText={setFirstName}></Input>
-                            <FormControl.Label>Last Name</FormControl.Label>
+                            <FormControl.Label>{i18n.t("lastName")}</FormControl.Label>
                             <Input value={lastName} onChangeText={setLastName}></Input>
-                            <FormControl.Label>Image URL</FormControl.Label>
+                            <FormControl.Label>{i18n.t("imageURL")}</FormControl.Label>
                             <Input value={imageURL} onChangeText={setImageURL}></Input>
 
 
@@ -129,7 +130,7 @@ export function NewTeamModal(props) {
                                             setImageURL("")
                                         }}
                                     >
-                                        <Text color={openScoreboardButtonTextColor}>Add</Text>
+                                        <Text color={openScoreboardButtonTextColor}>{i18n.t("add")}</Text>
                                     </Button>
                                 </View>
                                 <View padding={1} flex={1}>
@@ -141,14 +142,14 @@ export function NewTeamModal(props) {
                                             setImageURL("")
                                         }}
                                     >
-                                        <Text color={openScoreboardColor}>Back</Text>
+                                        <Text color={openScoreboardColor}>{i18n.t("back")}</Text>
                                     </Button>
                                 </View>
                             </View>
 
                         </FormControl> :
                         <FormControl>
-                            <FormControl.Label>Team Name</FormControl.Label>
+                            <FormControl.Label>{i18n.t("teamName")}</FormControl.Label>
                             <Input
                             onSubmitEditing={(event)=>{
                                 if(!showAddPlayer && teamName.length > 0){
@@ -156,9 +157,9 @@ export function NewTeamModal(props) {
                                 }
                             }}
                             ref={teamNameRef} value={teamName} onChangeText={setTeamName}></Input>
-                            <FormControl.Label>Team Logo URL</FormControl.Label>
+                            <FormControl.Label>{i18n.t("teamLogoURL")}</FormControl.Label>
                             <Input value={teamLogoURL} onChangeText={setTeamLogoURL}></Input>
-                            <FormControl.Label>Players</FormControl.Label>
+                            <FormControl.Label>{i18n.t("players")}</FormControl.Label>
                             {players && Object.entries(players).map((player, index) => {
                                 return (
                                     <View key={player[0]}>
@@ -217,7 +218,7 @@ export function NewTeamModal(props) {
                             {loadingNewTeam ?
                                 <Spinner></Spinner>
                                 :
-                                <Text color={openScoreboardButtonTextColor}>{props.isEditingTeam ? "Save" : "Add"}</Text>}
+                                <Text color={openScoreboardButtonTextColor}>{props.isEditingTeam ? i18n.t("save") : i18n.t("add")}</Text>}
 
                         </Button>
                     </View>
@@ -229,7 +230,7 @@ export function NewTeamModal(props) {
                                 setShowAddPlayer(false);
                                 props.onClose(false);
                             }}
-                        ><Text>Close</Text>
+                        ><Text>{i18n.t("close")}</Text>
                         </Button>
                     </View>
                 </Modal.Footer>

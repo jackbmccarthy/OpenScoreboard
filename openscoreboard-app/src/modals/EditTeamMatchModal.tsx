@@ -6,6 +6,7 @@ import { addNewTeamMatch, setTeamMatchTeamScore } from '../functions/teammatches
 import { getMyTeams } from '../functions/teams';
 import { newTeamMatch } from '../classes/TeamMatch';
 import { DateTimePicker } from '../components/DateTimePicker';
+import i18n from '../translations/translate';
 
 export function EditTeamMatchModal(props) {
     let [loadingEditMatch, setLoadingEditMatch] = useState(false);
@@ -36,10 +37,10 @@ export function EditTeamMatchModal(props) {
         }} isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Edit Team Match</Modal.Header>
+                <Modal.Header>{i18n.t("Edit Team Match")}</Modal.Header>
                 <Modal.Body>
                     <FormControl>
-                        <FormControl.Label>{props.teamAName} Score</FormControl.Label>
+                        <FormControl.Label>{props.teamAName} {i18n.t("score")}</FormControl.Label>
 <View flexDirection={"row"} alignItems="center">
                         <View padding={1}>
                             <Button onPress={() => { 
@@ -67,7 +68,7 @@ export function EditTeamMatchModal(props) {
                         </View>
                     </View>
 
-                    <FormControl.Label>{props.teamBName} Score</FormControl.Label>
+                    <FormControl.Label>{props.teamBName} {i18n.t("score")}</FormControl.Label>
 <View flexDirection={"row"}  alignItems="center">
                         <View padding={1}>
                             <Button onPress={() => { 
@@ -114,7 +115,7 @@ export function EditTeamMatchModal(props) {
                             {loadingEditMatch ?
                                 <Spinner></Spinner>
                                 :
-                                <Text color={openScoreboardButtonTextColor}>Save</Text>}
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>}
 
                         </Button>
                     </View>
@@ -126,7 +127,7 @@ export function EditTeamMatchModal(props) {
 
                                 props.onClose(false);
                             }}
-                        ><Text>Close</Text>
+                        ><Text>{i18n.t("close")}</Text>
                         </Button>
                     </View>
                 </Modal.Footer>

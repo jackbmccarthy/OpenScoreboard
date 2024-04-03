@@ -5,6 +5,7 @@ import { openScoreboardButtonTextColor, openScoreboardColor } from "../../opensc
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { deleteDynamicURL, openEmail } from '../functions/dynamicurls';
 import CopyButton from '../components/CopyButton';
+import i18n from '../translations/translate';
 
 export function DynamicURLItem(props) {
 
@@ -21,11 +22,11 @@ export function DynamicURLItem(props) {
     }
 
     if(matchInfo["tableID"] && matchInfo["tableID"].length >0){
-        subTitle = "Table: " +matchInfo["tableName"]
+        subTitle = i18n.t("table")+": " +matchInfo["tableName"]
         scoreKeepingURL = `${window.location.origin}/scoring/table/${matchInfo.tableID}/${matchInfo.tableName}/${matchInfo.password}`
     }
     else if (matchInfo["teammatchID"] && matchInfo["teammatchID"].length>0){
-        subTitle = `Team Match: ${matchInfo["teamAName"]} vs ${matchInfo["teamBName"]} T${matchInfo["tableNumber"]}(${matchInfo["teamMatchStartTime"]})`
+        subTitle = `${i18n.t("teamMatch")}: ${matchInfo["teamAName"]} vs ${matchInfo["teamBName"]} T${matchInfo["tableNumber"]}(${matchInfo["teamMatchStartTime"]})`
         scoreKeepingURL = `${window.location.origin}/teamscoring/teammatch/true/${matchInfo.teammatchID}/${matchInfo["tableNumber"]}/?name=${encodeURI(`${matchInfo.teamAName} VS ${matchInfo.teamBName}`)}`;
 
     }
@@ -37,7 +38,7 @@ export function DynamicURLItem(props) {
                 <Text font={"sm"}>{subTitle}</Text>
             </View>
             <View>
-                <Text >Scoreboard URL:</Text>
+                <Text >{i18n.t("scoreboardURL")}:</Text>
               <View flex={1} flexDirection={"row"} alignItems="center" >
                 <Input flex={1} isReadOnly value={`${scoreboardBaseURL}/scoreboard/?dynid=${props.item[1].id}`}  ></Input>
                 <CopyButton text={`${scoreboardBaseURL}/scoreboard/?dynid=${props.item[1].id}`}  ></CopyButton>
@@ -45,7 +46,7 @@ export function DynamicURLItem(props) {
             </View>
             
             
-            <Text >Score Keeping URL:</Text>
+            <Text >{i18n.t("scoreKeepingURL")}:</Text>
             <View flex={1} flexDirection={"row"} alignItems="center" >
                 <Input flex={1} isReadOnly value={scoreKeepingURL}  ></Input>
                 <CopyButton text={scoreKeepingURL}  ></CopyButton>
@@ -64,7 +65,7 @@ export function DynamicURLItem(props) {
                     <Button
                         onPress={() => {
 
-                            openEmail(subTitle, `Thank you for using ProScoreboard.\nPlease use the follow links below:\nScoreboard URL: ${`${scoreboardBaseURL}/scoreboard/?dynid=${props.item[1].id}`}\nScore Keeping URL: ${scoreKeepingURL} `)
+                            openEmail(subTitle, `${i18n.t("emailMessage")}:\n${i18n.t("scoreboardURL")}: ${`${scoreboardBaseURL}/scoreboard/?dynid=${props.item[1].id}`}\n${i18n.t("scoreKeepingURL")}: ${scoreKeepingURL} `)
                         }}
                         variant={"ghost"}>
                           
@@ -74,21 +75,21 @@ export function DynamicURLItem(props) {
                 {
                     showDelete ?
                     <View flexDirection={"row"} alignItems="center"  >
-                        <Text fontWeight={"bold"}>Delete?</Text>
+                        <Text fontWeight={"bold"}>{i18n.t("deleteDynamicURL")}?</Text>
                         <Button variant={"ghost"}
                         onPress={async ()=>{
                             await deleteDynamicURL(props.item[0])
                             props.reload()
                         }}
                         >
-                            <Text>Yes</Text>
+                            <Text>{i18n.t("yes")}</Text>
                         </Button>
                         <Button
                         onPress={()=>{
                             setShowDelete(false)
                         }}
                         >
-                            <Text color={openScoreboardButtonTextColor}>No</Text>
+                            <Text color={openScoreboardButtonTextColor}>{i18n.t("no")}</Text>
                         </Button>
                     </View>
                     :

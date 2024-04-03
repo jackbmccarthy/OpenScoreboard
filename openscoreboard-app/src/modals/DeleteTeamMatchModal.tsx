@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button, Text, View, Modal, Spinner } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { archiveTeamMatch } from '../functions/teammatches';
+import i18n from '../translations/translate';
 
 export function DeleteTeamMatchModal(props) {
 
@@ -23,9 +24,9 @@ export function DeleteTeamMatchModal(props) {
         }}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Delete Team Match</Modal.Header>
+                <Modal.Header>{i18n.t("deleteTeamMatch")}</Modal.Header>
                 <Modal.Body>
-                    <Text>Are you sure you want to delete {teamMatchInfo.teamAName} vs {teamMatchInfo.teamBName}({teamMatchInfo.startTime})?</Text>
+                    <Text>{i18n.t("areYouSureDelete")} {teamMatchInfo.teamAName} vs {teamMatchInfo.teamBName}({teamMatchInfo.startTime})?</Text>
                 </Modal.Body>
                 <Modal.Footer>
                     <View>
@@ -41,7 +42,7 @@ export function DeleteTeamMatchModal(props) {
                                 loadingDelete ? 
                                 <Spinner color={openScoreboardColor}></Spinner>
                                 :
-                                 <Text>Yes</Text>
+                                 <Text>{i18n.t("yes")}</Text>
                             }
                             
                            
@@ -53,7 +54,7 @@ export function DeleteTeamMatchModal(props) {
                             onPress={() => {
                                 props.onClose();
                             }}>
-                            <Text color={openScoreboardButtonTextColor}>No</Text>
+                            <Text color={openScoreboardButtonTextColor}>{i18n.t("no")}</Text>
                         </Button>
                     </View>
                 </Modal.Footer>

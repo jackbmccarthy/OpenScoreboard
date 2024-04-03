@@ -8,6 +8,7 @@ import { sortPlayers } from './functions/players';
 import { DeletePlayerModal } from './modals/DeletePlayerModal';
 import { AddNewPlayerModal } from './modals/AddNewPlayerModal';
 import { PreLoadedPlayerItem } from './listitems/PreLoadedPlayerItem';
+import i18n from './translations/translate';
 
 
 export default function AddPlayers(props) {
@@ -82,7 +83,7 @@ export default function AddPlayers(props) {
                         :
 <View justifyContent={"center"} alignItems="center">
                                 <View>
-                                    <Text fontSize={"xl"} fontWeight="bold">No Players In This List.</Text>
+                                    <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noPlayersInList")}</Text>
                                     <View padding={2}>
                                         <Button
                                             onPress={() => {
@@ -90,7 +91,7 @@ export default function AddPlayers(props) {
                         setIsEditing(false)
                                             }}
                                         >
-                                            <Text color={openScoreboardButtonTextColor}>Create One!</Text>
+                                            <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
                                         </Button>
                                     </View>
                                 </View>

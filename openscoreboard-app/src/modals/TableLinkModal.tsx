@@ -4,6 +4,7 @@ import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import CopyButton from '../components/CopyButton';
 import ScoreboardLinkList from '../components/ScoreboardLinkList';
 import { subFolderPath } from '../../openscoreboard.config';
+import i18n from '../translations/translate';
 //import QRCodeButton from '../components/QRCodeButton';
 
 export function TableLinkModal(props) {
@@ -26,7 +27,7 @@ export function TableLinkModal(props) {
         <Modal isOpen={props.isOpen} onClose={() => { props.onClose(); }}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Get Table Links</Modal.Header>
+                <Modal.Header>{i18n.t("getTableLinks")}</Modal.Header>
                 <Modal.Body>
                     {showScoreboardURL || showScoringURL ?
                         <>
@@ -38,9 +39,9 @@ export function TableLinkModal(props) {
 
                         : <View>
                             <View padding={1}>
-                                    <Text textAlign={"center"}>Share this link so someone else can keep score.</Text>
+                                    <Text textAlign={"center"}>{i18n.t("shareThisLink")}</Text>
                                     <FormControl>
-                                        <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">Score Keeping URL</Text>
+                                        <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreKeepingURL")}</Text>
                                         <View flexDirection={"row"}>
                                             <Input flex={1} isReadOnly value={scoreKeepingURL}></Input>
                                             <CopyButton text={scoreKeepingURL} />
@@ -50,7 +51,7 @@ export function TableLinkModal(props) {
                                     </FormControl>
                                 </View>
                                 <Divider></Divider>
-                                <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">Scoreboard URL(s)</Text>
+                                <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreboardURLs")}</Text>
                                 <ScoreboardLinkList tableID={props.id} {...props}></ScoreboardLinkList>
 
                     

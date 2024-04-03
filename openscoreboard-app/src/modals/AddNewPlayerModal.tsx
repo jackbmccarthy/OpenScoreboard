@@ -5,6 +5,7 @@ import { addImportedPlayer, editImportedPlayer } from '../functions/players';
 import { newImportedPlayer } from '../classes/Player';
 import CountryFlagList from '../components/CountryFlagList';
 import jsonFlags from '../flags/countries.json'
+import i18n from '../translations/translate';
 
 
 
@@ -173,7 +174,7 @@ export function AddNewPlayerModal(props) {
         >
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>{props.isEditing ? "Edit Player" : "Add New Player"}</Modal.Header>
+                <Modal.Header>{props.isEditing ? i18n.t("editPlayer") : i18n.t("addNewPlayer")}</Modal.Header>
                 <Modal.Body>
                     <FormControl>
                         {
@@ -190,7 +191,7 @@ export function AddNewPlayerModal(props) {
                                         >
                                             <Text
                                                 color={isBulkAdd ? openScoreboardColor : openScoreboardButtonTextColor}
-                                            >Single</Text>
+                                            >{i18n.t("single")}</Text>
                                         </Button>
                                     </View>
                                     <View padding={1} flex={1}>
@@ -200,7 +201,7 @@ export function AddNewPlayerModal(props) {
                                             }}
 
                                             variant={!isBulkAdd ? 'outline' : "solid"}>
-                                            <Text color={!isBulkAdd ? openScoreboardColor : openScoreboardButtonTextColor}>Bulk</Text>
+                                            <Text color={!isBulkAdd ? openScoreboardColor : openScoreboardButtonTextColor}>{i18n.t("bulk")}</Text>
                                         </Button>
                                     </View>
 
@@ -218,7 +219,7 @@ export function AddNewPlayerModal(props) {
                                     }}>
                                         <View alignItems={"center"} flexDirection={"row"}>
                                             <ChevronLeftIcon></ChevronLeftIcon>
-                                            <Text>Back</Text>
+                                            <Text>{i18n.t("back")}</Text>
                                         </View>
 
                                     </Button>
@@ -235,7 +236,7 @@ export function AddNewPlayerModal(props) {
                                 {isBulkAdd ?
                                     <>
                                         <FormControl isInvalid={csvError.length > 0}>
-                                            <FormControl.Label>First Name, Last Name, Image URL, Country Code</FormControl.Label>
+                                            <FormControl.Label>{i18n.t("csvOrder")}</FormControl.Label>
 
                                             <FormControl.ErrorMessage>{csvError}</FormControl.ErrorMessage>
 
@@ -252,7 +253,7 @@ export function AddNewPlayerModal(props) {
                                     </>
                                     : <>
                                         <FormControl.Label>
-                                            First Name
+                                            {i18n.t("firstName")}
                                         </FormControl.Label>
                                         <Input ref={playerFirstName} value={firstName}
                                             onChangeText={(text) => {
@@ -261,7 +262,7 @@ export function AddNewPlayerModal(props) {
                                         ></Input>
 
                                         <FormControl.Label>
-                                            Last Name
+                                            {i18n.t("lastName")}
                                         </FormControl.Label>
                                         <Input value={lastName}
                                             onChangeText={(text) => {
@@ -270,7 +271,7 @@ export function AddNewPlayerModal(props) {
                                         ></Input>
 
                                         <FormControl.Label>
-                                            Image URL
+                                            {i18n.t("imageURL")}
                                         </FormControl.Label>
                                         <Input value={imageURL}
                                             onChangeText={(text) => {
@@ -278,7 +279,7 @@ export function AddNewPlayerModal(props) {
                                             }}
                                         ></Input>
                                         <FormControl.Label>
-                                            Country
+                                            {i18n.t("country")}
                                         </FormControl.Label>
                                         <Button onPress={() => {
                                             setShowCountrySelection(true);
@@ -298,7 +299,7 @@ export function AddNewPlayerModal(props) {
                             onPress={onAddPressed}
 
                         >
-                            <Text color={openScoreboardButtonTextColor}>{props.isEditing ? "Update" : "Add"}</Text>
+                            <Text color={openScoreboardButtonTextColor}>{props.isEditing ? i18n.t("update") : i18n.t("add")}</Text>
                         </Button>
                     </View>
                     <View>
@@ -307,7 +308,7 @@ export function AddNewPlayerModal(props) {
                                 props.onClose();
                             }}
                         >
-                            <Text>Close</Text>
+                            <Text>{i18n.t("close")}</Text>
                         </Button>
                     </View>
                 </Modal.Footer>

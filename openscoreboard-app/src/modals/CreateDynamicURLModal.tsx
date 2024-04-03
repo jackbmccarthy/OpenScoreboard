@@ -6,6 +6,7 @@ import { createDynamicURL } from '../functions/dynamicurls';
 import { getMyTables } from '../functions/tables';
 import getMyTeamMatches, { getTeamMatchCurrentMatches } from '../functions/teammatches';
 import { getMyScoreboards } from '../functions/scoreboards';
+import i18n from '../translations/translate';
 
 
 export function CreateDynamicURLModal(props) {
@@ -64,14 +65,14 @@ export function CreateDynamicURLModal(props) {
         <Modal isOpen={props.isOpen} onClose={() => { props.onClose(); }}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>New Dynamic URL</Modal.Header>
+                <Modal.Header>{i18n.t("newDynamicURL")}</Modal.Header>
                 <Modal.Body>
                     <FormControl>
-                        <FormControl.Label>Dynamic URL Name</FormControl.Label>
+                        <FormControl.Label>{i18n.t("dynamicURLName")}</FormControl.Label>
                         <Input value={urlName}
                             onChangeText={setURLName}
                         ></Input>
-                        <FormControl.Label>Select Table</FormControl.Label>
+                        <FormControl.Label>{i18n.t("selectTable")}</FormControl.Label>
                         {tableList.length > 0 ?
                             <Select
                                 selectedValue={selectedTableID}
@@ -88,12 +89,12 @@ export function CreateDynamicURLModal(props) {
                                 })}
                             </Select>
                             :
-                            <Text>No tables have been created, so none can be assigned.</Text>}
+                            <Text>{i18n.t("noTablesCannotAssign")}</Text>}
 
                         <View>
                             <Text fontWeight={"bold"} textAlign="center" fontSize={"xl"}>OR</Text>
                         </View>
-                        <FormControl.Label>Select Team Match</FormControl.Label>
+                        <FormControl.Label>{i18n.t("selectTeamMatch")}</FormControl.Label>
                         {teamMatchList.length > 0 ?
                             <Select selectedValue={selectedTeamMatchID}
                                 onValueChange={(value) => {
@@ -109,9 +110,9 @@ export function CreateDynamicURLModal(props) {
                                 })}
                             </Select>
                             :
-                            <Text>No team matches have been created, so none can be assigned.</Text>}
+                            <Text>{i18n.t("noTeamMatchsCannotAssign")}</Text>}
 
-                        <FormControl.Label>Select Table Number</FormControl.Label>
+                        <FormControl.Label>{i18n.t("selectTableNumber")}</FormControl.Label>
                         {tableNumberList.length > 0 ?
                             <Select selectedValue={selectedTableNumber}
                                 onValueChange={(value) => {
@@ -125,9 +126,9 @@ export function CreateDynamicURLModal(props) {
                                 })}
                             </Select>
                             :
-                            <Text>No tables have been created, so none can be assigned.</Text>}
+                            <Text>{i18n.t("noTablesCannotAssign")}</Text>}
                         <Divider></Divider>
-                        <FormControl.Label>Select Scoreboard</FormControl.Label>
+                        <FormControl.Label>{i18n.t("selectScoreboard")}</FormControl.Label>
                         {scoreboardList.length > 0 ?
                             <Select selectedValue={selectedScoreboardID}
                                 onValueChange={(value) => {
@@ -146,7 +147,7 @@ export function CreateDynamicURLModal(props) {
                                     loadingScoreboards ?
                                         <Spinner color={openScoreboardColor}></Spinner>
                                         :
-                                        <Text>No scoreboards have been created, so none can be assigned.</Text>
+                                        <Text>{i18n.t("noScoreboardsCannotAssign")}</Text>
 
                                 }
                             </>
@@ -164,7 +165,7 @@ export function CreateDynamicURLModal(props) {
                             {loadingNewURL ?
                                 <Spinner color={openScoreboardButtonTextColor}></Spinner>
                                 :
-                                <Text color={openScoreboardButtonTextColor}>Create</Text>}
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("create")}</Text>}
                         </Button>
                     </View>
                     <View>
@@ -173,7 +174,7 @@ export function CreateDynamicURLModal(props) {
                                 props.onClose();
                             }}
                         >
-                            <Text>Close</Text>
+                            <Text>{i18n.t("close")}</Text>
                         </Button>
                     </View>
 

@@ -102,10 +102,17 @@ export function EditPlayer(props) {
                                 <Button
                                     onPress={async () => {
                                         setLoadingSave(true);
+                                        console.log(props.matchID, props.player, { ...props[props.player], firstName: firstName, lastName: lastName, jerseyColor: jerseyColor, isImported:false })
                                         await updateCurrentPlayer(props.matchID, props.player, { ...props[props.player], firstName: firstName, lastName: lastName, jerseyColor: jerseyColor, isImported:false });
                                         setLoadingSave(false);
+                                        if(typeof props.updateMatchPlayer === "function"){
+                                            props.updateMatchPlayer(props.player, { ...props[props.player], firstName: firstName, lastName: lastName, jerseyColor: jerseyColor, isImported:false})
+                                        }
                                         if(typeof props.setShowPlayerSelection === "function"){
                                             props.setShowPlayerSelection(false)
+                                        }
+                                        if(typeof props.setEditPlayer === "function"){
+                                            props.setEditPlayer("")
                                         }
                                         if (!props.isWizard && typeof props.onClose === "function") {
                                             props.onClose();
@@ -218,7 +225,7 @@ export function EditPlayer(props) {
 
                             </View>
                             <View >
-                                <FlatList scr data={importedPlayers.filter((item) => {
+                                <FlatList  data={importedPlayers.filter((item) => {
                                     if (item[1].firstName.toLowerCase().includes(importedPlayerSearchText.toLowerCase()) || item[1].lastName.toLowerCase().includes(importedPlayerSearchText.toLowerCase())) {
                                         return true;
                                     }

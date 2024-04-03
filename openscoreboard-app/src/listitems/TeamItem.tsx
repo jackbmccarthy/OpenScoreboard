@@ -3,6 +3,7 @@ import { Button, View, Text, Divider } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { FontAwesome } from '@expo/vector-icons';
 import { deleteMyTeam } from '../functions/teams';
+import i18n from '../translations/translate';
 
 export function TeamItem(props) {
 
@@ -18,7 +19,7 @@ export function TeamItem(props) {
                 
                 {showDelete ?
                     <View alignItems={"center"} flexDirection={"row"} justifyContent={"space-around"}>
-                        <Text fontSize={"xl"} fontWeight={"bold"}>Delete Team?</Text>
+                        <Text fontSize={"xl"} fontWeight={"bold"}>{i18n.t("deleteTeam")}?</Text>
                         <View padding={1}>
                             <Button variant={"ghost"}
                                 onPress={async () => {
@@ -30,7 +31,7 @@ export function TeamItem(props) {
                                     }
                                 }}
                             >
-                                <Text>Yes</Text>
+                                <Text>{i18n.t("yes")}</Text>
                             </Button>
                         </View>
                         <View padding={1}>
@@ -39,7 +40,7 @@ export function TeamItem(props) {
                                     setShowDelete(false);
                                 }}
                             >
-                                <Text color={openScoreboardButtonTextColor}>No</Text>
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("no")}</Text>
                             </Button>
                         </View>
                     </View>

@@ -7,6 +7,7 @@ import { getMyTeams } from '../functions/teams';
 import { newTeamMatch } from '../classes/TeamMatch';
 import { DateTimePicker } from '../components/DateTimePicker';
 import { supportedSports } from '../functions/sports';
+import i18n from '../translations/translate';
 
 export function NewTeamMatchModal(props) {
     let [loadingNewMatch, setLoadingNewMatch] = useState(false);
@@ -36,10 +37,10 @@ export function NewTeamMatchModal(props) {
         }} isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>New Team Match</Modal.Header>
+                <Modal.Header>{i18n.t("newTeamMatch")}</Modal.Header>
                 <Modal.Body>
                     <FormControl>
-                        <FormControl>Team A</FormControl>
+                        <FormControl>{i18n.t("teamA")}</FormControl>
                         <Select selectedValue={teamAID} onValueChange={(val) => {
                             setTeamAID(val);
                         }}>
@@ -49,7 +50,7 @@ export function NewTeamMatchModal(props) {
                                 );
                             })}
                         </Select>
-                        <FormControl>Team B</FormControl>
+                        <FormControl>{i18n.t("teamB")}</FormControl>
                         <Select selectedValue={teamBID} onValueChange={(val) => {
                             setTeamBID(val);
                         }}>
@@ -59,7 +60,7 @@ export function NewTeamMatchModal(props) {
                                 );
                             })}
                         </Select>
-                        <FormControl.Label>Match Time</FormControl.Label>
+                        <FormControl.Label>{i18n.t("matchTime")}</FormControl.Label>
                         <DateTimePicker type="date" value={matchTime} onChange={(event) => {
                             setMatchTime(event.target.value);
                         }}></DateTimePicker>
@@ -67,7 +68,7 @@ export function NewTeamMatchModal(props) {
 
                     <FormControl>
                         <FormControl.Label>
-                            Sport
+                            {i18n.t("sport")}
                         </FormControl.Label>
                         <Select selectedValue={selectedSport}
                         onValueChange={(sport)=>{
@@ -88,7 +89,7 @@ export function NewTeamMatchModal(props) {
                                 supportedSports[selectedSport]?.hasScoringTypes ?
 <>
 <FormControl.Label>
-                            Scoring Type
+                            {i18n.t("scoringType")}
                         </FormControl.Label>
                         <Select selectedValue={selectedScoringType}
                         onValueChange={(type)=>{
@@ -121,7 +122,7 @@ export function NewTeamMatchModal(props) {
                             {loadingNewMatch ?
                                 <Spinner></Spinner>
                                 :
-                                <Text color={openScoreboardButtonTextColor}>Create</Text>}
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("create")}</Text>}
 
                         </Button>
                     </View>
@@ -133,7 +134,7 @@ export function NewTeamMatchModal(props) {
 
                                 props.onClose(false);
                             }}
-                        ><Text>Close</Text>
+                        ><Text>{i18n.t("close")}</Text>
                         </Button>
                     </View>
                 </Modal.Footer>

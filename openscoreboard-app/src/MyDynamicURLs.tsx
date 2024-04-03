@@ -12,6 +12,7 @@ import { getMyDynamicURLs } from './functions/dynamicurls';
 import { DynamicURLItem } from './listitems/DynamicURLItem';
 import { EditDynamicURLModal } from './modals/EditDynamicURLModal';
 import { CreateDynamicURLModal } from './modals/CreateDynamicURLModal';
+import i18n from './translations/translate';
 
 export default function MyDynamicURLs(props) {
 
@@ -85,14 +86,14 @@ export default function MyDynamicURLs(props) {
                             :
                             <View justifyContent={"center"} alignItems="center">
                                 <View>
-                                    <Text fontSize={"xl"} fontWeight="bold">You have no Dynamic URLs.</Text>
+                                    <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noDynamicURLs")}</Text>
                                     <View padding={2}>
                                         <Button
                                             onPress={() => {
                                                 setShowNewDynamicURLModal(true)
                                             }}
                                         >
-                                            <Text color={openScoreboardButtonTextColor}>Create One!</Text>
+                                            <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
                                         </Button>
                                     </View>
                                 </View>

@@ -4,6 +4,7 @@ import { Text, View, Spinner, Divider, Button } from 'native-base';
 import { getMatchData, getSignificantPoints } from '../functions/scoring';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { openScoreboardColor } from "../../openscoreboardtheme";
+import i18n from '../translations/translate';
 
 export function ArchivedMatchItem(props) {
     const index = props.index;
@@ -118,7 +119,7 @@ export function ArchivedMatchItem(props) {
                                                     <Text textAlign={"center"}  fontSize={"lg"} fontWeight="bold">{additionalFields[`game${numb}AScore`]}</Text>
                                                 </View>
                                                 <View padding={2}>
-                                                    <Text>Game {numb}</Text>
+                                                    <Text>{i18n.t("game")} {numb}</Text>
                                                 </View>
                                                 <View padding={2}>
                                                     <Text textAlign={"center"}  fontSize={"lg"} fontWeight="bold">{additionalFields[`game${numb}BScore`]}</Text>
@@ -141,7 +142,7 @@ loadingSigPoints ?
            
     significantPoints.length > 0 ?
     <>
-    <Text fontWeight={"bold"} textAlign={"center"}>Significant Points</Text>
+    <Text fontWeight={"bold"} textAlign={"center"}>{i18n.t("significantPoints")}</Text>
     {
        significantPoints.map((sigPoint) => {
             return (
@@ -151,7 +152,7 @@ loadingSigPoints ?
                             <Text textAlign={"center"}  fontSize={"lg"} fontWeight="bold">{sigPoint[1].playerAScore}</Text>
                         </View>
                         <View padding={2}>
-                            <Text>Game {sigPoint[1].gameNumber} </Text>
+                            <Text>{i18n.t("game")} {sigPoint[1].gameNumber} </Text>
                         </View>
                         <View padding={2}>
                             <Text textAlign={"center"}  fontSize={"lg"} fontWeight="bold">{sigPoint[1].playerBScore}</Text>
@@ -166,7 +167,7 @@ loadingSigPoints ?
     </>
     
     :
-    <Text>No Significant points recorded for this match.</Text>
+    <Text>{i18n.t("noSignificantPoints")}</Text>
 
 
 

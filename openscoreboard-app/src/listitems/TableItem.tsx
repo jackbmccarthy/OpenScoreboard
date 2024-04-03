@@ -5,7 +5,7 @@ import { Ionicons, FontAwesome, MaterialCommunityIcons, AntDesign } from '@expo/
 import { supportedSports } from '../functions/sports';
 
 export function TableItem(props) {
-
+console.log(props)
 const iconSize = 24
 
     return (
@@ -55,7 +55,7 @@ const iconSize = 24
                         <View>
                             <Button variant={"ghost"} padding={1}
                                 onPress={() => {
-                                   props.navigation.navigate("ScheduledTableMatches", { tableID: props.id, name: props.tableName });
+                                   props.navigation.navigate("ScheduledTableMatches", { tableID: props.id, name: props.tableName, sportName:props.sportName,scoringType:props.scoringType });
                                 }}
                             >
                                 <AntDesign name="calendar" size={iconSize} color={openScoreboardColor} />

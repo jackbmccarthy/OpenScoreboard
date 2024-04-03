@@ -50,6 +50,9 @@ export function MatchSetup(props) {
     useEffect(() => {
         setBestOfGames(props.bestOf || 5)
     }, [props.bestOf])
+    useEffect(() => {
+        setBestOfGames(props.bestOf || 5)
+    }, [props.bestOf])
     //let [isWarmUpUsed, setIsWarmUpUsed] = useState(props.isWarmUpFinished)
     const disableNextButton = () => {
         switch (pageNumber) {
@@ -98,8 +101,7 @@ export function MatchSetup(props) {
     };
 
     const { isAInitialServer, isActive, isWarmUpStarted, matchTimeStart, warmUpStartTime, isInitialServerSelected, playerA, playerB, playerA2, playerB2 } = props;
-    useEffect(() => {
-    });
+  
 
     return (
         <>
@@ -278,6 +280,7 @@ export function MatchSetup(props) {
                                 <Button variant={"outline"}
                                     onPress={() => {
                                         setShowPlayerSelection(false);
+                                        props.setEditPlayer("")
                                     }}
                                 >
                                     <Text>{i18n.t("backToPlayerSelection")}</Text>
@@ -419,7 +422,7 @@ export function MatchSetup(props) {
                                 showLoadingScheduledMatch ?
                                     <Spinner color={openScoreboardColor}></Spinner>
                                     :
-                                    <Text>{i18n.t("done")}</Text>
+                                    <Text  color={openScoreboardButtonTextColor}>{i18n.t("done")}</Text>
                             }
 
                         </Button>

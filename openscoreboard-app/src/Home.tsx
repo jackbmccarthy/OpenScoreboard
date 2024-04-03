@@ -46,7 +46,7 @@ export default function Home(props) {
         {
             route: "DynamicURLS",
             title: "Dynamic URLs",
-            description: "Change Tables/Team Matches, same URL.",
+            description: i18n.t("dynamicURLDescription"),
 
         }
     ]

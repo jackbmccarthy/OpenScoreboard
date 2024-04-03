@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, Text, View, Modal } from 'native-base';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
+import i18n from '../translations/translate';
 
 export function DeletePlayerModal(props) {
 
@@ -10,9 +11,9 @@ export function DeletePlayerModal(props) {
         }}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Delete Player</Modal.Header>
+                <Modal.Header>{i18n.t("deletePlayer")}</Modal.Header>
                 <Modal.Body>
-                    <Text>Are you sure you want to delete {props.firstName} {props.lastName}?</Text>
+                    <Text>{i18n.t("areYouSureDelete")} {props.firstName} {props.lastName}?</Text>
                 </Modal.Body>
                 <Modal.Footer>
                     <View>
@@ -22,7 +23,7 @@ export function DeletePlayerModal(props) {
                                 props.onClose();
                             }}
                         >
-                            <Text>Yes</Text>
+                            <Text>{i18n.t("yes")}</Text>
                         </Button>
                     </View>
                     <View>
@@ -31,7 +32,7 @@ export function DeletePlayerModal(props) {
                             onPress={() => {
                                 props.onClose();
                             }}>
-                            <Text color={openScoreboardButtonTextColor}>No</Text>
+                            <Text color={openScoreboardButtonTextColor}>{i18n.t("no")}</Text>
                         </Button>
                     </View>
                 </Modal.Footer>

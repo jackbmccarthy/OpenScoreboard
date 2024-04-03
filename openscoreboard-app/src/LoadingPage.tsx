@@ -5,6 +5,7 @@ import { Text, View,  NativeBaseProvider } from 'native-base';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { openScoreboardColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
+import i18n from './translations/translate';
 
 
 
@@ -35,13 +36,13 @@ export default function LoadingPage(){
                 {
                     failedToLoad ?
                     <>
-                    <Text fontSize={"5xl"} color={openScoreboardColor}>Failed To Load.</Text>
-                    <Text color={openScoreboardColor}>Please try again later.</Text>
+                    <Text fontSize={"5xl"} color={openScoreboardColor}>{i18n.t("failedToLoad")}</Text>
+                    <Text color={openScoreboardColor}>{i18n.t("tryAgainLater")}</Text>
                     </>
                     
                     :
                     <>
-                    <Text fontSize={"5xl"} color={openScoreboardColor}>Loading{
+                    <Text fontSize={"5xl"} color={openScoreboardColor}>{i18n.t("loading")}{
                     paddleNumber >=1 ?
                     <FontAwesome5 name="table-tennis" size={24} color={openScoreboardColor} />
                     : "."

@@ -13,6 +13,7 @@ import { openBrowserAsync } from 'expo-web-browser';
 import { getMyTeams } from './functions/teams';
 import { NewTeamModal } from './modals/NewTeamModal';
 import { TeamItem } from './listitems/TeamItem';
+import i18n from './translations/translate';
 
 export default function MyTeams(props) {
 
@@ -91,14 +92,14 @@ export default function MyTeams(props) {
                                 :
                                 <View justifyContent={"center"} alignItems="center">
                                     <View>
-                                        <Text fontSize={"xl"} fontWeight="bold">You have no Teams.</Text>
+                                        <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noTeams")}</Text>
                                         <View padding={2}>
                                             <Button
                                                 onPress={() => {
                                                     setShowNewTeamModal(true)
                                                 }}
                                             >
-                                                <Text color={openScoreboardButtonTextColor}>Create One!</Text>
+                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
                                             </Button>
                                         </View>
                                     </View>

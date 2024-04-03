@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button, Text, View, Modal, Spinner } from 'native-base';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import { getCurrentGameNumber, startGame, switchSides, updateService } from '../functions/scoring';
+import i18n from '../translations/translate';
 
 export function InBetweenGamesModal(props) {
 
@@ -49,11 +50,11 @@ export function InBetweenGamesModal(props) {
         <Modal isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>Break Timer</Modal.Header>
+                <Modal.Header>{i18n.t("breakTimer")}</Modal.Header>
                 <Modal.Body>
                     <View justifyContent={"center"} alignItems="center">
                         {isTimeUp ?
-                            <Text fontSize={"9xl"}>Time!</Text>
+                            <Text fontSize={"9xl"}>{i18n.t("time")}!</Text>
                             :
                             <Text fontSize={"9xl"}>{counter}</Text>}
 
@@ -68,7 +69,7 @@ export function InBetweenGamesModal(props) {
                                 await Promise.all([
                                     await startGame(props.matchID, getCurrentGameNumber(props)),
                                     await switchSides(props.matchID),
-                                    await updateService(props.matchID, props.isAInitialServer, gameNumber, 0, props.changeServeEveryXPoints, props.pointsToWinGame)
+                                    await updateService(props.matchID, props.isAInitialServer, gameNumber, 0, props.changeServeEveryXPoints, props.pointsToWinGame,props.sportName,props.scoringType)
                                 ]);
                                 setLoadingNewGame(false);
                                 props.onClose();
@@ -76,7 +77,7 @@ export function InBetweenGamesModal(props) {
                         >
                             {loadingNewGame ?
                                 <Spinner color={openScoreboardButtonTextColor}></Spinner>
-                                : <Text color={openScoreboardButtonTextColor}>Start Game {getCurrentGameNumber(props)}</Text>}
+                                : <Text color={openScoreboardButtonTextColor}>{i18n.t("startGame")} {getCurrentGameNumber(props)}</Text>}
                         </Button>
                     </View>
                 </Modal.Body>

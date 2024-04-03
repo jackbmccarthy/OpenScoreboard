@@ -4,6 +4,7 @@ import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import { DateTimePicker } from '../components/DateTimePicker';
 import { addScheduledMatch, createNewMatch, createNewScheduledMatch, getMatchData } from '../functions/scoring';
 import { MatchSetup } from './MatchSetupWizard';
+import i18n from '../translations/translate';
 
 export function NewScheduledMatchModal(props) {
     let [editPlayer, setEditPlayer] = useState("");
@@ -23,6 +24,7 @@ export function NewScheduledMatchModal(props) {
         setNewMatchData(newPlayer);
     };
 
+    console.log(props)
 
 
     return (
@@ -44,13 +46,13 @@ export function NewScheduledMatchModal(props) {
                         <FormControl>
 
                             <View padding={1}>
-                                <FormControl.Label>Estimated Start Date</FormControl.Label>
+                                <FormControl.Label>{i18n.t("estimatedStartDate")}</FormControl.Label>
                                 <DateTimePicker type="date" value={estimatedMatchDate} onChange={(event) => {
                                     setReload(true);
                                     setEstimatedMatchDate(event.target.value);
                                 }}></DateTimePicker>
                             </View>
-                            <FormControl.Label>Estimated Start Time</FormControl.Label>
+                            <FormControl.Label>{i18n.t("estimatedStartTime")}</FormControl.Label>
                             <View padding={1}>
                                 <DateTimePicker type="time" value={estimatedMatchTime} onChange={(event) => {
                                     setReload(true);
@@ -64,7 +66,7 @@ export function NewScheduledMatchModal(props) {
                                     else {
                                         setShowLoadingNewMatch(true);
                                         let startingDateAndTime = new Date(estimatedMatchDate + " " + estimatedMatchTime);
-                                        let newMatchKey = await createNewScheduledMatch();
+                                        let newMatchKey = await createNewScheduledMatch(props.route.params.sportName);
                                         setCreatedMatchKey(newMatchKey);
                                         setSchedMatchStartTime(startingDateAndTime.toISOString());
                                         setIsMatchCreated(true);
@@ -76,7 +78,7 @@ export function NewScheduledMatchModal(props) {
 
                                 }}
                             >
-                                <Text color={openScoreboardButtonTextColor}>Create Match</Text>
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createMatch")}</Text>
                             </Button>
                         </FormControl>}
 

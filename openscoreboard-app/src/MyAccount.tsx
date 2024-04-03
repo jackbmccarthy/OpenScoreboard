@@ -6,6 +6,7 @@ import { signOut } from '../database';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import { isLocalDatabase } from '../openscoreboard.config';
+import i18n from './translations/translate';
 
 
 
@@ -18,7 +19,7 @@ export default function MyAccount() {
         <NativeBaseProvider theme={openScoreboardTheme}>
             <View height="100%" width={"100%"} flex={1} >
 
-                <Text fontSize={"3xl"}>More Coming Soon...</Text>
+                <Text fontSize={"3xl"}>{i18n.t("moreComingSoon")}</Text>
                 {isLocalDatabase ? null :
                     <View padding={1}>
                         <Button
@@ -26,7 +27,7 @@ export default function MyAccount() {
                                 signOut()
                             }}
                         >
-                            <Text color={openScoreboardButtonTextColor}>Log Out</Text>
+                            <Text color={openScoreboardButtonTextColor}>{i18n.t("logOut")}</Text>
                         </Button>
                     </View>
                 }

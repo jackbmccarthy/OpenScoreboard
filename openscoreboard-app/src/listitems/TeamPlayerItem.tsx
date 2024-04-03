@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, View, FormControl, Input, Text, Divider } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { FontAwesome } from '@expo/vector-icons';
+import i18n from '../translations/translate';
 
 export function TeamPlayerItem(props) {
 
@@ -20,15 +21,15 @@ export function TeamPlayerItem(props) {
                     <View alignItems={"center"} flexDirection={"row"}>
                         <View flex={2}>
                             <FormControl>
-                                <FormControl.Label>First Name</FormControl.Label>
+                                <FormControl.Label>{i18n.t("firstName")}</FormControl.Label>
                                 <Input
                                     onChangeText={setFirstName}
                                     value={firstName}></Input>
-                                <FormControl.Label>Last Name</FormControl.Label>
+                                <FormControl.Label>{i18n.t("lastName")}</FormControl.Label>
                                 <Input
                                     onChangeText={setLastName}
                                     value={lastName}></Input>
-                                <FormControl.Label>Image URL</FormControl.Label>
+                                <FormControl.Label>{i18n.t("imageURL")}</FormControl.Label>
                                 <Input
                                     onChangeText={setImageURL}
                                     value={imageURL}></Input>
@@ -44,7 +45,7 @@ export function TeamPlayerItem(props) {
                                     props.onUpdate(props.id, { ...props, firstName: firstName, lastName: lastName, imageURL: imageURL });
                                 }}
                             >
-                                <Text color={openScoreboardButtonTextColor}>Save</Text>
+                                <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>
                             </Button>
                         </View>
                     </View>

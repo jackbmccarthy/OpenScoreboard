@@ -12,6 +12,7 @@ import { NewScoreBoardModal } from './modals/NewScoreBoardModal';
 import { ScoreboardItem } from './listitems/ScoreboardItem';
 import { ScoreboardMessageModal } from './modals/ScoreboardMessageModal';
 import { EditScoreboardSettingsModal } from './modals/EditScoreboardSettingsModal';
+import i18n from './translations/translate';
 
 
 export default function MyScoreboards(props) {
@@ -91,14 +92,14 @@ export default function MyScoreboards(props) {
                                 :
                                 <View justifyContent={"center"} alignItems="center">
                                     <View>
-                                        <Text fontSize={"xl"} fontWeight="bold">You have no Scoreboards.</Text>
+                                        <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noScoreboards")}</Text>
                                         <View padding={2}>
                                             <Button
                                                 onPress={() => {
                                                     setShowNewScoreboardModal(true)
                                                 }}
                                             >
-                                                <Text color={openScoreboardButtonTextColor}>Create One!</Text>
+                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
                                             </Button>
                                         </View>
                                     </View>
