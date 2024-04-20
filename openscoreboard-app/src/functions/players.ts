@@ -94,6 +94,20 @@ export async function getImportPlayerList(playerListID){
 
 }
 
+export async function getPlayerListName(playerListID){
+    let playerListRef = db.ref(`playerLists/${playerListID}/playerListName`)
+    let playerListSnapshot = await playerListRef.get()
+    let playerList = playerListSnapshot.val()
+    if(playerList){
+        return playerList
+    }
+    else{
+        return ""
+    }
+
+
+}
+
 export async function addImportedPlayer(playerListID, playerSettings){
     
     let playerListRef = await db.ref(`playerLists/${playerListID}/players`).push({...playerSettings})

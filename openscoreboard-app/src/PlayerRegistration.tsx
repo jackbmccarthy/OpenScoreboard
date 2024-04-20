@@ -12,7 +12,7 @@ import { openScoreboardTheme } from "../openscoreboardtheme";
 import JerseyColorOptions from './components/JerseyColorOptions';
 import { SuccessfulRegistrationModal } from './modals/SuccessfulRegistrationModal';
 import { getNewPlayer, newImportedPlayer } from './classes/Player';
-import { addImportedPlayer, getImportPlayerList, watchForPlayerListPasswordChange } from './functions/players';
+import { addImportedPlayer, getImportPlayerList, getPlayerListName, watchForPlayerListPasswordChange } from './functions/players';
 import Unauthorized from './Unauthorized';
 import i18n from './translations/translate';
 
@@ -39,7 +39,7 @@ export default function PlayerRegistration({route, navigation}){
 
 
     useEffect(()=>{
-        getImportPlayerList(route.params.playerListID).then((playerList)=>{
+        getPlayerListName(route.params.playerListID).then((playerList)=>{
             if(playerList.length > 0){
                 setPlayerListExists(true)
             }
