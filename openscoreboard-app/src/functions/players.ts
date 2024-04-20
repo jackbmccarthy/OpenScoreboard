@@ -153,7 +153,12 @@ export async function getMyPlayerLists(){
     let myPlayerListsSnap = await db.ref(`users/${getUserPath()}/myPlayerLists`).get()
     let myPlayerLists = myPlayerListsSnap.val()
     if(myPlayerLists !== null ){
-        return Object.entries(myPlayerLists)
+        return Promise.all(Object.entries(myPlayerLists).map(async ([id,data])=>{
+            console.log(`playerLists/${data["id"]}/password`)
+            let passwordRef = db.ref(`playerLists/${data["id"]}/password`)
+            let passwordSnap = await passwordRef.get()
+            return [id, {...data,password:passwordSnap.val()}]
+        }))
     }
     else{
         return []

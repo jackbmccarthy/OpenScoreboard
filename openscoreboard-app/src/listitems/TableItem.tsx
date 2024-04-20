@@ -5,7 +5,7 @@ import { Ionicons, FontAwesome, MaterialCommunityIcons, AntDesign } from '@expo/
 import { supportedSports } from '../functions/sports';
 
 export function TableItem(props) {
-console.log(props)
+
 const iconSize = 24
 
     return (

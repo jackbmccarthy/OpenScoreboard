@@ -16,6 +16,7 @@ import i18n from './translations/translate';
 
 
 
+
 export default function MyTables(props) {
 
     let [tableList, setTableList] = useState([])
@@ -25,6 +26,7 @@ export default function MyTables(props) {
     let [showLinkModal, setShowLinkModal] = useState(false)
     let [showEditModal, setShowEditModal] = useState(false)
     let [showEditPlayerListModal, setShowEditPlayerListModal] = useState(false)
+    let [showRegistrationModal, setShowRegistrationModal] = useState(false)
 
     let [selectedEditTable, setSelectedEditTable] = useState({})
     let [selectedTableID, setSelectedTableID] = useState("")
@@ -45,6 +47,15 @@ export default function MyTables(props) {
     const openEditPlayerList = (tableInfo) => {
         setSelectedEditTable({ ...tableInfo })
         setShowEditPlayerListModal(true)
+    }
+
+    const openRegistrationModal = (tableID:string, tableIndex:number) => {
+        setSelectedTableID(tableID)
+        setSelectedTableIndex(tableIndex)
+        setShowRegistrationModal(true)
+    }
+    const closeRegistrationModal = () => {
+        setShowRegistrationModal(false)
     }
 
 
@@ -132,7 +143,7 @@ export default function MyTables(props) {
                                     data={tableList}
                                     renderItem={(item) => {
                                         return (
-                                            <TableItem index={item.index} {...props} openEditPlayerList={openEditPlayerList} openLinkModal={openLinkModal} openEditTable={openEditTable} {...item.item} />
+                                            <TableItem index={item.index} {...props} openEditPlayerList={openEditPlayerList} openLinkModal={openLinkModal} openEditTable={openEditTable} openRegistrationModal={openRegistrationModal} {...item.item} />
                                         )
                                     }}
                                 >
@@ -205,6 +216,17 @@ export default function MyTables(props) {
                                 }}
                             ></EditTablePlayerListModal>
                             : null
+                    }
+                    {
+                        showRegistrationModal ? 
+                        <RegistrationLinkModal
+                        {...props}
+                                isOpen={showRegistrationModal}
+                                id={selectedTableID}
+                                {...tableList[selectedTableIndex]}
+                                onClose={() => closeRegistrationModal()}
+                        ></RegistrationLinkModal>
+                        : null
                     }
 
 
