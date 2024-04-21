@@ -217,17 +217,7 @@ export default function MyTables(props) {
                             ></EditTablePlayerListModal>
                             : null
                     }
-                    {
-                        showRegistrationModal ? 
-                        <RegistrationLinkModal
-                        {...props}
-                                isOpen={showRegistrationModal}
-                                id={selectedTableID}
-                                {...tableList[selectedTableIndex]}
-                                onClose={() => closeRegistrationModal()}
-                        ></RegistrationLinkModal>
-                        : null
-                    }
+                
 
 
 

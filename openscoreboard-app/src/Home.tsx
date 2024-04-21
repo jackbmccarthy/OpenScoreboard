@@ -45,11 +45,21 @@ export default function Home(props) {
         },
         {
             route: "DynamicURLS",
-            title: "Dynamic URLs",
+            title: i18n.t("dynamicURLs"),
             description: i18n.t("dynamicURLDescription"),
 
         }
     ]
+
+    console.log(window.location.hostname)
+    if(window.location.hostname === 'app.openscoreboard.com'){
+        scoreboards.push({
+            route: "TableLiveScoringLink",
+            title: i18n.t("tableLiveScoring"),
+            description: i18n.t("tableLiveScoringDescription"),
+
+        })
+    }
 
     const account = [
 

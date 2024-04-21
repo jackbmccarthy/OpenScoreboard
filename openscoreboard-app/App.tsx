@@ -22,6 +22,7 @@ import MyDynamicURLs from './src/MyDynamicURLs';
 import BulkAddPlayer from './src/BulkAddPlayers';
 import PlayerRegistration from './src/PlayerRegistration';
 import i18n from './src/translations/translate';
+import TableLiveScoringLink from './src/TableLiveScoringLink';
 
 export const linkingConfig = {
   screens: {
@@ -138,6 +139,7 @@ else {
                 <ScoreboardStack.Screen name="DynamicURLS" component={MyDynamicURLs} options={{ title: i18n.t("dynamicURLs") }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="BulkAddPlayer" component={BulkAddPlayer} options={{ title: "Bulk Add Player" }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="PlayerRegistration" component={PlayerRegistration} options={{ title: i18n.t("playerRegistrationScreen") }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="TableLiveScoringLink" component={TableLiveScoringLink} options={{ title: i18n.t("tableLiveScoring") }} ></ScoreboardStack.Screen>
 
               </ScoreboardStack.Group>
 
