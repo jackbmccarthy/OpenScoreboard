@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, View, Modal, Text, Input, FormControl, Select, Spinner, Divider } from 'native-base';
 import { getUserPath } from '../../database';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
@@ -19,10 +19,12 @@ export function CreateDynamicURLModal(props) {
     let [selectedTeamMatchID, setSelectedTeamMatchID] = useState("");
     let [selectedTableID, setSelectedTableID] = useState("");
     let [selectedScoreboardID, setSelectedScoreboardID] = useState("")
-    let [urlName, setURLName] = useState("");
+    //let [urlName, setURLName] = useState("");
     let [loadingNewURL, setLoadingNewURL] = useState(false);
     let [loadingScoreboards, setLoadingScoreboards] = useState(true)
     let [scoreboardList, setScoreboardList] = useState([])
+
+    let dynamicURLNameRef = useRef<HTMLInputElement>()
 
     async function loadAllOptions() {
         let tableList = await getMyTables();
@@ -35,6 +37,7 @@ export function CreateDynamicURLModal(props) {
     }
 
     const onAddDynamicList = async () => {
+        let urlName = dynamicURLNameRef.current.value
         if (urlName.length > 0 && (selectedTableID.length > 0 || selectedTeamMatchID.length > 0)) {
             setLoadingNewURL(true);
             await createDynamicURL(urlName, selectedTableID, selectedTeamMatchID, selectedTableNumber, selectedScoreboardID);
@@ -69,8 +72,10 @@ export function CreateDynamicURLModal(props) {
                 <Modal.Body>
                     <FormControl>
                         <FormControl.Label>{i18n.t("dynamicURLName")}</FormControl.Label>
-                        <Input value={urlName}
-                            onChangeText={setURLName}
+                        <Input
+                        ref={dynamicURLNameRef}
+                       // value={urlName}
+                           // onChangeText={setURLName}
                         ></Input>
                         <FormControl.Label>{i18n.t("selectTable")}</FormControl.Label>
                         {tableList.length > 0 ?

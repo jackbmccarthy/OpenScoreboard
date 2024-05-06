@@ -47,7 +47,7 @@ export default function MyPlayerLists(props) {
         return (
             <NativeBaseProvider theme={openScoreboardTheme}>
 
-                <View width={"100vw"} height={"100vh"}>
+                <View width={"100%"} height={"100%"}>
                     <View flex={1}>
                         {
                             myPlayerLists.length > 0 ?

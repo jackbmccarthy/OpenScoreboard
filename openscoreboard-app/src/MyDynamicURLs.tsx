@@ -61,7 +61,7 @@ export default function MyDynamicURLs(props) {
     if (doneLoading) {
         return (
             <NativeBaseProvider theme={openScoreboardTheme}>
-                <View height={"100vh"} width={"100vw"}>
+                <View height={"100%"} width={"100%"}>
                     <View flex={1}>
 {
                         dynamicURLList.length > 0 ?

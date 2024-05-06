@@ -169,7 +169,12 @@ export default function App() {
 
 
   return (
-    <ScoreboardNavigation />
+
+ <ScoreboardNavigation />
+    
+ 
+    
+   
   );
 
 }

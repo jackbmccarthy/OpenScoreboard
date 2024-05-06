@@ -40,7 +40,7 @@ export default function ArchivedMatchList(props) {
     if (doneLoadingMatchList) {
         return (
             <NativeBaseProvider>
-                <View width={"100vw"} height={"100vh"}>
+                <View width={"100%"} height={"100%"}>
                     <View flex={1}></View>
                     {
                         archivedMatchList.length > 0 ?

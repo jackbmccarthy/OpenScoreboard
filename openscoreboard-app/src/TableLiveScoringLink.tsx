@@ -84,7 +84,7 @@ export default function TableLiveScoringLink(props) {
     if (doneLoading) {
         return (
             <NativeBaseProvider theme={openScoreboardTheme}>
-                <View width={"100vw"} height={"100vh"}>
+                <View width={"100%"} height={"100%"}>
                     <View flex={1}>
                         <View maxW={"lg"} width={"100%"} alignSelf="center">
                             <Text fontSize={"2xl"}>{i18n.t("selectAndShareCreatedURL")}</Text>

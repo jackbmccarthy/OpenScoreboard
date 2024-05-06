@@ -117,7 +117,7 @@ export default function MyTeamMatches(props) {
         return (
             <NativeBaseProvider theme={openScoreboardTheme}>
 
-                <View height={"100vh"} width={"100vw"}  >
+                <View height={"100%"} width={"100%"}  >
                     <View flex={1}>
                         {
                             teamMatchList.length > 0 ?
