@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Text, View, Modal, FormControl, Switch, Divider, Radio } from 'native-base';
+import { Button, Text, View, Modal, FormControl, Switch, Divider, Radio, Select } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { getScoreboardSettings, setScoreboardSettings } from '../functions/scoreboards';
 import LoadingPage from '../LoadingPage';
@@ -74,73 +74,17 @@ export function EditScoreboardSettingsModal(props) {
 
 
                             <View >
-                                <Radio.Group value={radioButtonSetting} onChange={onSelectedRadioButton}>
-                                    <View padding={1}>
-                                        <Radio value='alwaysShow'>
-                                            {i18n.t("alwaysShow")}
-                                        </Radio>
-                                    </View>
-
-                                    <View padding={1}>
-                                        <Radio value='showInBetweenGames'>
-                                            {i18n.t("showInBetweenGames")}
-                                        </Radio>
-                                    </View>
-
-                                    <View padding={1}>
-                                        <Radio value='showDuringActiveMatch' >
-                                            {i18n.t("showDuringGames")}
-                                        </Radio>
-                                    </View>
-
-                                </Radio.Group>
-                                {/* <View padding={1} paddingBottom={2} justifyContent={"space-between"} alignItems="center" flexDirection={"row"}>
-                                    <Text fontWeight={"bold"}>Always Show</Text>
-                                    <Switch value={alwaysShow} onValueChange={(isSelected) => {
-                                        if (isSelected) {
-                                            setShowDuringActiveMatch(false)
-                                            setShowDuringTimeOuts(false)
-                                            setShowInBetweenGames(false)
-                                        }
-                                        setAlwaysShow(isSelected)
-                                    }} ></Switch>
-                                </View>
-                                <Divider></Divider>
-
-                                <View padding={1} paddingBottom={2} justifyContent={"space-between"} alignItems="center" flexDirection={"row"}>
-                                    <Text fontWeight={"bold"}>Show In Between Games</Text>
-                                    <Switch value={showInBetweenGames} onValueChange={(isSelected) => {
-                                        if (isSelected) {
-                                            setAlwaysShow(false)
-                                            setShowDuringActiveMatch(false)
-                                        }
-                                        setShowInBetweenGames(isSelected)
-                                    }} ></Switch>
-                                </View>
-                                <Divider></Divider>
-
-                                <View padding={1} paddingBottom={2} justifyContent={"space-between"} alignItems="center" flexDirection={"row"}>
-                                    <Text fontWeight={"bold"}>Show During Games</Text>
-                                    <Switch value={showDuringActiveMatch} onValueChange={(isSelected) => {
-                                        if (isSelected) {
-                                            setAlwaysShow(false)
-                                            setShowInBetweenGames(false)
-                                        }
-                                        setShowDuringActiveMatch(isSelected)
-                                    }} ></Switch>
-                                </View>
-                                <Divider></Divider> */}
-
-                                {/* <View padding={1} paddingBottom={2} justifyContent={"space-between"} alignItems="center" flexDirection={"row"}>
-                                    <Text fontWeight={"bold"}>Show On Time Outs</Text>
-                                    <Switch value={showDuringTimeOuts} onValueChange={(isSelected) => {
-                                         if(isSelected){
-                                            setAlwaysShow(false)
-                                        }
-                                        setShowDuringTimeOuts(isSelected)
-                                    }} ></Switch>
-                                </View>
-                                <Divider></Divider> */}
+                                <FormControl>
+                                    <FormControl.Label>{i18n.t("visibility")}:</FormControl.Label>
+                                    <Select
+                                        selectedValue={radioButtonSetting}
+                                        onValueChange={onSelectedRadioButton}
+                                    >
+                                        <Select.Item value='alwaysShow' label={i18n.t("alwaysShow")}></Select.Item>
+                                        <Select.Item value='showInBetweenGames' label={i18n.t("showInBetweenGames")} ></Select.Item>
+                                        <Select.Item value='showDuringActiveMatch' label={i18n.t("showDuringGames")} ></Select.Item>
+                                    </Select>
+                                </FormControl>
 
                             </View>
 

@@ -219,7 +219,8 @@
     "tableLiveScoring":"Table/Court(s) Live Scoring",
     "tableLiveScoringDescription":"Share tables/courts, for online scoring.",
     "createLink":"Create Link",
-    "selectAndShareCreatedURL":"Select the Table/Court(s) below share the created URL."
+    "selectAndShareCreatedURL":"Select the Table/Court(s) below share the created URL.",
+    "visibility":"Visibility"
 
     
 
