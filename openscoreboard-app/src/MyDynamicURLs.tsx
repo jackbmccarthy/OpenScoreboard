@@ -3,7 +3,6 @@
 import React, {  useEffect, useState } from 'react';
 import { Button, View, NativeBaseProvider, FlatList, Fab, AddIcon, ChevronRightIcon, Text, Divider } from 'native-base';
 
-import { isLocalDatabase } from '../openscoreboard.config';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 
