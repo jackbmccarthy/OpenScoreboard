@@ -2,6 +2,23 @@
 
 Open Scoreboard provides a platform for providing web based overlays to sport live streams. Using the platform's editor, based off of [GrapesJS](https://github.com/GrapesJS/grapesjs), the user has full control of their scoreboards' presentation, with drag and droppable smart components.
 
+## What does Open Scoreboard do?
+
+Open Scoreboard is a scoreboard suite, built on web technologies. 
+
+Using a real time database, users can update the score on a smart device, and a browser laid over your live stream will instantly update the score. Allowing you to update the graphics in real time, without the need for a large graphics system.
+
+The project was initially built for table tennis scoreboards, but has been adapted to include scoring for Pickleball too, and can be adapted for most other sports. 
+
+## Who uses Open Scoreboard? 
+
+1. [USA Table Tennis](https://www.youtube.com/@USATableTennis)
+2. [Table Tennis Daily](https://www.youtube.com/watch?v=Ekf1-DHLbVU)
+3. [FLTT Senior's League](https://www.youtube.com/channel/UChBzKEyrqnaySha0LBVsX-Q)
+4. Many Others.
+
+## Developing On Open Scoreboard
+
 This project is made of 4 different components:
     
 1. **App** -- Where Tables/Courts/Team Matches are created, and the score is kept.
