@@ -5,7 +5,7 @@ export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetLis
     //console.log(resetListeners)
     resetListeners();
     let currentMatch = currentMatchSnap.val();
-    console.log(currentMatch)
+    //console.log(currentMatch)
     if(typeof currentMatch ==="object" && Object.keys(currentMatch).includes("cursor")){
         currentMatch = currentMatch["value"]
     }
@@ -27,20 +27,21 @@ export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetLis
             let matchRef = db.ref(`matches/${currentMatch}/${key}`);
             if (isInitialRun) {
                 matchRef.on("value", (snapShot) => {
-                    console.log(snapShot.val())
+                    //console.log(snapShot.val())
                     if (snapShot.val() !== null && snapShot.val()["cursor"] === undefined) {
-                        console.log(key, snapShot.val());
-                        console.log(key+getBroadcastChannelName())
+                        //console.log(key, snapShot.val());
+                        //console.log(key+getBroadcastChannelName())
                         if(typeof snapShot.val() ==="object" && Object.keys(snapShot.val()).includes("cursor")){
                             console.log("bad update value")
                         }
                         else{
                             let bc = new BroadcastChannel(key+getBroadcastChannelName());
                         bc.postMessage({ [key]: snapShot.val() });
+                        window.postMessage({ [key]: snapShot.val() });
                         bc.close();
                         }
                         
-                        //window.postMessage({ [key]: snapShot.val() });
+                  
                     }
 
                 });
@@ -49,9 +50,10 @@ export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetLis
             else {
                 let snapShot = await matchRef.get();
                 if (snapShot.val() !== null && snapShot.val()["cursor"] === undefined) {
-                     console.log(snapShot.val());
+                     //console.log(snapShot.val());
                     let bc = new BroadcastChannel(key+getBroadcastChannelName());
                     bc.postMessage({ [key]: snapShot.val() });
+                    window.postMessage({ [key]: snapShot.val() });
                     bc.close();
                     //window.postMessage({ [key]: snapShot.val() });
                 }
