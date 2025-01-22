@@ -18,6 +18,7 @@ export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetLis
             const fieldValue = matchValues[key];
             let bc = new BroadcastChannel(key+getBroadcastChannelName());
             bc.postMessage({ [key]: fieldValue });
+            window.postMessage({ [key]: fieldValue });
             bc.close();
 
 
