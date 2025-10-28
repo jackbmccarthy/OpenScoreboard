@@ -14,9 +14,9 @@ export function TeamMatchLinkModal(props) {
 
 
 
-      const  scoreKeepingURL = `${window.location.origin}${subFolderPath}/teamscoring/teammatch/true/${props.id}/${props.tableID}/?name=${encodeURI(`Table ${props.tableID}`)}&sportName=${props.sportName}&scoringType=${props.scoringType}`;
-    
-    
+    const scoreKeepingURL = `${window.location.origin}${subFolderPath}/teamscoring/teammatch/true/${props.id}/${props.tableID}/?name=${encodeURI(`Table ${props.tableID}`)}&sportName=${props.sportName}&scoringType=${props.scoringType}`;
+
+
 
     return (
         <Modal isOpen={props.isOpen} onClose={() => { props.onClose(); }}>
@@ -25,21 +25,21 @@ export function TeamMatchLinkModal(props) {
                 <Modal.Header>{i18n.t("getTableLinks")}</Modal.Header>
                 <Modal.Body>
                     <View padding={1}>
-                                    
-                                    <FormControl>
-                                    <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreKeepingURL")}</Text>
-                                    <Text textAlign={"center"}>{i18n.t("shareThisLink")}</Text>
-                                        <View flexDirection={"row"}>
-                                            <Input flex={1} isReadOnly value={scoreKeepingURL}></Input>
-                                            <CopyButton text={scoreKeepingURL} />
-                                        </View>
 
-                                    </FormControl>
-                                </View>
-                                <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreboardURLs")}</Text>
-                               
+                        <FormControl>
+                            <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreKeepingURL")}</Text>
+                            <Text textAlign={"center"}>{i18n.t("shareThisLink")}</Text>
+                            <View flexDirection={"row"}>
+                                <Input flex={1} isReadOnly value={scoreKeepingURL}></Input>
+                                <CopyButton text={scoreKeepingURL} />
+                            </View>
 
-                                <ScoreboardLinkList isTeamMatch={true} teamMatchID={props.id}  tableID={props.tableID} {...props}></ScoreboardLinkList>
+                        </FormControl>
+                    </View>
+                    <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreboardURLs")}</Text>
+
+
+                    <ScoreboardLinkList isTeamMatch={true} teamMatchID={props.id} tableID={props.tableID} {...props}></ScoreboardLinkList>
                     {/* {showScoreboardURL || showScoringURL ?
                         <>
                             {showScoringURL ?

@@ -10,15 +10,15 @@ export function TableLiveScoringLinkItem(props) {
     return (
         <View>
             <View padding={1} justifyContent={"center"} >
-                <Checkbox 
-                onChange={(event)=>{
-                    props.onTableSelected(event, props.item["id"])
-                }}
-                value={isChecked}>
+                <Checkbox
+                    onChange={(event) => {
+                        props.onTableSelected(event, props.item["id"])
+                    }}
+                    value={isChecked}>
                     <Text fontSize={"3xl"} fontWeight="bold">{props.item["tableName"]}</Text>
-                    
+
                 </Checkbox>
-             
+
 
 
             </View>

@@ -120,20 +120,20 @@ export default function BulkAddPlayer() {
                 </FormControl>
 
                 <Button onPress={async () => {
-                    if(selectedPlayerListID.length > 0 && !loadPlayerLists){
+                    if (selectedPlayerListID.length > 0 && !loadPlayerLists) {
                         setLoadingPlayers(true)
                         await onSubmit()
                         setLoadingPlayers(false)
                     }
 
-                    
+
                 }}>
                     {
-                        loadingPlayers ? 
-                        <Spinner></Spinner>:
-                        <Text>{i18n.t("submit")}</Text>
+                        loadingPlayers ?
+                            <Spinner></Spinner> :
+                            <Text>{i18n.t("submit")}</Text>
                     }
-                    
+
                 </Button>
 
 

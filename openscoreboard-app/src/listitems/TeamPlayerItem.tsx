@@ -61,21 +61,21 @@ export function TeamPlayerItem(props) {
                                     <FontAwesome name='edit' size={24} color={openScoreboardButtonTextColor} />
                                 </Button>
                                 <View paddingLeft={1}>
-                                <Button backgroundColor={tappedDelete ? "#FF0000" : openScoreboardColor}  onPress={() => {
-                                    if (tappedDelete) {
-                                        props.onDelete(props.id)
-                                        setTappedDelete(false)
-                                    }
-                                    else {
-                                        setTappedDelete(true)
-                                    }
+                                    <Button backgroundColor={tappedDelete ? "#FF0000" : openScoreboardColor} onPress={() => {
+                                        if (tappedDelete) {
+                                            props.onDelete(props.id)
+                                            setTappedDelete(false)
+                                        }
+                                        else {
+                                            setTappedDelete(true)
+                                        }
 
-                                }}>
-                                    <FontAwesome name='trash' size={24} color={openScoreboardButtonTextColor} />
-                                </Button>
+                                    }}>
+                                        <FontAwesome name='trash' size={24} color={openScoreboardButtonTextColor} />
+                                    </Button>
+                                </View>
                             </View>
-                            </View>
-                            
+
                         </View>
 
                     </>

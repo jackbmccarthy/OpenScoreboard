@@ -1,5 +1,5 @@
 import React, { Component, useEffect, useRef, } from 'react';
-import { Text,  View, } from 'native-base';
+import { Text, View, } from 'native-base';
 import firebase from 'firebase';
 import * as firebaseui from 'firebaseui'
 import { NativeBaseProvider } from 'native-base';

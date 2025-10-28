@@ -26,25 +26,25 @@ export async function MinusPoint(matchID, gameNumber, AorB) {
 
 }
 
-export async function updateService(matchID, isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame, sportName, scoringType=null) {
+export async function updateService(matchID, isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame, sportName, scoringType = null) {
 
     switch (sportName) {
         case "tableTennis":
-                db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
+            db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
 
             break;
-            case "pickleball":
-                //This function is not used in pickleball, only when creating a new game. 
-                // Also setting this to isSecondServer:true
-                db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
-                db.ref(`matches/${matchID}/isSecondServer`).set(true)
+        case "pickleball":
+            //This function is not used in pickleball, only when creating a new game. 
+            // Also setting this to isSecondServer:true
+            db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
+            db.ref(`matches/${matchID}/isSecondServer`).set(true)
             break;
         default:
             db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
 
             break;
     }
-    
+
 
 
 }
@@ -81,7 +81,7 @@ export function getCurrentGameNumber(match) {
 
 export function getCurrentGameScore(match) {
     if (match) {
-        
+
         for (let gameN = 1; gameN <= 9; gameN++) {
             if (match[`isGame${gameN}Started`] === true && match[`isGame${gameN}Finished`] === false) {
                 return {
@@ -130,17 +130,18 @@ export async function subscribeToAllMatchFields(matchID, callback) {
     for (const key in match) {
         let matchRef = db.ref(`matches/${matchID}/${key}`)
         matchRef.on("value", (snapShot) => {
-            if(typeof snapShot.val()["value"] !== "undefined"){
+            if (typeof snapShot.val()["value"] !== "undefined") {
                 callback(snapShot.val()["value"], key)
             }
-            else{
+            else {
                 callback(snapShot.val(), key)
             }
-           
+
 
         })
-        offList.push(()=>{
-            matchRef.off()})
+        offList.push(() => {
+            matchRef.off()
+        })
     }
     return offList
 }
@@ -153,13 +154,13 @@ export async function unsubscribeToAllMatchFields(matchID, match) {
     }
 }
 
-export async function createNewMatch(tableID, sportName, previousMatchObj=null, isTeamMatch=null, scoringType=null) {
-    let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName,previousMatchObj,isTeamMatch, scoringType))
+export async function createNewMatch(tableID, sportName, previousMatchObj = null, isTeamMatch = null, scoringType = null) {
+    let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, isTeamMatch, scoringType))
     let currentMatchKey = await db.ref(`tables/${tableID}/currentMatch`).set(newMatch.key)
     return newMatch.key
 }
 
-export async function createNewScheduledMatch( sportName) {
+export async function createNewScheduledMatch(sportName) {
     let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName))
     return newMatch.key
 }
@@ -209,22 +210,22 @@ export async function getArchivedMatchesForTable(tableID) {
 
     let currentMatchSnapShot = await db.ref(`tables/${tableID}/archivedMatches`).get()
     let val = currentMatchSnapShot.val()
-    if(val){
-       return Object.entries(currentMatchSnapShot.val()) 
+    if (val) {
+        return Object.entries(currentMatchSnapShot.val())
     }
-    else{
+    else {
         return []
     }
-    
+
 
 }
 export async function getArchivedMatchesForTeamMatch(teamMatchID) {
     let currentMatchSnapShot = await db.ref(`teamMatches/${teamMatchID}/archivedMatches`).get()
     let val = currentMatchSnapShot.val()
-    if(val){
-       return Object.entries(currentMatchSnapShot.val()) 
+    if (val) {
+        return Object.entries(currentMatchSnapShot.val())
     }
-    else{
+    else {
         return []
     }
 }
@@ -262,7 +263,7 @@ export async function updateScheduledMatch(tableID, scheduledMatchID, matchID, s
     return matchSummary
 }
 
-export async function deleteScheduledTableMatch(tableID, scheduledMatchID){
+export async function deleteScheduledTableMatch(tableID, scheduledMatchID) {
     await db.ref(`tables/${tableID}/scheduledMatches/${scheduledMatchID}`).remove()
 }
 
@@ -412,9 +413,9 @@ export function isValidGameScore(enforceGameScore, playerAScore, playerBScore, p
 
 export async function endGame(matchID, gameNumber) {
     await Promise.all([
-           db.ref(`matches/${matchID}/isGame${gameNumber}Finished`).set(true),
-    db.ref(`matches/${matchID}/game${gameNumber}EndTime`).set(new Date().toISOString()),
-    db.ref(`matches/${matchID}/isInBetweenGames`).set(true),
+        db.ref(`matches/${matchID}/isGame${gameNumber}Finished`).set(true),
+        db.ref(`matches/${matchID}/game${gameNumber}EndTime`).set(new Date().toISOString()),
+        db.ref(`matches/${matchID}/isInBetweenGames`).set(true),
     ])
 
 
@@ -427,12 +428,12 @@ export async function endGame(matchID, gameNumber) {
 
 export async function startGame(matchID, gameNumber) {
     await Promise.all([
-            
-   db.ref(`matches/${matchID}/isMatchStarted`).set(true),
-     db.ref(`matches/${matchID}/matchStartTime`).set(new Date().toISOString()),
-   db.ref(`matches/${matchID}/isGame${gameNumber}Started`).set(true),
-  db.ref(`matches/${matchID}/game${gameNumber}StartTime`).set(new Date().toISOString()),
-  db.ref(`matches/${matchID}/isInBetweenGames`).set(false),
+
+        db.ref(`matches/${matchID}/isMatchStarted`).set(true),
+        db.ref(`matches/${matchID}/matchStartTime`).set(new Date().toISOString()),
+        db.ref(`matches/${matchID}/isGame${gameNumber}Started`).set(true),
+        db.ref(`matches/${matchID}/game${gameNumber}StartTime`).set(new Date().toISOString()),
+        db.ref(`matches/${matchID}/isInBetweenGames`).set(false),
     ])
 
 
@@ -474,18 +475,18 @@ export function isGamePoint(match) {
 
 }
 //This is used with isGamePoint to determine if it is match point.
-export function isFinalGame(match){
+export function isFinalGame(match) {
     let matchScores = getMatchScore(match)
     const gameScore = getCurrentGameScore(match)
-    if((match.bestOf-1)/2 === matchScores.a && gameScore.a > gameScore.b ){
+    if ((match.bestOf - 1) / 2 === matchScores.a && gameScore.a > gameScore.b) {
         return true
     }
 
-    else if ((match.bestOf-1)/2 === matchScores.b && gameScore.b > gameScore.a ){
+    else if ((match.bestOf - 1) / 2 === matchScores.b && gameScore.b > gameScore.a) {
 
         return true
     }
-    else{
+    else {
         return false
     }
 }
@@ -512,7 +513,7 @@ export async function addSignificantPoint(matchID, gameNumber, playerAScore, pla
 export async function getSignificantPoints(matchID) {
     let sigPointsSnap = await db.ref(`matches/${matchID}/significantPoints`).get()
     let sigPoints = sigPointsSnap.val()
-    if(sigPoints){
+    if (sigPoints) {
         return Object.entries(sigPoints)
     }
     else {
@@ -546,13 +547,13 @@ export async function setUsedTimeOut(matchID, AorB) {
     await db.ref(`matches/${matchID}/is${AorB}TimeOutActive`).set(false)
 }
 export async function resetUsedTimeOut(matchID, AorB) {
-   await Promise.all(
+    await Promise.all(
         [
-          db.ref(`matches/${matchID}/is${AorB}TimeOutUsed`).set(false),
-    db.ref(`matches/${matchID}/is${AorB}TimeOutActive`).set(false)   
+            db.ref(`matches/${matchID}/is${AorB}TimeOutUsed`).set(false),
+            db.ref(`matches/${matchID}/is${AorB}TimeOutActive`).set(false)
         ]
     )
-   
+
 }
 
 export async function startTimeOut(matchID, AorB) {
@@ -618,34 +619,34 @@ export async function manuallySetGameScore(matchID, gameNumber, AScore, BScore) 
     ])
 }
 
-export function watchForPasswordChange(tableID, callback){
+export function watchForPasswordChange(tableID, callback) {
     let tableRef = db.ref(`tables/${tableID}/password`)
-    tableRef.on("value", (passwordRef)=>{
-        if(typeof passwordRef.val() ==="string"){
+    tableRef.on("value", (passwordRef) => {
+        if (typeof passwordRef.val() === "string") {
             callback(passwordRef.val())
         }
     })
-    return ()=>{tableRef.off()}
+    return () => { tableRef.off() }
 }
 
 
-export async function syncShowGameWonConfirmationModal(matchID, show){
-   await db.ref(`matches/${matchID}/showGameWonConfirmationModal`).set(show)
+export async function syncShowGameWonConfirmationModal(matchID, show) {
+    await db.ref(`matches/${matchID}/showGameWonConfirmationModal`).set(show)
 }
 
-export async function  syncShowInBetweenGamesModal(matchID, show){
+export async function syncShowInBetweenGamesModal(matchID, show) {
     await db.ref(`matches/${matchID}/showInBetweenGamesModal`).set(show)
- }
+}
 
- // Non table tennis related scoring functions
- export async function getScoringTypeForTable(tableID) {
+// Non table tennis related scoring functions
+export async function getScoringTypeForTable(tableID) {
     let currentMatchSnapShot = await db.ref(`tables/${tableID}/scoringType`).get()
     return currentMatchSnapShot.val()
 
 }
 export async function setScoringType(matchID, value) {
     let currentMatchSnapShot = await db.ref(`matches/${matchID}/scoringType`).set(value)
-    
+
 
 }
 
@@ -656,15 +657,15 @@ export async function getPointsToWinGameForTable(tableID) {
 }
 
 
-export async function BWonRally_PB(matchID, gameNumber, isACurrentlyServing, isSecondServer, isDoubles, isRallyScoring=false, pointsToWin, BScore){
-    if(isRallyScoring){
-        if(pointsToWin-1 === parseInt(BScore) && isACurrentlyServing){
+export async function BWonRally_PB(matchID, gameNumber, isACurrentlyServing, isSecondServer, isDoubles, isRallyScoring = false, pointsToWin, BScore) {
+    if (isRallyScoring) {
+        if (pointsToWin - 1 === parseInt(BScore) && isACurrentlyServing) {
             db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
-            if(isDoubles){
-                db.ref(`matches/${matchID}/isSecondServer`).set(BScore%2 === 0 ? false : true)
+            if (isDoubles) {
+                db.ref(`matches/${matchID}/isSecondServer`).set(BScore % 2 === 0 ? false : true)
 
             }
-            else{
+            else {
                 db.ref(`matches/${matchID}/isSecondServer`).set(false)
 
             }
@@ -674,102 +675,102 @@ export async function BWonRally_PB(matchID, gameNumber, isACurrentlyServing, isS
 
             db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
             let newScoreB = await AddPoint(matchID, gameNumber, "B")
-            if(isDoubles){
-                if(newScoreB%2 === 0){
-                db.ref(`matches/${matchID}/isSecondServer`).set(false)
+            if (isDoubles) {
+                if (newScoreB % 2 === 0) {
+                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                }
+                else {
+                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
+                }
             }
-            else{
-                db.ref(`matches/${matchID}/isSecondServer`).set(true)
-            }
-            }
-            else{
+            else {
                 db.ref(`matches/${matchID}/isSecondServer`).set(false)
 
             }
-            
+
             return newScoreB
         }
-     } else{
-        if(!isACurrentlyServing){
-     return await AddPoint(matchID, gameNumber, "B")
+    } else {
+        if (!isACurrentlyServing) {
+            return await AddPoint(matchID, gameNumber, "B")
+        }
+
+        else {
+            if (isDoubles) {
+                if (isSecondServer) {
+                    db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
+                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
+
+                }
+                else {
+                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
+                }
+            }
+            else {
+                db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
+            }
+
+        }
+
     }
-     
-     else{
-        if(isDoubles){
-              if(isSecondServer){
-             db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
-             db.ref(`matches/${matchID}/isSecondServer`).set(false)
-
-         }
-         else{
-             db.ref(`matches/${matchID}/isSecondServer`).set(true)
-         }
-        }
-        else{
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
-        }
-
-     }
-
-     }
-     return false
+    return false
 }
 
-export async function AWonRally_PB(matchID, gameNumber, isACurrentlyServing, isSecondServer, isDoubles, isRallyScoring=false, pointsToWin, AScore){
-    if(isRallyScoring){
-        if(pointsToWin-1 === parseInt(AScore) && !isACurrentlyServing){
+export async function AWonRally_PB(matchID, gameNumber, isACurrentlyServing, isSecondServer, isDoubles, isRallyScoring = false, pointsToWin, AScore) {
+    if (isRallyScoring) {
+        if (pointsToWin - 1 === parseInt(AScore) && !isACurrentlyServing) {
             db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
-                            if(isDoubles){
-                               db.ref(`matches/${matchID}/isSecondServer`).set(AScore%2 === 0  ? false : true) 
-                            }
-                            else{
-                                db.ref(`matches/${matchID}/isSecondServer`).set(false) 
-                            }
-                            
+            if (isDoubles) {
+                db.ref(`matches/${matchID}/isSecondServer`).set(AScore % 2 === 0 ? false : true)
+            }
+            else {
+                db.ref(`matches/${matchID}/isSecondServer`).set(false)
+            }
+
             return AScore
         }
         else {
 
             db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
             let newScoreA = await AddPoint(matchID, gameNumber, "A")
-            if(isDoubles){
-                if(newScoreA%2 === 0){
+            if (isDoubles) {
+                if (newScoreA % 2 === 0) {
+                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                }
+                else {
+                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
+                }
+            }
+            else {
                 db.ref(`matches/${matchID}/isSecondServer`).set(false)
             }
-            else{
-                db.ref(`matches/${matchID}/isSecondServer`).set(true)
-            }
-            }
-            else{
-                db.ref(`matches/${matchID}/isSecondServer`).set(false)
-            }
-            
+
             return newScoreA
         }
-        
 
-      
-    }
-    else{
-        if(isACurrentlyServing){
-     return await AddPoint(matchID, gameNumber, "A")
-    }
-    else{
-        if(isDoubles){
-            if(isSecondServer){
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
-            db.ref(`matches/${matchID}/isSecondServer`).set(false)
 
-        }
-        else{
-            db.ref(`matches/${matchID}/isSecondServer`).set(true)
-        }
-        }
-        else{
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
-        }
 
     }
+    else {
+        if (isACurrentlyServing) {
+            return await AddPoint(matchID, gameNumber, "A")
+        }
+        else {
+            if (isDoubles) {
+                if (isSecondServer) {
+                    db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
+                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
+
+                }
+                else {
+                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
+                }
+            }
+            else {
+                db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
+            }
+
+        }
 
     }
     return false

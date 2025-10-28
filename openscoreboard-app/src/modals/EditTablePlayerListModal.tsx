@@ -23,8 +23,8 @@ export function EditTablePlayerListModal(props) {
         setMyPlayerLists(playerLists)
         for (const playerList of playerLists) {
             console.log(playerList)
-            if(props.playerListID === playerList[1]["id"]){
-                console.log(playerList[1]["password"],playerList[1])
+            if (props.playerListID === playerList[1]["id"]) {
+                console.log(playerList[1]["password"], playerList[1])
                 setSelectedPlayerListPassword(playerList[1]["password"])
             }
         }
@@ -33,7 +33,7 @@ export function EditTablePlayerListModal(props) {
 
     useEffect(() => {
         setSelectedPlayerListID(props.playerListID)
-        
+
     }, [props.playerListID])
 
     useEffect(() => {
@@ -56,11 +56,11 @@ export function EditTablePlayerListModal(props) {
                                     <Select onValueChange={(text) => {
                                         setSelectedPlayerListID(text)
                                         for (const playerList of myPlayerLists) {
-                                            if(text === playerList[1]["id"]){
+                                            if (text === playerList[1]["id"]) {
                                                 setSelectedPlayerListPassword(playerList[1]["password"])
                                             }
                                         }
-                                        
+
                                     }} selectedValue={selectedPlayerListID}>
                                         {
                                             myPlayerLists.map((playerList) => {
@@ -74,13 +74,13 @@ export function EditTablePlayerListModal(props) {
                                     {
                                         selectedPlayerListID.length > 0 ?
                                             <>
-                                            <Divider></Divider>
-                                            <FormControl.Label>{i18n.t("selfPlayerRegistration")}</FormControl.Label>
-                                            <View padding={1} flexDir={"row"}>
-                                                <Input flex={1} isReadOnly value={`${window.location.origin}${subFolderPath}/playerregistration/${selectedPlayerListID}/${selectedPlayerListPassword}`}></Input>
-                                                <CopyButton text={`${window.location.origin}${subFolderPath}/playerregistration/${selectedPlayerListID}/${selectedPlayerListPassword}`} />
-                                            </View>
-                                                
+                                                <Divider></Divider>
+                                                <FormControl.Label>{i18n.t("selfPlayerRegistration")}</FormControl.Label>
+                                                <View padding={1} flexDir={"row"}>
+                                                    <Input flex={1} isReadOnly value={`${window.location.origin}${subFolderPath}/playerregistration/${selectedPlayerListID}/${selectedPlayerListPassword}`}></Input>
+                                                    <CopyButton text={`${window.location.origin}${subFolderPath}/playerregistration/${selectedPlayerListID}/${selectedPlayerListPassword}`} />
+                                                </View>
+
                                             </>
 
                                             : null

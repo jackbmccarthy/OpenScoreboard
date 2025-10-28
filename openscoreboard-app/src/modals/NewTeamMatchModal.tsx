@@ -71,49 +71,49 @@ export function NewTeamMatchModal(props) {
                             {i18n.t("sport")}
                         </FormControl.Label>
                         <Select selectedValue={selectedSport}
-                        onValueChange={(sport)=>{
-                            setSelectedSport(sport)
-                            if( supportedSports[sport]?.hasScoringTypes){
-                                setSelectedScoringType(Object.keys(supportedSports[sport]?.scoringTypes)[0])
-                            }
-                        }}
-                        >
-                                {
-                                    Object.entries(supportedSports).map(([id, {displayName}])=>{
-                                        return <Select.Item key={id} label={displayName} value={id}></Select.Item>
-                                    })
+                            onValueChange={(sport) => {
+                                setSelectedSport(sport)
+                                if (supportedSports[sport]?.hasScoringTypes) {
+                                    setSelectedScoringType(Object.keys(supportedSports[sport]?.scoringTypes)[0])
                                 }
-                            </Select>
-
+                            }}
+                        >
                             {
-                                supportedSports[selectedSport]?.hasScoringTypes ?
-<>
-<FormControl.Label>
-                            {i18n.t("scoringType")}
-                        </FormControl.Label>
-                        <Select selectedValue={selectedScoringType}
-                        onValueChange={(type)=>{
-                            setSelectedScoringType(type)
-                        }}
-                        >
-                                {
-                                    Object.entries(supportedSports[selectedSport]?.scoringTypes || {}).map(([id, {displayName}])=>{
-                                        return <Select.Item key={id} label={displayName} value={id}></Select.Item>
-                                    })
-                                }
-                            </Select>
-</>
-
-                                :null
+                                Object.entries(supportedSports).map(([id, { displayName }]) => {
+                                    return <Select.Item key={id} label={displayName} value={id}></Select.Item>
+                                })
                             }
-                           </FormControl>
+                        </Select>
+
+                        {
+                            supportedSports[selectedSport]?.hasScoringTypes ?
+                                <>
+                                    <FormControl.Label>
+                                        {i18n.t("scoringType")}
+                                    </FormControl.Label>
+                                    <Select selectedValue={selectedScoringType}
+                                        onValueChange={(type) => {
+                                            setSelectedScoringType(type)
+                                        }}
+                                    >
+                                        {
+                                            Object.entries(supportedSports[selectedSport]?.scoringTypes || {}).map(([id, { displayName }]) => {
+                                                return <Select.Item key={id} label={displayName} value={id}></Select.Item>
+                                            })
+                                        }
+                                    </Select>
+                                </>
+
+                                : null
+                        }
+                    </FormControl>
                 </Modal.Body>
                 <Modal.Footer>
                     <View padding={1}>
                         <Button
                             onPress={async () => {
                                 setLoadingNewMatch(true);
-                                await addNewTeamMatch(newTeamMatch(teamAID, teamBID, matchTime, selectedSport,selectedScoringType));
+                                await addNewTeamMatch(newTeamMatch(teamAID, teamBID, matchTime, selectedSport, selectedScoringType));
 
                                 setLoadingNewMatch(false);
                                 props.onClose();

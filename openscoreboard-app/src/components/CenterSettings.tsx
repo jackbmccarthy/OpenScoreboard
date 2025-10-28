@@ -58,14 +58,14 @@ export function CenterSettings(props) {
             </View>
 
             <View padding={1}>
-                <Button 
+                <Button
                     onPress={async () => {
-                       
+
                     }}
                     borderStyle={"groove"} borderWidth="4" borderColor={"white"} padding={1}>
                     <View justifyContent={"center"} flexDirection="row" alignItems="center">
-                    <Entypo name="thumbs-up" size={24} color={openScoreboardButtonTextColor} />
-                    <FontAwesome5 name="table-tennis" size={24} color={openScoreboardButtonTextColor} />
+                        <Entypo name="thumbs-up" size={24} color={openScoreboardButtonTextColor} />
+                        <FontAwesome5 name="table-tennis" size={24} color={openScoreboardButtonTextColor} />
                     </View>
 
 

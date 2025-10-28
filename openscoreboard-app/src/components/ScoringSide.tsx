@@ -105,20 +105,20 @@ export function ScoringSide(props) {
                                 if (isGameDone) {
                                     props.openGameWonConfirmationModal()
                                 }
-                                if(isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) && isFinalGame({ ...props, [`game${gameNumber}AScore`]: newAScore })){
+                                if (isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) && isFinalGame({ ...props, [`game${gameNumber}AScore`]: newAScore })) {
                                     //Match Point
                                     setIsMatchPoint(props.matchID, true)
                                 }
-                                else if(isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) ){
+                                else if (isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore })) {
                                     setIsGamePoint(props.matchID, true)
                                 }
                                 else {
-                                   if(props.isGamePoint){
-                                    setIsGamePoint(props.matchID, false)
-                                   }
-                                   if(props.isMatchPoint){
-                                    setIsMatchPoint(props.matchID, false)
-                                   }
+                                    if (props.isGamePoint) {
+                                        setIsGamePoint(props.matchID, false)
+                                    }
+                                    if (props.isMatchPoint) {
+                                        setIsMatchPoint(props.matchID, false)
+                                    }
                                 }
                             }
                             else {
@@ -130,20 +130,20 @@ export function ScoringSide(props) {
                                 if (isGameDone) {
                                     props.openGameWonConfirmationModal()
                                 }
-                                if(isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) && isFinalGame({ ...props, [`game${gameNumber}BScore`]: newBScore })){
+                                if (isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) && isFinalGame({ ...props, [`game${gameNumber}BScore`]: newBScore })) {
                                     //Match Point
                                     setIsMatchPoint(props.matchID, true)
                                 }
-                                else if(isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) ){
+                                else if (isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore })) {
                                     setIsGamePoint(props.matchID, true)
                                 }
                                 else {
-                                   if(props.isGamePoint){
-                                    setIsGamePoint(props.matchID, false)
-                                   }
-                                   if(props.isMatchPoint){
-                                    setIsMatchPoint(props.matchID, false)
-                                   }
+                                    if (props.isGamePoint) {
+                                        setIsGamePoint(props.matchID, false)
+                                    }
+                                    if (props.isMatchPoint) {
+                                        setIsMatchPoint(props.matchID, false)
+                                    }
                                 }
                             }
                             setLoadingAddPoint(false)
@@ -172,9 +172,9 @@ export function ScoringSide(props) {
                     {
                         props.isManualServiceMode || (isA && props.isACurrentlyServing) || (!isA && !props.isACurrentlyServing) ?
 
-                            <View justifyContent={"center"}  alignItems="center" padding={1} position={"absolute"} right={isOnLeft ? 0 : null} left={isOnLeft ? null : 0} bottom={0} top={0}>
+                            <View justifyContent={"center"} alignItems="center" padding={1} position={"absolute"} right={isOnLeft ? 0 : null} left={isOnLeft ? null : 0} bottom={0} top={0}>
                                 <View >
-                                    <Button borderColor={"white"} borderWidth={ manualServiceMode && ((isA && props.isACurrentlyServing) || (!isA && !props.isACurrentlyServing)) ? 2 : null} disabled={!manualServiceMode}
+                                    <Button borderColor={"white"} borderWidth={manualServiceMode && ((isA && props.isACurrentlyServing) || (!isA && !props.isACurrentlyServing)) ? 2 : null} disabled={!manualServiceMode}
                                         onPress={() => {
                                             if (isA) {
                                                 setServerManually(props.matchID, true)
@@ -209,39 +209,39 @@ export function ScoringSide(props) {
                             if (props.isA) {
                                 let newAScore = await MinusPoint(props.matchID, getCurrentGameNumber(props), "A")
                                 await updateService(props.matchID, props.isAInitialServer, gameNumber, newAScore + props[`game${gameNumber}BScore`], props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType)
-                                if(isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) && isFinalGame({ ...props, [`game${gameNumber}AScore`]: newAScore })){
+                                if (isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) && isFinalGame({ ...props, [`game${gameNumber}AScore`]: newAScore })) {
                                     //Match Point
                                     setIsMatchPoint(props.matchID, true)
                                 }
-                                else if(isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) ){
+                                else if (isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore })) {
                                     setIsGamePoint(props.matchID, true)
                                 }
                                 else {
-                                   if(props.isGamePoint){
-                                    setIsGamePoint(props.matchID, false)
-                                   }
-                                   if(props.isMatchPoint){
-                                    setIsMatchPoint(props.matchID, false)
-                                   }
+                                    if (props.isGamePoint) {
+                                        setIsGamePoint(props.matchID, false)
+                                    }
+                                    if (props.isMatchPoint) {
+                                        setIsMatchPoint(props.matchID, false)
+                                    }
                                 }
                             }
                             else {
                                 let newBScore = await MinusPoint(props.matchID, getCurrentGameNumber(props), "B")
                                 await updateService(props.matchID, props.isAInitialServer, gameNumber, newBScore + props[`game${gameNumber}AScore`], props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType)
-                                if(isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) && isFinalGame({ ...props, [`game${gameNumber}BScore`]: newBScore })){
+                                if (isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) && isFinalGame({ ...props, [`game${gameNumber}BScore`]: newBScore })) {
                                     //Match Point
                                     setIsMatchPoint(props.matchID, true)
                                 }
-                                else if(isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) ){
+                                else if (isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore })) {
                                     setIsGamePoint(props.matchID, true)
                                 }
                                 else {
-                                   if(props.isGamePoint){
-                                    setIsGamePoint(props.matchID, false)
-                                   }
-                                   if(props.isMatchPoint){
-                                    setIsMatchPoint(props.matchID, false)
-                                   }
+                                    if (props.isGamePoint) {
+                                        setIsGamePoint(props.matchID, false)
+                                    }
+                                    if (props.isMatchPoint) {
+                                        setIsMatchPoint(props.matchID, false)
+                                    }
                                 }
                             }
 

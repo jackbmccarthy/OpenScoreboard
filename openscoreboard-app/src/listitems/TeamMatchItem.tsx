@@ -10,7 +10,7 @@ export function TeamMatchItem(props) {
         <View width={"100%"} padding={1}>
 
             <Text fontSize={"xl"} textAlign={"center"}>{props.item[1].teamAScore} - {props.item[1].teamAName} <Text fontWeight={"bold"}>VS </Text> {props.item[1].teamBName} -  {props.item[1].teamBScore}</Text>
-            <Text fontSize={"lg"} textAlign={"center"}>{props.item[1]["sportName"]?props.item[1]["sportDisplayName"]+" - ":""}{new Date(props.item[1].startTime).toLocaleDateString()}</Text>
+            <Text fontSize={"lg"} textAlign={"center"}>{props.item[1]["sportName"] ? props.item[1]["sportDisplayName"] + " - " : ""}{new Date(props.item[1].startTime).toLocaleDateString()}</Text>
 
             <View flexDirection={"row"} padding={1} justifyContent="center">
 
@@ -47,7 +47,7 @@ export function TeamMatchItem(props) {
                 <View>
                     <Button
                         onPress={() => {
-                           props.openDeleteTeamMatch(props.item[0])
+                            props.openDeleteTeamMatch(props.item[0])
                         }}
                         variant="ghost"
 

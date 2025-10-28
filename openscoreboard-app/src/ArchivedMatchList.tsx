@@ -59,7 +59,7 @@ export default function ArchivedMatchList(props) {
                             <View justifyContent={"center"} alignItems="center">
                                 <View>
                                     <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noArchivedMatchesTable")}</Text>
-                                    
+
                                 </View>
                             </View>
                     }

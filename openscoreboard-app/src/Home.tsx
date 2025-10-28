@@ -52,7 +52,7 @@ export default function Home(props) {
     ]
 
     console.log(window.location.hostname)
-    if(window.location.hostname === 'app.openscoreboard.com'){
+    if (window.location.hostname === 'app.openscoreboard.com') {
         scoreboards.push({
             route: "TableLiveScoringLink",
             title: i18n.t("tableLiveScoring"),
@@ -86,65 +86,73 @@ export default function Home(props) {
                     <Text fontSize={"2xl"} textAlign="center" underline fontWeight={"bold"}>{i18n.t("scoring")}</Text>
                 </View>
                 <FlatList
-                alignSelf={"center"}
-                width={"100%"}
-                maxW={500}
-                data={scoringScreens}
-                    renderItem={(item)=>{ return (
-                        <HomeItem {...item} navigation={props.navigation}></HomeItem>
-                    )}}
-                    >
+                    alignSelf={"center"}
+                    width={"100%"}
+                    maxW={500}
+                    data={scoringScreens}
+                    renderItem={(item) => {
+                        return (
+                            <HomeItem {...item} navigation={props.navigation}></HomeItem>
+                        )
+                    }}
+                >
 
-                    </FlatList>
-               
+                </FlatList>
+
 
                 <View>
                     <Text fontSize={"2xl"} textAlign="center" underline fontWeight={"bold"}>{i18n.t("importablePlayersTeams")}</Text>
                 </View>
                 <FlatList
-                alignSelf={"center"}
-                width={"100%"}
-                maxW={500}
-                data={importables}
-                    renderItem={(item)=>{ return (
-                        <HomeItem {...item} navigation={props.navigation}></HomeItem>
-                    )}}
-                    >
+                    alignSelf={"center"}
+                    width={"100%"}
+                    maxW={500}
+                    data={importables}
+                    renderItem={(item) => {
+                        return (
+                            <HomeItem {...item} navigation={props.navigation}></HomeItem>
+                        )
+                    }}
+                >
 
-                    </FlatList>
-             
+                </FlatList>
+
 
                 <View>
                     <Text fontSize={"2xl"} textAlign="center" underline fontWeight={"bold"}>{i18n.t("scoreboardsOverlays")}</Text>
                 </View>
                 <FlatList
-                alignSelf={"center"}
-                width={"100%"}
-                maxW={500}
-                data={scoreboards}
-                    renderItem={(item)=>{ return (
-                        <HomeItem {...item} navigation={props.navigation}></HomeItem>
-                    )}}
-                    >
+                    alignSelf={"center"}
+                    width={"100%"}
+                    maxW={500}
+                    data={scoreboards}
+                    renderItem={(item) => {
+                        return (
+                            <HomeItem {...item} navigation={props.navigation}></HomeItem>
+                        )
+                    }}
+                >
 
-                    </FlatList>
-              
+                </FlatList>
+
 
                 <View>
                     <Text fontSize={"2xl"} textAlign="center" underline fontWeight={"bold"}>{i18n.t("account")}</Text>
                 </View>
                 <FlatList
-                alignSelf={"center"}
-                width={"100%"}
-                maxW={500}
-                data={account}
-                    renderItem={(item)=>{ return (
-                        <HomeItem {...item} navigation={props.navigation}></HomeItem>
-                    )}}
-                    >
+                    alignSelf={"center"}
+                    width={"100%"}
+                    maxW={500}
+                    data={account}
+                    renderItem={(item) => {
+                        return (
+                            <HomeItem {...item} navigation={props.navigation}></HomeItem>
+                        )
+                    }}
+                >
 
-                    </FlatList>
-             
+                </FlatList>
+
 
 
 

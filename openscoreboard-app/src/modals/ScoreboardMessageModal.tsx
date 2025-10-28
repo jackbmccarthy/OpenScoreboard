@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Button, Text, View, Modal, } from 'native-base';
-import { openScoreboardButtonTextColor,  } from "../../openscoreboardtheme";
+import { openScoreboardButtonTextColor, } from "../../openscoreboardtheme";
 
 import { openBrowserAsync } from 'expo-web-browser';
 
@@ -19,21 +19,21 @@ export function ScoreboardMessageModal(props) {
                     >
                         <Button onPress={() => {
                             let editorLink = ""
-                            if (process.env.NODE_ENV ==="production"){
+                            if (process.env.NODE_ENV === "production") {
                                 editorLink = props.editorURL
                             }
-                            else{
+                            else {
                                 const editorDevPort = "3002"
-                                editorLink = window.location.origin.replace(window.location.port,editorDevPort)+props.editorURL
+                                editorLink = window.location.origin.replace(window.location.port, editorDevPort) + props.editorURL
                             }
-                            
-                 
+
+
                             openBrowserAsync(editorLink);
                         }}>
                             <Text color={openScoreboardButtonTextColor}>{i18n.t("launchScoreboard")}</Text>
 
                         </Button>
-                        
+
 
                     </View>
 

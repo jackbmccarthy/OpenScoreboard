@@ -43,7 +43,7 @@ export function GameWonConfirmationModal(props) {
                     {loadingConfirmGame ?
                         <View alignItems={"center"} justifyContent={"center"} >
                             <Text fontSize={"3xl"}>{i18n.t("finishingGame")}...</Text>
-                            
+
                         </View>
 
 
@@ -65,17 +65,17 @@ export function GameWonConfirmationModal(props) {
                                 setLoadingConfirmGame(true);
                                 let updatedGameValues = await endGame(props.matchID, gameNumber);
                                 if (props.isTeamMatch) {
-                                   if(isMatchFinished({ ...props, ...updatedGameValues })){
-                                    let finalScore =  getMatchScore({ ...props, ...updatedGameValues })
-                                        if(finalScore.a > finalScore.b){
-                                         await addWinToTeamMatchTeamScore(props.teamMatchID, "A")
+                                    if (isMatchFinished({ ...props, ...updatedGameValues })) {
+                                        let finalScore = getMatchScore({ ...props, ...updatedGameValues })
+                                        if (finalScore.a > finalScore.b) {
+                                            await addWinToTeamMatchTeamScore(props.teamMatchID, "A")
                                         }
-                                        else{
-                                         await addWinToTeamMatchTeamScore(props.teamMatchID, "B")
+                                        else {
+                                            await addWinToTeamMatchTeamScore(props.teamMatchID, "B")
                                         }
-                                   }
-                                        
-                                      
+                                    }
+
+
                                 }
                                 props.onClose();
                                 setLoadingConfirmGame(false);
@@ -94,42 +94,42 @@ export function GameWonConfirmationModal(props) {
                                 let scores = getCurrentGameScore(props);
                                 if (scores.a >= scores.b) {
                                     const newAScore = await MinusPoint(props.matchID, getCurrentGameNumber(props), "A");
-                                     updateService(props.matchID, props.isAInitialServer, gameNumber, newAScore + props[`game${gameNumber}BScore`], props.changeServeEveryXPoints, props.pointsToWinGame,props.sportName, props.scoringType)
-                                if(isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) && isFinalGame({ ...props, [`game${gameNumber}AScore`]: newAScore })){
-                                    //Match Point
-                                    setIsMatchPoint(props.matchID, true)
-                                }
-                                else if(isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) ){
-                                    setIsGamePoint(props.matchID, true)
-                                }
-                                else {
-                                   if(props.isGamePoint){
-                                    setIsGamePoint(props.matchID, false)
-                                   }
-                                   if(props.isMatchPoint){
-                                    setIsMatchPoint(props.matchID, false)
-                                   }
-                                }
+                                    updateService(props.matchID, props.isAInitialServer, gameNumber, newAScore + props[`game${gameNumber}BScore`], props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType)
+                                    if (isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore }) && isFinalGame({ ...props, [`game${gameNumber}AScore`]: newAScore })) {
+                                        //Match Point
+                                        setIsMatchPoint(props.matchID, true)
+                                    }
+                                    else if (isGamePoint({ ...props, [`game${gameNumber}AScore`]: newAScore })) {
+                                        setIsGamePoint(props.matchID, true)
+                                    }
+                                    else {
+                                        if (props.isGamePoint) {
+                                            setIsGamePoint(props.matchID, false)
+                                        }
+                                        if (props.isMatchPoint) {
+                                            setIsMatchPoint(props.matchID, false)
+                                        }
+                                    }
                                     props.onClose();
                                 }
                                 else {
                                     const newBScore = await MinusPoint(props.matchID, getCurrentGameNumber(props), "B");
-                                    updateService(props.matchID, props.isAInitialServer, gameNumber, newBScore + props[`game${gameNumber}AScore`], props.changeServeEveryXPoints, props.pointsToWinGame,props.sportName, props.scoringType)
-                               if(isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) && isFinalGame({ ...props, [`game${gameNumber}BScore`]: newBScore })){
-                                   //Match Point
-                                   setIsMatchPoint(props.matchID, true)
-                               }
-                               else if(isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) ){
-                                   setIsGamePoint(props.matchID, true)
-                               }
-                               else {
-                                  if(props.isGamePoint){
-                                   setIsGamePoint(props.matchID, false)
-                                  }
-                                  if(props.isMatchPoint){
-                                   setIsMatchPoint(props.matchID, false)
-                                  }
-                               }
+                                    updateService(props.matchID, props.isAInitialServer, gameNumber, newBScore + props[`game${gameNumber}AScore`], props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType)
+                                    if (isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore }) && isFinalGame({ ...props, [`game${gameNumber}BScore`]: newBScore })) {
+                                        //Match Point
+                                        setIsMatchPoint(props.matchID, true)
+                                    }
+                                    else if (isGamePoint({ ...props, [`game${gameNumber}BScore`]: newBScore })) {
+                                        setIsGamePoint(props.matchID, true)
+                                    }
+                                    else {
+                                        if (props.isGamePoint) {
+                                            setIsGamePoint(props.matchID, false)
+                                        }
+                                        if (props.isMatchPoint) {
+                                            setIsMatchPoint(props.matchID, false)
+                                        }
+                                    }
                                     props.onClose();
                                 }
                             }}

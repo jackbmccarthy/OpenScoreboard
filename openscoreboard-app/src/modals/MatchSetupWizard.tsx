@@ -22,13 +22,13 @@ export function MatchSetup(props) {
     let [showLoadingScheduledMatch, setLoadingScheduledMatch] = useState(false)
     let [showScheduledMatches, setShowScheduledMatches] = useState(false)
 
-   
+
 
     let [bestOfGames, setBestOfGames] = useState(props.bestOf || 5)
- let [matchRound, setMatchRound] = useState(props.matchRound || "")
+    let [matchRound, setMatchRound] = useState(props.matchRound || "")
     let [listOfRounds, setListOfRounds] = useState([])
 
-  
+
 
     const defaultRounds = [
         "Round Of 256",
@@ -101,7 +101,7 @@ export function MatchSetup(props) {
     };
 
     const { isAInitialServer, isActive, isWarmUpStarted, matchTimeStart, warmUpStartTime, isInitialServerSelected, playerA, playerB, playerA2, playerB2 } = props;
-  
+
 
     return (
         <>
@@ -141,13 +141,13 @@ export function MatchSetup(props) {
                             </View>
                             :
                             <>
-       <Text  textAlign={"center"}>{i18n.t("welcomeNewMatch")}</Text>
-       <Text fontWeight={"bold"} textAlign={"center"}>{i18n.t("pressNextToBegin")}</Text>
-       
-        {props.isTeamMatch || props.isScheduling ? null : <>
-        <Text  textAlign={"center"}>{i18n.t("or")}</Text>
-        <Text fontWeight={"bold"} textAlign={"center"}>{i18n.t("pressScheduledMatch")}</Text>
-        </>}
+                                <Text textAlign={"center"}>{i18n.t("welcomeNewMatch")}</Text>
+                                <Text fontWeight={"bold"} textAlign={"center"}>{i18n.t("pressNextToBegin")}</Text>
+
+                                {props.isTeamMatch || props.isScheduling ? null : <>
+                                    <Text textAlign={"center"}>{i18n.t("or")}</Text>
+                                    <Text fontWeight={"bold"} textAlign={"center"}>{i18n.t("pressScheduledMatch")}</Text>
+                                </>}
 
                             </>
 
@@ -185,7 +185,7 @@ export function MatchSetup(props) {
 
                     <Text fontSize={"xl"}>{i18n.t("winBestOf")}</Text>
                     <View flexDir={"row"} padding={1}>
-                    <View flex={1} padding={1}>
+                        <View flex={1} padding={1}>
                             <Button
                                 onPress={() => {
                                     setBestOfGames(1)
@@ -422,7 +422,7 @@ export function MatchSetup(props) {
                                 showLoadingScheduledMatch ?
                                     <Spinner color={openScoreboardColor}></Spinner>
                                     :
-                                    <Text  color={openScoreboardButtonTextColor}>{i18n.t("done")}</Text>
+                                    <Text color={openScoreboardButtonTextColor}>{i18n.t("done")}</Text>
                             }
 
                         </Button>
@@ -463,7 +463,7 @@ export function MatchSetup(props) {
 
 
                     }}>
-                        <Text >{pageNumber === 1 && !props.isTeamMatch && !showScheduledMatches && !props.isScheduling ? i18n.t("scheduled") :  i18n.t("back")}</Text>
+                        <Text >{pageNumber === 1 && !props.isTeamMatch && !showScheduledMatches && !props.isScheduling ? i18n.t("scheduled") : i18n.t("back")}</Text>
                     </Button>
                 </View>
                 <View padding={1} flex={1}>

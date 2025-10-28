@@ -13,22 +13,22 @@ export default class Match {
         }
     }
 
-    getDefaultMatchSettings(sportName, previousMatchObj=null, isTeamMatch=false, scoringTypeDefault="normal") {
+    getDefaultMatchSettings(sportName, previousMatchObj = null, isTeamMatch = false, scoringTypeDefault = "normal") {
 
         let matchSettings = {
             //Pregame settings
             isActive: false,
             isWarmUpStarted: false,
-            isWarmUpFinished:false,
+            isWarmUpFinished: false,
             warmUpStartTime: "",
-            isMatchStarted:false,
+            isMatchStarted: false,
             matchStartTime: "",
             isInBetweenGames: false,
 
-            showGameWonConfirmationModal:false,
-            showInBetweenGamesModal:false,
-            showMatchSetupWizard:false,
-            showEndOfMatchOptions:false,
+            showGameWonConfirmationModal: false,
+            showInBetweenGamesModal: false,
+            showMatchSetupWizard: false,
+            showEndOfMatchOptions: false,
 
 
             // Timeout related fields
@@ -49,21 +49,21 @@ export default class Match {
             pointsToWinGame: 11,
 
             //Pickleball
-            isSecondServer:true,
-            scoringType:scoringTypeDefault,
+            isSecondServer: true,
+            scoringType: scoringTypeDefault,
 
             //Team Fields for Table Only.
-            isTeamMatch:isTeamMatch,
+            isTeamMatch: isTeamMatch,
             //includeTeamName: false,
             teamNameA: "",
             teamNameB: "",
-            teamMatchID:"",
+            teamMatchID: "",
 
 
             isSwitched: false,
 
             matchRound: "",
-            eventName:"",
+            eventName: "",
             isCourtSideScoreboardFlipped: false,
             isDoubles: false,
             significantPoints: {},
@@ -156,45 +156,46 @@ export default class Match {
             playerA2: getNewPlayer(),
             playerB2: getNewPlayer(),
 
-            sportName:sportName
+            sportName: sportName
 
 
 
         }
-        if(previousMatchObj){
+        if (previousMatchObj) {
 
-            const {bestOf, pointsToWinGame, isDoubles, isManualServiceMode, changeServeEveryXPoints, enforceGameScore, scoringType} = previousMatchObj
-            matchSettings = {...matchSettings,
-                bestOf:bestOf,
-                pointsToWinGame:pointsToWinGame,
-                isDoubles:isDoubles,
-                isManualServiceMode:isManualServiceMode,
-                changeServeEveryXPoints:changeServeEveryXPoints,
-                enforceGameScore:enforceGameScore,
-                sportName:sportName,
-                scoringType:scoringType ? scoringType : scoringTypeDefault
+            const { bestOf, pointsToWinGame, isDoubles, isManualServiceMode, changeServeEveryXPoints, enforceGameScore, scoringType } = previousMatchObj
+            matchSettings = {
+                ...matchSettings,
+                bestOf: bestOf,
+                pointsToWinGame: pointsToWinGame,
+                isDoubles: isDoubles,
+                isManualServiceMode: isManualServiceMode,
+                changeServeEveryXPoints: changeServeEveryXPoints,
+                enforceGameScore: enforceGameScore,
+                sportName: sportName,
+                scoringType: scoringType ? scoringType : scoringTypeDefault
             }
         }
-        else{
+        else {
             const defaultOptions = supportedSports[sportName]?.defaults
             const scoringTypeSettings = supportedSports[sportName]?.scoringTypes ? supportedSports[sportName]?.scoringTypes[scoringTypeDefault] : null
-            if(scoringTypeSettings && scoringTypeSettings.defaults){
-                matchSettings = {...matchSettings, ...defaultOptions, ...scoringTypeSettings.defaults}
+            if (scoringTypeSettings && scoringTypeSettings.defaults) {
+                matchSettings = { ...matchSettings, ...defaultOptions, ...scoringTypeSettings.defaults }
             }
-            else{
-                matchSettings = {...matchSettings, ...defaultOptions}
+            else {
+                matchSettings = { ...matchSettings, ...defaultOptions }
             }
-            
+
         }
         return matchSettings
     }
-createNew(sportName:string, previousMatchObj:object=null, isTeamMatch:boolean=false, scoringType:string="normal"){
-   // createNew(bestOf, isTeamMatch=false, pointsToWinGame=11, isDoubles=false) {
+    createNew(sportName: string, previousMatchObj: object = null, isTeamMatch: boolean = false, scoringType: string = "normal") {
+        // createNew(bestOf, isTeamMatch=false, pointsToWinGame=11, isDoubles=false) {
         let newMatch = this.getDefaultMatchSettings(sportName, previousMatchObj, isTeamMatch, scoringType)
         return newMatch
     }
 
 
 
-   
+
 }

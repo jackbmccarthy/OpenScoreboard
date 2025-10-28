@@ -22,8 +22,8 @@ export default function ScoreboardLinkList(props) {
         setLoadingDone(true)
     }
 
-    let defaultScoreboardURL 
-    if(props.isTeamMatch){
+    let defaultScoreboardURL
+    if (props.isTeamMatch) {
         defaultScoreboardURL = `${scoreboardBaseURL}/scoreboard/?tmid=${props.teamMatchID}&t=table&table=${props.tableID}`
     }
     else {
@@ -51,7 +51,7 @@ export default function ScoreboardLinkList(props) {
                     data={myScoreboards}
                     renderItem={(scoreboard) => {
                         let scoreboardURL //= `${scoreboardBaseURL}/scoreboard/?sid=${scoreboard.item[1].id}&tid=${props.tableID}&t=table`
-                        if(props.isTeamMatch){
+                        if (props.isTeamMatch) {
                             scoreboardURL = `${scoreboardBaseURL}/scoreboard/?tmid=${props.teamMatchID}&t=table&table=${props.tableID}&sid=${scoreboard.item[1].id}`
                         }
                         else {

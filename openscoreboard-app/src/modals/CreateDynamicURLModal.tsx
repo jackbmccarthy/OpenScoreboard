@@ -73,9 +73,9 @@ export function CreateDynamicURLModal(props) {
                     <FormControl>
                         <FormControl.Label>{i18n.t("dynamicURLName")}</FormControl.Label>
                         <Input
-                        ref={dynamicURLNameRef}
-                       // value={urlName}
-                           // onChangeText={setURLName}
+                            ref={dynamicURLNameRef}
+                        // value={urlName}
+                        // onChangeText={setURLName}
                         ></Input>
                         <FormControl.Label>{i18n.t("selectTable")}</FormControl.Label>
                         {tableList.length > 0 ?

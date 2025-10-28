@@ -20,7 +20,7 @@ export function SelectTeamMatchTableModal(props) {
     useEffect(() => {
 
         if (props.teamMatchID && props.teamMatchID.length) {
-     
+
             loadCurrentTeamMatches(props.teamMatchID);
         }
     }, [props.teamMatchID]);
@@ -43,25 +43,25 @@ export function SelectTeamMatchTableModal(props) {
                                     <View alignItems={"center"} justifyContent="space-between" flexDirection={"row"}>
                                         <Text>Table {table[0]}</Text>
                                         <View flexDirection={"row"} alignItems="center">
-                                          <Button variant={"ghost"}
-                                            onPress={() => {
-                                                props.goToKeepScore(props.teamMatchID, table[0], props.sportName,props.scoringType);
-                                            }}
-                                        >
-                                            <MaterialCommunityIcons name="scoreboard" size={24} color={openScoreboardColor} />
+                                            <Button variant={"ghost"}
+                                                onPress={() => {
+                                                    props.goToKeepScore(props.teamMatchID, table[0], props.sportName, props.scoringType);
+                                                }}
+                                            >
+                                                <MaterialCommunityIcons name="scoreboard" size={24} color={openScoreboardColor} />
 
-                                        </Button>
-                                        <Button variant={"ghost"}
-                                            onPress={() => {
-                                                props.onClose(false)
-                                                props.openTeamMatchLink(props.teamMatchID, table[0],props.sportName,props.scoringType);
-                                            }}
-                                        >
-                                            <MaterialCommunityIcons name="share" size={24} color={openScoreboardColor} />
+                                            </Button>
+                                            <Button variant={"ghost"}
+                                                onPress={() => {
+                                                    props.onClose(false)
+                                                    props.openTeamMatchLink(props.teamMatchID, table[0], props.sportName, props.scoringType);
+                                                }}
+                                            >
+                                                <MaterialCommunityIcons name="share" size={24} color={openScoreboardColor} />
 
-                                        </Button>  
+                                            </Button>
                                         </View>
-                                        
+
                                     </View>
 
 

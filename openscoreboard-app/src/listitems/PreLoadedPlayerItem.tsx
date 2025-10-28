@@ -12,7 +12,7 @@ export function PreLoadedPlayerItem(props) {
     return (
         <NativeBaseProvider theme={openScoreboardTheme}>
             <View>
-        
+
                 <View padding={2} justifyContent={"space-between"} alignItems={"center"} flexDirection={"row"}>
                     <View alignItems={"center"} flexDirection={"row"}>
                         {props.imageURL && props.imageURL.length > 0 ?
@@ -39,7 +39,7 @@ export function PreLoadedPlayerItem(props) {
                                 <FontAwesome color={openScoreboardButtonTextColor} name="trash"></FontAwesome>
                             </Button>
                         </View>
-                      
+
                     </View>
                 </View>
 

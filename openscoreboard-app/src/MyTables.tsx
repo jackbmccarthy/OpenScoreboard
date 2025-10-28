@@ -1,7 +1,7 @@
 
 
-import React, {  useEffect, useState } from 'react';
-import { Button,  View,  NativeBaseProvider, FlatList,  AddIcon,  Text } from 'native-base';
+import React, { useEffect, useState } from 'react';
+import { Button, View, NativeBaseProvider, FlatList, AddIcon, Text } from 'native-base';
 import db, { getUserPath } from '../database';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
@@ -49,7 +49,7 @@ export default function MyTables(props) {
         setShowEditPlayerListModal(true)
     }
 
-    const openRegistrationModal = (tableID:string, tableIndex:number) => {
+    const openRegistrationModal = (tableID: string, tableIndex: number) => {
         setSelectedTableID(tableID)
         setSelectedTableIndex(tableIndex)
         setShowRegistrationModal(true)
@@ -82,7 +82,7 @@ export default function MyTables(props) {
                 ])
                 let tableNameSnapShot = tableDataPromise[0]
                 let tablePasswordSnap = tableDataPromise[1]
-                let tablePlayerListIDSnap = tableDataPromise[2] 
+                let tablePlayerListIDSnap = tableDataPromise[2]
                 let tableSportName = tableDataPromise[3]
                 let tableScoringType = tableDataPromise[4]
                 let tableName = tableNameSnapShot.val()
@@ -97,8 +97,8 @@ export default function MyTables(props) {
                     tableName: tableName,
                     password: password,
                     playerListID: playerListID,
-                    sportName:sportName,
-                    scoringType:scoringType
+                    sportName: sportName,
+                    scoringType: scoringType
                 }
 
             }))
@@ -217,7 +217,7 @@ export default function MyTables(props) {
                             ></EditTablePlayerListModal>
                             : null
                     }
-                
+
 
 
 

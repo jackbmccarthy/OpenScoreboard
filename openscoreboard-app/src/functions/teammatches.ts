@@ -22,8 +22,8 @@ export default async function getMyTeamMatches(userID) {
 
 }
 
-export async function createTeamMatchNewMatch(teamMatchID, tableNumber, sportName, previousMatchObj, scoringType)    {
-    let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName,previousMatchObj,true,scoringType))
+export async function createTeamMatchNewMatch(teamMatchID, tableNumber, sportName, previousMatchObj, scoringType) {
+    let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, true, scoringType))
     let currentMatchKey = await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).set(newMatch.key)
     return newMatch.key
 }
@@ -49,16 +49,16 @@ export async function getTeamMatchCurrentMatch(teamMatchID, tableNumber) {
 }
 
 export async function addNewTeamMatch(teamMatch) {
-  
+
     let pushedTeamMatch = await db.ref(`teamMatches`).push(teamMatch)
     let preview = {
         id: pushedTeamMatch.key,
         teamAName: await getTeamName(teamMatch.teamAID),
         teamBName: await getTeamName(teamMatch.teamBID),
         startTime: teamMatch.startTime,
-        sportName:  teamMatch.sportName,
+        sportName: teamMatch.sportName,
         sportDisplayName: supportedSports[teamMatch.sportName].displayName,
-        scoringType:teamMatch.scoringType
+        scoringType: teamMatch.scoringType
     }
 
     await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches").push(preview)
@@ -80,7 +80,7 @@ export async function getImportTeamMembersList(player, teamMatchID) {
     if (player === "playerA" || player === "playerA2") {
 
         let ATeam = await getTeam(teamMatch.teamAID)
-        
+
         if (ATeam) {
             return Object.entries(ATeam.players)
         }
@@ -130,9 +130,9 @@ export async function archiveMatchForTeamMatch(teamMatchID, tableNumber, matchID
 
 export async function archiveTeamMatch(myTeamMatchID) {
     let userID = getUserPath()
-    let myTeamMatch = await db.ref("users" + "/" + userID + "/" + "myTeamMatches/"+myTeamMatchID).get()
+    let myTeamMatch = await db.ref("users" + "/" + userID + "/" + "myTeamMatches/" + myTeamMatchID).get()
     let currentMatchSnapShot = await db.ref("users" + "/" + userID + "/" + "archivedTeamMatches/").push(myTeamMatch.val())
-    await db.ref("users" + "/" + userID + "/" + "myTeamMatches/"+myTeamMatchID).remove()
+    await db.ref("users" + "/" + userID + "/" + "myTeamMatches/" + myTeamMatchID).remove()
     return currentMatchSnapShot.key
 
 }
@@ -140,7 +140,7 @@ export async function archiveTeamMatch(myTeamMatchID) {
 export async function getTeamMatchTeamScore(teamMatchID,) {
     let teamAScore = await db.ref(`teamMatches/${teamMatchID}/teamAScore`).get()
     let teamBScore = await db.ref(`teamMatches/${teamMatchID}/teamBScore`).get()
-    
+
     return {
         a: teamAScore.val() || 0,
         b: teamBScore.val() || 0

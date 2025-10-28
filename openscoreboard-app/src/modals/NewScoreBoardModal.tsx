@@ -23,7 +23,7 @@ export function NewScoreBoardModal(props) {
                             value={scoreboardName}
                             onChangeText={setScoreboardName}
                         ></Input>
-                    
+
                     </FormControl>
                 </Modal.Body>
                 <Modal.Footer><View padding={1}><Button

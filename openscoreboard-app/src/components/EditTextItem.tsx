@@ -14,37 +14,37 @@ export function EditTextItem(props) {
                 <FormControl>
                     <FormControl.Label>{fieldName}</FormControl.Label>
                     <FormControl flexDirection={"row"}>
- {isEditing ?
-                    <Input flex={1}
-                        value={value}
-                        onChangeText={setValue}
-                    ></Input>
-                    : <>
+                        {isEditing ?
+                            <Input flex={1}
+                                value={value}
+                                onChangeText={setValue}
+                            ></Input>
+                            : <>
 
-                    
-                            <Text flex={1}>{value}</Text>
-                    
 
-                    </>}
-                    <Button 
-                    onPress={() => {
-                        if (isEditing) {
-                            props.onSubmit(value);
-                            setIsEditing(false);
-                        }
-                        else {
-                            setIsEditing(true);
-                        }
-                    }}
-                >
-                    {isEditing ?
-                        <FontAwesome color="white" name='save' />
-                        : <FontAwesome color="white" name="edit" />}
+                                <Text flex={1}>{value}</Text>
 
-                </Button>
+
+                            </>}
+                        <Button
+                            onPress={() => {
+                                if (isEditing) {
+                                    props.onSubmit(value);
+                                    setIsEditing(false);
+                                }
+                                else {
+                                    setIsEditing(true);
+                                }
+                            }}
+                        >
+                            {isEditing ?
+                                <FontAwesome color="white" name='save' />
+                                : <FontAwesome color="white" name="edit" />}
+
+                        </Button>
                     </FormControl>
-                   
-                    
+
+
                 </FormControl>
                 {/* <View>
                     <Text>{fieldName}</Text>
@@ -61,7 +61,7 @@ export function EditTextItem(props) {
                         </View>
 
                     </>} */}
-                    {/* <View padding={1}>
+                {/* <View padding={1}>
                     <Button 
                     onPress={() => {
                         if (isEditing) {
@@ -79,7 +79,7 @@ export function EditTextItem(props) {
 
                 </Button>     
                     </View> */}
-               
+
             </View>
         </View>
     );
