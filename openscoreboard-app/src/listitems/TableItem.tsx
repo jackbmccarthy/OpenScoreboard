@@ -6,24 +6,24 @@ import { supportedSports } from '../functions/sports';
 
 export function TableItem(props) {
 
-const iconSize = 24
+    const iconSize = 24
 
     return (
         <>
             <View maxW={"lg"}>
                 <View padding={1} flexDirection={"column"}>
-                        <Text textAlign={"left"} fontSize={"xl"} fontWeight={"bold"}>{props.tableName}</Text>
-                        <View padding={0}>
-                            <Text lineHeight={"1em"}  padding={0} textAlign={"left"} fontSize={"sm"} fontWeight={"medium"}>{supportedSports[props.sportName]?.displayName?supportedSports[props.sportName]?.displayName :"Table Tennis"}</Text>
-                        </View>
-                        
+                    <Text textAlign={"left"} fontSize={"xl"} fontWeight={"bold"}>{props.tableName}</Text>
+                    <View padding={0}>
+                        <Text lineHeight={"1em"} padding={0} textAlign={"left"} fontSize={"sm"} fontWeight={"medium"}>{supportedSports[props.sportName]?.displayName ? supportedSports[props.sportName]?.displayName : "Table Tennis"}</Text>
                     </View>
+
+                </View>
                 <View width="100%" flex={1} >
                     <View flexDirection={"row"} alignItems="center" justifyContent={"space-between"}>
                         <View padding={1}>
                             <Button padding={1} variant="ghost"
                                 onPress={() => {
-                                    props.navigation.navigate("TableScoring", { tableID: props.id, name: props.tableName, password: props.password, sportName:props.sportName? props.sportName : "tableTennis", scoringType:props.scoringType ? props.scoringType : null });
+                                    props.navigation.navigate("TableScoring", { tableID: props.id, name: props.tableName, password: props.password, sportName: props.sportName ? props.sportName : "tableTennis", scoringType: props.scoringType ? props.scoringType : null });
 
                                 }}
                             >
@@ -42,11 +42,11 @@ const iconSize = 24
                             </Button>
                         </View>
                         <View>
-                            <Button 
-                            onPress={()=>{
-                                props.navigation.navigate("ArchivedMatchList", { tableID: props.id, });
-                            }}
-                            padding={1} variant="ghost"
+                            <Button
+                                onPress={() => {
+                                    props.navigation.navigate("ArchivedMatchList", { tableID: props.id, });
+                                }}
+                                padding={1} variant="ghost"
 
                             >
                                 <FontAwesome name="history" size={iconSize} color={openScoreboardColor} />
@@ -55,7 +55,7 @@ const iconSize = 24
                         <View>
                             <Button variant={"ghost"} padding={1}
                                 onPress={() => {
-                                   props.navigation.navigate("ScheduledTableMatches", { tableID: props.id, name: props.tableName, sportName:props.sportName,scoringType:props.scoringType });
+                                    props.navigation.navigate("ScheduledTableMatches", { tableID: props.id, name: props.tableName, sportName: props.sportName, scoringType: props.scoringType });
                                 }}
                             >
                                 <AntDesign name="calendar" size={iconSize} color={openScoreboardColor} />
@@ -80,7 +80,7 @@ const iconSize = 24
                             </Button>
                         </View>
                     </View>
-                    
+
 
                 </View>
             </View>

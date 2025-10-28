@@ -68,8 +68,8 @@ export default function MyTeamMatches(props) {
             teamMatchID: teamMatchID,
             tableNumber: tableNumber,
             name: "Table " + tableNumber,
-            sportName:sportName,
-            scoringType:scoringType
+            sportName: sportName,
+            scoringType: scoringType
         })
     }
 
@@ -121,7 +121,7 @@ export default function MyTeamMatches(props) {
                     <View flex={1}>
                         {
                             teamMatchList.length > 0 ?
-                                <FlatList 
+                                <FlatList
                                     data={teamMatchList.sort((a, b) => {
                                         return new Date(a[1].startTime) > new Date(b[1].startTime) ? -1 : 1
                                     })}
@@ -169,23 +169,23 @@ export default function MyTeamMatches(props) {
                         }
                     }} ></NewTeamMatchModal>
                     {
-                        showTeamMatchTableModal ? 
-<SelectTeamMatchTableModal
-                        openTeamMatchLink={openTeamMatchLink}
-                        {...teamMatchList[selectedTeamMatchIndex][1]}
-                        teamMatchID={selectedTeamMatchID}
-                        isOpen={showTeamMatchTableModal}
-                        goToKeepScore={goToKeepScore}
-                        onClose={(reload = true) => {
-                            setShowTeamMatchTableModal(false)
-                            if (reload === true) {
-                                loadTeamMatches()
-                            }
-                        }}
-                    ></SelectTeamMatchTableModal>
-                        : null
+                        showTeamMatchTableModal ?
+                            <SelectTeamMatchTableModal
+                                openTeamMatchLink={openTeamMatchLink}
+                                {...teamMatchList[selectedTeamMatchIndex][1]}
+                                teamMatchID={selectedTeamMatchID}
+                                isOpen={showTeamMatchTableModal}
+                                goToKeepScore={goToKeepScore}
+                                onClose={(reload = true) => {
+                                    setShowTeamMatchTableModal(false)
+                                    if (reload === true) {
+                                        loadTeamMatches()
+                                    }
+                                }}
+                            ></SelectTeamMatchTableModal>
+                            : null
                     }
-                    
+
                     {
                         showTeamMatchEditModal ?
                             <EditTeamMatchModal isOpen={showTeamMatchEditModal}

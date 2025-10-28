@@ -77,33 +77,33 @@ export function NewTeamModal(props) {
 
     }, [props.isEditingTeam]);
 
-    useEffect(()=>{
+    useEffect(() => {
         setTimeout(() => {
             document.getElementById(teamNameRef.current.id).focus()
         }, 200);
-        
+
 
     }, [])
 
-    useEffect(()=>{
+    useEffect(() => {
         setTimeout(() => {
-            if(showAddPlayer){
-            document.getElementById(firstNameRef.current.id).focus()
+            if (showAddPlayer) {
+                document.getElementById(firstNameRef.current.id).focus()
 
             }
-            
+
         }, 200);
-        
+
 
     }, [showAddPlayer])
 
     return (
         <Modal
-        
-        onClose={() => {
-            props.onClose(false);
-            setShowAddPlayer(false);
-        }} isOpen={props.isOpen}>
+
+            onClose={() => {
+                props.onClose(false);
+                setShowAddPlayer(false);
+            }} isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
                 <Modal.Header>{showAddPlayer ? i18n.t("addTeamPlayer") : i18n.t("newTeam")}</Modal.Header>
@@ -151,12 +151,12 @@ export function NewTeamModal(props) {
                         <FormControl>
                             <FormControl.Label>{i18n.t("teamName")}</FormControl.Label>
                             <Input
-                            onSubmitEditing={(event)=>{
-                                if(!showAddPlayer && teamName.length > 0){
-                                    onAddTeam()
-                                }
-                            }}
-                            ref={teamNameRef} value={teamName} onChangeText={setTeamName}></Input>
+                                onSubmitEditing={(event) => {
+                                    if (!showAddPlayer && teamName.length > 0) {
+                                        onAddTeam()
+                                    }
+                                }}
+                                ref={teamNameRef} value={teamName} onChangeText={setTeamName}></Input>
                             <FormControl.Label>{i18n.t("teamLogoURL")}</FormControl.Label>
                             <Input value={teamLogoURL} onChangeText={setTeamLogoURL}></Input>
                             <FormControl.Label>{i18n.t("players")}</FormControl.Label>
@@ -172,8 +172,8 @@ export function NewTeamModal(props) {
                                                 let newPlayerList = { ...players, [uuidv4()]: player };
                                                 setPlayers(newPlayerList);
                                             }}
-                                            onDelete={(id)=>{
-                                                let newPlayerList = { ...players};
+                                            onDelete={(id) => {
+                                                let newPlayerList = { ...players };
                                                 delete newPlayerList[id]
                                                 setPlayers(newPlayerList);
                                             }}

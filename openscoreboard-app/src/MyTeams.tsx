@@ -70,7 +70,7 @@ export default function MyTeams(props) {
     if (doneLoading) {
         return (
             <NativeBaseProvider theme={openScoreboardTheme}>
-                <View  width={"100%"} height={"100%"} >
+                <View width={"100%"} height={"100%"} >
                     <View flex={1}>
                         {
                             teamList.length > 0 ?
@@ -109,20 +109,20 @@ export default function MyTeams(props) {
                     </View>
                     {
                         showNewTeamModal ?
-<NewTeamModal
+                            <NewTeamModal
 
-                        isEditingTeam={isEditingTeam}
-                        editingTeamID={editingTeamID}
-                        editingMyTeamID={editingMyTeamID}
-                        onClose={(reload = true) => {
-                            setShowNewTeamModal(false)
-                            if (reload === true) {
-                                loadTeams()
-                            }
-                        }} isOpen={showNewTeamModal}></NewTeamModal>
-                        : null
+                                isEditingTeam={isEditingTeam}
+                                editingTeamID={editingTeamID}
+                                editingMyTeamID={editingMyTeamID}
+                                onClose={(reload = true) => {
+                                    setShowNewTeamModal(false)
+                                    if (reload === true) {
+                                        loadTeams()
+                                    }
+                                }} isOpen={showNewTeamModal}></NewTeamModal>
+                            : null
                     }
-                    
+
                 </View>
             </NativeBaseProvider>
 

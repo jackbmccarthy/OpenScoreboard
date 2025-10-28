@@ -1,19 +1,19 @@
-export function newScoreboard(ownerID, name, type, alwaysShow=true, showDuringActiveMatch=false,showInBetweenGames=false, isPublic=false){
+export function newScoreboard(ownerID, name, type, alwaysShow = true, showDuringActiveMatch = false, showInBetweenGames = false, isPublic = false) {
 
     return {
-        ownerID:ownerID,
+        ownerID: ownerID,
         name: name,
-        type:type,
-        isPublic:isPublic,
+        type: type,
+        isPublic: isPublic,
         alwaysShow: alwaysShow,
         showDuringActiveMatch: showDuringActiveMatch,
-        showInBetweenGames:showInBetweenGames,
+        showInBetweenGames: showInBetweenGames,
         showDuringTimeOuts: false,
-        config:{},
-        web:{
-            html:"",
-            css:"",
-            javascript:""
+        config: {},
+        web: {
+            html: "",
+            css: "",
+            javascript: ""
         }
     }
 }

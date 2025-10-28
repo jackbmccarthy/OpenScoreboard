@@ -8,12 +8,12 @@ export const HomeItem = ({ item, navigation }) => {
 
     return (
         <>
-        
-            
+
+
             <Pressable width={"100%"} flexDir={"row"} _hover={{ backgroundColor: "gray.300" }} flex={1} justifyContent={"space-between"}
 
                 onPress={() => {
-                  
+
                     navigation.navigate(item.route);
                 }}
                 padding={0}
@@ -32,7 +32,7 @@ export const HomeItem = ({ item, navigation }) => {
 
 
             </Pressable>
-          
+
             <Divider></Divider>
         </>
 

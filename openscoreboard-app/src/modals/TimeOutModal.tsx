@@ -53,7 +53,7 @@ export function TimeOutModal(props) {
         <Modal onClose={() => { props.onClose(); }} isOpen={props.isOpen}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>{showTimeOutConfirmation ? i18n.t("confirmTimeOut"): i18n.t("timeOut")}</Modal.Header>
+                <Modal.Header>{showTimeOutConfirmation ? i18n.t("confirmTimeOut") : i18n.t("timeOut")}</Modal.Header>
                 <Modal.Body>
                     {showTimer ?
                         <View>
@@ -113,18 +113,18 @@ export function TimeOutModal(props) {
                                         </Button>
                                     </View>
                                     {
-                                            ATimeOutUsed ? 
-                                            <Button  
-                                            onPress={async ()=>{
-                                               await resetUsedTimeOut(props.matchID, "A")
-                                               setATimeOutUsed(false)
-                                            }}
+                                        ATimeOutUsed ?
+                                            <Button
+                                                onPress={async () => {
+                                                    await resetUsedTimeOut(props.matchID, "A")
+                                                    setATimeOutUsed(false)
+                                                }}
                                             >
-                                            <FontAwesome color={openScoreboardButtonTextColor} size={24} name="refresh"></FontAwesome>
+                                                <FontAwesome color={openScoreboardButtonTextColor} size={24} name="refresh"></FontAwesome>
                                             </Button>
                                             :
                                             null
-                                        }
+                                    }
                                 </View>
                                 <FormControl.Label>
                                     {getCombinedPlayerNames(playerA, playerB, playerA2, playerB2).b}
@@ -137,21 +137,21 @@ export function TimeOutModal(props) {
                                         }}>
                                             <Text color={BTimeOutUsed ? openScoreboardColor : openScoreboardButtonTextColor}>{BTimeOutUsed ? i18n.t("timeOutUsed") : i18n.t("startTimeOut")}</Text>
                                         </Button>
-                                        
+
                                     </View>
                                     {
-                                            BTimeOutUsed ? 
-                                            <Button  
-                                            onPress={async ()=>{
-                                               await resetUsedTimeOut(props.matchID, "B")
-                                               setBTimeOutUsed(false)
-                                            }}
+                                        BTimeOutUsed ?
+                                            <Button
+                                                onPress={async () => {
+                                                    await resetUsedTimeOut(props.matchID, "B")
+                                                    setBTimeOutUsed(false)
+                                                }}
                                             >
-                                            <FontAwesome  color={openScoreboardButtonTextColor} size={24} name="refresh"></FontAwesome>
+                                                <FontAwesome color={openScoreboardButtonTextColor} size={24} name="refresh"></FontAwesome>
                                             </Button>
                                             :
                                             null
-                                        }
+                                    }
                                 </View>
                             </FormControl>}
 

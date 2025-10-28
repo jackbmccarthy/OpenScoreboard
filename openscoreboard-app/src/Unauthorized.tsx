@@ -1,11 +1,11 @@
 
 
 import React from 'react';
-import { Text, View, NativeBaseProvider,} from 'native-base';
+import { Text, View, NativeBaseProvider, } from 'native-base';
 import { openScoreboardColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import i18n from './translations/translate';
-export default function Unauthorized(props){
+export default function Unauthorized(props) {
 
     return (
         <NativeBaseProvider theme={openScoreboardTheme}>

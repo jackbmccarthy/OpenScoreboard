@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, TouchableOpacity, } from 'react-native';
-import { ScrollView, Button, View, NativeBaseProvider,  FlatList, AddIcon, Text } from 'native-base';
+import { ScrollView, Button, View, NativeBaseProvider, FlatList, AddIcon, Text } from 'native-base';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import { deleteImportedPlayer, getImportPlayerList } from './functions/players';
@@ -22,7 +22,7 @@ export default function AddPlayers(props) {
 
     useEffect(() => {
 
-   
+
 
         props.navigation.setOptions({
             headerRight: () => (
@@ -41,13 +41,13 @@ export default function AddPlayers(props) {
 
 
         async function loadPlayers() {
-          
+
             let playerValues = await getImportPlayerList(props.route.params.playerListID)
             if (playerValues.length > 0) {
                 playerValues = sortPlayers(playerValues)
             }
             setPlayerList(playerValues)
-           
+
 
         }
         loadPlayers()
@@ -58,102 +58,102 @@ export default function AddPlayers(props) {
         <View>
 
             <ScrollView contentContainerStyle={{ backgroundColor: "white" }}>
-            
-                    {
-                        playerList.length > 0 ?
-<FlatList
-                    keyExtractor={(item, index) => {
-                        return item[0] + index
-                    }} 
-                    data={playerList}
-                    renderItem={(item) => {
-                        return <PreLoadedPlayerItem
-                            onEdit={(player) => {
-                                setEditingPlayer(player)
-                                setShowAddNewPlayer(true)
-                                setIsEditing(true)
+
+                {
+                    playerList.length > 0 ?
+                        <FlatList
+                            keyExtractor={(item, index) => {
+                                return item[0] + index
                             }}
-                            onDelete={(player) => {
-                                setIsDeleting(true)
-                                setDeletingPlayer(player)
+                            data={playerList}
+                            renderItem={(item) => {
+                                return <PreLoadedPlayerItem
+                                    onEdit={(player) => {
+                                        setEditingPlayer(player)
+                                        setShowAddNewPlayer(true)
+                                        setIsEditing(true)
+                                    }}
+                                    onDelete={(player) => {
+                                        setIsDeleting(true)
+                                        setDeletingPlayer(player)
+                                    }}
+                                    {...props} {...item.item[1]} id={item.item[0]} selectedPlayer={{ id: item.item[0], ...item.item[1] }} />
                             }}
-                            {...props} {...item.item[1]} id={item.item[0]} selectedPlayer={{ id: item.item[0], ...item.item[1] }} />
-                    }}
-                ></FlatList>
+                        ></FlatList>
                         :
-<View justifyContent={"center"} alignItems="center">
-                                <View>
-                                    <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noPlayersInList")}</Text>
-                                    <View padding={2}>
-                                        <Button
-                                            onPress={() => {
-                                                setShowAddNewPlayer(true)
-                        setIsEditing(false)
-                                            }}
-                                        >
-                                            <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
-                                        </Button>
-                                    </View>
+                        <View justifyContent={"center"} alignItems="center">
+                            <View>
+                                <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noPlayersInList")}</Text>
+                                <View padding={2}>
+                                    <Button
+                                        onPress={() => {
+                                            setShowAddNewPlayer(true)
+                                            setIsEditing(false)
+                                        }}
+                                    >
+                                        <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
+                                    </Button>
                                 </View>
                             </View>
-                    }
-                
+                        </View>
+                }
+
 
 
 
             </ScrollView>
             {
                 showAddNewPlayer ?
- <AddNewPlayerModal
-             {...props} {...editingPlayer} isOpen={showAddNewPlayer} isEditing={isEditing} onClose={() => {
-                setShowAddNewPlayer(false)
-                setEditingPlayer({})
-            }}
-                onConfirmAdd={(player) => {
-                    let copiedPlayerList = [...playerList]
-                    copiedPlayerList.push([player.id, { ...player }])
-                    setPlayerList(sortPlayers(copiedPlayerList))
-                    setEditingPlayer({})
-                }}
-
-                onConfirmEdit={(player) => {
-                    for (let index = 0; index < playerList.length; index++) {
-                        const id = playerList[index][0];
-                        if (id === player.id) {
+                    <AddNewPlayerModal
+                        {...props} {...editingPlayer} isOpen={showAddNewPlayer} isEditing={isEditing} onClose={() => {
+                            setShowAddNewPlayer(false)
+                            setEditingPlayer({})
+                        }}
+                        onConfirmAdd={(player) => {
                             let copiedPlayerList = [...playerList]
-                            copiedPlayerList[index] = [player.id, { ...player }]
+                            copiedPlayerList.push([player.id, { ...player }])
                             setPlayerList(sortPlayers(copiedPlayerList))
-                        }
-                        setEditingPlayer({})
+                            setEditingPlayer({})
+                        }}
 
-                    }
-                }}
-            />
-                : null
+                        onConfirmEdit={(player) => {
+                            for (let index = 0; index < playerList.length; index++) {
+                                const id = playerList[index][0];
+                                if (id === player.id) {
+                                    let copiedPlayerList = [...playerList]
+                                    copiedPlayerList[index] = [player.id, { ...player }]
+                                    setPlayerList(sortPlayers(copiedPlayerList))
+                                }
+                                setEditingPlayer({})
+
+                            }
+                        }}
+                    />
+                    : null
             }
-           {
-            isDeleting ?
-            <DeletePlayerModal {...props}
-                onConfirmDelete={async (player) => {
-                    deleteImportedPlayer(props.route.params.playerListID, player.id)
-                   // db.ref("tournaments/" + props.route.params["tournamentID"] + "/predefinedplayers/" + player.id).remove()
-                    for (let index = 0; index < playerList.length; index++) {
-                        const id = playerList[index][0];
-                        if (id === player.id) {
-                            let copiedPlayerList = [...playerList]
-                            copiedPlayerList.splice(index, 1)
-                            setPlayerList(sortPlayers(copiedPlayerList))
-                        }
+            {
+                isDeleting ?
+                    <DeletePlayerModal {...props}
+                        onConfirmDelete={async (player) => {
+                            deleteImportedPlayer(props.route.params.playerListID, player.id)
+                            // db.ref("tournaments/" + props.route.params["tournamentID"] + "/predefinedplayers/" + player.id).remove()
+                            for (let index = 0; index < playerList.length; index++) {
+                                const id = playerList[index][0];
+                                if (id === player.id) {
+                                    let copiedPlayerList = [...playerList]
+                                    copiedPlayerList.splice(index, 1)
+                                    setPlayerList(sortPlayers(copiedPlayerList))
+                                }
 
-                    }
-                }}
-                isOpen={isDeleting} {...deletingPlayer} onClose={() => {
-                    setIsDeleting(false)
-                }} />
+                            }
+                        }}
+                        isOpen={isDeleting} {...deletingPlayer} onClose={() => {
+                            setIsDeleting(false)
+                        }} />
 
-                : null
-           }
-            
+                    : null
+            }
+
         </View></NativeBaseProvider>
     )
 }

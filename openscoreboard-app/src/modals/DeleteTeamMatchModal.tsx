@@ -10,8 +10,8 @@ export function DeleteTeamMatchModal(props) {
     let [loadingDelete, setLoadingDelete] = useState(false)
 
 
-    useEffect(()=>{
-        let myTeamMatchArray = props.allTeamMatches.filter((teamMatch)=>{
+    useEffect(() => {
+        let myTeamMatchArray = props.allTeamMatches.filter((teamMatch) => {
             return teamMatch[0] === props.deleteTeamMatchMyID
         })
         setTeamMatchInfo(myTeamMatchArray[0][1])
@@ -39,13 +39,13 @@ export function DeleteTeamMatchModal(props) {
                             }}
                         >
                             {
-                                loadingDelete ? 
-                                <Spinner color={openScoreboardColor}></Spinner>
-                                :
-                                 <Text>{i18n.t("yes")}</Text>
+                                loadingDelete ?
+                                    <Spinner color={openScoreboardColor}></Spinner>
+                                    :
+                                    <Text>{i18n.t("yes")}</Text>
                             }
-                            
-                           
+
+
                         </Button>
                     </View>
                     <View>

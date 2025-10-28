@@ -37,7 +37,7 @@ export function EditPlayer(props) {
         setShowImportPlayerConfirmation(true);
     };
 
-    function resetPlayerView(){
+    function resetPlayerView() {
         setJerseyColor("")
         setShowColorPalette(false)
         setShowImportPlayerConfirmation(false)
@@ -102,22 +102,22 @@ export function EditPlayer(props) {
                                 <Button
                                     onPress={async () => {
                                         setLoadingSave(true);
-                                        console.log(props.matchID, props.player, { ...props[props.player], firstName: firstName, lastName: lastName, jerseyColor: jerseyColor, isImported:false })
-                                        await updateCurrentPlayer(props.matchID, props.player, { ...props[props.player], firstName: firstName, lastName: lastName, jerseyColor: jerseyColor, isImported:false });
+                                        console.log(props.matchID, props.player, { ...props[props.player], firstName: firstName, lastName: lastName, jerseyColor: jerseyColor, isImported: false })
+                                        await updateCurrentPlayer(props.matchID, props.player, { ...props[props.player], firstName: firstName, lastName: lastName, jerseyColor: jerseyColor, isImported: false });
                                         setLoadingSave(false);
-                                        if(typeof props.updateMatchPlayer === "function"){
-                                            props.updateMatchPlayer(props.player, { ...props[props.player], firstName: firstName, lastName: lastName, jerseyColor: jerseyColor, isImported:false})
+                                        if (typeof props.updateMatchPlayer === "function") {
+                                            props.updateMatchPlayer(props.player, { ...props[props.player], firstName: firstName, lastName: lastName, jerseyColor: jerseyColor, isImported: false })
                                         }
-                                        if(typeof props.setShowPlayerSelection === "function"){
+                                        if (typeof props.setShowPlayerSelection === "function") {
                                             props.setShowPlayerSelection(false)
                                         }
-                                        if(typeof props.setEditPlayer === "function"){
+                                        if (typeof props.setEditPlayer === "function") {
                                             props.setEditPlayer("")
                                         }
                                         if (!props.isWizard && typeof props.onClose === "function") {
                                             props.onClose();
                                         }
-                                        
+
 
                                     }}
                                 >
@@ -153,36 +153,36 @@ export function EditPlayer(props) {
                     showImportPlayerConfirmation ?
                         <View>
                             <Text fontSize={"xl"} fontWeight="bold" textAlign={"center"}>
-                            {i18n.t("importPlayerQuestion")}
+                                {i18n.t("importPlayerQuestion")}
                             </Text>
                             <ImportPlayerItem  {...selectedImportPlayer}></ImportPlayerItem>
                             <FormControl.Label>{i18n.t("jerseyColor")}</FormControl.Label>
-                        <JerseyColorOptions color={jerseyColor} onSelect={(color) => {
-                            setJerseyColor(color);
-                        }}></JerseyColorOptions>
+                            <JerseyColorOptions color={jerseyColor} onSelect={(color) => {
+                                setJerseyColor(color);
+                            }}></JerseyColorOptions>
                             <View flex={1} padding={1} flexDirection={"row"}>
                                 <View flex={1} padding={1}>
                                     <Button
                                         onPress={async () => {
                                             setLoadingImport(true);
-                                            await updateCurrentPlayer(props.matchID, props.player, { ...selectedImportPlayer, isImported: true, jerseyColor:jerseyColor });
+                                            await updateCurrentPlayer(props.matchID, props.player, { ...selectedImportPlayer, isImported: true, jerseyColor: jerseyColor });
                                             setLoadingImport(false);
-                                            if(typeof props.updateMatchPlayer === "function"){
-                                                props.updateMatchPlayer(props.player, { ...selectedImportPlayer, isImported: true, jerseyColor:jerseyColor })
+                                            if (typeof props.updateMatchPlayer === "function") {
+                                                props.updateMatchPlayer(props.player, { ...selectedImportPlayer, isImported: true, jerseyColor: jerseyColor })
                                             }
                                             setShowImportPlayerConfirmation(false);
                                             setShowImportSearch(false);
                                             setShowImportedPlayer(false);
-                                            
-                                            if(props.isWizard){
+
+                                            if (props.isWizard) {
                                                 props.setShowPlayerSelection(false)
                                                 resetPlayerView()
 
                                             }
-                                            else{
-                                                 props.onClose();
+                                            else {
+                                                props.onClose();
                                             }
-                                           
+
                                         }}
                                     >
                                         {loadingImport ?
@@ -206,45 +206,45 @@ export function EditPlayer(props) {
                         :
                         <>
 
-                        {
-                            importedPlayers.length > 0 ? 
-                            <>
-                            <View>
-                                <FormControl>
-                                    <FormControl.Label>{i18n.t("searchPlayerName")}:</FormControl.Label>
-                                    <View padding={1}>
-                                        <Input placeholder={i18n.t("searchPlayerName")} onChangeText={(text) => {
-                                            setImportedPlayerSearchText(text);
-                                        }}></Input>
+                            {
+                                importedPlayers.length > 0 ?
+                                    <>
+                                        <View>
+                                            <FormControl>
+                                                <FormControl.Label>{i18n.t("searchPlayerName")}:</FormControl.Label>
+                                                <View padding={1}>
+                                                    <Input placeholder={i18n.t("searchPlayerName")} onChangeText={(text) => {
+                                                        setImportedPlayerSearchText(text);
+                                                    }}></Input>
+                                                </View>
+
+
+                                                <FormControl.Label>{i18n.t("selectPlayerFromList")}:</FormControl.Label>
+
+                                            </FormControl>
+
+                                        </View>
+                                        <View >
+                                            <FlatList data={importedPlayers.filter((item) => {
+                                                if (item[1].firstName.toLowerCase().includes(importedPlayerSearchText.toLowerCase()) || item[1].lastName.toLowerCase().includes(importedPlayerSearchText.toLowerCase())) {
+                                                    return true;
+                                                }
+                                            })}
+                                                renderItem={(item) => {
+                                                    return (
+                                                        <ImportPlayerItem selectImportPlayer={selectImportPlayer} id={item.item[0]} {...item.item[1]} />
+                                                    );
+                                                }}
+                                            ></FlatList>
+                                        </View>
+                                    </>
+                                    :
+                                    <View padding={2} >
+                                        <Text textAlign={"center"} fontSize={"md"} fontWeight="bold">{i18n.t("noImportablePlayers")}</Text>
                                     </View>
 
+                            }
 
-                                    <FormControl.Label>{i18n.t("selectPlayerFromList")}:</FormControl.Label>
-
-                                </FormControl>
-
-                            </View>
-                            <View >
-                                <FlatList  data={importedPlayers.filter((item) => {
-                                    if (item[1].firstName.toLowerCase().includes(importedPlayerSearchText.toLowerCase()) || item[1].lastName.toLowerCase().includes(importedPlayerSearchText.toLowerCase())) {
-                                        return true;
-                                    }
-                                })}
-                                    renderItem={(item) => {
-                                        return (
-                                            <ImportPlayerItem selectImportPlayer={selectImportPlayer} id={item.item[0]} {...item.item[1]} />
-                                        );
-                                    }}
-                                ></FlatList>
-                            </View>
-                            </>
-                            :
-                                    <View  padding={2} >
-                                       <Text textAlign={"center"} fontSize={"md"} fontWeight="bold">{i18n.t("noImportablePlayers")}</Text> 
-                                    </View>
-                            
-                        }
-                            
 
                         </>
 
@@ -264,54 +264,54 @@ export function EditPlayer(props) {
             return (
                 <View padding={1}>
                     <View flexDirection={"row"} alignItems="center">
-                    <View flex={1}>
-                        <ImportPlayerItem  {...props[props.player]}></ImportPlayerItem>
-                    </View>
-                    <View padding={1} >
-                        <Button variant={"ghost"} onPress={() => {
-                            setShowColorPalette(true)
-                        }}>
-                            <Ionicons name="color-palette" size={24} color={openScoreboardColor} />
-                        </Button>
-                    </View>
-                    <View padding={1} >
-                        <Button variant={"ghost"} onPress={() => {
-                            setShowImportedPlayer(false);
-                        }}>
-                            <FontAwesome name='edit' size={24} color={openScoreboardColor} />
-                        </Button>
-                    </View>
-                    </View>
-                    {showColorPalette ?
-                    <View>
-                        <JerseyColorOptions color={jerseyColor} onSelect={(color) => {
-                            setJerseyColor(color);
-                        }}></JerseyColorOptions>
-                        <View flexDirection={"row"} alignItems="center">
-                            <View flex={1} padding={1}>
-                                <Button 
-                                onPress={()=>{
-                                    updateCurrentPlayer(props.matchID, props.player, { ...props[props.player], isImported: true, jerseyColor:jerseyColor })
-                                    setShowColorPalette(false)
-                                }}
-                                >
-                                    <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>
-                                </Button>
-                            </View>
-                            <View flex={1} padding={1}>
-                                <Button 
-                                onPress={()=>{
-                                    setShowColorPalette(false)
-                                }}
-                                variant={"ghost"}>
-                                    <Text>{i18n.t("back")}</Text>
-                                </Button>
-                            </View>
+                        <View flex={1}>
+                            <ImportPlayerItem  {...props[props.player]}></ImportPlayerItem>
+                        </View>
+                        <View padding={1} >
+                            <Button variant={"ghost"} onPress={() => {
+                                setShowColorPalette(true)
+                            }}>
+                                <Ionicons name="color-palette" size={24} color={openScoreboardColor} />
+                            </Button>
+                        </View>
+                        <View padding={1} >
+                            <Button variant={"ghost"} onPress={() => {
+                                setShowImportedPlayer(false);
+                            }}>
+                                <FontAwesome name='edit' size={24} color={openScoreboardColor} />
+                            </Button>
                         </View>
                     </View>
-                    : null
-                }
-                    
+                    {showColorPalette ?
+                        <View>
+                            <JerseyColorOptions color={jerseyColor} onSelect={(color) => {
+                                setJerseyColor(color);
+                            }}></JerseyColorOptions>
+                            <View flexDirection={"row"} alignItems="center">
+                                <View flex={1} padding={1}>
+                                    <Button
+                                        onPress={() => {
+                                            updateCurrentPlayer(props.matchID, props.player, { ...props[props.player], isImported: true, jerseyColor: jerseyColor })
+                                            setShowColorPalette(false)
+                                        }}
+                                    >
+                                        <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>
+                                    </Button>
+                                </View>
+                                <View flex={1} padding={1}>
+                                    <Button
+                                        onPress={() => {
+                                            setShowColorPalette(false)
+                                        }}
+                                        variant={"ghost"}>
+                                        <Text>{i18n.t("back")}</Text>
+                                    </Button>
+                                </View>
+                            </View>
+                        </View>
+                        : null
+                    }
+
                 </View>
             );
         }
@@ -332,19 +332,19 @@ export function EditPlayer(props) {
                         onPress={async () => {
                             setLoadingImportedPlayers(true);
                             let playerList = []
-                            if(props.isTeamMatch) {
+                            if (props.isTeamMatch) {
                                 //Get TeamMates
                                 playerList = await getImportTeamMembersList(props.player, props.teamMatchID)
                             }
-                            else{
-                              let playerListID = await  getPlayerListIDForTable(props.route.params.tableID)
-                              if(playerListID.length >0 ){
+                            else {
+                                let playerListID = await getPlayerListIDForTable(props.route.params.tableID)
+                                if (playerListID.length > 0) {
                                     playerList = await getImportPlayerList(playerListID);
-                              }
+                                }
 
-                               
+
                             }
-                            
+
                             setImportedPlayers(sortPlayers(playerList));
                             setShowImportSearch(true);
                             setLoadingImportedPlayers(false);

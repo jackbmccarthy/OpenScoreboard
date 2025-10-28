@@ -67,9 +67,9 @@ function ScoreboardNavigation() {
 
 
   useEffect(() => {
-if (!isLocalDatabase) {
-    authStateListener((user) => {
-      
+    if (!isLocalDatabase) {
+      authStateListener((user) => {
+
         if (user) {
 
           setIsSignedIn(true)
@@ -80,14 +80,14 @@ if (!isLocalDatabase) {
           setIsSignedIn(false)
           setDoneLoading(true)
         }
-      
-      
 
-    })
-}
-else {
-        setDoneLoading(true)
-      }
+
+
+      })
+    }
+    else {
+      setDoneLoading(true)
+    }
   }, [])
 
   if (doneLoading) {
@@ -96,7 +96,7 @@ else {
 
       <NavigationContainer linking={{ config: linkingConfig, }}>
 
-        
+
         <ScoreboardStack.Navigator screenOptions={{
           contentStyle: {
             backgroundColor: "white"
@@ -124,7 +124,7 @@ else {
             isSignedIn ? <>
               <ScoreboardStack.Group navigationKey={isSignedIn === true ? "user" : "guest"}>
                 <ScoreboardStack.Screen name="Home" component={Home} options={{ title: "Open Scoreboard" }} ></ScoreboardStack.Screen>
-                <ScoreboardStack.Screen  name={"MyTables"} component={MyTables} options={{ title: i18n.t("myTables") }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name={"MyTables"} component={MyTables} options={{ title: i18n.t("myTables") }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="ArchivedMatchList" component={ArchivedMatchList} options={{ title: i18n.t("archivedMatches") }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="AddPlayers" component={AddPlayers} options={{ title: i18n.t("managePlayers") }} />
                 <ScoreboardStack.Screen name="MyScoreboards" component={MyScoreboards} options={{ title: i18n.t("myScoreboards") }} />
@@ -170,11 +170,11 @@ export default function App() {
 
   return (
 
- <ScoreboardNavigation />
-    
- 
-    
-   
+    <ScoreboardNavigation />
+
+
+
+
   );
 
 }

@@ -230,24 +230,24 @@ export function AdvanceSettingsModal(props) {
                             <View padding={1}>
                                 <View flexDir={"row"}>
                                     {
-                                       // supportedSports[props.sportName].hasScoringTypes ?
-                                        Object.entries(supportedSports[props.sportName].scoringTypes).map(([id, scoringType])=>{
-                                            return(
-                                              <View flex={1} padding={1}>
-                                        <Button
-                                            onPress={() => {
-                                                    setSelectedScoringType(id)
-                                                    setScoringType(props.matchID, id)
-                                            }}
-                                            backgroundColor={id === selectedScoringType ? openScoreboardColor : "gray.300"}>
-                                            <Text color={openScoreboardButtonTextColor}>{scoringType["displayName"]}</Text>
-                                        </Button>
-                                    </View>  
+                                        // supportedSports[props.sportName].hasScoringTypes ?
+                                        Object.entries(supportedSports[props.sportName].scoringTypes).map(([id, scoringType]) => {
+                                            return (
+                                                <View flex={1} padding={1}>
+                                                    <Button
+                                                        onPress={() => {
+                                                            setSelectedScoringType(id)
+                                                            setScoringType(props.matchID, id)
+                                                        }}
+                                                        backgroundColor={id === selectedScoringType ? openScoreboardColor : "gray.300"}>
+                                                        <Text color={openScoreboardButtonTextColor}>{scoringType["displayName"]}</Text>
+                                                    </Button>
+                                                </View>
                                             )
                                         })
-                                       // :null
+                                        // :null
                                     }
-                                    
+
 
 
 

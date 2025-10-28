@@ -41,7 +41,7 @@ export function ScheduledMatchItem(props) {
                 <>
                     <View>
                         <Text textAlign={"center"}>
-                            <Text fontSize={"xl"} fontWeight={"bold"}>{item[1]["playerA"].length > 0 ? item[1]["playerA"] :"TBD"}</Text>
+                            <Text fontSize={"xl"} fontWeight={"bold"}>{item[1]["playerA"].length > 0 ? item[1]["playerA"] : "TBD"}</Text>
                             <Text fontSize={"lg"}> VS. </Text>
                             <Text fontSize={"xl"} fontWeight={"bold"}>{item[1]["playerB"] ? item[1]["playerB"] : "TBD"}</Text>
                             <Text fontSize={"lg"}> @{new Date(item[1]["startTime"]).toLocaleString()} </Text>
@@ -52,7 +52,7 @@ export function ScheduledMatchItem(props) {
                         <View alignItems={"center"} justifyContent="space-evenly" flexDirection={"row"}>
                             <View padding={1}>
                                 <Button variant={"ghost"} onPress={async () => {
-                                   
+
 
                                     props.setEditMatch({
                                         matchID: item[1]["matchID"],

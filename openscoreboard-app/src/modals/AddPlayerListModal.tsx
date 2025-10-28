@@ -11,7 +11,7 @@ export function AddPlayerListModal(props) {
 
     let playerListName = useRef()
 
-    useEffect(()=>{
+    useEffect(() => {
         setTimeout(() => {
             document.getElementById(playerListName.current.id).focus()
         }, 200);
@@ -35,14 +35,14 @@ export function AddPlayerListModal(props) {
                     <FormControl>
                         <FormControl.Label>{i18n.t("name")}</FormControl.Label>
                         <Input
-                        onSubmitEditing={(event)=>{
-                            if(listName.length > 0){
-                                onAddPlayerList()
-                            }
-                        }}
-                        ref={playerListName} value={listName} onChangeText={(text) => {
-                            setListName(text);
-                        }}></Input>
+                            onSubmitEditing={(event) => {
+                                if (listName.length > 0) {
+                                    onAddPlayerList()
+                                }
+                            }}
+                            ref={playerListName} value={listName} onChangeText={(text) => {
+                                setListName(text);
+                            }}></Input>
                     </FormControl>
 
                 </Modal.Body>

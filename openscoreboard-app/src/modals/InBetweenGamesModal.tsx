@@ -36,7 +36,7 @@ export function InBetweenGamesModal(props) {
         clearInterval(gameBreakCounterInterval.current);
     };
 
-  
+
     useEffect(() => {
         let gameNumber = getCurrentGameNumber(props);
         if (props.isOpen === true) {
@@ -65,11 +65,11 @@ export function InBetweenGamesModal(props) {
                                 clearInterval(gameBreakCounterInterval.current);
                                 setLoadingNewGame(true);
                                 let gameNumber = getCurrentGameNumber(props);
-                                
+
                                 await Promise.all([
                                     await startGame(props.matchID, getCurrentGameNumber(props)),
                                     await switchSides(props.matchID),
-                                    await updateService(props.matchID, props.isAInitialServer, gameNumber, 0, props.changeServeEveryXPoints, props.pointsToWinGame,props.sportName,props.scoringType)
+                                    await updateService(props.matchID, props.isAInitialServer, gameNumber, 0, props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType)
                                 ]);
                                 setLoadingNewGame(false);
                                 props.onClose();

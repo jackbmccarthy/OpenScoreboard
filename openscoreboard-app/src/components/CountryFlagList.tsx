@@ -13,30 +13,30 @@ function CountryFlagItem(props) {
 
     return (
         <>
-        <TouchableOpacity 
-        onPress={()=>{
-            props.onSelection(countryCode.toLocaleLowerCase())
-        }}
-        >
-               <View padding={0}>
-                <View alignItems={"center"} flexDirection={"row"}>
-                    {
-                        doneLoadingPhoto ?
-                            <Image resizeMode="cover" 
-                            width={30} 
-                            style={{ aspectRatio: "3/2" }} 
-                            source={process.env.NODE_ENV ==="production" ? `/scoreboard/flags/${countryCode.toLowerCase()}.png` : (window.location.origin.replace(window.location.port,"3001")+`/scoreboard/flags/${countryCode.toLowerCase()}.png`)} />
-                            : null
-                    }
-                    <View padding={1}>
-                        <Text>{countryName}</Text>
+            <TouchableOpacity
+                onPress={() => {
+                    props.onSelection(countryCode.toLocaleLowerCase())
+                }}
+            >
+                <View padding={0}>
+                    <View alignItems={"center"} flexDirection={"row"}>
+                        {
+                            doneLoadingPhoto ?
+                                <Image resizeMode="cover"
+                                    width={30}
+                                    style={{ aspectRatio: "3/2" }}
+                                    source={process.env.NODE_ENV === "production" ? `/scoreboard/flags/${countryCode.toLowerCase()}.png` : (window.location.origin.replace(window.location.port, "3001") + `/scoreboard/flags/${countryCode.toLowerCase()}.png`)} />
+                                : null
+                        }
+                        <View padding={1}>
+                            <Text>{countryName}</Text>
+                        </View>
+
                     </View>
 
                 </View>
+            </TouchableOpacity>
 
-            </View>
-        </TouchableOpacity>
-         
             <Divider></Divider>
         </>
 
@@ -59,49 +59,49 @@ export default function CountryFlagList(props) {
             countryListRef.current = Object.entries(flagList)
             let consoleFlags = ""
             for (const flag of countryListRef.current) {
-                consoleFlags += '"'+flag[0]+'":'+flag[0]+",\n"
+                consoleFlags += '"' + flag[0] + '":' + flag[0] + ",\n"
                 //"export const "+flag[0]+" from './"+flag[0].toLocaleLowerCase()+".png'\n"
             }
             setDoneLoading(true)
         }
         loadFlagList()
     }, [])
-    if(doneLoading){
+    if (doneLoading) {
         return (
-        <View overflowY={"hidden"} flex={1}>
-            <View padding={1}>
-                <Input placeholder={i18n.t("searchCountries")}
-                    value={countrySearchText}
-                    onChangeText={setCountrySearchText}
-                ></Input>
+            <View overflowY={"hidden"} flex={1}>
+                <View padding={1}>
+                    <Input placeholder={i18n.t("searchCountries")}
+                        value={countrySearchText}
+                        onChangeText={setCountrySearchText}
+                    ></Input>
+                </View>
+                <Divider></Divider>
+                <FlatList maxHeight={300} minHeight={300}
+                    keyExtractor={(item) => {
+                        return item[0] + item[1]
+                    }}
+                    renderItem={(info) => { return <CountryFlagItem {...info} onSelection={props.onSelection} ></CountryFlagItem> }}
+                    data={countryListRef.current
+                        .filter((item) => {
+
+
+                            if (item[1].toLowerCase().includes(countrySearchText.toLocaleLowerCase())) {
+                                return true
+                            }
+                            else {
+                                return false
+                            }
+                        }).sort((a, b) => {
+                            return a[1].toLowerCase() > b[1].toLowerCase() ? 1 : -1
+                        })
+                    }
+                ></FlatList>
             </View>
-            <Divider></Divider>
-            <FlatList maxHeight={300} minHeight={300}
-                keyExtractor={(item)=>{
-                    return item[0]+item[1]
-                }}
-                renderItem={(info) => { return <CountryFlagItem {...info} onSelection={props.onSelection} ></CountryFlagItem> }}
-                data={countryListRef.current
-                    .filter((item) => {
 
-                    
-                    if (item[1].toLowerCase().includes(countrySearchText.toLocaleLowerCase())) {
-                        return true
-                    }
-                    else {
-                        return false
-                    }
-                }).sort((a, b) => {
-                    return a[1].toLowerCase() > b[1].toLowerCase() ? 1 : -1
-                })
-            }
-            ></FlatList>
-        </View>
-
-    )
+        )
     }
     else {
         return <LoadingPage></LoadingPage>
     }
-    
+
 }

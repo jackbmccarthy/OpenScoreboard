@@ -7,28 +7,28 @@ import { setStringAsync } from 'expo-clipboard';
 import i18n from '../translations/translate';
 
 
-export default function CopyButton({text}){
+export default function CopyButton({ text }) {
     let [wasCopied, setWasCopied] = useState(false)
 
 
     return (
-        
+
         <View padding={1}>
             <Button
-            onPress={()=>{
-                setWasCopied(true)
-                setStringAsync(text)
-                setTimeout(()=>{
-                    setWasCopied(false)
-                }, 2000)
-            }}
+                onPress={() => {
+                    setWasCopied(true)
+                    setStringAsync(text)
+                    setTimeout(() => {
+                        setWasCopied(false)
+                    }, 2000)
+                }}
             >
                 {
-                    wasCopied ? 
-                    <Text color={openScoreboardButtonTextColor}>{i18n.t("copied")}!</Text>:
-                    <FontAwesome name="copy" color={openScoreboardButtonTextColor} size={24} />
+                    wasCopied ?
+                        <Text color={openScoreboardButtonTextColor}>{i18n.t("copied")}!</Text> :
+                        <FontAwesome name="copy" color={openScoreboardButtonTextColor} size={24} />
                 }
-                
+
             </Button>
         </View>
     )

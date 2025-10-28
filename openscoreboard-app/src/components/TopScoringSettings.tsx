@@ -78,9 +78,9 @@ export function TopScoringSettings(props) {
             </View>
             <View flex={1}>
                 <Button
-                onPress={()=>{
-                    props.openAdvanceSettingsModal()
-                }}
+                    onPress={() => {
+                        props.openAdvanceSettingsModal()
+                    }}
                 >
                     <Ionicons name="settings-sharp" size={24} color={openScoreboardButtonTextColor} />
                 </Button>

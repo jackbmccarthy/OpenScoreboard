@@ -3,14 +3,15 @@ import { getFirebaseConfig, isLocalDatabase } from './openscoreboard.config';
 import firebase from 'firebase';
 
 let firebaseConfig = getFirebaseConfig()
-let db :AceBaseClient | firebase.database.Database
+let db: AceBaseClient | firebase.database.Database
 
 if (typeof window !== "undefined" && isLocalDatabase) {
-    db = new AceBaseClient({ 
-        host: window.location.hostname, 
-        port: process.env.NODE_ENV === "production" ? parseInt(window.location.port) : 8080, 
-        dbname: process.env.EXPO_PUBLIC_DATABASE_NAME || "mydb", 
-        https: window.location.protocol.includes("https") ? true: false, });
+    db = new AceBaseClient({
+        host: window.location.hostname,
+        port: process.env.NODE_ENV === "production" ? parseInt(window.location.port) : 8080,
+        dbname: process.env.EXPO_PUBLIC_DATABASE_NAME || "mydb",
+        https: window.location.protocol.includes("https") ? true : false,
+    });
 }
 else {
     const firebaseApp = firebase.initializeApp(firebaseConfig);

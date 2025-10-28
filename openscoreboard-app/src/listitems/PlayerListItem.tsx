@@ -13,65 +13,65 @@ export function PlayerListItem(props) {
             <View padding={1} >
                 <Text fontSize={"3xl"} fontWeight="bold">{props.item[1].playerListName}</Text>
                 <View flexDirection={"row"} padding={1} justifyContent="space-evenly">
-                {showDelete ?
-                    <View alignItems={"center"} flexDirection={"row"}>
-                        <Text fontSize={"xl"} fontWeight={"bold"}>{i18n.t("deletePlayerList")}?</Text>
-                        <View padding={1}>
-                            <Button variant={"ghost"}
-                                onPress={async () => {
-                            
-                                    setLoadingDelete(true);
+                    {showDelete ?
+                        <View alignItems={"center"} flexDirection={"row"}>
+                            <Text fontSize={"xl"} fontWeight={"bold"}>{i18n.t("deletePlayerList")}?</Text>
+                            <View padding={1}>
+                                <Button variant={"ghost"}
+                                    onPress={async () => {
 
-                                    await deletePlayerList(props.item[0]);
-                                    setLoadingDelete(false);
-                                    
-                                    if (typeof props.onDelete === "function") {
-                                        props.onDelete(props.item[0]);
+                                        setLoadingDelete(true);
+
+                                        await deletePlayerList(props.item[0]);
+                                        setLoadingDelete(false);
+
+                                        if (typeof props.onDelete === "function") {
+                                            props.onDelete(props.item[0]);
+                                        }
+                                    }}
+                                >
+                                    {
+                                        loadingDelete ?
+                                            <Spinner color={openScoreboardColor}></Spinner> :
+                                            <Text>{i18n.t("yes")}</Text>
                                     }
-                                }}
-                            >   
-                            { 
-                            loadingDelete ?
-                                <Spinner color={openScoreboardColor}></Spinner>:
-                                <Text>{i18n.t("yes")}</Text>
-                            }
-                                
-                            </Button>
-                        </View>
-                        <View padding={1}>
-                            <Button
-                                onPress={() => {
-                                    setShowDelete(false);
-                                }}
-                            >
-                                <Text color={openScoreboardButtonTextColor}>{i18n.t("no")}</Text>
-                            </Button>
-                        </View>
-                    </View>
-                    :
-                    <View alignItems={"center"} flexDirection={"row"}>
-                        <View padding={1}>
-                            <Button variant={"ghost"}
-                                onPress={() => {
-                                    props.navigation.navigate("AddPlayers", { playerListID: props.item[1].id });
-                                }}
-                            >
-                                <FontAwesome name='edit' size={24} color={openScoreboardColor} />
 
-                            </Button>
+                                </Button>
+                            </View>
+                            <View padding={1}>
+                                <Button
+                                    onPress={() => {
+                                        setShowDelete(false);
+                                    }}
+                                >
+                                    <Text color={openScoreboardButtonTextColor}>{i18n.t("no")}</Text>
+                                </Button>
+                            </View>
                         </View>
+                        :
+                        <View alignItems={"center"} flexDirection={"row"}>
+                            <View padding={1}>
+                                <Button variant={"ghost"}
+                                    onPress={() => {
+                                        props.navigation.navigate("AddPlayers", { playerListID: props.item[1].id });
+                                    }}
+                                >
+                                    <FontAwesome name='edit' size={24} color={openScoreboardColor} />
 
-                        <View padding={1}>
-                            <Button variant={"ghost"}
-                                onPress={() => {
-                                    setShowDelete(true);
-                                }}
-                            >
-                                <FontAwesome name="trash" size={24} color={openScoreboardColor} />
-                            </Button>
-                        </View>
-                    </View>}
-</View>
+                                </Button>
+                            </View>
+
+                            <View padding={1}>
+                                <Button variant={"ghost"}
+                                    onPress={() => {
+                                        setShowDelete(true);
+                                    }}
+                                >
+                                    <FontAwesome name="trash" size={24} color={openScoreboardColor} />
+                                </Button>
+                            </View>
+                        </View>}
+                </View>
 
 
             </View>

@@ -1,5 +1,5 @@
 import React, { Component, useEffect, useRef, useState } from 'react';
-import { View, Input,  Text, Button,  Modal, FormControl, Divider, Select, Spinner, } from 'native-base';
+import { View, Input, Text, Button, Modal, FormControl, Divider, Select, Spinner, } from 'native-base';
 import { ScrollView, Platform, Dimensions } from 'react-native';
 
 //import DatePicker from 'react-native-datepicker';
@@ -50,35 +50,35 @@ export default function CreateNewTableModal(props) {
                 <Modal.Body>
                     <FormControl >
                         <FormControl.Label>{i18n.t("tableName")}</FormControl.Label>
-                        <Input   ref={tableNameInput} 
-                         />
-                    
-                    {
+                        <Input ref={tableNameInput}
+                        />
 
-                        myPlayerLists.length > 0 ?
-                          <>
-                          <FormControl.Label>{i18n.t("selectPlayerList")}</FormControl.Label>
+                        {
 
-                                <Select onValueChange={(text) => {
-                                    setSelectedPlayerListID(text)
-                                }} selectedValue={selectedPlayerListID}>
-                                    {
-                                        myPlayerLists.map((playerList) => {
-                                            return (
-                                                <Select.Item key={playerList[1].id} label={playerList[1].playerListName} value={playerList[1].id} />
-                                            )
-                                        })
-                                    }
-                                </Select>
-                          </>
-                                
+                            myPlayerLists.length > 0 ?
+                                <>
+                                    <FormControl.Label>{i18n.t("selectPlayerList")}</FormControl.Label>
+
+                                    <Select onValueChange={(text) => {
+                                        setSelectedPlayerListID(text)
+                                    }} selectedValue={selectedPlayerListID}>
+                                        {
+                                            myPlayerLists.map((playerList) => {
+                                                return (
+                                                    <Select.Item key={playerList[1].id} label={playerList[1].playerListName} value={playerList[1].id} />
+                                                )
+                                            })
+                                        }
+                                    </Select>
+                                </>
 
 
-                            
-                            :
-                            null
-                    }
-                   
+
+
+                                :
+                                null
+                        }
+
                         <FormControl.Label>
                             {i18n.t("sport")}
                         </FormControl.Label>
@@ -121,7 +121,7 @@ export default function CreateNewTableModal(props) {
                     </FormControl>
 
 
-                    
+
 
                 </Modal.Body>
                 <Modal.Footer>

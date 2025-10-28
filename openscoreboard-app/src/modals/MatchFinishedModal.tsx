@@ -50,16 +50,16 @@ export function MatchFinishedModal(props) {
                                         <FlatList
                                             data={scheduledMatches}
                                             renderItem={(item) => {
-                                                return <ScoringScheduledMatchItem beforeConfirm={async()=>{
-                                                    if(props.isTeamMatch){
+                                                return <ScoringScheduledMatchItem beforeConfirm={async () => {
+                                                    if (props.isTeamMatch) {
                                                         await archiveMatchForTeamMatch(props.teamMatchID, props.tableNumber, props.matchID, props)
                                                         await props.onNewMatchCreation();
                                                     }
-                                                    else{
+                                                    else {
                                                         await archiveMatchForTable(props.tableID, props.matchID, props)
                                                         await props.onNewMatchCreation();
                                                     }
-                                                    
+
                                                 }} onConfirm={() => {
                                                     props.onClose()
                                                 }} tableID={props.tableID} {...item} />
@@ -103,13 +103,13 @@ export function MatchFinishedModal(props) {
                                             setLoadingNewMatch(true);
                                             if (props.isTeamMatch === true) {
                                                 await archiveMatchForTeamMatch(props.teamMatchID, props.tableNumber, props.matchID, props)
-                                                let newTeamMatchMatchKey = await createTeamMatchNewMatch(props.teamMatchID, props.tableNumber, props.sportName,JSON.parse(JSON.stringify(props)),props.scoringType )
+                                                let newTeamMatchMatchKey = await createTeamMatchNewMatch(props.teamMatchID, props.tableNumber, props.sportName, JSON.parse(JSON.stringify(props)), props.scoringType)
                                                 await props.onNewMatchCreation(newTeamMatchMatchKey);
 
                                             }
                                             else {
                                                 await archiveMatchForTable(props.tableID, props.matchID, props);
-                                                let newMatchKey = await createNewMatch(props.tableID, props.sportName, JSON.parse(JSON.stringify(props)), false,props.scoringType);
+                                                let newMatchKey = await createNewMatch(props.tableID, props.sportName, JSON.parse(JSON.stringify(props)), false, props.scoringType);
                                                 await props.onNewMatchCreation(newMatchKey);
                                             }
 
@@ -127,28 +127,28 @@ export function MatchFinishedModal(props) {
                                     </Button>
                                 </View>
                                 {props.isTeamMatch ?
-                                null
-                            :
-                            <View flex={1} padding={1}>
-                                    <Button
-                                        onPress={async () => {
-                                            setLoadingScheduledMatches(true)
+                                    null
+                                    :
+                                    <View flex={1} padding={1}>
+                                        <Button
+                                            onPress={async () => {
+                                                setLoadingScheduledMatches(true)
 
 
-                                            await loadScheduleMatches()
-                                            setLoadingScheduledMatches(false)
-                                            setShowScheduledMatches(true)
+                                                await loadScheduleMatches()
+                                                setLoadingScheduledMatches(false)
+                                                setShowScheduledMatches(true)
 
-                                        }}
-                                    >
-                                        {loadingScheduledMatches ?
-                                            <Spinner color={openScoreboardButtonTextColor}></Spinner> :
-                                            <Text color={openScoreboardButtonTextColor}>{i18n.t("selectFromScheduledMatches")}</Text>}
+                                            }}
+                                        >
+                                            {loadingScheduledMatches ?
+                                                <Spinner color={openScoreboardButtonTextColor}></Spinner> :
+                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("selectFromScheduledMatches")}</Text>}
 
-                                    </Button>
-                                </View>
-                            }
-                                
+                                        </Button>
+                                    </View>
+                                }
+
 
                             </>
                     }

@@ -1,7 +1,7 @@
 
 
-import React, {  useEffect, useState } from 'react';
-import { Button,  View,  NativeBaseProvider, FlatList,  AddIcon,  Text, Input } from 'native-base';
+import React, { useEffect, useState } from 'react';
+import { Button, View, NativeBaseProvider, FlatList, AddIcon, Text, Input } from 'native-base';
 import db, { getUserPath } from '../database';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
@@ -26,12 +26,12 @@ export default function TableLiveScoringLink(props) {
     let [doneLoading, setDoneLoading] = useState(false)
     let [selectedTables, setSelectedTables] = useState({})
 
-    function onTableSelected(isSelected, tableId){
-        let tempSelectedTables = {...selectedTables}
-        if(isSelected === true){
+    function onTableSelected(isSelected, tableId) {
+        let tempSelectedTables = { ...selectedTables }
+        if (isSelected === true) {
             tempSelectedTables[tableId] = true
         }
-        else{
+        else {
             tempSelectedTables[tableId] = false
         }
         setSelectedTables(tempSelectedTables)
@@ -88,26 +88,26 @@ export default function TableLiveScoringLink(props) {
                     <View flex={1}>
                         <View maxW={"lg"} width={"100%"} alignSelf="center">
                             <Text fontSize={"2xl"}>{i18n.t("selectAndShareCreatedURL")}</Text>
-                        {Object.entries(selectedTables).filter(([id,isSelected])=>{
-                            return isSelected
-                        }).length > 0 ? 
-                        <View padding={1} flexDir={"row"}>
-                                                <Input flex={1} isReadOnly value={`${"https://openscoreboard.com/live-scoring?tables="}${Object.entries(selectedTables).filter(([id,isSelected])=>{
-                            return isSelected
-                        }).map(([id,isSelected])=>{
-                            return id
-                        }).join(",")}`}></Input>
-                                                <CopyButton text={`${"https://openscoreboard.com/live-scoring?tables="}${Object.entries(selectedTables).filter(([id,isSelected])=>{
-                            return isSelected
-                        }).map(([id,isSelected])=>{
-                            return id
-                        }).join(",")}`} />
-                                            </View>
-                    
-                    : null
-                    }
+                            {Object.entries(selectedTables).filter(([id, isSelected]) => {
+                                return isSelected
+                            }).length > 0 ?
+                                <View padding={1} flexDir={"row"}>
+                                    <Input flex={1} isReadOnly value={`${"https://openscoreboard.com/live-scoring?tables="}${Object.entries(selectedTables).filter(([id, isSelected]) => {
+                                        return isSelected
+                                    }).map(([id, isSelected]) => {
+                                        return id
+                                    }).join(",")}`}></Input>
+                                    <CopyButton text={`${"https://openscoreboard.com/live-scoring?tables="}${Object.entries(selectedTables).filter(([id, isSelected]) => {
+                                        return isSelected
+                                    }).map(([id, isSelected]) => {
+                                        return id
+                                    }).join(",")}`} />
+                                </View>
+
+                                : null
+                            }
                         </View>
-                        
+
                         {
                             tableList.length > 0 ?
                                 <FlatList maxW={"lg"} width={"100%"} alignSelf="center"
@@ -126,9 +126,9 @@ export default function TableLiveScoringLink(props) {
                                     <View>
                                         <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noTables")}</Text>
                                         <View padding={2}>
-                                          
-                                                <Text fontSize={"xl"} fontWeight="bold" color={openScoreboardColor}>{i18n.t("goBackToTables")}</Text>
-                                           
+
+                                            <Text fontSize={"xl"} fontWeight="bold" color={openScoreboardColor}>{i18n.t("goBackToTables")}</Text>
+
                                         </View>
                                     </View>
                                 </View>

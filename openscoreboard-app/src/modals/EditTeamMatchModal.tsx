@@ -15,7 +15,7 @@ export function EditTeamMatchModal(props) {
     let [teamAScore, setTeamAScore] = useState(0)
     let [teamBScore, setTeamBScore] = useState(0)
 
-    useEffect(()=>{
+    useEffect(() => {
         setTeamAScore(props.teamAScore)
         setTeamBScore(props.teamBScore)
     }, [props.isOpen])
@@ -41,62 +41,62 @@ export function EditTeamMatchModal(props) {
                 <Modal.Body>
                     <FormControl>
                         <FormControl.Label>{props.teamAName} {i18n.t("score")}</FormControl.Label>
-<View flexDirection={"row"} alignItems="center">
-                        <View padding={1}>
-                            <Button onPress={() => { 
-                                 if (teamAScore > 0) {
-                                    let newAScore = parseInt(teamAScore) - 1
+                        <View flexDirection={"row"} alignItems="center">
+                            <View padding={1}>
+                                <Button onPress={() => {
+                                    if (teamAScore > 0) {
+                                        let newAScore = parseInt(teamAScore) - 1
+                                        setTeamAScore(newAScore)
+                                    }
+
+                                }}>
+                                    <MinusIcon color={openScoreboardButtonTextColor}></MinusIcon>
+                                </Button>
+                            </View>
+                            <View padding={1}>
+                                <Text fontSize={"xl"} fontWeight="bold">{teamAScore}</Text>
+                            </View>
+
+                            <View padding={1}>
+                                <Button onPress={() => {
+                                    let newAScore = parseInt(teamAScore) + 1
                                     setTeamAScore(newAScore)
-                                }
-                                
-                            }}>
-                                <MinusIcon color={openScoreboardButtonTextColor}></MinusIcon>
-                            </Button>
-                        </View>
-                        <View padding={1}>
-                            <Text fontSize={"xl"} fontWeight="bold">{teamAScore}</Text>
-                        </View>
-                        
-                        <View padding={1}>
-                            <Button onPress={() => {
-                              let newAScore = parseInt(teamAScore) + 1
-                                setTeamAScore(newAScore)
 
-                            }}>
-                                <AddIcon color={openScoreboardButtonTextColor}></AddIcon>
-                            </Button>
+                                }}>
+                                    <AddIcon color={openScoreboardButtonTextColor}></AddIcon>
+                                </Button>
+                            </View>
                         </View>
-                    </View>
 
-                    <FormControl.Label>{props.teamBName} {i18n.t("score")}</FormControl.Label>
-<View flexDirection={"row"}  alignItems="center">
-                        <View padding={1}>
-                            <Button onPress={() => { 
-                                 if (teamBScore > 0) {
-                                    let newBScore = parseInt(teamBScore) - 1
+                        <FormControl.Label>{props.teamBName} {i18n.t("score")}</FormControl.Label>
+                        <View flexDirection={"row"} alignItems="center">
+                            <View padding={1}>
+                                <Button onPress={() => {
+                                    if (teamBScore > 0) {
+                                        let newBScore = parseInt(teamBScore) - 1
+                                        setTeamBScore(newBScore)
+                                    }
+
+                                }}>
+                                    <MinusIcon color={openScoreboardButtonTextColor}></MinusIcon>
+                                </Button>
+                            </View>
+                            <View padding={1}>
+                                <Text fontSize={"xl"} fontWeight={"bold"}>{teamBScore}</Text>
+                            </View>
+
+                            <View padding={1}>
+                                <Button onPress={() => {
+                                    let newBScore = parseInt(teamBScore) + 1
                                     setTeamBScore(newBScore)
-                                }
-                                
-                            }}>
-                                <MinusIcon color={openScoreboardButtonTextColor}></MinusIcon>
-                            </Button>
-                        </View>
-                        <View padding={1}>
-                            <Text fontSize={"xl"} fontWeight={"bold"}>{teamBScore}</Text>
-                        </View>
-                        
-                        <View padding={1}>
-                            <Button onPress={() => {
-                              let newBScore = parseInt(teamBScore) + 1
-                                setTeamBScore(newBScore)
 
-                            }}>
-                                <AddIcon color={openScoreboardButtonTextColor}></AddIcon>
-                            </Button>
+                                }}>
+                                    <AddIcon color={openScoreboardButtonTextColor}></AddIcon>
+                                </Button>
+                            </View>
                         </View>
-                    </View>
                     </FormControl>
-                    
+
 
 
 
@@ -106,7 +106,7 @@ export function EditTeamMatchModal(props) {
                         <Button
                             onPress={async () => {
                                 setLoadingEditMatch(true);
-                               // await addNewTeamMatch(newTeamMatch(teamAID, teamBID, matchTime));
+                                // await addNewTeamMatch(newTeamMatch(teamAID, teamBID, matchTime));
                                 await setTeamMatchTeamScore(props.id, teamAScore, teamBScore)
                                 setLoadingEditMatch(false);
                                 props.onClose(true);

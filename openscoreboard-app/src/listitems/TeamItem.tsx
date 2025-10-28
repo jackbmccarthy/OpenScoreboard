@@ -12,11 +12,11 @@ export function TeamItem(props) {
     return (
         <View>
             <View padding={1}>
-<Text fontSize={"3xl"} fontWeight="bold">{props.item[1].name}</Text>
+                <Text fontSize={"3xl"} fontWeight="bold">{props.item[1].name}</Text>
             </View>
-            
+
             <View padding={1} >
-                
+
                 {showDelete ?
                     <View alignItems={"center"} flexDirection={"row"} justifyContent={"space-around"}>
                         <Text fontSize={"xl"} fontWeight={"bold"}>{i18n.t("deleteTeam")}?</Text>
