@@ -27,7 +27,7 @@
 # # Run the application
 # CMD ["npm", "start"]
 # Stage 1: Build the application
-FROM node:20-alpine as build
+FROM node:24-alpine as build
 
 # Install Git
 RUN apk add --no-cache git
