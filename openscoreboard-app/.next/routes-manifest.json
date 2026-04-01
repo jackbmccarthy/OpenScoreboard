@@ -36,10 +36,22 @@
       "namedRegex": "^/_not\\-found(?:/)?$"
     },
     {
+      "page": "/editor",
+      "regex": "^/editor(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/editor(?:/)?$"
+    },
+    {
       "page": "/login",
       "regex": "^/login(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/login(?:/)?$"
+    },
+    {
+      "page": "/scoreboard",
+      "regex": "^/scoreboard(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/scoreboard(?:/)?$"
     }
   ],
   "dataRoutes": [],

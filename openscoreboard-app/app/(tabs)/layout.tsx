@@ -1,7 +1,7 @@
 'use client'
 
 import { Box, Text, HStack } from '@/components/ui'
-import { useRouter, usePathname } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 
 interface TabItem {
@@ -14,6 +14,8 @@ const tabs: TabItem[] = [
   { name: 'index', label: 'Home', path: '/' },
   { name: 'players', label: 'Players', path: '/players' },
   { name: 'teams', label: 'Teams', path: '/teams' },
+  { name: 'scoreboard', label: 'Scoreboard', path: '/scoreboard' },
+  { name: 'editor', label: 'Editor', path: '/editor' },
   { name: 'settings', label: 'Settings', path: '/settings' },
 ]
 
@@ -22,11 +24,10 @@ export default function TabsLayout({
 }: {
   children: React.ReactNode
 }) {
-  const router = useRouter()
   const pathname = usePathname()
 
   const getCurrentTab = () => {
-    const found = tabs.find(t => pathname === t.path || pathname.startsWith(t.path + '/'))
+    const found = tabs.find(t => pathname === t.path || (t.path !== '/' && pathname.startsWith(t.path)))
     return found?.name || 'index'
   }
 
@@ -34,12 +35,12 @@ export default function TabsLayout({
     <Box className="flex flex-col min-h-screen bg-white">
       {/* Tab Navigation */}
       <Box className="border-b border-gray-200">
-        <HStack className="justify-between">
+        <HStack className="overflow-x-auto">
           {tabs.map((tab) => (
             <Link 
               key={tab.name} 
               href={tab.path}
-              className={`px-4 py-3 font-medium text-sm border-b-2 -mb-px transition-colors ${
+              className={`px-4 py-3 font-medium text-sm border-b-2 -mb-px transition-colors whitespace-nowrap ${
                 getCurrentTab() === tab.name
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900'

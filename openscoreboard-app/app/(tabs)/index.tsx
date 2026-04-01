@@ -1,8 +1,8 @@
 'use client'
 
 import { Box, Text, VStack, HStack, Card, CardBody, Pressable, Heading } from '@/components/ui'
-import { useSession, signIn, signOut } from 'next-auth/react'
-import { ScoreboardIcon, PlayersIcon, TeamsIcon, TablesIcon } from '@/components/icons'
+import { ScoreboardIcon, PlayersIcon, TeamsIcon, TablesIcon, SettingsIcon, ExternalLinkIcon } from '@/components/icons'
+import { useRouter } from 'next/navigation'
 
 const scoringScreens = [
   {
@@ -36,16 +36,22 @@ const importables = [
 
 const scoreboards = [
   {
-    route: "scoreboards",
-    title: "Scoreboards",
-    description: "View and manage scoreboards",
+    route: "scoreboard",
+    title: "Scoreboard Overlays",
+    description: "View live scoreboard overlays",
     icon: ScoreboardIcon,
+  },
+  {
+    route: "editor",
+    title: "Scoreboard Editor",
+    description: "Design custom scoreboard layouts",
+    icon: SettingsIcon,
   },
   {
     route: "dynamic-urls",
     title: "Dynamic URLs",
     description: "Generate dynamic scoreboard URLs",
-    icon: ScoreboardIcon,
+    icon: ExternalLinkIcon,
   },
 ]
 
@@ -54,7 +60,7 @@ const account = [
     route: "settings",
     title: "Account Settings",
     description: "Manage your account",
-    icon: ScoreboardIcon,
+    icon: SettingsIcon,
   },
 ]
 
@@ -64,32 +70,30 @@ function HomeItem({ item }: { item: any }) {
 
   return (
     <Pressable
-      className="flex-row items-center justify-between p-4 border-b border-gray-200 active:bg-gray-100"
+      className="flex-row items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50"
       onPress={() => router.push(`/${item.route}`)}
     >
-      <Box className="flex-1">
-        <Text className="text-lg font-bold">{item.title}</Text>
-        <Text className="text-xs text-gray-500">{item.description}</Text>
-      </Box>
-      {Icon && <Icon size={24} className="text-gray-400" />}
+      <HStack className="flex-1 items-center space-x-3">
+        {Icon && <Icon size={24} className="text-gray-400" />}
+        <Box className="flex-1">
+          <Text className="text-base font-medium">{item.title}</Text>
+          <Text className="text-xs text-gray-500">{item.description}</Text>
+        </Box>
+      </HStack>
     </Pressable>
   )
 }
 
-import { useRouter } from 'next/navigation'
-
 export default function HomePage() {
-  const { data: session } = useSession()
-
   return (
     <Box className="flex-1 bg-white">
-      <VStack space="md">
+      <VStack space="lg">
         {/* Scoring Section */}
         <Box>
-          <Text className="text-2xl font-bold text-center underline">Scoring</Text>
-          <Card variant="elevated" className="mt-2">
-            <CardBody>
-              <VStack space="sm">
+          <Text className="text-xl font-bold text-center underline mb-2">Scoring</Text>
+          <Card variant="elevated" className="overflow-hidden">
+            <CardBody className="p-0">
+              <VStack space="0">
                 {scoringScreens.map((item) => (
                   <HomeItem key={item.route} item={item} />
                 ))}
@@ -100,10 +104,10 @@ export default function HomePage() {
 
         {/* Importable Section */}
         <Box>
-          <Text className="text-2xl font-bold text-center underline">Importable Players & Teams</Text>
-          <Card variant="elevated" className="mt-2">
-            <CardBody>
-              <VStack space="sm">
+          <Text className="text-xl font-bold text-center underline mb-2">Importable Players & Teams</Text>
+          <Card variant="elevated" className="overflow-hidden">
+            <CardBody className="p-0">
+              <VStack space="0">
                 {importables.map((item) => (
                   <HomeItem key={item.route} item={item} />
                 ))}
@@ -114,10 +118,10 @@ export default function HomePage() {
 
         {/* Scoreboards Section */}
         <Box>
-          <Text className="text-2xl font-bold text-center underline">Scoreboards & Overlays</Text>
-          <Card variant="elevated" className="mt-2">
-            <CardBody>
-              <VStack space="sm">
+          <Text className="text-xl font-bold text-center underline mb-2">Scoreboards & Overlays</Text>
+          <Card variant="elevated" className="overflow-hidden">
+            <CardBody className="p-0">
+              <VStack space="0">
                 {scoreboards.map((item) => (
                   <HomeItem key={item.route} item={item} />
                 ))}
@@ -128,10 +132,10 @@ export default function HomePage() {
 
         {/* Account Section */}
         <Box>
-          <Text className="text-2xl font-bold text-center underline">Account</Text>
-          <Card variant="elevated" className="mt-2">
-            <CardBody>
-              <VStack space="sm">
+          <Text className="text-xl font-bold text-center underline mb-2">Account</Text>
+          <Card variant="elevated" className="overflow-hidden">
+            <CardBody className="p-0">
+              <VStack space="0">
                 {account.map((item) => (
                   <HomeItem key={item.route} item={item} />
                 ))}
