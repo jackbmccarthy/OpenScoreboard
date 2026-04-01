@@ -1,0 +1,67 @@
+{
+  "pid": 21814,
+  "parent_pid": 21800,
+  "started_at": "2026-04-01T20:21:25.592Z",
+  "cwd": "/home/jack/.openclaw/workspace/OpenScoreboard",
+  "notify_script": "/home/jack/.nvm/versions/node/v24.14.0/lib/node_modules/oh-my-codex/dist/scripts/notify-hook.js",
+  "poll_ms": 250,
+  "pid_file": "/home/jack/.openclaw/workspace/OpenScoreboard/.omx/state/notify-fallback.pid",
+  "max_lifetime_ms": 21600000,
+  "tracked_files": 4,
+  "seen_turns": 4,
+  "dispatch_drain": {
+    "enabled": true,
+    "max_per_tick": 5,
+    "run_count": 1882,
+    "leader_only": true,
+    "last_tick_at": "2026-04-01T20:30:34.211Z",
+    "last_result": {
+      "processed": 0,
+      "skipped": 0,
+      "failed": 0
+    },
+    "last_error": null
+  },
+  "leader_nudge": {
+    "enabled": true,
+    "leader_only": true,
+    "stale_threshold_ms": 180000,
+    "precomputed_leader_stale": false,
+    "last_tick_at": "2026-04-01T20:30:34.212Z",
+    "last_error": null,
+    "run_count": 1882
+  },
+  "ralph_continue_steer": {
+    "enabled": true,
+    "cadence_ms": 60000,
+    "message": "Ralph loop active continue",
+    "active": false,
+    "last_state_check_at": "2026-04-01T20:30:34.228Z",
+    "last_sent_at": "",
+    "cooldown_anchor_at": "",
+    "last_reason": "blocked_by_current_session",
+    "last_error": null,
+    "state_path": "",
+    "pane_id": "",
+    "pane_current_command": "",
+    "current_phase": "",
+    "shared_timestamp_path": "/home/jack/.openclaw/workspace/OpenScoreboard/.omx/state/ralph-last-steer-at",
+    "shared_last_sent_at": "",
+    "singleton_lock_path": "/home/jack/.openclaw/workspace/OpenScoreboard/.omx/state/ralph-continue-steer.lock"
+  },
+  "fallback_auto_nudge": {
+    "enabled": true,
+    "stall_ms": 5000,
+    "last_tick_at": "2026-04-01T20:30:34.228Z",
+    "last_turn_at": "2026-04-01T20:30:34.176Z",
+    "last_turn_count": 4,
+    "last_message": "Using $analyze.\n\n## Architecture\nOpenScoreboard looks like a **multi-surface monorepo** with 4 main ",
+    "last_reason": "recent_turn_activity",
+    "last_error": null,
+    "last_nudged_signature": "",
+    "last_nudged_at": ""
+  },
+  "stop_reason": "signal",
+  "stop_signal": "SIGTERM",
+  "stopping": true
+}
