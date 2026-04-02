@@ -1,49 +1,49 @@
-# OpenScoreboard v3 - Next.js App
-# For the v3 branch which is Next.js + GlueStack UI
+# OpenScoreboard v3 - Vite Static Deployment
+# Simple nginx container serving static Vite build
 
-FROM node:20-alpine AS base
-
-WORKDIR /app
-
-# Install dependencies only when needed
-FROM base AS deps
-
-COPY openscoreboard-app/package.json openscoreboard-app/package-lock.json* ./
-RUN npm ci
-
-# Rebuild the source code only when needed
-FROM base AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY openscoreboard-app/ ./
+# Copy package files
+COPY package*.json ./
+COPY vite.config.ts ./
+COPY tsconfig*.json ./
+COPY tailwind.config.js ./
+COPY postcss.config.js ./
+COPY index.html ./
+COPY src ./src
 
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
+# Install dependencies and build
+RUN npm ci && npm run build
 
-RUN npm run build
+# Production image with nginx
+FROM nginx:alpine
 
-# Production image
-FROM base AS runner
+# Copy built files
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-WORKDIR /app
+# Copy nginx config
+COPY <<'EOF' /etc/nginx/conf.d/default.conf
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+    # Serve static assets with long cache
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+    # SPA fallback - all routes go to index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+EOF
 
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+EXPOSE 80
 
-USER nextjs
-
-EXPOSE 3000
-
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "server.js"]
+CMD ["nginx", "-g", "daemon off;"]
