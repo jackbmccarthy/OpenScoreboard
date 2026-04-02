@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  signInWithGoogle, 
+  signInWithGoogle,
   signInWithGoogleRedirect,
   signInWithEmail, 
   signUpWithEmail 
@@ -16,24 +16,17 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Use redirect for maximum browser compatibility
+  // Popup can be blocked by popup blockers in Safari, Firefox private browsing, etc.
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError('');
     try {
-      await signInWithGoogle();
-      navigate('/');
+      // Redirect is the most reliable - works everywhere
+      await signInWithGoogleRedirect();
+      // After redirect, the /auth/callback page will handle the result
     } catch (err: any) {
-      if (err.code === 'auth/popup-blocked') {
-        // Popup blocked, use redirect instead
-        try {
-          await signInWithGoogleRedirect();
-        } catch (redirectErr) {
-          setError('Sign-in popup was blocked. Please allow popups and try again.');
-        }
-      } else {
-        setError(err.message);
-      }
-    } finally {
+      setError(err.message);
       setLoading(false);
     }
   };
@@ -67,14 +60,14 @@ export default function Login() {
         </div>
 
         <div className="bg-gray-800 rounded-2xl p-6 shadow-xl">
-          {/* Google Sign In */}
+          {/* Google Sign In - Uses redirect for best browser support */}
           <button
             onClick={handleGoogleLogin}
             disabled={loading}
             className="w-full flex items-center justify-center gap-3 bg-white text-gray-900 font-semibold py-3 px-4 rounded-xl hover:bg-gray-100 transition-colors disabled:opacity-50 mb-6"
           >
             <GoogleIcon className="w-5 h-5" />
-            {loading ? 'Signing in...' : 'Continue with Google'}
+            {loading ? 'Redirecting...' : 'Continue with Google'}
           </button>
 
           <div className="relative mb-6">
