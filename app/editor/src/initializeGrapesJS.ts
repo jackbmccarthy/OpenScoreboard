@@ -19,10 +19,9 @@ import { loadImageBlocks } from './leftpanel/loadImageBlocks';
 import { loadSolidColorBlocks } from './leftpanel/loadSolidColorBlocks';
 import { loadTextBlocks } from './leftpanel/loadTextBlocks';
 
-export function initializeGrapesJS(container: HTMLElement | string, scoreboardID:string|null) {
-
+export function initializeGrapesJS(scoreboardID: string | null) {
     const editor = grapesjs.init({
-        container: typeof container === 'string' ? container : '#gjs2',
+        container: '#gjs',
         showOffsets: true,
         noticeOnUnload: 0,
         allowScripts: 1,
@@ -46,10 +45,9 @@ export function initializeGrapesJS(container: HTMLElement | string, scoreboardID
                     alert("Failed To Upload Image");
                 }
             },
-            upload: import.meta.env.VITE_FILE_UPLOAD_PATH || false,
+            upload: process.env.NEXT_PUBLIC_FILE_UPLOAD_PATH || false,
             autoAdd: true,
-             embedAsBase64: import.meta.env.VITE_IS_LOCAL_DATABASE === "false" ? false : true,
-            //  uploadFile
+            embedAsBase64: process.env.NEXT_PUBLIC_USE_LOCAL_DB === "true" ? true : false,
         },
         panels: {
             appendTo: "#top-panel"
@@ -72,7 +70,6 @@ export function initializeGrapesJS(container: HTMLElement | string, scoreboardID
             autosave: false
         },
         plugins: [
-           // loadTemplatesPlugin,
             exportPlugin,
             bgPlugin,
             connectToLiveTTScoreboardDB,
@@ -89,7 +86,7 @@ export function initializeGrapesJS(container: HTMLElement | string, scoreboardID
             addIsGameStartedFields
         ],
         pluginsOpts: {
-            [exportPlugin]: { /* options */ },
+            [exportPlugin]: {},
             [bgPlugin]: {},
             [basicBlocks]: {
                 blocks: ["text", "image"]
@@ -103,7 +100,6 @@ export function initializeGrapesJS(container: HTMLElement | string, scoreboardID
     loadSolidColorBlocks(editor, [...solidColorFieldList]);
     loadImageBlocks(editor, [...imageFieldList]);
 
-
     editor.on("load", async () => {
         editor.Panels.removePanel("devices-c");
         editor.loadProjectData(await editor.Storage.load());
@@ -113,8 +109,8 @@ export function initializeGrapesJS(container: HTMLElement | string, scoreboardID
         const categories = editor.BlockManager.getCategories();
         categories.each(category => {
             category.set('open', false);
-
         });
     });
-}
 
+    return editor;
+}

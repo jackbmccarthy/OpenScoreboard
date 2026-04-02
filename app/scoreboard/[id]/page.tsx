@@ -7,26 +7,31 @@ interface ScoreboardPageProps {
 }
 
 export default function ScoreboardPage({ params }: ScoreboardPageProps) {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!iframeRef.current) return;
-    
-    // Load the built scoreboard app in an iframe with the scoreboard ID
-    const scoreboardUrl = `/scoreboard/dist/index.html?sid=${params.id}`;
-    iframeRef.current.src = scoreboardUrl;
+    if (!containerRef.current) return;
+
+    // Dynamically import the vanilla JS scoreboard module
+    import('../src/index').then((scoreboard) => {
+      if (scoreboard.init) {
+        scoreboard.init({
+          container: containerRef.current!,
+          matchId: params.id,
+        });
+      }
+    });
 
     return () => {
-      // Cleanup if needed
+      // Cleanup is handled by the vanilla JS module
     };
   }, [params.id]);
 
   return (
-    <iframe 
-      ref={iframeRef} 
-      className="scoreboard-iframe"
-      style={{ width: '100%', height: '100vh', border: 'none' }}
-      title="Scoreboard"
+    <div 
+      ref={containerRef} 
+      id="scoreboard-container"
+      style={{ width: '100%', height: '100vh' }}
     />
   );
 }
