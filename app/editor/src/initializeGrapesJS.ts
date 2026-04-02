@@ -19,10 +19,10 @@ import { loadImageBlocks } from './leftpanel/loadImageBlocks';
 import { loadSolidColorBlocks } from './leftpanel/loadSolidColorBlocks';
 import { loadTextBlocks } from './leftpanel/loadTextBlocks';
 
-export function initializeGrapesJS(scoreboardID:string|null) {
+export function initializeGrapesJS(container: HTMLElement | string, scoreboardID:string|null) {
 
     const editor = grapesjs.init({
-        container: '#gjs2',
+        container: typeof container === 'string' ? container : '#gjs2',
         showOffsets: true,
         noticeOnUnload: 0,
         allowScripts: 1,

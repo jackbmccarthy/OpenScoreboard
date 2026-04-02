@@ -7,6 +7,15 @@ import { addCSS } from './addCSS';
 
 export let listenerRemovalList:{ (): void; }[] = []
 
+export interface ScoreboardConfig {
+  container: HTMLElement;
+  matchId?: string;
+  tableId?: string;
+  teamMatchId?: string;
+  tableNumber?: string;
+  dynamicUrlId?: string;
+}
+
 const resetListeners = ()=>{
     
     if(listenerRemovalList.length > 0){
@@ -22,8 +31,9 @@ const addToListenerList = (removeFunc:{():void}) =>{
 }
 
 
-async function runScoreboard(scoreboardID:string|null, tableID:string|null=null, teamMatchID:string|null=null, tableNumber:string|null=null, ) {
-    let root = document.getElementById("gjs");
+async function runScoreboard(container: HTMLElement, scoreboardID:string|null, tableID:string|null=null, teamMatchID:string|null=null, tableNumber:string|null=null, ) {
+    // Use the provided container instead of document.getElementById("gjs")
+    let root = container;
     await getScoreboardSettings(scoreboardID)
     addScoreboardSettingListeners(scoreboardID, root)
     let isInitialRun = true;
@@ -77,7 +87,7 @@ async function runScoreboard(scoreboardID:string|null, tableID:string|null=null,
 
 }
 
-async function setupDynamicURL(dynamicURLID,){
+async function setupDynamicURL(dynamicURLID: string, container: HTMLElement){
    // let details = await getDynamicURLDetails(dynamicURLID)
     
 
@@ -90,32 +100,54 @@ async function setupDynamicURL(dynamicURLID,){
         scoreboardID} = details
         console.log(details)
         resetListeners()
-        runScoreboard(scoreboardID,tableID,teammatchID,tableNumber)
+        runScoreboard(container, scoreboardID,tableID,teammatchID,tableNumber)
 
         })
         
 
 }
 
-
-
-const params = new URLSearchParams(window.location.search);
-const tableID= params.get("tid")
-const teamMatchID = params.get("tmid")
-const teamMatchTableNumber = params.get("table")
-const dynamicURLID =params.get("dynid")
-const  scoreboardID = params.get("sid");
-if (params.get("t") === "table" && (params.get("tid") !== null || params.get("tmid") !== null)) {
-
+/**
+ * Initialize the scoreboard with the given configuration.
+ * @param config - Configuration object containing container and optional IDs
+ */
+export function init(config: ScoreboardConfig): () => void {
+    const { container, matchId, tableId, teamMatchId, tableNumber, dynamicUrlId } = config;
     
-    resetListeners()
-    runScoreboard(scoreboardID, tableID, teamMatchID, teamMatchTableNumber);
-}
-else if(dynamicURLID !== null && dynamicURLID.length > 0 ){
-    setupDynamicURL(dynamicURLID)
-}
-else{
+    resetListeners();
 
+    if (dynamicUrlId && dynamicUrlId.length > 0) {
+        setupDynamicURL(dynamicUrlId, container);
+    } else if (tableId || teamMatchId) {
+        runScoreboard(container, matchId || null, tableId || null, teamMatchId || null, tableNumber || null);
+    }
+
+    // Return cleanup function
+    return () => {
+        resetListeners();
+    };
+}
+
+// Legacy initialization for direct script include (URL params based)
+export function initFromURL(container: HTMLElement): () => void {
+    const params = new URLSearchParams(window.location.search);
+    const tableID= params.get("tid")
+    const teamMatchID = params.get("tmid")
+    const teamMatchTableNumber = params.get("table")
+    const dynamicURLID =params.get("dynid")
+    const scoreboardID = params.get("sid");
+
+    if (params.get("t") === "table" && (params.get("tid") !== null || params.get("tmid") !== null)) {
+        resetListeners()
+        runScoreboard(container, scoreboardID, tableID, teamMatchID, teamMatchTableNumber);
+    }
+    else if(dynamicURLID !== null && dynamicURLID.length > 0 ){
+        setupDynamicURL(dynamicURLID, container)
+    }
+
+    return () => {
+        resetListeners();
+    };
 }
 
 
