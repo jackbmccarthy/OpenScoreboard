@@ -23,8 +23,6 @@
   "include": ["src"],
   "exclude": [
     "node_modules",
-    "dist",
-    "openscoreboard-editor/**",
-    "openscoreboard-scoreboard/**"
+    "dist"
   ]
 }
