@@ -5,17 +5,22 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy only package files first for better caching
 COPY package*.json ./
 COPY vite.config.ts ./
 COPY tsconfig*.json ./
 COPY tailwind.config.js ./
 COPY postcss.config.js ./
 COPY index.html ./
+
+# Install dependencies fresh
+RUN npm ci
+
+# Copy source
 COPY src ./src
 
-# Install dependencies and build
-RUN npm ci && npm run build
+# Build
+RUN npm run build
 
 # Production image with nginx
 FROM nginx:alpine
@@ -23,7 +28,7 @@ FROM nginx:alpine
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx config
+# Copy nginx config for SPA routing
 COPY <<'EOF' /etc/nginx/conf.d/default.conf
 server {
     listen 80;
