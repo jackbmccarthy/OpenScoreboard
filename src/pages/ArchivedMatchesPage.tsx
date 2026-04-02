@@ -16,13 +16,8 @@ interface ArchivedMatch {
   winner?: string;
 }
 
-interface ArchivedMatchesPageProps {
-  tableID?: string;
-  teamMatchID?: string;
-}
-
 export default function ArchivedMatchesPage() {
-  const params = useParams<ArchivedMatchesPageProps>();
+  const params = useParams();
   const { user, loading: authLoading } = useAuth();
   const [archivedMatches, setArchivedMatches] = useState<ArchivedMatch[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,15 +27,18 @@ export default function ArchivedMatchesPage() {
 
     async function loadArchivedMatches() {
       try {
-        // Import from functions - same as original
         const { getArchivedMatchesForTable, getArchivedMatchesForTeamMatch } = await import('@/functions/scoring');
         
+        const tableID = params.tableID as string | undefined;
+        const teamMatchID = params.teamMatchID as string | undefined;
         let matches: ArchivedMatch[] = [];
         
-        if (params.tableID) {
-          matches = await getArchivedMatchesForTable(params.tableID);
-        } else if (params.teamMatchID) {
-          matches = await getArchivedMatchesForTeamMatch(params.teamMatchID);
+        if (tableID) {
+          const result = await getArchivedMatchesForTable(tableID);
+          matches = result as ArchivedMatch[];
+        } else if (teamMatchID) {
+          const result = await getArchivedMatchesForTeamMatch(teamMatchID);
+          matches = result as ArchivedMatch[];
         }
         
         setArchivedMatches(matches);

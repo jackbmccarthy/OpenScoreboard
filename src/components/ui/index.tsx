@@ -71,10 +71,15 @@ export function HStack({
 export function VStack({ 
   children, 
   className = '',
+  space,
   ...props 
-}: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
+}: React.HTMLAttributes<HTMLDivElement> & { 
+  children?: React.ReactNode
+  space?: string 
+}) {
+  const spaceClass = space ? `space-y-${space}` : '';
   return (
-    <div className={`flex flex-col ${className}`} {...props}>
+    <div className={`flex flex-col ${spaceClass} ${className}`} {...props}>
       {children}
     </div>
   )

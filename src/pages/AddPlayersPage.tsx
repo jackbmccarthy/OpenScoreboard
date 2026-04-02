@@ -15,7 +15,7 @@ interface Player {
 }
 
 export default function AddPlayersPage() {
-  const params = useParams<{ playerListID?: string }>();
+  const params = useParams();
   const { user, loading: authLoading } = useAuth();
   const [players, setPlayers] = useState<[string, Player][]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,19 +23,21 @@ export default function AddPlayersPage() {
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
 
+  const playerListID = params.playerListID as string | undefined;
+
   async function loadPlayers() {
-    if (!params.playerListID) {
+    if (!playerListID) {
       setLoading(false);
       return;
     }
 
     try {
       const { getImportPlayerList, sortPlayers } = await import('@/functions/players');
-      let playerValues = await getImportPlayerList(params.playerListID);
+      let playerValues = await getImportPlayerList(playerListID);
       if (playerValues.length > 0) {
         playerValues = sortPlayers(playerValues);
       }
-      setPlayers(playerValues || []);
+      setPlayers((playerValues || []) as [string, Player][]);
     } catch (err) {
       console.error('Error loading players:', err);
     } finally {
@@ -46,17 +48,17 @@ export default function AddPlayersPage() {
   useEffect(() => {
     if (authLoading) return;
     loadPlayers();
-  }, [authLoading, params.playerListID]);
+  }, [authLoading, playerListID]);
 
   const handleAddPlayer = async () => {
-    if (!newFirstName.trim() || !newLastName.trim() || !params.playerListID) return;
+    if (!newFirstName.trim() || !newLastName.trim() || !playerListID) return;
 
     try {
       const { newImportedPlayer } = await import('@/classes/Player');
       const { addImportedPlayer } = await import('@/functions/players');
 
       const player = newImportedPlayer(newFirstName.trim(), newLastName.trim(), '', 'US');
-      await addImportedPlayer(params.playerListID, player);
+      await addImportedPlayer(playerListID, player);
 
       setNewFirstName('');
       setNewLastName('');
