@@ -1,12 +1,21 @@
 // Settings Page
 // Migrated from app/(tabs)/settings/index.tsx
 
-import { Box, Text, VStack, Heading, Card, CardBody, Button } from '@/components/ui'
-import { logOut } from '@/lib/auth'
+import { Box, Text, VStack, Heading, Card, CardBody, Button, Spinner } from '@/components/ui'
+import { logOut, useAuth } from '@/lib/auth'
 import { useNavigate } from 'react-router-dom'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
+
+  if (authLoading) {
+    return (
+      <Box className="flex items-center justify-center p-8">
+        <Spinner size="lg" />
+      </Box>
+    )
+  }
 
   const handleSignOut = async () => {
     await logOut()
