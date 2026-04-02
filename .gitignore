@@ -5,3 +5,22 @@ node_modules
 .env.production
 .env.development
 .expo
+
+# Next.js
+.next/
+out/
+
+# Build artifacts
+openscoreboard-app/.next
+openscoreboard-app/dist
+openscoreboard-app/node_modules
+openscoreboard-app/package-lock.json
+openscoreboard-editor/dist
+openscoreboard-scoreboard/dist
+
+# Editor/Scoreboard node_modules
+openscoreboard-editor/node_modules
+openscoreboard-scoreboard/node_modules
+
+# OS files
+.DS_Store

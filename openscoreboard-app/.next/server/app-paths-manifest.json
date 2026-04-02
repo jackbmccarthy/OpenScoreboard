@@ -1,7 +1,0 @@
-{
-  "/_not-found/page": "app/_not-found/page.js",
-  "/login/page": "app/login/page.js",
-  "/editor/page": "app/editor/page.js",
-  "/match/[id]/page": "app/match/[id]/page.js",
-  "/scoreboard/page": "app/scoreboard/page.js"
-}
