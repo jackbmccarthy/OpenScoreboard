@@ -1,74 +1,49 @@
-# # Use the official Node.js 20 Alpine image
-# FROM node:20-alpine
+# OpenScoreboard v3 - Next.js App
+# For the v3 branch which is Next.js + GlueStack UI
 
-# # Install Git
-# RUN apk add --no-cache git
+FROM node:20-alpine AS base
 
-# # Set the working directory in the container
-# WORKDIR /app
-
-# # Clone the repository
-# RUN git clone https://github.com/jackbmccarthy/OpenScoreboard.git .
-
-# # Install dependencies and run preinstall
-# RUN npm install \
-#      && npm run preinstall \
-#      && npm run build \
-#      && rm -rf openscoreboard-app/node_modules openscoreboard-editor/node_modules openscoreboard-scoreboard/node_modules \
-#      && npm prune --production
-
-
-
-
-
-# # Expose port 8080
-# EXPOSE 8080
-
-# # Run the application
-# CMD ["npm", "start"]
-# Stage 1: Build the application
-FROM node:24-alpine as build
-
-# Install Git
-RUN apk add --no-cache git
-
-# Set the working directory in the container
 WORKDIR /app
 
-# Clone the repository
-RUN git clone https://github.com/jackbmccarthy/OpenScoreboard.git .
+# Install dependencies only when needed
+FROM base AS deps
 
-# Install dependencies and run preinstall
-RUN npm install --no-optional && npm run install:children && npm run build
+COPY openscoreboard-app/package.json openscoreboard-app/package-lock.json* ./
+RUN npm ci
 
-# Stage 2: Create a smaller production image
-FROM node:20-alpine
+# Rebuild the source code only when needed
+FROM base AS builder
 
-RUN apk add --no-cache git
-
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy built files from the previous stage
-COPY --from=build /app/openscoreboard-app/dist /app/openscoreboard-app/dist
-COPY --from=build /app/openscoreboard-editor/dist /app/openscoreboard-editor/dist
-COPY --from=build /app/openscoreboard-scoreboard/dist /app/openscoreboard-scoreboard/dist
+COPY --from=deps /app/node_modules ./node_modules
+COPY openscoreboard-app/ ./
 
-COPY --from=build /app/routes /app/routes
-COPY --from=build /app/server.ts .
-COPY --from=build /app/tsconfig.json .
-COPY --from=build /app/index.ts .
-COPY --from=build /app/package.json  .
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
-# Prune unnecessary dependencies
-RUN npm install --production --no-optional
- 
+RUN npm run build
 
+# Production image
+FROM base AS runner
+
+WORKDIR /app
 
 ENV NODE_ENV=production
-# Expose port if needed
-EXPOSE 8080
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Command to run the application
-CMD ["npm", "start"]
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]

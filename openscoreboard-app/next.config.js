@@ -14,6 +14,8 @@ const nextConfig = {
   experimental: {
     outputFileTracingRoot: __dirname,
   },
+  // Enable standalone output for Docker
+  output: 'standalone',
 }
 
 module.exports = nextConfig

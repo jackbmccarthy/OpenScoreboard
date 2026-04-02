@@ -1,0 +1,39 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build outputs
+.next
+out
+dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment (keep example)
+.env.example
+.env.local
+
+# Documentation
+README*
+*.md
+
+# Docker
+Dockerfile
+docker-compose*
+
+# Misc
+.omx
+.cache
