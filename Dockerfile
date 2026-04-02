@@ -5,7 +5,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy only package files first for better caching
+# Copy package files
 COPY package*.json ./
 COPY vite.config.ts ./
 COPY tsconfig*.json ./
@@ -13,11 +13,14 @@ COPY tailwind.config.js ./
 COPY postcss.config.js ./
 COPY index.html ./
 
-# Install dependencies fresh
+# Install dependencies
 RUN npm ci
 
 # Copy source
 COPY src ./src
+
+# Copy public folder (pre-built editor/scoreboard)
+COPY public ./public
 
 # Build
 RUN npm run build
@@ -27,27 +30,22 @@ FROM nginx:alpine
 
 # Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/public /usr/share/nginx/html
 
-# Copy nginx config for SPA routing
-COPY <<'EOF' /etc/nginx/conf.d/default.conf
-server {
-    listen 80;
-    server_name _;
-    root /usr/share/nginx/html;
-    index index.html;
-
-    # Serve static assets with long cache
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # SPA fallback - all routes go to index.html
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-EOF
+# nginx config for SPA routing
+RUN echo 'server { \
+    listen 80; \
+    server_name _; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ { \
+        expires 1y; \
+        add_header Cache-Control "public, immutable"; \
+    } \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 

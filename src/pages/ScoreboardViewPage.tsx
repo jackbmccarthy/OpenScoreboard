@@ -1,39 +1,25 @@
-// Scoreboard View Page - renders a specific scoreboard by ID
-// Migrated from app/scoreboard/[id]/page.tsx
-// This embeds the vanilla JS scoreboard
+// Scoreboard View Page - Live scoreboard overlay
+// Loads pre-built scoreboard from public/scoreboard
 
-import { useEffect, useRef } from 'react'
 import { useParams } from 'react-router-dom'
 
 export default function ScoreboardViewPage() {
-  const { id } = useParams<{ id: string }>()
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!containerRef.current || !id) return
-
-    // Dynamically import the vanilla JS scoreboard module
-    import('../../openscoreboard-scoreboard/src/index').then((scoreboard) => {
-      if (scoreboard.init) {
-        scoreboard.init({
-          container: containerRef.current!,
-          matchId: id,
-        })
-      }
-    }).catch(err => {
-      console.error('Failed to load scoreboard:', err)
-    })
-
-    return () => {
-      // Cleanup is handled by the vanilla JS module
-    }
-  }, [id])
+  const params = useParams<{ id?: string }>()
+  
+  // Append match ID as query param if needed
+  const src = params.id 
+    ? `/scoreboard/index.html?matchId=${params.id}`
+    : '/scoreboard/index.html'
 
   return (
-    <div 
-      ref={containerRef} 
-      id="scoreboard-container"
-      style={{ width: '100%', height: '100vh' }}
+    <iframe
+      src={src}
+      title="Scoreboard"
+      style={{
+        width: '100%',
+        height: '100vh',
+        border: 'none'
+      }}
     />
   )
 }
