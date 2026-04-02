@@ -1,4 +1,4 @@
-import db, { getUserPath } from '../../database';
+import db, { getUserPath } from '../lib/database';
 
 export async function addNewTeam(team,) {
     let pushedTeam = await db.ref(`teams`).push(team)

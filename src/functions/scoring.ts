@@ -1,4 +1,4 @@
-import db from '../../database';
+import db from '../lib/database';
 import Match from '../classes/Match';
 import { getNewPlayer } from '../classes/Player';
 import { getCombinedPlayerNames } from './players';

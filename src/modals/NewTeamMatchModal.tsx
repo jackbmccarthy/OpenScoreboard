@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, View, Modal, FormControl, Select, Text, Spinner } from 'native-base';
-import { getUserPath } from '../../database';
+import { getUserPath } from '../lib/database';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import { addNewTeamMatch } from '../functions/teammatches';
 import { getMyTeams } from '../functions/teams';

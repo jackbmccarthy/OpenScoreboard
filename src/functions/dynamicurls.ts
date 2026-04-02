@@ -1,4 +1,4 @@
-import db, { getUserPath } from "../../database";
+import db, { getUserPath } from "../lib/database";
 import { getTableName, getTablePassword } from "./tables";
 import { getTeamMatch } from "./teammatches";
 import { getTeamName } from "./teams";

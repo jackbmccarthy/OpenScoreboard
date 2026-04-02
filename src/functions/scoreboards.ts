@@ -1,4 +1,4 @@
-import db, { getUserPath } from "../../database";
+import db, { getUserPath } from "../lib/database";
 import { newScoreboard } from "../classes/Scoreboard";
 
 

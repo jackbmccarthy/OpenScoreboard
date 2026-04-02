@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, View, Modal, Text, Divider, Spinner } from 'native-base';
 import { FontAwesome } from '@expo/vector-icons';
-import db from '../../database';
+import db from '../lib/database';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import LoadingPage from '../LoadingPage';
 import { EditTextItem } from '../components/EditTextItem';

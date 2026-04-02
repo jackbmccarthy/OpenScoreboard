@@ -3,7 +3,7 @@ import { View, Input, Text, Button, Modal, FormControl, Divider, Select, Spinner
 import { ScrollView, Platform, Dimensions } from 'react-native';
 
 //import DatePicker from 'react-native-datepicker';
-import db, { getUserPath } from '../../database';
+import db, { getUserPath } from '../lib/database';
 import { openScoreboardTheme } from "../../openscoreboardtheme";
 import Table from '../classes/Table';
 import { getMyPlayerLists } from '../functions/players';

@@ -1,4 +1,4 @@
-import db, { getUserPath } from "../../database"
+import db, { getUserPath } from "../lib/database"
 
 import { v4 as uuidv4 } from 'uuid';
 

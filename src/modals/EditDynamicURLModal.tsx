@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, View, Modal, Text, Input, FormControl, Select, Spinner, Divider } from 'native-base';
-import { getUserPath } from '../../database';
+import { getUserPath } from '../lib/database';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { updateDynamicURL } from '../functions/dynamicurls';
 import { getMyTables } from '../functions/tables';
