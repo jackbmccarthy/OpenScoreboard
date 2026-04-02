@@ -1,35 +1,32 @@
 // Scoreboard View Page - Live scoreboard overlay
-// Uses extracted scoreboard logic from openscoreboard-scoreboard
+// Uses scoreboard logic from src/scoreboard/
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { runScoreboard, resetListeners } from '@/scoreboard';
 
 export default function ScoreboardViewPage() {
-  const containerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    if (!containerRef.current) return;
-
-    const initScoreboard = async () => {
-      const { runScoreboard } = await import('@/scoreboard/index');
-      const params = new URLSearchParams(window.location.search);
-      const tableID = params.get('tid');
-      const teamMatchID = params.get('tmid');
-      const teamMatchTableNumber = params.get('table');
-      const scoreboardID = params.get('sid');
-      
-      runScoreboard(scoreboardID, tableID, teamMatchID, teamMatchTableNumber);
-    };
-
-    initScoreboard();
-
+    // Get params from URL
+    const params = new URLSearchParams(window.location.search);
+    const tableID = params.get('tid');
+    const teamMatchID = params.get('tmid');
+    const teamMatchTableNumber = params.get('table');
+    const scoreboardID = params.get('sid');
+    
+    // Reset any existing listeners
+    resetListeners();
+    
+    // Run the scoreboard
+    runScoreboard(scoreboardID, tableID, teamMatchID, teamMatchTableNumber);
+    
     return () => {
-      // Cleanup if needed
+      // Cleanup listeners on unmount
+      resetListeners();
     };
   }, []);
 
   return (
     <div 
-      ref={containerRef}
       id="gjs"
       style={{ 
         width: '100%',

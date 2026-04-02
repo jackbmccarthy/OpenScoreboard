@@ -1,7 +1,8 @@
 // Editor Page - Scoreboard editor using GrapesJS
-// Uses extracted editor logic from openscoreboard-editor
+// Uses editor logic from src/editor/
 
 import { useEffect, useRef } from 'react';
+import { initializeGrapesJS } from '@/editor/initializeGrapesJS';
 import 'grapesjs/dist/css/grapes.min.css';
 
 export default function EditorPage() {
@@ -10,18 +11,12 @@ export default function EditorPage() {
   useEffect(() => {
     if (!editorRef.current) return;
 
-    const initEditor = async () => {
-      const { initializeGrapesJS } = await import('@/editor/initializeGrapesJS');
-      const params = new URLSearchParams(window.location.search);
-      const scoreboardID = params.get('sid');
-      initializeGrapesJS(scoreboardID);
-    };
+    // Get scoreboard ID from URL params
+    const params = new URLSearchParams(window.location.search);
+    const scoreboardID = params.get('sid');
 
-    initEditor();
-
-    return () => {
-      // Cleanup if needed
-    };
+    // Initialize GrapesJS editor
+    initializeGrapesJS(scoreboardID);
   }, []);
 
   return (
