@@ -20,15 +20,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"],
-  "exclude": [
-    "node_modules",
-    "dist",
-    ".next",
-    "openscoreboard-editor/**",
-    "openscoreboard-scoreboard/**",
-    "openscoreboard-app/**",
-    "app/**",
-    "components/**"
-  ]
+  "include": ["src"]
 }

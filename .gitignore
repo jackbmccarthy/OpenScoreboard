@@ -24,3 +24,4 @@ openscoreboard-scoreboard/node_modules
 
 # OS files
 .DS_Store
+dist/
