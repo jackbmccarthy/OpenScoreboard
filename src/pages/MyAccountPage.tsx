@@ -1,62 +1,74 @@
 // My Account Page
-// Migrated from app/my-account/page.tsx
+// Migrated from Expo MyAccount.tsx
 
-import { Box, Heading, Text, VStack, Button, Input, Card, CardBody } from '@/components/ui'
-import { logOut } from '@/lib/auth'
-import { useNavigate } from 'react-router-dom'
+import { useAuth, logOut } from '@/lib/auth';
+import { isLocalDatabase } from '@/lib/firebase';
+import { Box, Text, VStack, Button } from '@/components/ui';
 
 export default function MyAccountPage() {
-  const navigate = useNavigate()
+  const { user, loading } = useAuth();
 
-  const handleSignOut = async () => {
-    await logOut()
-    navigate('/login')
+  if (loading) {
+    return (
+      <Box className="flex items-center justify-center p-8">
+        <Text>Loading...</Text>
+      </Box>
+    );
   }
 
+  const handleSignOut = async () => {
+    try {
+      await logOut();
+      window.location.reload();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   return (
-    <Box className="flex-1 bg-white p-4">
+    <Box className="p-4">
       <VStack space="lg">
-        <Heading size="lg">My Account</Heading>
-        
-        <Card variant="elevated" className="w-full">
-          <CardBody>
-            <VStack space="md">
-              <Box>
-                <Text className="text-sm font-medium mb-2">Display Name</Text>
-                <Input placeholder="Enter display name" />
-              </Box>
-              
-              <Box>
-                <Text className="text-sm font-medium mb-2">Email</Text>
-                <Input type="email" placeholder="Enter email" />
-              </Box>
-              
-              <Box>
-                <Text className="text-sm font-medium mb-2">Organization</Text>
-                <Input placeholder="Enter organization name" />
-              </Box>
+        <Text className="text-3xl font-bold">My Account</Text>
+
+        {user && (
+          <Box className="bg-white rounded-lg p-4 shadow-sm">
+            <VStack space="sm">
+              <Text className="text-gray-600">Email</Text>
+              <Text className="font-medium">{user.email || 'No email'}</Text>
+              {user.displayName && (
+                <>
+                  <Text className="text-gray-600 mt-2">Name</Text>
+                  <Text className="font-medium">{user.displayName}</Text>
+                </>
+              )}
+              {user.uid && (
+                <>
+                  <Text className="text-gray-600 mt-2">User ID</Text>
+                  <Text className="font-mono text-sm">{user.uid}</Text>
+                </>
+              )}
             </VStack>
-          </CardBody>
-        </Card>
-        
-        <Box className="mt-4">
-          <Button variant="solid" action="primary" className="w-full">
-            Save Changes
-          </Button>
+          </Box>
+        )}
+
+        <Box className="border-t pt-4">
+          <Text className="text-xl font-bold mb-2">More Coming Soon</Text>
+          <Text className="text-gray-600">
+            Account settings and preferences will be available here.
+          </Text>
         </Box>
-        
-        <Box className="mt-4">
-          <Button variant="outline" action="secondary" className="w-full">
-            Change Password
-          </Button>
-        </Box>
-        
-        <Box className="mt-4">
-          <Button variant="outline" action="negative" className="w-full" onClick={handleSignOut}>
-            Sign Out
-          </Button>
-        </Box>
+
+        {!isLocalDatabase && (
+          <Box className="pt-4">
+            <Button 
+              onClick={handleSignOut}
+              action="negative"
+            >
+              <Text className="text-white">Log Out</Text>
+            </Button>
+          </Box>
+        )}
       </VStack>
     </Box>
-  )
+  );
 }

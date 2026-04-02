@@ -1,9 +1,11 @@
 // Home Page for OpenScoreboard
 // Migrated from app/(tabs)/index.tsx
 
-import { Box, Text, VStack, HStack, Card, CardBody, Pressable, Heading } from '@/components/ui'
+import { useEffect } from 'react'
+import { Box, Text, VStack, HStack, Card, CardBody, Pressable, Heading, Spinner } from '@/components/ui'
 import { ScoreboardIcon, PlayersIcon, TeamsIcon, TablesIcon, SettingsIcon, ExternalLinkIcon } from '@/components/icons'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '@/lib/auth'
 
 const scoringScreens = [
   {
@@ -95,6 +97,16 @@ function HomeItem({ item }: HomeItemProps) {
 }
 
 export default function HomePage() {
+  const { user, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <Box className="flex items-center justify-center p-8">
+        <Spinner size="lg" />
+      </Box>
+    );
+  }
+
   return (
     <Box className="flex-1 bg-white">
       <VStack space="lg">

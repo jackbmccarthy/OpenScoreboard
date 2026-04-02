@@ -300,3 +300,105 @@ export function TabsPanel({
 }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
   return <div {...props}>{children}</div>
 }
+
+// Spinner component
+export function Spinner({ 
+  className = '',
+  size = 'md',
+  ...props 
+}: React.HTMLAttributes<HTMLDivElement> & { 
+  size?: 'sm' | 'md' | 'lg'
+}) {
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-8 h-8',
+    lg: 'w-12 h-12',
+  }
+  
+  return (
+    <div 
+      className={`animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 ${sizeClasses[size]} ${className}`}
+      {...props}
+    />
+  )
+}
+
+// Modal component
+export function Modal({ 
+  children, 
+  isOpen,
+  onClose,
+  ...props 
+}: React.HTMLAttributes<HTMLDivElement> & { 
+  children?: React.ReactNode
+  isOpen?: boolean
+  onClose?: () => void
+}) {
+  if (!isOpen) return null
+  
+  return (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+export function ModalHeader({ children, ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
+  return <div className="text-xl font-bold mb-4" {...props}>{children}</div>
+}
+
+export function ModalBody({ children, ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
+  return <div className="mb-4" {...props}>{children}</div>
+}
+
+export function ModalFooter({ children, ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
+  return <div className="flex justify-end gap-2" {...props}>{children}</div>
+}
+
+// Select component
+export function Select({ 
+  children, 
+  className = '',
+  value,
+  onValueChange,
+  ...props 
+}: React.HTMLAttributes<HTMLSelectElement> & { 
+  children?: React.ReactNode
+  value?: string
+  onValueChange?: (value: string) => void
+}) {
+  return (
+    <select
+      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
+      value={value}
+      onChange={(e) => onValueChange?.(e.target.value)}
+      {...props}
+    >
+      {children}
+    </select>
+  )
+}
+
+export function SelectTrigger({ children, ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
+  return <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white" {...props}>{children}</div>
+}
+
+export function SelectContent({ children, ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
+  return <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg" {...props}>{children}</div>
+}
+
+export function SelectItem({ children, value, onSelect, ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode; value?: string; onSelect?: () => void }) {
+  return <div className="px-3 py-2 hover:bg-gray-100 cursor-pointer" onClick={onSelect} {...props}>{children}</div>
+}
+
+export function SelectValue({ children, ...props }: React.HTMLAttributes<HTMLSpanElement> & { children?: React.ReactNode }) {
+  return <span {...props}>{children}</span>
+}
