@@ -1,12 +1,11 @@
 [build]
-  # Nixpacks will run npm install and npm run build automatically
-  # Just set the build command explicitly
+  # Build command for Vite
   build_command = "npm run build"
 
 [static]
-  # Serve the dist folder as static files
-  root = "dist"
-  
-[env]
-  # Default env vars - override in Coolify
-  VITE_USE_LOCAL_DB = "false"
+  # Serve dist folder as static
+  public_dir = "dist"
+
+[start]
+  # Use simple http server for SPA fallback
+  cmd = "npx --yes serve dist -s -l $PORT"
