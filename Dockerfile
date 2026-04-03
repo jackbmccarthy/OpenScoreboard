@@ -3,38 +3,48 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy everything
+# Copy all source files
 COPY . .
 
-# Build
-RUN npm ci && npm run build
+# Install dependencies
+RUN npm ci
 
-# Nginx to serve static + SPA fallback
+# Build the app
+RUN npm run build
+
+# Production nginx image
 FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY --from=builder /app/public /usr/share/nginx/html/public
 
-# Proper nginx config - serve /assets/ as static, SPA fallback for other routes
-RUN echo 'server { \
-    listen 80; \
-    server_name _; \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-    \
-    location /assets/ { \
-        alias /usr/share/nginx/html/assets/; \
-        add_header Cache-Control "public, max-age=31536000"; \
-    } \
-    \
-    location /flags/ { \
-        alias /usr/share/nginx/html/flags/; \
-        add_header Cache-Control "public, max-age=31536000"; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# Copy built files
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/public /usr/share/nginx/html
+
+# Remove default nginx config and create new one
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Create nginx config that properly serves static files
+RUN echo 'server {' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    listen 80 default_server;' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    server_name _;' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    root /usr/share/nginx/html;' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    index index.html;' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    # Serve static files directly' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    location /assets/ {' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '        try_files $uri =404;' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    }' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    # Serve flags' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    location /flags/ {' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '        try_files $uri =404;' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    }' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    # SPA fallback' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    location / {' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '        try_files $uri $uri/ /index.html;' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '    }' >> /etc/nginx/conf.d/openscoreboard.conf && \
+    echo '}' >> /etc/nginx/conf.d/openscoreboard.conf
 
 EXPOSE 80
+
 CMD ["nginx", "-g", "daemon off;"]
