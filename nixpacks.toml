@@ -5,6 +5,9 @@
   public_dir = "dist"
 
 [start]
-  # Serve static files from dist
-  # Don't use -s (single mode) as it redirects /assets/ too
-  cmd = "npx --yes http-server dist -p $PORT -c-1"
+  # Use serve with --single for SPA, but explicitly set SPA routes
+  # The issue was -s redirects /assets/ - we need specific SPA fallback only
+  cmd = "npx --yes serve dist --single -P -l $PORT"
+  # -P = proxy all 404s to index.html (SPA mode)
+  # -l = listen on PORT
+  # --single = SPA fallback
