@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import { Box, Text, VStack, Button, Input, Heading, HStack } from '@/components/ui'
 import { useNavigate } from 'react-router-dom'
-import { signInWithGoogle, signInWithApple, signInWithEmail, signUpWithEmail, logOut, handleRedirectResult } from '@/lib/auth'
+import { signInWithGoogle, signInWithApple, signInWithEmail, signUpWithEmail, logOut, handleRedirectResult, useAuth } from '@/lib/auth'
 import { isLocalDatabase } from '@/lib/firebase'
 
 export default function LoginPage() {
@@ -16,17 +16,29 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const { user } = useAuth()
 
-  // Check for redirect result on mount (after OAuth redirect)
+    // Check for redirect result on mount (after OAuth redirect)
   useEffect(() => {
     const checkRedirect = async () => {
-      const user = await handleRedirectResult()
-      if (user) {
-        navigate('/')
+      try {
+        const user = await handleRedirectResult()
+        if (user) {
+          navigate('/')
+        }
+      } catch (err) {
+        // Ignore redirect errors
       }
     }
     checkRedirect()
   }, [navigate])
+
+    // If already authenticated, redirect to home (prevents staying on login page)
+  useEffect(() => {
+    if (user) {
+      navigate('/')
+    }
+  }, [user, navigate])
 
   // If using local database, skip Firebase auth
   useEffect(() => {

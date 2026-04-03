@@ -52,7 +52,7 @@ export function initializeGrapesJS(scoreboardID:string|null) {
             //  uploadFile
         },
         panels: {
-            appendTo: "#top-panel"
+            appendTo: "#toppanel"
         },
         blockManager: {
             appendTo: '#blocks'

@@ -1,6 +1,9 @@
 // Firebase configuration for OpenScoreboard v3
 // Using Firebase SDK v8 (firebase@8.10.1)
 
+import firebase from 'firebase/app';
+import 'firebase/auth';
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
@@ -17,7 +20,13 @@ export const hasValidConfig = Boolean(
   firebaseConfig.databaseURL?.startsWith('https://')
 )
 
+// Initialize Firebase app
+if (hasValidConfig && !firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+
 export { firebaseConfig }
+export default firebase;
 
 // Check if using local database (AceBase)
 export const isLocalDatabase = import.meta.env.VITE_USE_LOCAL_DB === "true"
