@@ -40,8 +40,8 @@ function App() {
         {/* Login - no layout */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Scoreboard viewer (fullscreen overlay) */}
-        <Route path="/scoreboard/:id" element={<ScoreboardViewPage />} />
+        {/* Scoreboard viewer (fullscreen overlay) - requires query params sid + (tid or tmid) */}
+        <Route path="/scoreboard/view" element={<ScoreboardViewPage />} />
 
         {/* Editor (fullscreen) */}
         <Route path="/editor" element={<EditorPage />} />
