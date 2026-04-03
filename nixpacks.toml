@@ -1,11 +1,9 @@
 [build]
-  # Build command for Vite
   build_command = "npm run build"
 
 [static]
-  # Serve dist folder as static
   public_dir = "dist"
 
 [start]
-  # Use simple http server for SPA fallback
-  cmd = "npx --yes serve dist -s -l $PORT"
+  # Use --single to enable SPA fallback (serves index.html for unknown routes)
+  cmd = "npx --yes serve dist --single -l $PORT"
