@@ -5,6 +5,6 @@
   public_dir = "dist"
 
 [start]
-  # Use http-server for proper static file serving
-  # -c-1 = disable caching for debugging  
+  # Serve static files from dist
+  # Don't use -s (single mode) as it redirects /assets/ too
   cmd = "npx --yes http-server dist -p $PORT -c-1"
