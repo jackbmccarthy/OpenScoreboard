@@ -14,16 +14,16 @@ COPY index.html ./
 COPY src ./src
 COPY public ./public
 
-# Install dependencies and build
+# Build
 RUN npm install && npm run build
 
 # Production image with nginx
 FROM nginx:alpine
 
-# Copy built files to nginx html folder
+# Copy built files
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# nginx config for SPA routing
+# nginx config - explicit static file handling
 RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
 server {
     listen 80;
@@ -31,16 +31,24 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
+    # Explicitly handle static assets - return 404 if not found
+    location /assets/ {
+        alias /usr/share/nginx/html/assets/;
         expires 1y;
         add_header Cache-Control "public, immutable";
+        try_files $uri =404;
     }
 
+    location /flags/ {
+        alias /usr/share/nginx/html/flags/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # SPA fallback - only for non-asset routes
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri /index.html;
     }
 }
 EOF

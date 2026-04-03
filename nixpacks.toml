@@ -1,0 +1,12 @@
+[build]
+  # Nixpacks will run npm install and npm run build automatically
+  # Just set the build command explicitly
+  build_command = "npm run build"
+
+[static]
+  # Serve the dist folder as static files
+  root = "dist"
+  
+[env]
+  # Default env vars - override in Coolify
+  VITE_USE_LOCAL_DB = "false"
