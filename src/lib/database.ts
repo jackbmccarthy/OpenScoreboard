@@ -6,7 +6,7 @@ import { AceBaseClient } from 'acebase-client'
 import firebase from 'firebase/app'
 import 'firebase/database'
 import 'firebase/auth'
-import { isLocalDatabase, firebaseConfig } from './firebase'
+import { isLocalDatabase, firebaseConfig, hasValidConfig } from './firebase'
 
 let db: AceBaseClient | firebase.database.Database | null = null
 
@@ -18,18 +18,27 @@ if (typeof window !== "undefined" && isLocalDatabase) {
     dbname: import.meta.env.VITE_DATABASE_NAME || "openscoreboard",
     https: typeof window !== "undefined" ? window.location.protocol.includes("https") : false,
   })
-} else if (typeof window !== "undefined") {
-  // Use Firebase for cloud database
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig)
+} else if (typeof window !== "undefined" && hasValidConfig) {
+  // Use Firebase for cloud database - only if we have valid config
+  try {
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig)
+    }
+    db = firebase.database()
+  } catch (error) {
+    console.error('Firebase initialization failed:', error)
+    db = null
   }
-  db = firebase.database()
 }
 
 export function authStateListener(callbackFunction: (user: firebase.User | null) => void) {
-  firebase.auth().onAuthStateChanged((user) => {
-    callbackFunction(user)
-  })
+  if (hasValidConfig) {
+    firebase.auth().onAuthStateChanged((user) => {
+      callbackFunction(user)
+    })
+  } else {
+    callbackFunction(null)
+  }
 }
 
 export async function loginToFirebase(email: string, password: string): Promise<{
@@ -39,6 +48,16 @@ export async function loginToFirebase(email: string, password: string): Promise<
   user: firebase.User | null
   isEmailVerified: boolean
 }> {
+  if (!hasValidConfig) {
+    return {
+      error: true,
+      success: false,
+      errorMessage: "Firebase not configured. Please set VITE_FIREBASE_* environment variables.",
+      user: null,
+      isEmailVerified: false
+    }
+  }
+
   let result = {
     error: false,
     success: true,
@@ -83,6 +102,15 @@ export async function registerToFirebase(email: string, password: string): Promi
   errorMessage: string
   user: firebase.User | null
 }> {
+  if (!hasValidConfig) {
+    return {
+      error: true,
+      success: false,
+      errorMessage: "Firebase not configured. Please set VITE_FIREBASE_* environment variables.",
+      user: null
+    }
+  }
+
   let result = {
     error: false,
     success: true,
@@ -116,7 +144,9 @@ export async function registerToFirebase(email: string, password: string): Promi
 }
 
 export async function signOut() {
-  await firebase.auth().signOut()
+  if (hasValidConfig) {
+    await firebase.auth().signOut()
+  }
 }
 
 /**
