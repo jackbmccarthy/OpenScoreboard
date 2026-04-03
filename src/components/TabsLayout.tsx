@@ -116,20 +116,20 @@ export default function TabsLayout() {
                 className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
               >
                 <Box className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm">
-                  {user.photoURL ? (
+                  {user?.photoURL ? (
                     <img src={user.photoURL} alt="" className="w-9 h-9 rounded-full object-cover" />
                   ) : (
                     <Text className="text-white font-semibold text-sm">
-                      {user.email?.charAt(0).toUpperCase() || 'U'}
+                      {user?.email?.charAt(0).toUpperCase() || 'U'}
                     </Text>
                   )}
                 </Box>
                 <VStack className="gap-0 hidden md:block text-left">
                   <Text className="text-gray-900 text-sm font-medium max-w-[120px] truncate">
-                    {user.displayName || 'User'}
+                    {user?.displayName || 'User'}
                   </Text>
                   <Text className="text-gray-500 text-xs truncate max-w-[120px]">
-                    {user.email}
+                    {user?.email}
                   </Text>
                 </VStack>
               </Button>
@@ -139,7 +139,7 @@ export default function TabsLayout() {
                 <Box className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                   <Box className="px-4 py-2 border-b border-gray-100">
                     <Text className="text-xs text-gray-500 uppercase tracking-wide">Signed in as</Text>
-                    <Text className="text-sm font-medium text-gray-900 truncate">{user.email}</Text>
+                    <Text className="text-sm font-medium text-gray-900 truncate">{user?.email}</Text>
                   </Box>
                   <Link
                     to="/my-account"
