@@ -41,6 +41,14 @@ export default function TabsLayout() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  // Redirect to login if not authenticated (must be in useEffect to avoid React Router warning)
+  // useEffect must be called BEFORE any early returns - React hooks rule
+  useEffect(() => {
+    if (!user && !loading) {
+      navigate('/login')
+    }
+  }, [user, loading, navigate])
+
   const getCurrentTab = () => {
     const found = tabs.find(t => location.pathname === t.path || (t.path !== '/' && location.pathname.startsWith(t.path)))
     return found?.name || 'index'
@@ -61,13 +69,6 @@ export default function TabsLayout() {
       </Box>
     )
   }
-
-  // Redirect to login if not authenticated (must be in useEffect to avoid React Router warning)
-  useEffect(() => {
-    if (!user) {
-      navigate('/login')
-    }
-  }, [user, navigate])
 
   return (
     <Box className="flex flex-col min-h-screen bg-gray-50">
