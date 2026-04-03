@@ -3,16 +3,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy all source files
+# Copy source and build
 COPY . .
-
-# Install and build
 RUN npm ci && npm run build
 
-# Caddy serves from /app/public by default, so copy dist there
-RUN mkdir -p public && cp -r dist/* public/
+# Copy built files to /app/public (Coolify/Caddy serves from here)
+RUN mkdir -p /app/public && cp -r /app/dist/* /app/public/
 
+# Use simple HTTP server to serve files on port 8080
 EXPOSE 8080
-
-# Don't run a server - Coolify/Caddy serves the static files
-CMD ["tail", "-f", "/dev/null"]
+CMD ["npx", "serve", "/app/public", "-l", "8080"]
