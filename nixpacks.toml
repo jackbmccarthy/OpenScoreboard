@@ -1,9 +1,10 @@
 [build]
-  build_command = "npm run build"
+  build_command = "npm install && npm run build"
 
 [static]
   public_dir = "dist"
 
 [start]
-  # Use --single to enable SPA fallback (serves index.html for unknown routes)
-  cmd = "npx --yes serve dist --single -l $PORT"
+  # Use http-server for proper static file serving
+  # -c-1 = disable caching for debugging  
+  cmd = "npx --yes http-server dist -p $PORT -c-1"
