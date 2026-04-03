@@ -5,7 +5,7 @@
 import { Box, HStack, VStack, Text, Button } from './ui'
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth, logOut } from '@/lib/auth'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   ScoreboardIcon, 
   PlayersIcon, 
@@ -62,11 +62,12 @@ export default function TabsLayout() {
     )
   }
 
-  // Redirect to login if not authenticated
-  if (!user) {
-    navigate('/login')
-    return null
-  }
+  // Redirect to login if not authenticated (must be in useEffect to avoid React Router warning)
+  useEffect(() => {
+    if (!user) {
+      navigate('/login')
+    }
+  }, [user, navigate])
 
   return (
     <Box className="flex flex-col min-h-screen bg-gray-50">
