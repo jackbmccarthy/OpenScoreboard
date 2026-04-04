@@ -9,7 +9,7 @@ export default function AuthCallback() {
     handleRedirectResult()
       .then((result) => {
         if (result?.user) {
-          navigate('/', { replace: true });
+          navigate('/dashboard', { replace: true });
         } else {
           navigate('/login', { replace: true });
         }

@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react'
 import { Box, Text, VStack, Button, Input, Heading, HStack } from '@/components/ui'
 import { useNavigate } from 'react-router-dom'
-import { signInWithGoogle, signInWithApple, signInWithEmail, signUpWithEmail, logOut, handleRedirectResult, useAuth } from '@/lib/auth'
+import { signInWithGoogle, signInWithApple, signInWithEmail, signUpWithEmail, useAuth } from '@/lib/auth'
 import { isLocalDatabase } from '@/lib/firebase'
 
 export default function LoginPage() {
@@ -17,36 +17,17 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
 
-    // Check for redirect result on mount (after OAuth redirect)
   useEffect(() => {
-    const checkRedirect = async () => {
-      try {
-        const user = await handleRedirectResult()
-        if (user) {
-          navigate('/dashboard')
-        }
-      } catch (err) {
-        // Ignore redirect errors
-      }
+    if (loading) {
+      return
     }
-    checkRedirect()
-  }, [navigate])
 
-    // If already authenticated, redirect to home (prevents staying on login page)
-  useEffect(() => {
-    if (user) {
-      navigate('/dashboard')
+    if (user || isLocalDatabase) {
+      navigate('/dashboard', { replace: true })
     }
-  }, [user, navigate])
-
-  // If using local database, skip Firebase auth
-  useEffect(() => {
-    if (isLocalDatabase) {
-      navigate('/dashboard')
-    }
-  }, [navigate, isLocalDatabase])
+  }, [user, loading, navigate])
 
   const validateForm = (): boolean => {
     if (!email || !password) {
@@ -80,7 +61,6 @@ export default function LoginPage() {
       } else {
         await signInWithEmail(email, password)
       }
-      navigate('/dashboard')
     } catch (err: any) {
       const errorMap: Record<string, string> = {
         'auth/user-not-found': 'No account found with this email',
@@ -103,7 +83,6 @@ export default function LoginPage() {
     
     try {
       await signInWithGoogle()
-      navigate('/dashboard')
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message || 'Google sign in failed')
@@ -119,7 +98,6 @@ export default function LoginPage() {
     
     try {
       await signInWithApple()
-      navigate('/dashboard')
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message || 'Apple sign in failed')
@@ -127,6 +105,17 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (loading || (user && !error) || isLocalDatabase) {
+    return (
+      <Box className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+        <VStack space="md" className="items-center">
+          <Box className="h-12 w-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+          <Text className="text-sm text-gray-400">Checking your session...</Text>
+        </VStack>
+      </Box>
+    )
   }
 
   return (
