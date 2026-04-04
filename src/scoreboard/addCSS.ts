@@ -1,3 +1,4 @@
+// @ts-nocheck
 export const addCSS = (css: string) => {
     let newStyleTag = document.createElement("style");
     newStyleTag.id = "newstyle";

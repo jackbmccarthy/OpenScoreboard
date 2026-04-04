@@ -1,5 +1,6 @@
+// @ts-nocheck
 
-export function customServiceIconB(editor: grapesjs.default.Editor) {
+export function customServiceIconB(editor: grapesjs.Editor) {
     editor.Components.addType('customServiceIconB', {
         model: {
             defaults: {

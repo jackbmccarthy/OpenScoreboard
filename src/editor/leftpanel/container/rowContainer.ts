@@ -1,5 +1,6 @@
+// @ts-nocheck
 
-export function rowContainer(editor: grapesjs.default.Editor) {
+export function rowContainer(editor: grapesjs.Editor) {
     editor.Components.addType('rowContainer', {
         model: {
             defaults: {

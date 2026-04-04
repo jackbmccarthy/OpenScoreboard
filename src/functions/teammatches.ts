@@ -12,8 +12,9 @@ export default async function getMyTeamMatches(userID) {
     myTeamMatches = myTeamMatches.val()
     if (typeof myTeamMatches === "object" && myTeamMatches !== null) {
         return await Promise.all(Object.entries(myTeamMatches).map(async ([id, item]) => {
-            let teamMatchScores = await getTeamMatchTeamScore(item.id)
-            return [id, { ...item, teamAScore: teamMatchScores.a, teamBScore: teamMatchScores.b }]
+            const teamMatchEntry = item as Record<string, any>
+            let teamMatchScores = await getTeamMatchTeamScore(teamMatchEntry.id)
+            return [id, { ...teamMatchEntry, teamAScore: teamMatchScores.a, teamBScore: teamMatchScores.b }]
         }))
     }
     else {

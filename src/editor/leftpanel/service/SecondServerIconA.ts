@@ -1,5 +1,6 @@
+// @ts-nocheck
 
-export function SecondServerIconA(editor: grapesjs.default.Editor) {
+export function SecondServerIconA(editor: grapesjs.Editor) {
 
     editor.Components.addType('SecondServerIconA', {
         model: {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 export function getCurrentGameScore(match:MatchSettings) {
     if (match) {

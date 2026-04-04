@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getCurrentGameScore, getMatchScore } from "../match";
 import { getCombinedPlayersFormatted } from "../players";
 

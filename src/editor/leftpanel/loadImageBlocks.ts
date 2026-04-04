@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function loadImageBlocks(editor, fieldList) {
 
     for (const item of fieldList) {

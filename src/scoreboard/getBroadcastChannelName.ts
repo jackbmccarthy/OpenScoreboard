@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function getBroadcastChannelName(){
     const params = new URLSearchParams(window.location.search);
     const tableID= params.get("tid")

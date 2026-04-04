@@ -72,7 +72,7 @@ export async function getMyTables() {
   let myTables = myTablesSnap.val()
   if (myTables) {
     return Promise.all(Object.entries(myTables).map(async (table) => {
-      let tableID = table[1]
+      let tableID = String(table[1] ?? '')
       let tableName = await getTableName(tableID)
       return [tableID, { tableName: tableName }]
     }))

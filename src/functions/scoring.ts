@@ -126,7 +126,7 @@ export async function getMatchData(matchID) {
 
 export async function subscribeToAllMatchFields(matchID, callback) {
     let match = await getMatchData(matchID)
-    let offList = []
+    let offList: Array<() => void> = []
     for (const key in match) {
         let matchRef = db.ref(`matches/${matchID}/${key}`)
         matchRef.on("value", (snapShot) => {
@@ -154,8 +154,8 @@ export async function unsubscribeToAllMatchFields(matchID, match) {
     }
 }
 
-export async function createNewMatch(tableID, sportName, previousMatchObj = null, isTeamMatch = null, scoringType = null) {
-    let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, isTeamMatch, scoringType))
+export async function createNewMatch(tableID, sportName, previousMatchObj = null, isTeamMatch: boolean | null = null, scoringType = null) {
+    let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, isTeamMatch ?? false, scoringType ?? undefined))
     let currentMatchKey = await db.ref(`tables/${tableID}/currentMatch`).set(newMatch.key)
     return newMatch.key
 }
@@ -451,6 +451,9 @@ export function isGamePoint(match) {
     let { pointsToWinGame, } = match
 
     let currentScore = getCurrentGameScore(match)
+    if (!currentScore) {
+        return false
+    }
 
     if (currentScore.a === pointsToWinGame - 1 && currentScore.b < pointsToWinGame - 1) {
         return true
@@ -478,6 +481,9 @@ export function isGamePoint(match) {
 export function isFinalGame(match) {
     let matchScores = getMatchScore(match)
     const gameScore = getCurrentGameScore(match)
+    if (!gameScore) {
+        return false
+    }
     if ((match.bestOf - 1) / 2 === matchScores.a && gameScore.a > gameScore.b) {
         return true
     }

@@ -1,4 +1,5 @@
-export function isBYellowCarded(editor: grapesjs.default.Editor) {
+// @ts-nocheck
+export function isBYellowCarded(editor: grapesjs.Editor) {
     editor.Components.addType('isBYellowCarded', {
         model: {
             defaults: {

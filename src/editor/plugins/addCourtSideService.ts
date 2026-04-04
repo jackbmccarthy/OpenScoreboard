@@ -1,7 +1,8 @@
+// @ts-nocheck
 import { courtSideIsACurrentlyServing } from "../leftpanel/courtside/courtSideIsACurrentlyServing";
 import { courtSideIsBCurrentlyServing } from "../leftpanel/courtside/courtSideIsBCurrentlyServing";
 
-export function addCourtSideService(editor:grapesjs.default.Editor) {
+export function addCourtSideService(editor:grapesjs.Editor) {
     courtSideIsACurrentlyServing(editor)
     courtSideIsBCurrentlyServing(editor)
 

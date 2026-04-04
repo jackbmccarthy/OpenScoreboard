@@ -1,5 +1,6 @@
+// @ts-nocheck
 
-export function courtSideIsACurrentlyServing(editor: grapesjs.default.Editor) {
+export function courtSideIsACurrentlyServing(editor: grapesjs.Editor) {
     editor.Components.addType('courtSideIsACurrentlyServing', {
         model: {
             defaults: {

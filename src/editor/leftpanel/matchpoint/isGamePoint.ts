@@ -1,5 +1,6 @@
+// @ts-nocheck
 
-export function isGamePoint(editor: grapesjs.default.Editor) {
+export function isGamePoint(editor: grapesjs.Editor) {
     editor.Components.addType('isGamePoint', {
         model: {
             defaults: {

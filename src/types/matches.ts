@@ -3,6 +3,14 @@
  * v3 maintains backwards compatibility with main branch Firebase paths
  */
 
+import firebase from 'firebase/app';
+
+export type FirebaseUser = ReturnType<typeof firebase.auth> extends {
+  currentUser: infer TUser;
+}
+  ? TUser
+  : any;
+
 // ============================================
 // Player
 // ============================================
@@ -282,7 +290,7 @@ export interface AuthResult {
   error: boolean;
   success: boolean;
   errorMessage: string;
-  user: firebase.User | null;
+  user: FirebaseUser;
   isEmailVerified: boolean;
 }
 

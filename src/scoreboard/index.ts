@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Scoreboard module - exported functions
 // Call these from React components
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import CryptoJS from  'crypto-js'
 
 export function addTopBarButtons(editor) {

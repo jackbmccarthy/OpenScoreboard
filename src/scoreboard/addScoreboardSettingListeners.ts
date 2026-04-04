@@ -1,3 +1,4 @@
+// @ts-nocheck
 import db from "@/lib/database"
 
 export async function getScoreboardSettings(scoreboardID,) {

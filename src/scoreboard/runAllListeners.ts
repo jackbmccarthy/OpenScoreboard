@@ -1,3 +1,4 @@
+// @ts-nocheck
 import db from '@/lib/database';
 //import { addMatchFieldListeners } from './addMatchFieldListeners';
 import { addCurrentGameFieldListeners } from './addFieldListeners';

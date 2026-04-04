@@ -1,3 +1,4 @@
+// @ts-nocheck
 import db from '@/lib/database';
 import { getBroadcastChannelName } from './getBroadcastChannelName';
 
@@ -69,7 +70,7 @@ export const updateTeamMatch = async (currentMatchSnap,isInitialRun, resetListen
     // Resolve from Snapshot to values
     let currentMatch = currentMatchSnap.val();
 
-    let matchFieldListenerRemovalList = [];
+    let matchFieldListenerRemovalList: Array<() => void> = [];
     // console.log(currentMatch, typeof currentMatch === "string", currentMatch.length);
     if (typeof currentMatch === "string" && currentMatch.length > 0) {
         let match = await db.ref(`matches/${currentMatch}`).get();

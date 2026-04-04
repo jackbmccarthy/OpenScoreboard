@@ -1,4 +1,5 @@
-export function BorderRight(editor: grapesjs.default.Editor) {
+// @ts-nocheck
+export function BorderRight(editor: grapesjs.Editor) {
     editor.StyleManager.addProperty('Borders', {
         name: 'Border right',
         property: 'border-right',

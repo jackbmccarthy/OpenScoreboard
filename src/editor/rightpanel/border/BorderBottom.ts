@@ -1,4 +1,5 @@
-export function BorderBottom(editor: grapesjs.default.Editor) {
+// @ts-nocheck
+export function BorderBottom(editor: grapesjs.Editor) {
     editor.StyleManager.addProperty('Borders', {
         name: 'Border Bottom',
         property: 'border-bottom',

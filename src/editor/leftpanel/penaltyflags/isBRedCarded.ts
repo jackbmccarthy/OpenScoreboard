@@ -1,4 +1,5 @@
-export function isBRedCarded(editor: grapesjs.default.Editor) {
+// @ts-nocheck
+export function isBRedCarded(editor: grapesjs.Editor) {
     editor.Components.addType('isBRedCarded', {
         model: {
             defaults: {

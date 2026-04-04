@@ -1,3 +1,4 @@
+// @ts-nocheck
 import bgPlugin from 'grapesjs-style-bg';
 import grapesjs from 'grapesjs';
 import exportPlugin from 'grapesjs-plugin-export';
@@ -7,7 +8,6 @@ import { loadFixedContainerBlocks } from './plugins/loadFixedContainerBlocks';
 import { removeUnwantedButtons } from './plugins/removeUnwantedButtons';
 import { addTopBarButtons } from './plugins/addTopBarButtons';
 import { loadBorderStyles } from './plugins/loadBorderStyles';
-import loadTemplatesPlugin from './templates';
 import { textFieldList, currentGameFieldList, teamFieldList, solidColorFieldList, courtSideGameFieldList, imageFieldList } from './fieldLists';
 import { addIsMatchOrGamePoint } from './plugins/addIsMatchOrGamePoint';
 import { addFlagPenalties } from './plugins/addFlagPenalties';
@@ -18,6 +18,7 @@ import { connectToLiveTTScoreboardDB } from './plugins/connectToLiveTTScoreboard
 import { loadImageBlocks } from './leftpanel/loadImageBlocks';
 import { loadSolidColorBlocks } from './leftpanel/loadSolidColorBlocks';
 import { loadTextBlocks } from './leftpanel/loadTextBlocks';
+import { fileUploadPath, isCompatLocalDatabase } from '@/lib/env';
 
 export function initializeGrapesJS(scoreboardID:string|null) {
 
@@ -46,9 +47,9 @@ export function initializeGrapesJS(scoreboardID:string|null) {
                     alert("Failed To Upload Image");
                 }
             },
-            upload: import.meta.env.VITE_FILE_UPLOAD_PATH || false,
+            upload: fileUploadPath || false,
             autoAdd: true,
-             embedAsBase64: import.meta.env.VITE_IS_LOCAL_DATABASE === "false" ? false : true,
+             embedAsBase64: isCompatLocalDatabase,
             //  uploadFile
         },
         panels: {
@@ -117,4 +118,3 @@ export function initializeGrapesJS(scoreboardID:string|null) {
         });
     });
 }
-

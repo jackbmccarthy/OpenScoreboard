@@ -1,6 +1,5 @@
 // Tabs Layout component for OpenScoreboard
 // Provides tab navigation across the main app
-// Adapted for Vite with react-router-dom
 
 import { Box, HStack, VStack, Text, Button } from './ui'
 import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom'
@@ -10,6 +9,7 @@ import {
   ScoreboardIcon, 
   PlayersIcon, 
   TeamsIcon, 
+  TablesIcon,
   SettingsIcon,
   HomeIcon,
   MenuIcon,
@@ -31,10 +31,7 @@ const tabs: TabItem[] = [
   { name: 'settings', label: 'Settings', path: '/settings', icon: <SettingsIcon size={18} /> },
 ]
 
-// Add tables icon to imports if not present
-import { TablesIcon } from './icons'
-
-export default function TabsLayout() {
+export default function TabsLayout({ children }: { children?: React.ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, loading } = useAuth()
@@ -216,7 +213,7 @@ export default function TabsLayout() {
       
       {/* Page Content */}
       <Box className="flex-1 max-w-7xl mx-auto w-full p-4 lg:p-6">
-        <Outlet />
+        {children ?? <Outlet />}
       </Box>
 
       {/* Footer */}
@@ -231,49 +228,4 @@ export default function TabsLayout() {
       </Box>
     </Box>
   )
-}
-
-// Missing icon imports - adding them
-function TablesIcon({ size = 24, className = "", color = "currentColor" }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <rect x="3" y="3" width="18" height="18" rx="2" />
-      <path d="M3 9h18" />
-      <path d="M9 21V9" />
-    </svg>
-  )
-}
-
-function HomeIcon({ size = 24, className = "", color = "currentColor" }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  )
-}
-
-function MenuIcon({ size = 24, className = "", color = "currentColor" }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <line x1="3" y1="12" x2="21" y2="12" />
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <line x1="3" y1="18" x2="21" y2="18" />
-    </svg>
-  )
-}
-
-function XIcon({ size = 24, className = "", color = "currentColor" }: IconProps) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  )
-}
-
-interface IconProps {
-  size?: number
-  className?: string
-  color?: string
 }

@@ -1,481 +1,581 @@
-// UI Components for OpenScoreboard v3
-// Using Tailwind CSS classes for styling
+import React from 'react'
 
-import React from 'react';
+type AnyProps = Record<string, any>
 
-// Flex components
-export function VStack({ 
-  children, 
-  space,
-  className,
-  ...props 
-}: {
+type StackProps = React.HTMLAttributes<HTMLDivElement> & AnyProps & {
   children?: React.ReactNode
   space?: string
-  className?: string
-  [key: string]: any
-}) {
-  const spaceClass = space ? `space-y-${space}` : '';
-  return (
-    <div className={`flex flex-col ${spaceClass} ${className || ''}`} {...props}>
-      {children}
-    </div>
-  );
 }
 
-export function HStack({ 
-  children, 
-  space,
-  className,
-  ...props 
-}: {
+type BoxProps = React.HTMLAttributes<HTMLDivElement> & AnyProps & {
   children?: React.ReactNode
-  space?: string
+}
+
+type SpinnerProps = AnyProps & {
+  size?: 'sm' | 'md' | 'lg'
   className?: string
-  [key: string]: any
-}) {
-  const spaceClass = space ? `space-x-${space}` : '';
-  return (
-    <div className={`flex flex-row ${spaceClass} ${className || ''}`} {...props}>
-      {children}
-    </div>
-  );
+  children?: React.ReactNode
 }
 
-export function Box({ 
-  children, 
-  className = '',
-  ...props 
-}: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return (
-    <div className={`${className}`} {...props}>
-      {children}
-    </div>
-  );
-}
-
-export function Spinner({ 
-  size = 'md',
-  className = '',
-  ...props 
-}: { size?: 'sm' | 'md' | 'lg'; className?: string; [key: string]: any }) {
-  const sizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-8 h-8',
-    lg: 'w-12 h-12',
-  };
-  
-  return (
-    <div 
-      className={`animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 ${sizeClasses[size]} ${className}`}
-      {...props}
-    />
-  );
-}
-
-// Modal components
-export function Modal({ 
-  children, 
-  isOpen,
-  onClose,
-  className = '',
-  ...props 
-}: { 
+type ModalProps = React.HTMLAttributes<HTMLDivElement> & AnyProps & {
   children?: React.ReactNode
   isOpen?: boolean
   onClose?: () => void
   className?: string
-  [key: string]: any
-}) {
-  if (!isOpen) return null;
-  
+}
+
+type InputProps = React.InputHTMLAttributes<HTMLInputElement> &
+  AnyProps & {
+    onChangeText?: React.Dispatch<React.SetStateAction<any>> | ((value: any) => void)
+    className?: string
+  }
+
+type SelectProps = React.SelectHTMLAttributes<HTMLSelectElement> &
+  AnyProps & {
+    children?: React.ReactNode
+    onValueChange?: (value: string) => void
+    className?: string
+  }
+
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
+  AnyProps & {
+    children?: React.ReactNode
+    variant?: string
+    size?: string
+    onPress?: () => void
+    onClick?: React.MouseEventHandler<HTMLButtonElement> | (() => void)
+    className?: string
+  }
+
+type PressableProps = React.HTMLAttributes<HTMLDivElement> &
+  AnyProps & {
+    children?: React.ReactNode
+    onPress?: () => void
+    onClick?: React.MouseEventHandler<HTMLDivElement> | (() => void)
+  }
+
+type TextProps = React.HTMLAttributes<HTMLElement> &
+  AnyProps & {
+    children?: React.ReactNode
+    as?: React.ElementType
+  }
+
+type HeadingProps = React.HTMLAttributes<HTMLElement> &
+  AnyProps & {
+    children?: React.ReactNode
+    level?: 1 | 2 | 3 | 4 | 5 | 6
+    as?: React.ElementType
+  }
+
+type BadgeProps = React.HTMLAttributes<HTMLSpanElement> &
+  AnyProps & {
+    children?: React.ReactNode
+    variant?: string
+  }
+
+type AvatarProps = React.ImgHTMLAttributes<HTMLImageElement> &
+  AnyProps & {
+    src?: string
+    alt?: string
+    className?: string
+    size?: 'sm' | 'md' | 'lg'
+  }
+
+type AlertProps = React.HTMLAttributes<HTMLDivElement> &
+  AnyProps & {
+    children?: React.ReactNode
+    variant?: string
+  }
+
+function mergeClasses(...parts: Array<string | undefined>) {
+  return parts.filter(Boolean).join(' ')
+}
+
+function resolveHandler<T extends (...args: any[]) => any>(
+  primary?: T,
+  secondary?: T,
+) {
+  return (...args: Parameters<T>) => {
+    primary?.(...args)
+    secondary?.(...args)
+  }
+}
+
+export function VStack({ children, space, className, ...props }: StackProps) {
+  const spaceClass = space ? `space-y-${space}` : ''
   return (
-    <div 
+    <div className={mergeClasses('flex flex-col', spaceClass, className)} {...props}>
+      {children}
+    </div>
+  )
+}
+
+export function HStack({ children, space, className, ...props }: StackProps) {
+  const spaceClass = space ? `space-x-${space}` : ''
+  return (
+    <div className={mergeClasses('flex flex-row', spaceClass, className)} {...props}>
+      {children}
+    </div>
+  )
+}
+
+export function Box({ children, className = '', ...props }: BoxProps) {
+  return (
+    <div className={className} {...props}>
+      {children}
+    </div>
+  )
+}
+
+export function Spinner({ size = 'md', className = '', children, ...props }: SpinnerProps) {
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-8 h-8',
+    lg: 'w-12 h-12',
+  }
+
+  return (
+    <div
+      className={mergeClasses(
+        'animate-spin rounded-full border-2 border-gray-300 border-t-blue-600',
+        sizeClasses[size],
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function Modal({ children, isOpen, onClose, className = '', ...props }: ModalProps) {
+  if (!isOpen) return null
+
+  return (
+    <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
       {...props}
     >
-      <div 
-        className={`bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl ${className}`}
+      <div
+        className={mergeClasses('bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl', className)}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
       </div>
     </div>
-  );
+  )
 }
 
-export function ModalHeader({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`text-xl font-bold mb-4 ${className}`} {...props}>{children}</div>;
+export function ModalBackdrop({ children, className = '', ...props }: BoxProps) {
+  return (
+    <div className={mergeClasses('fixed inset-0 z-50 bg-black/50', className)} {...props}>
+      {children}
+    </div>
+  )
 }
 
-export function ModalBody({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`mb-4 ${className}`} {...props}>{children}</div>;
+export function ModalContent({ children, className = '', ...props }: BoxProps) {
+  return (
+    <div className={mergeClasses('bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl', className)} {...props}>
+      {children}
+    </div>
+  )
 }
 
-export function ModalFooter({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`flex justify-end gap-2 ${className}`} {...props}>{children}</div>;
-}
-
-// Form components
-export function Input({ 
+export function ModalCloseButton({
+  children,
   className = '',
-  ...props 
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+  onClick,
+  onPress,
+  ...props
+}: AnyProps & { children?: React.ReactNode; className?: string; onClick?: () => void; onPress?: () => void }) {
+  return (
+    <button
+      type="button"
+      className={mergeClasses('absolute top-3 right-3 text-gray-500 hover:text-gray-700', className)}
+      onClick={onClick ?? onPress}
+      {...props}
+    >
+      {children ?? '×'}
+    </button>
+  )
+}
+
+export function ModalHeader({ children, className = '', ...props }: BoxProps) {
+  return (
+    <div className={mergeClasses('text-xl font-bold mb-4', className)} {...props}>
+      {children}
+    </div>
+  )
+}
+
+export function ModalBody({ children, className = '', ...props }: BoxProps) {
+  return (
+    <div className={mergeClasses('mb-4', className)} {...props}>
+      {children}
+    </div>
+  )
+}
+
+export function ModalFooter({ children, className = '', ...props }: BoxProps) {
+  return (
+    <div className={mergeClasses('flex justify-end gap-2', className)} {...props}>
+      {children}
+    </div>
+  )
+}
+
+export function Input({
+  className = '',
+  onChangeText,
+  onChange,
+  ...props
+}: InputProps) {
+  const handleChange = resolveHandler(onChange, (event: React.ChangeEvent<HTMLInputElement>) => {
+    onChangeText?.(event.target.value)
+  })
+
   return (
     <input
-      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
+      className={mergeClasses(
+        'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
+        className,
+      )}
+      onChange={handleChange}
       {...props}
     />
-  );
+  )
 }
 
-export function Select({ 
-  children, 
+export function Select({
+  children,
   className = '',
   value,
   onValueChange,
-  ...props 
-}: { 
-  children?: React.ReactNode
-  className?: string
-  value?: string
-  onValueChange?: (value: string) => void
-  [key: string]: any
-}) {
+  onChange,
+  ...props
+}: SelectProps) {
+  const handleChange = resolveHandler(onChange, (event: React.ChangeEvent<HTMLSelectElement>) => {
+    onValueChange?.(event.target.value)
+  })
+
   return (
     <select
-      className={`w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${className}`}
+      className={mergeClasses(
+        'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
+        className,
+      )}
       value={value}
-      onChange={(e) => onValueChange?.(e.target.value)}
+      onChange={handleChange}
       {...props}
     >
       {children}
     </select>
-  );
+  )
 }
 
-export function SelectTrigger({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`w-full px-3 py-2 border border-gray-300 rounded-md bg-white ${className}`} {...props}>{children}</div>;
+export function SelectTrigger({ children, className = '', ...props }: BoxProps) {
+  return (
+    <div className={mergeClasses('w-full px-3 py-2 border border-gray-300 rounded-md bg-white', className)} {...props}>
+      {children}
+    </div>
+  )
 }
 
-export function SelectContent({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg ${className}`} {...props}>{children}</div>;
+export function SelectContent({ children, className = '', ...props }: BoxProps) {
+  return (
+    <div className={mergeClasses('absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg', className)} {...props}>
+      {children}
+    </div>
+  )
 }
 
-export function SelectItem({ children, value, onSelect, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode; value?: string; onSelect?: () => void }) {
-  return <div className={`px-3 py-2 hover:bg-gray-100 cursor-pointer ${className}`} onClick={onSelect} {...props}>{children}</div>;
+export function SelectItem({ children, onSelect, className = '', ...props }: BoxProps & { value?: string; onSelect?: () => void }) {
+  return (
+    <div
+      className={mergeClasses('px-3 py-2 hover:bg-gray-100 cursor-pointer', className)}
+      onClick={onSelect}
+      {...props}
+    >
+      {children}
+    </div>
+  )
 }
 
-export function SelectValue({ children, className = '', ...props }: React.HTMLAttributes<HTMLSpanElement> & { children?: React.ReactNode }) {
-  return <span className={className} {...props}>{children}</span>;
+export function SelectValue({ children, className = '', ...props }: React.HTMLAttributes<HTMLSpanElement> & AnyProps) {
+  return (
+    <span className={className} {...props}>
+      {children}
+    </span>
+  )
 }
 
-// Button component
-export function Button({ 
-  children, 
+export function Button({
+  children,
   className = '',
   variant = 'primary',
   size = 'md',
+  onPress,
   onClick,
   disabled,
-  ...props 
-}: { 
-  children?: React.ReactNode
-  className?: string
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
-  size?: 'sm' | 'md' | 'lg'
-  onClick?: () => void
-  disabled?: boolean
-  [key: string]: any
-}) {
-  const variantClasses = {
+  ...props
+}: ButtonProps) {
+  const variantClasses: Record<string, string> = {
     primary: 'bg-blue-600 text-white hover:bg-blue-700',
     secondary: 'bg-gray-600 text-white hover:bg-gray-700',
     outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50',
     ghost: 'text-gray-700 hover:bg-gray-100',
     danger: 'bg-red-600 text-white hover:bg-red-700',
-  };
+    solid: 'bg-blue-600 text-white hover:bg-blue-700',
+  }
 
-  const sizeClasses = {
+  const sizeClasses: Record<string, string> = {
     sm: 'px-3 py-1.5 text-sm',
     md: 'px-4 py-2',
     lg: 'px-6 py-3 text-lg',
-  };
+  }
 
   return (
     <button
       type="button"
-      className={`rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
-      onClick={onClick}
+      className={mergeClasses(
+        'rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+        variantClasses[variant] ?? variantClasses.primary,
+        sizeClasses[size] ?? sizeClasses.md,
+        className,
+      )}
+      onClick={onClick ?? onPress}
       disabled={disabled}
       {...props}
     >
       {children}
     </button>
-  );
+  )
 }
 
-// Pressable (for touch/click)
-export function Pressable({ 
-  children, 
-  className = '',
-  onClick,
-  ...props 
-}: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode; onClick?: () => void }) {
+export function Pressable({ children, className = '', onPress, onClick, ...props }: PressableProps) {
   return (
-    <div 
-      className={`cursor-pointer ${className}`}
-      onClick={onClick}
-      {...props}
-    >
+    <div className={mergeClasses('cursor-pointer', className)} onClick={onClick ?? onPress} {...props}>
       {children}
     </div>
-  );
+  )
 }
 
-// Card components
-export function Card({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`bg-white rounded-lg shadow-sm border ${className}`} {...props}>{children}</div>;
+export function Card({ children, className = '', ...props }: BoxProps) {
+  return (
+    <div className={mergeClasses('bg-white rounded-lg shadow-sm border', className)} {...props}>
+      {children}
+    </div>
+  )
 }
 
-export function CardBody({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`p-4 ${className}`} {...props}>{children}</div>;
+export function CardBody({ children, className = '', ...props }: BoxProps) {
+  return (
+    <div className={mergeClasses('p-4', className)} {...props}>
+      {children}
+    </div>
+  )
 }
 
-// Text component
-export function Text({ 
-  children, 
-  className = '',
-  ...props 
-}: React.HTMLAttributes<HTMLParagraphElement> & { children?: React.ReactNode }) {
-  return <p className={className} {...props}>{children}</p>;
+export function Text({ children, className = '', as, ...props }: TextProps) {
+  const Tag = (as || 'p') as React.ElementType
+  return (
+    <Tag className={className} {...(props as AnyProps)}>
+      {children}
+    </Tag>
+  )
 }
 
-// Heading component
-export function Heading({ 
-  children, 
+export function Heading({
+  children,
   className = '',
   level = 2,
-  ...props 
-}: { 
-  children?: React.ReactNode
-  className?: string
-  level?: 1 | 2 | 3 | 4 | 5 | 6
-  [key: string]: any
-}) {
-  const Tag = `h${level}` as keyof JSX.IntrinsicElements;
-  return <Tag className={`font-bold ${className}`} {...props}>{children}</Tag>;
+  as,
+  ...props
+}: HeadingProps) {
+  const Tag = (as || `h${level}`) as React.ElementType
+  return (
+    <Tag className={mergeClasses('font-bold', className)} {...(props as AnyProps)}>
+      {children}
+    </Tag>
+  )
 }
 
-// Badge component
-export function Badge({ 
-  children, 
-  className = '',
-  variant = 'default',
-  ...props 
-}: { 
-  children?: React.ReactNode
-  className?: string
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info'
-  [key: string]: any
-}) {
-  const variantClasses = {
+export function Badge({ children, className = '', variant = 'default', ...props }: BadgeProps) {
+  const variantClasses: Record<string, string> = {
     default: 'bg-gray-100 text-gray-800',
     success: 'bg-green-100 text-green-800',
     warning: 'bg-yellow-100 text-yellow-800',
     danger: 'bg-red-100 text-red-800',
     info: 'bg-blue-100 text-blue-800',
-  };
+  }
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variantClasses[variant]} ${className}`} {...props}>
+    <span
+      className={mergeClasses(
+        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+        variantClasses[variant] ?? variantClasses.default,
+        className,
+      )}
+      {...props}
+    >
       {children}
     </span>
-  );
+  )
 }
 
-// Tabs components
-export function Tabs({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`${className}`} {...props}>{children}</div>;
+export function Tabs({ children, className = '', ...props }: BoxProps) {
+  return <div className={className} {...props}>{children}</div>
 }
 
-export function TabsList({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`flex border-b ${className}`} {...props}>{children}</div>;
+export function TabsList({ children, className = '', ...props }: BoxProps) {
+  return <div className={mergeClasses('flex border-b', className)} {...props}>{children}</div>
 }
 
-export function TabsTab({ 
-  children, 
+export function TabsTab({
+  children,
   className = '',
   isActive,
   onClick,
-  ...props 
-}: { 
-  children?: React.ReactNode
-  className?: string
-  isActive?: boolean
-  onClick?: () => void
-  [key: string]: any
-}) {
+  onPress,
+  ...props
+}: AnyProps & { children?: React.ReactNode; className?: string; isActive?: boolean; onClick?: () => void; onPress?: () => void }) {
   return (
     <button
       type="button"
-      className={`px-4 py-2 font-medium border-b-2 -mb-px transition-colors ${
-        isActive 
-          ? 'border-blue-600 text-blue-600' 
-          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-      } ${className}`}
-      onClick={onClick}
+      className={mergeClasses(
+        'px-4 py-2 font-medium border-b-2 -mb-px transition-colors',
+        isActive
+          ? 'border-blue-600 text-blue-600'
+          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+        className,
+      )}
+      onClick={onClick ?? onPress}
       {...props}
     >
       {children}
     </button>
-  );
+  )
 }
 
-export function TabsPanels({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`${className}`} {...props}>{children}</div>;
+export function TabsPanels({ children, className = '', ...props }: BoxProps) {
+  return <div className={className} {...props}>{children}</div>
 }
 
-export function TabsPanel({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`py-4 ${className}`} {...props}>{children}</div>;
+export function TabsPanel({ children, className = '', ...props }: BoxProps) {
+  return <div className={mergeClasses('py-4', className)} {...props}>{children}</div>
 }
 
-export function TabsContent({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`${className}`} {...props}>{children}</div>;
+export function TabsContent({ children, className = '', ...props }: BoxProps) {
+  return <div className={className} {...props}>{children}</div>
 }
 
-// Avatar component
-export function Avatar({ 
-  src, 
+export function Avatar({
+  src,
   alt = 'Avatar',
   className = '',
   size = 'md',
-  ...props 
-}: { 
-  src?: string
-  alt?: string
-  className?: string
-  size?: 'sm' | 'md' | 'lg'
-  [key: string]: any
-}) {
+  ...props
+}: AvatarProps) {
   const sizeClasses = {
     sm: 'w-8 h-8',
     md: 'w-10 h-10',
     lg: 'w-12 h-12',
-  };
+  }
 
   if (src) {
     return (
-      <img 
-        src={src} 
-        alt={alt} 
-        className={`rounded-full object-cover ${sizeClasses[size]} ${className}`}
-        {...props} 
+      <img
+        src={src}
+        alt={alt}
+        className={mergeClasses('rounded-full object-cover', sizeClasses[size], className)}
+        {...props}
       />
-    );
+    )
   }
 
   return (
-    <div className={`rounded-full bg-gray-300 flex items-center justify-center ${sizeClasses[size]} ${className}`} {...props}>
+    <div className={mergeClasses('rounded-full bg-gray-300 flex items-center justify-center', sizeClasses[size], className)} {...props}>
       <span className="text-gray-600 font-medium">{alt.charAt(0).toUpperCase()}</span>
     </div>
-  );
+  )
 }
 
-// Menu components
-export function Menu({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`relative inline-block ${className}`} {...props}>{children}</div>;
+export function Menu({ children, className = '', ...props }: BoxProps) {
+  return <div className={mergeClasses('relative inline-block', className)} {...props}>{children}</div>
 }
 
-export function MenuTrigger({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`${className}`} {...props}>{children}</div>;
+export function MenuTrigger({ children, className = '', ...props }: BoxProps) {
+  return <div className={className} {...props}>{children}</div>
 }
 
-export function MenuContent({ children, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
-  return <div className={`absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border z-50 ${className}`} {...props}>{children}</div>;
+export function MenuContent({ children, className = '', ...props }: BoxProps) {
+  return <div className={mergeClasses('absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border z-50', className)} {...props}>{children}</div>
 }
 
-export function MenuItem({ children, onClick, className = '', ...props }: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode; onClick?: () => void }) {
+export function MenuItem({ children, onClick, onPress, className = '', ...props }: AnyProps & { children?: React.ReactNode; onClick?: () => void; onPress?: () => void }) {
   return (
     <button
       type="button"
-      className={`w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 ${className}`}
-      onClick={onClick}
+      className={mergeClasses('w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100', className)}
+      onClick={onClick ?? onPress}
       {...props}
     >
       {children}
     </button>
-  );
+  )
 }
 
-// Loading/Spinner wrapper
 export function Loading({ children, isLoading, className = '', ...props }: { children?: React.ReactNode; isLoading?: boolean; className?: string; [key: string]: any }) {
   if (isLoading) {
     return (
-      <div className={`flex items-center justify-center ${className}`} {...props}>
+      <div className={mergeClasses('flex items-center justify-center', className)} {...props}>
         <Spinner />
       </div>
-    );
+    )
   }
-  return <>{children}</>;
+  return <>{children}</>
 }
 
-// Empty state
-export function EmptyState({ 
-  children, 
+export function EmptyState({
+  children,
   className = '',
   icon,
-  ...props 
-}: { 
+  ...props
+}: {
   children?: React.ReactNode
   className?: string
   icon?: React.ReactNode
   [key: string]: any
 }) {
   return (
-    <div className={`flex flex-col items-center justify-center py-12 text-center ${className}`} {...props}>
+    <div className={mergeClasses('flex flex-col items-center justify-center py-12 text-center', className)} {...props}>
       {icon && <div className="mb-4 text-gray-400">{icon}</div>}
       {children}
     </div>
-  );
+  )
 }
 
-// Error/Alert component
-export function Alert({ 
-  children, 
-  className = '',
-  variant = 'info',
-  ...props 
-}: { 
-  children?: React.ReactNode
-  className?: string
-  variant?: 'info' | 'success' | 'warning' | 'danger'
-  [key: string]: any
-}) {
-  const variantClasses = {
+export function Alert({ children, className = '', variant = 'info', ...props }: AlertProps) {
+  const variantClasses: Record<string, string> = {
     info: 'bg-blue-50 border-blue-200 text-blue-800',
     success: 'bg-green-50 border-green-200 text-green-800',
     warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
     danger: 'bg-red-50 border-red-200 text-red-800',
-  };
+  }
 
   return (
-    <div className={`p-4 rounded-md border ${variantClasses[variant]} ${className}`} {...props}>
+    <div className={mergeClasses('p-4 rounded-md border', variantClasses[variant] ?? variantClasses.info, className)} {...props}>
       {children}
     </div>
-  );
+  )
 }
 
-// Icon wrapper (for simple icon handling)
-export function Icon({ 
-  children, 
-  className = '',
-  ...props 
-}: React.HTMLAttributes<HTMLDivElement> & { children?: React.ReactNode }) {
+export function Icon({ children, className = '', ...props }: BoxProps) {
   return (
-    <span className={`inline-flex items-center justify-center ${className}`} {...props}>
+    <span className={mergeClasses('inline-flex items-center justify-center', className)} {...props}>
       {children}
     </span>
-  );
+  )
 }

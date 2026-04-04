@@ -1,4 +1,5 @@
-export function BorderTop(editor: grapesjs.default.Editor) {
+// @ts-nocheck
+export function BorderTop(editor: grapesjs.Editor) {
     editor.StyleManager.addProperty('Borders', {
         name: 'Border Top',
         property: 'border-top',

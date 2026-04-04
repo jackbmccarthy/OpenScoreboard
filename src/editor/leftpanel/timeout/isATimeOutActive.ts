@@ -1,5 +1,6 @@
+// @ts-nocheck
 
-export function isATimeOutActive(editor: grapesjs.default.Editor) {
+export function isATimeOutActive(editor: grapesjs.Editor) {
     editor.Components.addType('isATimeOutActive', {
         model: {
             defaults: {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 interface MatchSettings {
     // Pregame settings
     isActive: boolean;

@@ -1,250 +1,215 @@
 # OpenScoreboard
 
-**Open-source sports scoreboard and tournament management for table tennis, pickleball, tennis, badminton, and more.**
+Open-source sports scoreboard and tournament management for table tennis, pickleball, tennis, badminton, and more.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Node](https://img.shields.io/badge/node-20+-green.svg)
-![Vite](https://img.shields.io/badge/vite-5.0-yellow.svg)
+![Next.js](https://img.shields.io/badge/next.js-15-black.svg)
 ![React](https://img.shields.io/badge/react-19-cyan.svg)
 
----
+## What It Is
 
-## 🎯 What is OpenScoreboard?
+OpenScoreboard is a free, open-source scoreboard and tournament management system. You can manage players and teams, run live scoring, design scoreboard overlays, and push updates to clients in realtime.
 
-OpenScoreboard is a free, open-source scoreboard and tournament management system. Create beautiful overlays for live streaming, manage tournaments, track players, and run league seasons.
+Built for: Table Tennis, Pickleball, Tennis, Badminton, Squash, Racquetball, and Paddle Tennis.
 
-**Built for:** Table Tennis • Pickleball • Tennis • Badminton • Squash • Racquetball • Paddle Tennis
+## v3 Architecture
 
----
+The current `v3` branch is a Next.js application.
 
-## ✨ What's New in v3
+| Area | Current approach |
+| --- | --- |
+| App runtime | Next.js App Router |
+| UI | React 19 + Tailwind CSS |
+| Auth | Firebase Authentication |
+| Cloud database | Firebase Realtime Database |
+| Local database | AceBase |
+| Scoreboard editor | GrapesJS |
+| Realtime updates | Existing DB listener paths remain in place |
+| Cloud writes | Routed through the Next server at `/api/database` |
 
-### Architecture Refactor (March 2025)
+The important compatibility constraint for this branch is that database field names, object shapes, and listener paths stay aligned with the existing main-branch contract. Clients still subscribe to the same Realtime Database paths, so scoreboard and scoring updates continue to propagate as before.
 
-| Before | After |
-|--------|--------|
-| Separate Expo + React Native apps | Single Vite + React web app |
-| Multiple builds (app, editor, scoreboard) | One static build |
-| AceBase-only database | Firebase + AceBase support |
-| Complex Express server | Static files deploy anywhere |
-| Monorepo with 3 separate apps | Unified single-page application |
+## What Changed In This Migration
 
-### UI Improvements
+- The old Vite app shell was replaced with Next.js route wrappers under `app/`.
+- Existing screen components now live under `src/screens/`.
+- React Router-dependent screen code is kept working through a small compatibility layer in `src/lib/router.tsx`.
+- In Firebase cloud mode, browser writes no longer go directly to Firebase. They are proxied through `app/api/database/route.ts`.
+- The server-side write driver in `src/server/databaseDriver.ts` preserves the same paths and payloads used by the current scoring and scoreboard code.
 
-- **GlueStack UI v3** - Modern, accessible component library
-- **Orange brand accent** (#ff7800) - Matches LA Ping Pong branding
-- **Responsive design** - Works on mobile, tablet, and desktop
-- **Dark theme default** - Easy on the eyes for long scoring sessions
-
-### Features
-
-- 🎨 **Scoreboard Editor** - Drag-and-drop scoreboard designer with GrapesJS
-- 📺 **Live Overlays** - Beautiful scoreboard overlays for OBS streaming
-- 🏆 **Tournament Management** - Brackets, divisions, seeding
-- 👥 **Player/Team Tracking** - Full roster management
-- 📊 **League Seasons** - standings, schedules, stats
-- 🔄 **Real-time Updates** - Live scoring with instant sync
-
----
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 20+
-- npm or yarn
-- Firebase project (for cloud) OR AceBase (for local)
+- npm
+- Firebase project for cloud mode, or AceBase for local mode
 
-### Installation
+### Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/openscoreboard.git
-cd openscoreboard
+git clone https://github.com/jackbmccarthy/OpenScoreboard.git
+cd OpenScoreboard
 npm install
 ```
 
-### Development (Firebase Cloud)
+### Run in development
+
+Firebase cloud mode:
 
 ```bash
 npm run dev
 ```
 
-### Development (Local with AceBase)
+AceBase mode:
 
 ```bash
-# Start AceBase server first
-npx acebase-server
-
-# Then run the app
 npm run dev:local
 ```
 
-### Build for Production
+### Production build
 
 ```bash
 npm run build
+npm run start
 ```
 
-Output is in `dist/` - static files ready to deploy anywhere.
+The production server listens on port `3000` by default.
 
----
+## Environment Variables
 
-## 📦 Deployment
+### Firebase cloud mode
 
-### Cloud Deployment (Firebase)
-
-1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-2. Enable **Firebase Authentication** (Google, Email/Password, Apple)
-3. Create a **Realtime Database**
-4. Copy your config to `.env`:
+Set these for the normal hosted app:
 
 ```env
-VITE_USE_LOCAL_DB=false
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_DATABASE_URL=https://your_project.firebaseio.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456789:web:abc123
+NEXT_PUBLIC_USE_LOCAL_DB=false
+NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your_project.firebaseio.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
+NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123
 ```
 
-5. Build and deploy:
+Legacy `VITE_*` names are still accepted as fallbacks, but new setups should use `NEXT_PUBLIC_*`.
 
-```bash
-npm run build
-# Upload dist/ to Vercel, Netlify, S3, or any static host
-```
-
-### Local Deployment (AceBase)
+### AceBase mode
 
 ```env
-VITE_USE_LOCAL_DB=true
-VITE_ACEBASE_HOST=localhost
-VITE_ACEBASE_PORT=3434
+NEXT_PUBLIC_USE_LOCAL_DB=true
+NEXT_PUBLIC_ACEBASE_HOST=localhost
+NEXT_PUBLIC_ACEBASE_PORT=8080
+NEXT_PUBLIC_ACEBASE_USE_SSL=false
+NEXT_PUBLIC_DATABASE_NAME=openscoreboard
 ```
 
-Run AceBase server:
+## Docker
+
+Build:
+
 ```bash
-npx acebase-server
+docker build -t openscoreboard .
 ```
 
----
+Run in Firebase cloud mode:
 
-## 🏓 Supported Sports
+```bash
+docker run --rm -p 3000:3000 \
+  -e NEXT_PUBLIC_USE_LOCAL_DB=false \
+  -e NEXT_PUBLIC_FIREBASE_API_KEY=your_key \
+  -e NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com \
+  -e NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your_project.firebaseio.com \
+  -e NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id \
+  -e NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com \
+  -e NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789 \
+  -e NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abc123 \
+  -e PORT=3000 \
+  -e HOSTNAME=0.0.0.0 \
+  openscoreboard
+```
 
-| Sport | Games/Sets | Scoring | Notes |
-|-------|-------------|---------|-------|
-| **Table Tennis** | Best of 5-9 games | 11 points, 2-point margin | ITTF rules |
-| **Pickleball** | Best of 1-3 games | 11/15/21 points | Side-out scoring option |
-| **Tennis** | Best of 3-5 sets | Standard tennis | Tiebreaks supported |
-| **Badminton** | Best of 3 games | 21 points | Rally scoring |
-| **Squash** | Best of 5 games | 11 points | Hand-out scoring |
-| **Racquetball** | Best of 3 games | 15 points | Hand-out scoring |
-| **Paddle Tennis** | Best of 3 sets | 11 points, no-advantage | Modified tennis |
+The Dockerfile is a multi-stage Next.js production image and expects Next standalone output.
 
-**Custom sports** can be configured by editing scoring rules in the app.
+## Deployment Notes
 
----
+- This is no longer a static Vite export. It must run as a Node server.
+- In cloud mode, `/api/database` must be available because Firebase writes are mediated by the server.
+- Firebase security rules still apply because the server forwards the signed-in user token to the Realtime Database REST API.
+- Client-side realtime listeners still use the same database paths and objects as before.
 
-## 🎨 Scoreboard Editor
+For full deployment examples, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
-The GrapesJS-based editor lets you create custom scoreboard designs:
-
-1. Navigate to `/editor`
-2. Drag-and-drop components
-3. Set player/team name positions
-4. Set score display positions
-5. Save and use in matches
-
-### Default Elements
-
-- Player/Team names
-- Score displays
-- Point/game counters
-- Timer displays
-- Logo placement
-- Custom text
-
----
-
-## 📱 Pages & Routes
+## Main Routes
 
 | Route | Description |
-|-------|-------------|
+| --- | --- |
 | `/` | Home dashboard |
-| `/login` | Sign in with Firebase |
-| `/tables` | Manage tables/courts |
-| `/teams` | Team roster management |
-| `/players` | Player database |
-| `/scoring/table/:id` | Live table scoring |
-| `/teamscoring/teammatch/:id` | Team match scoring |
-| `/editor` | Scoreboard designer |
-| `/scoreboard/:id` | Public scoreboard overlay |
-| `/settings` | App settings |
-| `/archivedmatches` | Match history |
-| `/scheduledtablematches` | Schedule view |
+| `/login` | Sign in |
+| `/tables` | Manage tables and scoring surfaces |
+| `/players` | Player list management |
+| `/teams` | Team management |
+| `/scoreboards` | Scoreboard list |
+| `/editor` | GrapesJS scoreboard editor |
+| `/scoreboard/view` | Live scoreboard overlay |
+| `/scoring/table/[id]` | Table scoring |
+| `/teamscoring/teammatch/[teamMatchID]` | Team match scoring |
 
----
-
-## 🛠 Tech Stack
+## Tech Stack
 
 | Layer | Technology |
-|-------|------------|
-| **Frontend** | Vite 5 + React 19 |
-| **Routing** | React Router DOM v7 |
-| **UI Components** | GlueStack UI v3 |
-| **Styling** | Tailwind CSS |
-| **Auth** | Firebase Authentication |
-| **Database** | Firebase Realtime Database (cloud) or AceBase (local) |
-| **Scoreboard Editor** | GrapesJS |
-| **TypeScript** | Strict mode |
+| --- | --- |
+| Frontend runtime | Next.js 15 |
+| UI | React 19 |
+| Styling | Tailwind CSS |
+| Routing compatibility | Thin React Router compatibility layer |
+| Auth | Firebase Authentication |
+| Cloud DB | Firebase Realtime Database |
+| Local DB | AceBase |
+| Editor | GrapesJS |
+| Language | TypeScript |
 
----
+## Project Structure
 
-## 📁 Project Structure
-
-```
+```text
 openscoreboard/
+├── app/                  # Next.js app router entrypoints
 ├── src/
-│   ├── main.tsx           # React entry
-│   ├── App.tsx            # Routing config
-│   ├── pages/             # Route pages
-│   │   ├── editor/       # GrapesJS scoreboard editor
-│   │   ├── scoreboard/    # Live scoreboard overlay
-│   │   └── ...            # Other pages
-│   ├── components/        # Shared UI components
-│   └── lib/               # Firebase, AceBase, utilities
-├── dist/                  # Build output (deploy this)
-├── index.html             # HTML entry
-├── vite.config.ts         # Vite configuration
-└── package.json
+│   ├── screens/          # Screen components wrapped by app routes
+│   ├── components/       # Shared UI components
+│   ├── lib/              # Auth, env, Firebase, DB compatibility layer
+│   ├── server/           # Server-side database write driver
+│   ├── functions/        # Business logic and mutations
+│   ├── scoreboard/       # Realtime scoreboard listeners/rendering
+│   └── classes/          # Data models
+├── public/
+├── next.config.mjs
+├── DEPLOYMENT.md
+└── Dockerfile
 ```
 
----
+## Supported Sports
 
-## 🤝 Contributing
+- Table Tennis
+- Pickleball
+- Tennis
+- Badminton
+- Squash
+- Racquetball
+- Paddle Tennis
+
+Custom sports can still be added by extending the current scoring and scoreboard configuration.
+
+## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+2. Create a branch
+3. Make changes
+4. Run verification
+5. Open a pull request
 
----
+## License
 
-## 📄 License
-
-MIT License - see LICENSE file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- [GlueStack](https://gluestack.io/) - UI component library
-- [GrapesJS](https://grapesjs.com/) - Web builder framework
-- [Firebase](https://firebase.google.com/) - Authentication and database
-- [AceBase](https://acebase.com/) - Local real-time database
-
----
-
-**OpenScoreboard** - Free sports scoring for everyone.
+MIT License.

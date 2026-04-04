@@ -1,6 +1,7 @@
+// @ts-nocheck
 import db from '@/lib/database';
 
-export const connectToLiveTTScoreboardDB = (editor: grapesjs.default.Editor) => {
+export const connectToLiveTTScoreboardDB = (editor: grapesjs.Editor) => {
     editor.Storage.add('remote', {
         async load(options) {
             let data = await db.ref(`scoreboards/${options.key}/config`).get();

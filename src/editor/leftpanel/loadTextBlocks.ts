@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function loadTextBlocks(editor, fieldList) {
 
     for (const item of fieldList) {

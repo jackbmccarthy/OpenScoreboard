@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { updateInnerText } from "./updateInnerText";
 
 

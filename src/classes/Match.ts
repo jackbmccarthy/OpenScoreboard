@@ -189,7 +189,7 @@ export default class Match {
         }
         return matchSettings
     }
-    createNew(sportName: string, previousMatchObj: object = null, isTeamMatch = false, scoringType = "normal") {
+    createNew(sportName: string, previousMatchObj: object | null = null, isTeamMatch = false, scoringType = "normal") {
         // createNew(bestOf, isTeamMatch=false, pointsToWinGame=11, isDoubles=false) {
         let newMatch = this.getDefaultMatchSettings(sportName, previousMatchObj, isTeamMatch, scoringType)
         return newMatch

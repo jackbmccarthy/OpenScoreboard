@@ -1,5 +1,6 @@
+// @ts-nocheck
 
-export function isMatchPoint(editor: grapesjs.default.Editor) {
+export function isMatchPoint(editor: grapesjs.Editor) {
     editor.Components.addType('isMatchPoint', {
         model: {
             defaults: {

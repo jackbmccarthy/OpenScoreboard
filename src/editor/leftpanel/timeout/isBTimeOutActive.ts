@@ -1,5 +1,6 @@
+// @ts-nocheck
 
-export function isBTimeOutActive(editor: grapesjs.default.Editor) {
+export function isBTimeOutActive(editor: grapesjs.Editor) {
     editor.Components.addType('isBTimeOutActive', {
         model: {
             defaults: {

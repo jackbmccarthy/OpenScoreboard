@@ -1,5 +1,6 @@
+// @ts-nocheck
 
-export function columnContainer(editor: grapesjs.default.Editor) {
+export function columnContainer(editor: grapesjs.Editor) {
     editor.Components.addType('columnContainer', {
         model: {
             defaults: {

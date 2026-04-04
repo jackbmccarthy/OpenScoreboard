@@ -1,21 +1,22 @@
-// Database configuration for OpenScoreboard v3
-// Adapted for Vite - uses import.meta.env
-// Maintains identical API as original openscoreboard-app/database.ts
+// Database configuration for OpenScoreboard v3.
+// Client reads stay local for realtime subscriptions.
+// Firebase writes are proxied through Next route handlers to preserve existing paths and payloads.
 
 import { AceBaseClient } from 'acebase-client'
 import firebase from 'firebase/app'
 import 'firebase/database'
 import 'firebase/auth'
 import { isLocalDatabase, firebaseConfig, hasValidConfig } from './firebase'
+import { runServerDatabaseActions } from './serverDatabaseClient'
 
-let db: AceBaseClient | firebase.database.Database | null = null
+let clientDb: AceBaseClient | firebase.database.Database | null = null
 
 if (typeof window !== "undefined" && isLocalDatabase) {
   // Use AceBase for local database
-  db = new AceBaseClient({
+  clientDb = new AceBaseClient({
     host: typeof window !== "undefined" ? window.location.hostname : "localhost",
-    port: parseInt(import.meta.env.VITE_ACEBASE_PORT || "8080"),
-    dbname: import.meta.env.VITE_DATABASE_NAME || "openscoreboard",
+    port: parseInt(process.env.NEXT_PUBLIC_ACEBASE_PORT || process.env.VITE_ACEBASE_PORT || "8080"),
+    dbname: process.env.NEXT_PUBLIC_DATABASE_NAME || process.env.VITE_DATABASE_NAME || "openscoreboard",
     https: typeof window !== "undefined" ? window.location.protocol.includes("https") : false,
   })
 } else if (typeof window !== "undefined" && hasValidConfig) {
@@ -24,10 +25,75 @@ if (typeof window !== "undefined" && isLocalDatabase) {
     if (!firebase.apps.length) {
       firebase.initializeApp(firebaseConfig)
     }
-    db = firebase.database()
+    clientDb = firebase.database()
   } catch (error) {
     console.error('Firebase initialization failed:', error)
-    db = null
+    clientDb = null
+  }
+}
+
+function getClientRef(path: string) {
+  if (!clientDb) {
+    throw new Error('Database is not initialized for the current runtime')
+  }
+
+  return clientDb.ref(path)
+}
+
+function createWriteReceipt(key?: string, value: unknown = null) {
+  return {
+    key,
+    val() {
+      return value
+    }
+  }
+}
+
+function createRef(path: string) {
+  const clientRef = () => getClientRef(path)
+
+  return {
+    get: () => clientRef().get(),
+    on: (...args: any[]) => (clientRef().on as any)(...args),
+    off: (...args: any[]) => (clientRef().off as any)(...args),
+    child: (childPath: string) => createRef(`${path}/${childPath}`),
+    set: async (value: unknown) => {
+      if (isLocalDatabase) {
+        const result = await clientRef().set(value)
+        return createWriteReceipt(undefined, typeof result?.val === 'function' ? result.val() : value)
+      }
+      const [result] = await runServerDatabaseActions([{ type: 'set', path, value }])
+      return createWriteReceipt(undefined, result?.value ?? null)
+    },
+    update: async (value: Record<string, unknown>) => {
+      if (isLocalDatabase) {
+        const result = await clientRef().update(value)
+        return createWriteReceipt(undefined, typeof result?.val === 'function' ? result.val() : value)
+      }
+      const [result] = await runServerDatabaseActions([{ type: 'update', path, value }])
+      return createWriteReceipt(undefined, result?.value ?? null)
+    },
+    remove: async () => {
+      if (isLocalDatabase) {
+        const result = await clientRef().remove()
+        return createWriteReceipt(undefined, typeof result?.val === 'function' ? result.val() : null)
+      }
+      const [result] = await runServerDatabaseActions([{ type: 'remove', path }])
+      return createWriteReceipt(undefined, result?.value ?? null)
+    },
+    push: async (value: unknown) => {
+      if (isLocalDatabase) {
+        return clientRef().push(value)
+      }
+      const [result] = await runServerDatabaseActions([{ type: 'push', path, value }])
+      return createWriteReceipt(result?.key, result?.value ?? null)
+    },
+  }
+}
+
+const db = {
+  ref(path: string) {
+    return createRef(path)
   }
 }
 
@@ -52,7 +118,7 @@ export async function loginToFirebase(email: string, password: string): Promise<
     return {
       error: true,
       success: false,
-      errorMessage: "Firebase not configured. Please set VITE_FIREBASE_* environment variables.",
+      errorMessage: "Firebase not configured. Please set NEXT_PUBLIC_FIREBASE_* or VITE_FIREBASE_* environment variables.",
       user: null,
       isEmailVerified: false
     }
@@ -67,7 +133,12 @@ export async function loginToFirebase(email: string, password: string): Promise<
   }
   try {
     let res = await firebase.auth().signInWithEmailAndPassword(email, password)
-    if (!res.user.emailVerified) {
+    if (!res.user) {
+      result.error = true
+      result.success = false
+      result.errorMessage = "Authentication failed"
+    }
+    else if (!res.user.emailVerified) {
       result.isEmailVerified = false
       result.errorMessage = "You must first verify your email address."
     }
@@ -106,7 +177,7 @@ export async function registerToFirebase(email: string, password: string): Promi
     return {
       error: true,
       success: false,
-      errorMessage: "Firebase not configured. Please set VITE_FIREBASE_* environment variables.",
+      errorMessage: "Firebase not configured. Please set NEXT_PUBLIC_FIREBASE_* or VITE_FIREBASE_* environment variables.",
       user: null
     }
   }

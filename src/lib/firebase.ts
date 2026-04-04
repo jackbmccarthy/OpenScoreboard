@@ -4,15 +4,14 @@
 import firebase from 'firebase/app';
 import 'firebase/auth';
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || '',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
-}
+import {
+  acebaseConfig as sharedAcebaseConfig,
+  firebaseClientConfig,
+  getScoreboardBaseURL,
+  isCompatLocalDatabase as sharedIsLocalDatabase,
+} from './env';
+
+const firebaseConfig = firebaseClientConfig
 
 // Only initialize Firebase if we have valid config
 export const hasValidConfig = Boolean(
@@ -21,7 +20,7 @@ export const hasValidConfig = Boolean(
 )
 
 // Initialize Firebase app
-if (hasValidConfig && !firebase.apps.length) {
+if (typeof window !== 'undefined' && hasValidConfig && !firebase.apps.length) {
   firebase.initializeApp(firebaseConfig);
 }
 
@@ -29,18 +28,11 @@ export { firebaseConfig }
 export default firebase;
 
 // Check if using local database (AceBase)
-export const isLocalDatabase = import.meta.env.VITE_USE_LOCAL_DB === "true"
+export const isLocalDatabase = sharedIsLocalDatabase
 
 // AceBase configuration for local database
-export const acebaseConfig = {
-  host: import.meta.env.VITE_ACEBASE_HOST || 'localhost',
-  port: parseInt(import.meta.env.VITE_ACEBASE_PORT || '8080'),
-  ssl: import.meta.env.VITE_ACEBASE_USE_SSL === 'true',
-  dbname: import.meta.env.VITE_DATABASE_NAME || 'openscoreboard',
-}
+export const acebaseConfig = sharedAcebaseConfig
 
 export const subFolderPath = isLocalDatabase ? '/app' : ''
 
-export const scoreboardBaseURL = import.meta.env.NODE_ENV === 'production'
-  ? (typeof window !== 'undefined' ? window.location.origin : '')
-  : (typeof window !== 'undefined' ? window.location.origin.replace(window.location.port, '3001') : '')
+export const scoreboardBaseURL = getScoreboardBaseURL()

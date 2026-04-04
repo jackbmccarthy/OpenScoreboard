@@ -5,10 +5,12 @@
   "type": "module",
   "description": "Open Scoreboard is a software that allows users to create custom scoreboards that can be added to live streams or other forms of video content, and providing a scorekeeping interface to allow for real time updates to scores.",
   "scripts": {
-    "dev": "vite",
-    "dev:local": "VITE_USE_LOCAL_DB=true vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "next dev",
+    "dev:local": "NEXT_PUBLIC_USE_LOCAL_DB=true VITE_USE_LOCAL_DB=true next dev",
+    "build": "next build",
+    "start": "next start",
+    "preview": "next start",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
   },
   "dependencies": {
     "@google/stitch-sdk": "^0.1.0",
@@ -21,6 +23,7 @@
     "grapesjs-plugin-export": "^1.0.12",
     "grapesjs-style-bg": "^2.0.2",
     "i18n-js": "^4.2.3",
+    "next": "^15.3.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.6.2",

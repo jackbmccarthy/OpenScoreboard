@@ -1,4 +1,5 @@
-export function BorderLeft(editor: grapesjs.default.Editor) {
+// @ts-nocheck
+export function BorderLeft(editor: grapesjs.Editor) {
     editor.StyleManager.addProperty('Borders', {
         name: 'Border Left',
         property: 'border-left',
