@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from '@/lib/router'
 
 // Pages
 import HomePage from './screens/HomePage'
+import DashboardPage from './screens/DashboardPage'
 import PlayersPage from './screens/PlayersPage'
 import TeamsPage from './screens/TeamsPage'
 import SettingsPage from './screens/SettingsPage'
@@ -47,9 +48,12 @@ function App() {
         {/* Editor (fullscreen) */}
         <Route path="/editor" element={<EditorPage />} />
 
+        {/* Public marketing home */}
+        <Route path="/" element={<HomePage />} />
+
         {/* Main app with tab navigation */}
         <Route element={<TabsLayout />}>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/players" element={<PlayersPage />} />
           <Route path="/teams" element={<TeamsPage />} />
           <Route path="/settings" element={<SettingsPage />} />

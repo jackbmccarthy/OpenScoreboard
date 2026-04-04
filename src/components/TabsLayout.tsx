@@ -24,7 +24,7 @@ interface TabItem {
 }
 
 const tabs: TabItem[] = [
-  { name: 'index', label: 'Home', path: '/', icon: <HomeIcon size={18} /> },
+  { name: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: <HomeIcon size={18} /> },
   { name: 'players', label: 'Players', path: '/players', icon: <PlayersIcon size={18} /> },
   { name: 'teams', label: 'Teams', path: '/teams', icon: <TeamsIcon size={18} /> },
   { name: 'tables', label: 'Tables', path: '/tables', icon: <TablesIcon size={18} /> },
@@ -54,7 +54,7 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
   const handleLogout = async () => {
     await logOut()
     setShowUserMenu(false)
-    navigate('/login')
+    navigate('/')
   }
 
   // Don't render tabs while loading
@@ -73,7 +73,7 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
       <Box className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
         <HStack className="max-w-7xl mx-auto justify-between items-center px-4 lg:px-6">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 py-3 group">
+          <Link to="/dashboard" className="flex items-center gap-3 py-3 group">
             <Box className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
               <ScoreboardIcon size={22} color="white" />
             </Box>

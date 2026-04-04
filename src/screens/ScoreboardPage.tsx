@@ -114,9 +114,9 @@ export default function ScoreboardPage() {
         <Button 
           variant="solid" 
           action="primary"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/dashboard')}
         >
-          <Text className="text-white">← Back to Home</Text>
+          <Text className="text-white">← Back to Dashboard</Text>
         </Button>
       </VStack>
     </Box>

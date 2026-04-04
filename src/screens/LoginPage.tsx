@@ -25,7 +25,7 @@ export default function LoginPage() {
       try {
         const user = await handleRedirectResult()
         if (user) {
-          navigate('/')
+          navigate('/dashboard')
         }
       } catch (err) {
         // Ignore redirect errors
@@ -37,14 +37,14 @@ export default function LoginPage() {
     // If already authenticated, redirect to home (prevents staying on login page)
   useEffect(() => {
     if (user) {
-      navigate('/')
+      navigate('/dashboard')
     }
   }, [user, navigate])
 
   // If using local database, skip Firebase auth
   useEffect(() => {
     if (isLocalDatabase) {
-      navigate('/')
+      navigate('/dashboard')
     }
   }, [navigate, isLocalDatabase])
 
@@ -80,7 +80,7 @@ export default function LoginPage() {
       } else {
         await signInWithEmail(email, password)
       }
-      navigate('/')
+      navigate('/dashboard')
     } catch (err: any) {
       const errorMap: Record<string, string> = {
         'auth/user-not-found': 'No account found with this email',
@@ -103,7 +103,7 @@ export default function LoginPage() {
     
     try {
       await signInWithGoogle()
-      navigate('/')
+      navigate('/dashboard')
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message || 'Google sign in failed')
@@ -119,7 +119,7 @@ export default function LoginPage() {
     
     try {
       await signInWithApple()
-      navigate('/')
+      navigate('/dashboard')
     } catch (err: any) {
       if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message || 'Apple sign in failed')

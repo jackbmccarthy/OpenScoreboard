@@ -42,7 +42,7 @@ export default function Login() {
       } else {
         await signInWithEmail(email, password);
       }
-      navigate('/');
+      navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);
     } finally {
