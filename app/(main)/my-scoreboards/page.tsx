@@ -1,7 +1,7 @@
 'use client';
 
-import MyScoreboardsPage from '@/screens/MyScoreboardsPage';
+import ScoreboardsPage from '@/screens/ScoreboardsPage';
 
 export default function Page() {
-  return <MyScoreboardsPage />;
+  return <ScoreboardsPage />;
 }

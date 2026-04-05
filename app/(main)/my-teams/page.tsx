@@ -1,7 +1,7 @@
 'use client';
 
-import MyTeamsPage from '@/screens/MyTeamsPage';
+import TeamsPage from '@/screens/TeamsPage';
 
 export default function Page() {
-  return <MyTeamsPage />;
+  return <TeamsPage />;
 }

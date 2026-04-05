@@ -151,6 +151,18 @@ export async function addPlayerList(name) {
 
     })
     await db.ref(`users/${getUserPath()}/myPlayerLists/`).push({ id: playerListRef.key, playerListName: name })
+    return playerListRef.key
+}
+
+export async function updatePlayerListName(myPlayerListID, playerListID, name) {
+    await Promise.all([
+        db.ref(`users/${getUserPath()}/myPlayerLists/${myPlayerListID}/playerListName`).set(name),
+        db.ref(`playerLists/${playerListID}/playerListName`).set(name)
+    ])
+}
+
+export async function replacePlayersInList(playerListID, players) {
+    await db.ref(`playerLists/${playerListID}/players`).set(players)
 }
 
 export function watchForPlayerListPasswordChange(playerListID, callback) {

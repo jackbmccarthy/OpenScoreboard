@@ -1,7 +1,7 @@
 'use client';
 
-import AddPlayersPage from '@/screens/AddPlayersPage';
+import PlayersPage from '@/screens/PlayersPage';
 
 export default function Page() {
-  return <AddPlayersPage />;
+  return <PlayersPage />;
 }

@@ -44,6 +44,16 @@ export async function addNewScoreboard(name, type) {
         name: name,
         type: type
     })
+    return newlyAdded.key
+}
+
+export async function updateScoreboardDetails(scoreboardID, myScoreboardID, name, type) {
+    await Promise.all([
+        db.ref(`scoreboards/${scoreboardID}/name`).set(name),
+        db.ref(`scoreboards/${scoreboardID}/type`).set(type),
+        db.ref(`users/${getUserPath()}/myScoreboards/${myScoreboardID}/name`).set(name),
+        db.ref(`users/${getUserPath()}/myScoreboards/${myScoreboardID}/type`).set(type),
+    ])
 }
 
 export async function getScoreboardSettings(scoreboardID) {

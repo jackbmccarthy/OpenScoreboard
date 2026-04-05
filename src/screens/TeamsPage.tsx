@@ -1,35 +1,35 @@
 // @ts-nocheck
-// Teams Page
-// Migrated from Expo MyTeams.tsx
 
-import { Box, Text, VStack, HStack, Card, CardBody, Pressable, Heading, Button, Input } from '@/components/ui'
-import { PlusIcon, TeamsIcon, ChevronRightIcon, TrashIcon } from '@/components/icons'
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getMyTeams, addNewTeam, deleteMyTeam, getTeam } from '@/functions/teams'
+import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Text, VStack } from '@/components/ui'
+import { PencilIcon, PlusIcon, TeamsIcon, TrashIcon } from '@/components/icons'
 import { useAuth } from '@/lib/auth'
-import { v4 as uuidv4 } from 'uuid'
+import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import OverlayDialog from '@/components/crud/OverlayDialog'
+import { addNewTeam, deleteMyTeam, getMyTeams, getTeam, updateMyTeam, updateTeam } from '@/functions/teams'
 
-interface Team {
-  teamName: string
-  teamPlayers: Record<string, any>
-  [key: string]: any
-}
-
-interface MyTeamEntry {
+interface TeamRow {
   id: string
   name: string
   createdOn?: string
 }
 
+const emptyTeamDraft = {
+  teamName: '',
+  teamLogoURL: '',
+}
+
 export default function TeamsPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
-  
-  const [teams, setTeams] = useState<[string, MyTeamEntry][]>([])
+
+  const [teams, setTeams] = useState<[string, TeamRow][]>([])
   const [loading, setLoading] = useState(true)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [newTeamName, setNewTeamName] = useState('')
+  const [showTeamModal, setShowTeamModal] = useState(false)
+  const [editingTeam, setEditingTeam] = useState<{ myTeamID: string; teamID?: string } | null>(null)
+  const [teamDraft, setTeamDraft] = useState(emptyTeamDraft)
+  const [pendingDeleteTeam, setPendingDeleteTeam] = useState<{ myTeamID: string; name: string } | null>(null)
 
   const loadTeams = useCallback(async () => {
     try {
@@ -47,30 +47,49 @@ export default function TeamsPage() {
     loadTeams()
   }, [authLoading, loadTeams])
 
-  const handleAddTeam = async () => {
-    if (!newTeamName.trim()) return
-    
-    try {
-      const newTeam: Team = {
-        teamName: newTeamName.trim(),
-        teamPlayers: {}
-      }
-      await addNewTeam(newTeam)
-      setNewTeamName('')
-      setShowAddForm(false)
-      await loadTeams()
-    } catch (error) {
-      console.error('Error adding team:', error)
-    }
+  const openNewTeamModal = () => {
+    setEditingTeam(null)
+    setTeamDraft(emptyTeamDraft)
+    setShowTeamModal(true)
   }
 
-  const handleDeleteTeam = async (myTeamId: string) => {
-    try {
-      await deleteMyTeam(myTeamId)
-      await loadTeams()
-    } catch (error) {
-      console.error('Error deleting team:', error)
+  const openEditTeamModal = async (myTeamID: string, teamID: string) => {
+    const team = await getTeam(teamID)
+    setEditingTeam({ myTeamID, teamID })
+    setTeamDraft({
+      teamName: team?.teamName || '',
+      teamLogoURL: team?.teamLogoURL || '',
+    })
+    setShowTeamModal(true)
+  }
+
+  const handleSaveTeam = async () => {
+    if (!teamDraft.teamName.trim()) return
+
+    const payload = {
+      teamName: teamDraft.teamName.trim(),
+      teamLogoURL: teamDraft.teamLogoURL.trim(),
+      players: editingTeam?.teamID ? (await getTeam(editingTeam.teamID))?.players || {} : {},
     }
+
+    if (editingTeam?.teamID) {
+      await updateTeam(editingTeam.teamID, payload)
+      await updateMyTeam(editingTeam.myTeamID, payload.teamName)
+    } else {
+      await addNewTeam(payload)
+    }
+
+    setShowTeamModal(false)
+    setEditingTeam(null)
+    setTeamDraft(emptyTeamDraft)
+    await loadTeams()
+  }
+
+  const handleDeleteTeam = async () => {
+    if (!pendingDeleteTeam) return
+    await deleteMyTeam(pendingDeleteTeam.myTeamID)
+    setPendingDeleteTeam(null)
+    await loadTeams()
   }
 
   if (authLoading || loading) {
@@ -99,41 +118,19 @@ export default function TeamsPage() {
       <VStack space="md" className="p-4">
         <HStack className="justify-between items-center">
           <Heading size="lg">Teams</Heading>
-          <Button 
-            size="sm" 
-            variant="solid" 
-            action="primary"
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
-            <PlusIcon size={16} />
-            <Text className="ml-1 text-white">Add</Text>
-          </Button>
+          <HStack className="gap-2">
+            <Button size="sm" variant="outline" onClick={() => navigate('/bulkteams')}>
+              <Text>Bulk Manage</Text>
+            </Button>
+            <Button size="sm" variant="solid" action="primary" onClick={openNewTeamModal}>
+              <PlusIcon size={16} />
+              <Text className="ml-1 text-white">Add Team</Text>
+            </Button>
+          </HStack>
         </HStack>
 
-        {showAddForm && (
-          <Card variant="outline">
-            <CardBody>
-              <VStack space="sm">
-                <Input
-                  placeholder="Team Name"
-                  value={newTeamName}
-                  onChangeText={setNewTeamName}
-                />
-                <HStack className="justify-end space-x-2">
-                  <Button size="sm" variant="outline" onClick={() => setShowAddForm(false)}>
-                    <Text>Cancel</Text>
-                  </Button>
-                  <Button size="sm" action="primary" onClick={handleAddTeam}>
-                    <Text className="text-white">Create Team</Text>
-                  </Button>
-                </HStack>
-              </VStack>
-            </CardBody>
-          </Card>
-        )}
-
         <VStack space="sm">
-          {teams.length === 0 && !showAddForm ? (
+          {teams.length === 0 ? (
             <Box className="p-8 text-center">
               <TeamsIcon size={48} className="mx-auto text-gray-300 mb-4" />
               <Text className="text-gray-500">No teams yet</Text>
@@ -143,27 +140,21 @@ export default function TeamsPage() {
             teams.map(([myTeamId, team]) => (
               <Card key={myTeamId} variant="elevated" className="mb-2">
                 <CardBody>
-                  <HStack className="justify-between items-center">
-                    <Pressable 
-                      className="flex-1"
-                      onPress={() => navigate(`/teams/${team.id}`)}
-                    >
+                  <HStack className="justify-between items-center gap-3">
+                    <Pressable className="flex-1" onPress={() => openEditTeamModal(myTeamId, team.id)}>
                       <VStack className="flex-1">
                         <Text fontWeight="bold">{team.name}</Text>
-                        {team.createdOn && (
-                          <Text className="text-gray-500 text-sm">
-                            Created {new Date(team.createdOn).toLocaleDateString()}
-                          </Text>
-                        )}
+                        {team.createdOn ? (
+                          <Text className="text-gray-500 text-sm">Created {new Date(team.createdOn).toLocaleDateString()}</Text>
+                        ) : null}
                       </VStack>
                     </Pressable>
-                    <HStack className="items-center">
-                      <ChevronRightIcon size={20} className="text-gray-400" />
-                      <Pressable
-                        onPress={() => handleDeleteTeam(myTeamId)}
-                        className="p-2 ml-2"
-                      >
-                        <TrashIcon size={18} className="text-red-500" />
+                    <HStack className="items-center gap-2">
+                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openEditTeamModal(myTeamId, team.id)}>
+                        <PencilIcon size={16} className="text-slate-500" />
+                      </Pressable>
+                      <Pressable className="rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteTeam({ myTeamID: myTeamId, name: team.name })}>
+                        <TrashIcon size={16} className="text-red-500" />
                       </Pressable>
                     </HStack>
                   </HStack>
@@ -173,6 +164,36 @@ export default function TeamsPage() {
           )}
         </VStack>
       </VStack>
+
+      <OverlayDialog
+        isOpen={showTeamModal}
+        onClose={() => setShowTeamModal(false)}
+        title={editingTeam ? 'Edit Team' : 'Add Team'}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => setShowTeamModal(false)}>
+              <Text>Cancel</Text>
+            </Button>
+            <Button action="primary" onClick={handleSaveTeam}>
+              <Text className="text-white">{editingTeam ? 'Save Changes' : 'Create Team'}</Text>
+            </Button>
+          </>
+        )}
+      >
+        <VStack className="gap-3">
+          <Input placeholder="Team name" value={teamDraft.teamName} onChangeText={(value) => setTeamDraft((current) => ({ ...current, teamName: value }))} />
+          <Input placeholder="Team logo URL" value={teamDraft.teamLogoURL} onChangeText={(value) => setTeamDraft((current) => ({ ...current, teamLogoURL: value }))} />
+        </VStack>
+      </OverlayDialog>
+
+      <ConfirmDialog
+        isOpen={!!pendingDeleteTeam}
+        onClose={() => setPendingDeleteTeam(null)}
+        onConfirm={handleDeleteTeam}
+        title="Remove Team"
+        message={`Remove ${pendingDeleteTeam?.name || 'this team'} from your visible team list?`}
+        confirmLabel="Remove"
+      />
     </Box>
   )
 }

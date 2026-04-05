@@ -13,7 +13,21 @@ export async function createNewTable(tableName, playerListID, sportName, scoring
   let newTable = new Table(tableName, getUserPath(), playerListID, sportName, scoringType)
   let newTableResult = await db.ref("tables").push(newTable)
   await db.ref("users/" + getUserPath() + "/myTables").push(newTableResult.key)
+  return newTableResult.key
 
+}
+
+export async function getTable(tableID) {
+  const tableSnap = await db.ref(`tables/${tableID}`).get()
+  return tableSnap.val()
+}
+
+export async function updateTable(tableID, tableSettings) {
+  const currentTable = await getTable(tableID)
+  await db.ref(`tables/${tableID}`).set({
+    ...(currentTable || {}),
+    ...(tableSettings || {})
+  })
 }
 
 export async function getScheduledTableMatches(tableID) {
@@ -71,10 +85,16 @@ export async function getMyTables() {
   let myTablesSnap = await db.ref("users" + "/" + getUserPath() + "/" + "myTables").get()
   let myTables = myTablesSnap.val()
   if (myTables) {
-    return Promise.all(Object.entries(myTables).map(async (table) => {
-      let tableID = String(table[1] ?? '')
-      let tableName = await getTableName(tableID)
-      return [tableID, { tableName: tableName }]
+    return Promise.all(Object.entries(myTables).map(async ([myTableID, tableValue]) => {
+      let tableID = String(tableValue ?? '')
+      let tableInfo = await getTable(tableID)
+      return [myTableID, {
+        tableID,
+        tableName: tableInfo?.tableName || '',
+        sportName: tableInfo?.sportName || '',
+        scoringType: tableInfo?.scoringType || '',
+        playerListID: tableInfo?.playerListID || ''
+      }]
     }))
   }
   else {

@@ -5,7 +5,7 @@ import { getMatchData, getMatchScore } from './scoring';
 import { supportedSports } from './sports';
 import { getTeam, getTeamName } from './teams';
 
-export default async function getMyTeamMatches(userID) {
+export default async function getMyTeamMatches(userID = getUserPath()) {
 
 
     let myTeamMatches = await db.ref("users" + "/" + userID + "/" + "myTeamMatches").get()
@@ -63,17 +63,25 @@ export async function addNewTeamMatch(teamMatch) {
     }
 
     await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches").push(preview)
+    return pushedTeamMatch.key
 }
 
 export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
     let pushedTeam = await db.ref(`teamMatches/${teamMatchID}`).set(teamMatch)
-    await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches/" + myTeamMatchID).push({
+    await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches/" + myTeamMatchID).set({
         id: teamMatchID,
         teamAName: await getTeamName(teamMatch.teamAID),
         teamBName: await getTeamName(teamMatch.teamBID),
-        startTime: teamMatch.startTime
+        startTime: teamMatch.startTime,
+        sportName: teamMatch.sportName,
+        sportDisplayName: supportedSports[teamMatch.sportName].displayName,
+        scoringType: teamMatch.scoringType
     })
     return pushedTeam.val()
+}
+
+export async function deleteTeamMatch(myTeamMatchID) {
+    await db.ref(`users/${getUserPath()}/myTeamMatches/${myTeamMatchID}`).remove()
 }
 
 export async function getImportTeamMembersList(player, teamMatchID) {

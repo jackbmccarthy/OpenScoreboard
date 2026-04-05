@@ -11,6 +11,7 @@ import LoginPage from './screens/LoginPage'
 import MyAccountPage from './screens/MyAccountPage'
 import TablesPage from './screens/TablesPage'
 import ScoreboardPage from './screens/ScoreboardPage'
+import DynamicURLsPage from './screens/DynamicURLsPage'
 import ScoreboardViewPage from './screens/ScoreboardViewPage'
 import EditorPage from './screens/EditorPage'
 import TableScoringPage from './screens/TableScoringPage'
@@ -23,6 +24,7 @@ import TeamMatchesPage from './screens/TeamMatchesPage'
 import PlayerListsPage from './screens/PlayerListsPage'
 import PlayerRegistrationPage from './screens/PlayerRegistrationPage'
 import BulkPlayerPage from './screens/BulkPlayerPage'
+import BulkTeamsPage from './screens/BulkTeamsPage'
 import AddPlayersPage from './screens/AddPlayersPage'
 import QRCodePage from './screens/QRCodePage'
 import MyTeamsPage from './screens/MyTeamsPage'
@@ -60,6 +62,7 @@ function App() {
           <Route path="/my-account" element={<MyAccountPage />} />
           <Route path="/tables" element={<TablesPage />} />
           <Route path="/scoreboard" element={<ScoreboardPage />} />
+          <Route path="/dynamic-urls" element={<DynamicURLsPage />} />
           <Route path="/scoring/table/:id" element={<TableScoringPage />} />
           <Route path="/teamscoring/teammatch/:id" element={<TeamsScoringPage />} />
           <Route path="/match/:id" element={<MatchPage />} />
@@ -70,6 +73,7 @@ function App() {
           <Route path="/player-lists" element={<PlayerListsPage />} />
           <Route path="/playerregistration/:id" element={<PlayerRegistrationPage />} />
           <Route path="/bulkplayer" element={<BulkPlayerPage />} />
+          <Route path="/bulkteams" element={<BulkTeamsPage />} />
           <Route path="/addplayers" element={<AddPlayersPage />} />
           <Route path="/qrcode" element={<QRCodePage />} />
           <Route path="/my-teams" element={<MyTeamsPage />} />

@@ -53,6 +53,12 @@ const sections = [
         description: 'Design layouts in GrapesJS and publish updates live.',
         icon: SettingsIcon,
       },
+      {
+        route: '/dynamic-urls',
+        title: 'Dynamic URLs',
+        description: 'Create routing overlays that target tables, team matches, and scoreboard IDs.',
+        icon: ScoreboardIcon,
+      },
     ],
   },
   {

@@ -1,195 +1,204 @@
 // @ts-nocheck
-// Bulk Add Players Page
-// Migrated from Expo BulkAddPlayers.tsx
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/lib/auth';
-import { Box, Text, VStack, HStack, Button, Input, Spinner, Select } from '@/components/ui';
-import jsonFlags from '@/flags/countries.json';
+import { useEffect, useMemo, useState } from 'react'
+import { Box, Button, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
+import { useAuth } from '@/lib/auth'
+import { useSearchParams } from 'react-router-dom'
+import { getImportPlayerList, getMyPlayerLists, replacePlayersInList, sortPlayers } from '@/functions/players'
+import { v4 as uuidv4 } from 'uuid'
+import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 
-interface PlayerList {
-  id: string;
-  name?: string;
-}
-
-function validateCSV(csvString: string): string | true {
-  const rows = csvString.split('\n');
-
-  for (let i = 0; i < rows.length; i++) {
-    const columns = rows[i].split(',');
-
-    if (columns.length !== 4) {
-      return `Error: Row ${i + 1} does not have exactly 4 columns.`;
-    }
-
-    if (columns[0].length > 60 || columns[1].length > 60) {
-      return `Error: Row ${i + 1}, Column 1 or Column 2 has length greater than 60.`;
-    }
-
-    if (columns[2] !== '' && !isValidImageUrl(columns[2])) {
-      return `Error: Row ${i + 1}, Column 3 should be either blank or a valid image URL.`;
-    }
-
-    const validValues = Object.keys(jsonFlags);
-    if (!validValues.includes(columns[3].toUpperCase())) {
-      return `Error: Row ${i + 1}, Column 4 does not have a valid value.`;
-    }
+function createEmptyRow() {
+  return {
+    id: uuidv4(),
+    firstName: '',
+    lastName: '',
+    imageURL: '',
+    country: '',
+    isNew: true,
   }
-
-  return true;
-}
-
-function isValidImageUrl(url: string): boolean {
-  const urlRegex = /^(ftp|http|https):\/\/[^ "]+$/;
-  return url === '' || url.match(urlRegex) !== null;
 }
 
 export default function BulkPlayerPage() {
-  const { user, loading: authLoading } = useAuth();
-  const [csvValue, setCSVValue] = useState('');
-  const [doneLoading, setDoneLoading] = useState(false);
-  const [myPlayerLists, setMyPlayerLists] = useState<[string, PlayerList][]>([]);
-  const [selectedPlayerListID, setSelectedPlayerListID] = useState('');
-  const [loadingPlayers, setLoadingPlayers] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const { loading: authLoading } = useAuth()
+  const [searchParams] = useSearchParams()
+  const [doneLoading, setDoneLoading] = useState(false)
+  const [myPlayerLists, setMyPlayerLists] = useState([])
+  const [selectedPlayerListID, setSelectedPlayerListID] = useState(searchParams.get('playerListID') || '')
+  const [rows, setRows] = useState([])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
+  const [pendingRemoval, setPendingRemoval] = useState(null)
 
   async function loadPlayerLists() {
-    setDoneLoading(false);
+    setDoneLoading(false)
     try {
-      const { getMyPlayerLists } = await import('@/functions/players');
-      const lists = await getMyPlayerLists();
-      setMyPlayerLists(lists || []);
-      if (lists && lists.length > 0) {
-        setSelectedPlayerListID(lists[0][0]);
+      const lists = await getMyPlayerLists()
+      setMyPlayerLists(lists || [])
+      if (!selectedPlayerListID && lists?.length) {
+        setSelectedPlayerListID(lists[0][1].id)
       }
     } catch (err) {
-      console.error('Error loading player lists:', err);
+      console.error('Error loading player lists:', err)
     } finally {
-      setDoneLoading(true);
+      setDoneLoading(true)
     }
   }
 
+  async function loadPlayers(playerListID) {
+    if (!playerListID) {
+      setRows([])
+      return
+    }
+
+    const players = await getImportPlayerList(playerListID)
+    const sortedPlayers = players.length > 0 ? sortPlayers(players) : []
+    setRows(sortedPlayers.map(([id, player]) => ({
+      id,
+      firstName: player.firstName || '',
+      lastName: player.lastName || '',
+      imageURL: player.imageURL || '',
+      country: player.country || '',
+      raw: player,
+      isNew: false,
+    })))
+  }
+
   useEffect(() => {
-    if (authLoading) return;
-    loadPlayerLists();
-  }, [authLoading]);
+    if (authLoading) return
+    loadPlayerLists()
+  }, [authLoading])
 
-  const handleImport = async () => {
+  useEffect(() => {
+    if (!selectedPlayerListID) return
+    loadPlayers(selectedPlayerListID)
+  }, [selectedPlayerListID])
+
+  const visibleRows = useMemo(() => rows, [rows])
+
+  const updateRow = (id, field, value) => {
+    setRows((current) =>
+      current.map((row) => row.id === id ? { ...row, [field]: value } : row)
+    )
+  }
+
+  const handleAddRow = () => {
+    setRows((current) => [...current, createEmptyRow()])
+  }
+
+  const confirmRemoveRow = () => {
+    if (!pendingRemoval) return
+    setRows((current) => current.filter((row) => row.id !== pendingRemoval.id))
+    setPendingRemoval(null)
+  }
+
+  const handleSave = async () => {
     if (!selectedPlayerListID) {
-      setError('Please select a player list first');
-      return;
+      setError('Select a player list first')
+      return
     }
 
-    const validation = validateCSV(csvValue);
-    if (validation !== true) {
-      setError(validation);
-      return;
-    }
-
-    setLoadingPlayers(true);
-    setError(null);
-    setSuccess(null);
+    setSaving(true)
+    setError(null)
+    setSuccess(null)
 
     try {
-      const rows = csvValue.split('\n');
-      let imported = 0;
+      const payload = {}
+      visibleRows.forEach((row) => {
+        if (!row.firstName.trim() && !row.lastName.trim()) {
+          return
+        }
 
-      for (const row of rows) {
-        const columns = row.split(',');
-        if (columns.length !== 4) continue;
+        const rowID = row.isNew ? uuidv4() : row.id
+        payload[rowID] = {
+          ...(row.raw || {}),
+          firstName: row.firstName.trim(),
+          lastName: row.lastName.trim(),
+          imageURL: row.imageURL.trim(),
+          country: row.country.trim().toUpperCase(),
+          clubName: row.raw?.clubName || '',
+          jerseyColor: row.raw?.jerseyColor || '',
+          firstNameInitial: row.raw?.firstNameInitial || false,
+          lastNameInitial: row.raw?.lastNameInitial || false,
+          isImported: row.raw?.isImported || false,
+        }
+      })
 
-        const [, lastName, firstName, imageUrl, country] = columns;
-
-        const { newImportedPlayer } = await import('@/classes/Player');
-        const { addImportedPlayer } = await import('@/functions/players');
-
-        const player = newImportedPlayer(firstName.trim(), lastName.trim(), imageUrl.trim(), country.trim().toUpperCase());
-        await addImportedPlayer(selectedPlayerListID, player);
-        imported++;
-      }
-
-      setSuccess(`Successfully imported ${imported} players!`);
-      setCSVValue('');
+      await replacePlayersInList(selectedPlayerListID, payload)
+      setSuccess('Bulk player changes saved.')
+      await loadPlayers(selectedPlayerListID)
     } catch (err: any) {
-      setError(`Error importing players: ${err.message}`);
+      setError(err.message || 'Failed to save player changes')
     } finally {
-      setLoadingPlayers(false);
+      setSaving(false)
     }
-  };
+  }
 
   if (authLoading || !doneLoading) {
     return (
       <Box className="flex items-center justify-center p-8">
         <Spinner size="lg" />
       </Box>
-    );
+    )
   }
 
   return (
     <Box className="p-4">
       <VStack space="md">
-        <Text className="text-2xl font-bold">Bulk Add Players</Text>
+        <Text className="text-2xl font-bold">Bulk Manage Players</Text>
+        <Text className="text-sm text-gray-600">
+          Add rows, edit fields inline, or remove rows before saving the entire player list in one pass.
+        </Text>
 
-        <Box className="bg-white rounded-lg p-4 shadow-sm">
-          <VStack space="md">
-            <Text className="font-medium">Select Player List</Text>
-            <Select
-              value={selectedPlayerListID}
-              onValueChange={setSelectedPlayerListID}
-            >
-              {myPlayerLists.map(([id, list]) => (
-                <option key={id} value={id}>
-                  {list.name || 'Unnamed List'}
-                </option>
-              ))}
-            </Select>
-          </VStack>
-        </Box>
+        <Select value={selectedPlayerListID} onValueChange={setSelectedPlayerListID}>
+          <option value="">Select a player list</option>
+          {myPlayerLists.map(([id, list]) => (
+            <option key={id} value={list.id}>{list.playerListName}</option>
+          ))}
+        </Select>
 
-        <Box className="bg-white rounded-lg p-4 shadow-sm">
-          <VStack space="md">
-            <Text className="font-medium">CSV Format</Text>
-            <Text className="text-sm text-gray-600">
-              Format: LastName, FirstName, ImageURL (optional), CountryCode
-            </Text>
-            <Text className="text-sm text-gray-500">
-              Example: Smith, John, https://example.com/photo.jpg, US
-            </Text>
-          </VStack>
-        </Box>
+        <VStack className="gap-3">
+          {visibleRows.map((row) => (
+            <Box key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+              <VStack className="gap-3">
+                <HStack className="gap-3">
+                  <Input placeholder="First name" value={row.firstName} onChangeText={(value) => updateRow(row.id, 'firstName', value)} />
+                  <Input placeholder="Last name" value={row.lastName} onChangeText={(value) => updateRow(row.id, 'lastName', value)} />
+                </HStack>
+                <HStack className="gap-3">
+                  <Input placeholder="Image URL" value={row.imageURL} onChangeText={(value) => updateRow(row.id, 'imageURL', value)} />
+                  <Input placeholder="Country" value={row.country} onChangeText={(value) => updateRow(row.id, 'country', value.toUpperCase())} />
+                </HStack>
+                <Button variant="outline" onClick={() => setPendingRemoval({ id: row.id, label: `${row.firstName} ${row.lastName}`.trim() || 'this player row' })}>
+                  <Text>Remove Row</Text>
+                </Button>
+              </VStack>
+            </Box>
+          ))}
+        </VStack>
 
-        <Box className="bg-white rounded-lg p-4 shadow-sm">
-          <VStack space="md">
-            <Text className="font-medium">Paste CSV Data</Text>
-            <textarea
-              className="w-full h-48 p-3 border rounded-lg font-mono text-sm"
-              placeholder="LastName, FirstName, ImageURL, Country&#10;Smith, John, , US&#10;Doe, Jane, https://example.com/photo.jpg, UK"
-              value={csvValue}
-              onChange={(e) => setCSVValue(e.target.value)}
-            />
-          </VStack>
-        </Box>
+        {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
+        {success ? <Text className="text-sm text-green-600">{success}</Text> : null}
 
-        {error && (
-          <Box className="bg-red-50 border border-red-200 rounded-lg p-3">
-            <Text className="text-red-600 text-sm">{error}</Text>
-          </Box>
-        )}
-
-        {success && (
-          <Box className="bg-green-50 border border-green-200 rounded-lg p-3">
-            <Text className="text-green-600 text-sm">{success}</Text>
-          </Box>
-        )}
-
-        <Button 
-          onClick={handleImport}
-          disabled={loadingPlayers || !csvValue.trim() || !selectedPlayerListID}
-        >
-          {loadingPlayers ? <Spinner /> : <Text className="text-white">Import Players</Text>}
-        </Button>
+        <HStack className="gap-3">
+          <Button variant="outline" onClick={handleAddRow}>
+            <Text>Add Row</Text>
+          </Button>
+          <Button onClick={handleSave} disabled={saving || !selectedPlayerListID}>
+            <Text className="text-white">{saving ? 'Saving...' : 'Save All Changes'}</Text>
+          </Button>
+        </HStack>
       </VStack>
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingRemoval)}
+        onClose={() => setPendingRemoval(null)}
+        onConfirm={confirmRemoveRow}
+        title="Remove Player Row?"
+        message={`Remove ${pendingRemoval?.label || 'this player row'} from the pending bulk changes? This does not save until you confirm the full bulk update.`}
+        confirmLabel="Remove Row"
+      />
     </Box>
-  );
+  )
 }

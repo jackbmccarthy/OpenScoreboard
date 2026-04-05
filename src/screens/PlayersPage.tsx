@@ -1,53 +1,68 @@
 // @ts-nocheck
-// Players Page
-// Migrated from Expo AddPlayers.tsx
 
-import { Box, Heading, Text, VStack, HStack, Card, CardBody, Pressable, Button, Input, Modal, ModalBackdrop, ModalContent, ModalHeader, ModalBody, ModalFooter, ModalCloseButton } from '@/components/ui'
-import { PlusIcon, PlayersIcon, ChevronRightIcon, TrashIcon } from '@/components/icons'
 import { useEffect, useState, useCallback } from 'react'
+import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Text, VStack } from '@/components/ui'
+import { ChevronRightIcon, PencilIcon, PlayersIcon, PlusIcon, TrashIcon } from '@/components/icons'
 import { useNavigate } from 'react-router-dom'
-import { 
-  getMyPlayerLists, 
-  addPlayerList, 
-  getImportPlayerList, 
-  addImportedPlayer, 
-  deleteImportedPlayer,
-  getPlayerFormatted,
-  sortPlayers 
-} from '@/functions/players'
 import { useAuth } from '@/lib/auth'
+import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import OverlayDialog from '@/components/crud/OverlayDialog'
+import {
+  addImportedPlayer,
+  addPlayerList,
+  deleteImportedPlayer,
+  deletePlayerList,
+  editImportedPlayer,
+  getImportPlayerList,
+  getMyPlayerLists,
+  getPlayerFormatted,
+  sortPlayers,
+  updatePlayerListName,
+} from '@/functions/players'
+import { newImportedPlayer } from '@/classes/Player'
 
 interface PlayerList {
   id: string
   playerListName: string
-  password: string
+  password?: string
 }
 
 interface Player {
   firstName: string
   lastName: string
+  imageURL?: string
+  country?: string
   firstNameInitial?: boolean
   lastNameInitial?: boolean
+}
+
+const emptyPlayer = {
+  firstName: '',
+  lastName: '',
+  imageURL: '',
+  country: '',
 }
 
 export default function PlayersPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
-  
+
   const [playerLists, setPlayerLists] = useState<[string, PlayerList][]>([])
-  const [selectedList, setSelectedList] = useState<{ id: string; name: string } | null>(null)
+  const [selectedList, setSelectedList] = useState<{ myPlayerListID: string; id: string; name: string } | null>(null)
   const [players, setPlayers] = useState<[string, Player][]>([])
   const [loading, setLoading] = useState(true)
-  
-  // Modal states
+
   const [showNewListModal, setShowNewListModal] = useState(false)
   const [showPlayersModal, setShowPlayersModal] = useState(false)
-  const [showAddPlayerModal, setShowAddPlayerModal] = useState(false)
-  
-  // Form states
+  const [showPlayerModal, setShowPlayerModal] = useState(false)
+  const [showRenameListModal, setShowRenameListModal] = useState(false)
+  const [pendingDeleteList, setPendingDeleteList] = useState<{ myPlayerListID: string; id: string; name: string } | null>(null)
+  const [pendingDeletePlayer, setPendingDeletePlayer] = useState<{ id: string; name: string } | null>(null)
+  const [editingPlayer, setEditingPlayer] = useState<{ id: string; player: Player } | null>(null)
+
   const [newListName, setNewListName] = useState('')
-  const [newPlayerFirstName, setNewPlayerFirstName] = useState('')
-  const [newPlayerLastName, setNewPlayerLastName] = useState('')
+  const [renamedListName, setRenamedListName] = useState('')
+  const [playerDraft, setPlayerDraft] = useState<Player>(emptyPlayer)
 
   const loadPlayerLists = useCallback(async () => {
     try {
@@ -60,68 +75,82 @@ export default function PlayersPage() {
     }
   }, [])
 
+  const reloadSelectedListPlayers = useCallback(async (playerListID: string) => {
+    const playerData = await getImportPlayerList(playerListID)
+    setPlayers(playerData.length > 0 ? sortPlayers(playerData) : [])
+  }, [])
+
   useEffect(() => {
     if (authLoading) return
     loadPlayerLists()
   }, [authLoading, loadPlayerLists])
 
+  const handleSelectList = async (myPlayerListID: string, listId: string, listName: string) => {
+    setSelectedList({ myPlayerListID, id: listId, name: listName })
+    setShowPlayersModal(true)
+    await reloadSelectedListPlayers(listId)
+  }
+
   const handleCreateList = async () => {
     if (!newListName.trim()) return
-    
-    try {
-      await addPlayerList(newListName.trim())
-      setNewListName('')
-      setShowNewListModal(false)
-      await loadPlayerLists()
-    } catch (error) {
-      console.error('Error creating player list:', error)
-    }
+
+    await addPlayerList(newListName.trim())
+    setNewListName('')
+    setShowNewListModal(false)
+    await loadPlayerLists()
   }
 
-  const handleSelectList = async (listId: string, listName: string) => {
-    setSelectedList({ id: listId, name: listName })
-    try {
-      const playerData = await getImportPlayerList(listId)
-      const sorted = sortPlayers(playerData)
-      setPlayers(sorted)
-      setShowPlayersModal(true)
-    } catch (error) {
-      console.error('Error loading players:', error)
+  const handleSavePlayer = async () => {
+    if (!selectedList || (!playerDraft.firstName.trim() && !playerDraft.lastName.trim())) return
+
+    if (editingPlayer) {
+      await editImportedPlayer(selectedList.id, editingPlayer.id, playerDraft)
+    } else {
+      await addImportedPlayer(
+        selectedList.id,
+        newImportedPlayer(
+          playerDraft.firstName.trim(),
+          playerDraft.lastName.trim(),
+          playerDraft.imageURL?.trim() || '',
+          playerDraft.country?.trim().toUpperCase() || '',
+        )
+      )
     }
+
+    setEditingPlayer(null)
+    setPlayerDraft(emptyPlayer)
+    setShowPlayerModal(false)
+    await reloadSelectedListPlayers(selectedList.id)
   }
 
-  const handleAddPlayer = async () => {
-    if (!selectedList || (!newPlayerFirstName.trim() && !newPlayerLastName.trim())) return
-    
-    try {
-      const playerSettings: Player = {
-        firstName: newPlayerFirstName.trim(),
-        lastName: newPlayerLastName.trim()
-      }
-      await addImportedPlayer(selectedList.id, playerSettings)
-      setNewPlayerFirstName('')
-      setNewPlayerLastName('')
-      setShowAddPlayerModal(false)
-      
-      // Reload players
-      const playerData = await getImportPlayerList(selectedList.id)
-      setPlayers(sortPlayers(playerData))
-    } catch (error) {
-      console.error('Error adding player:', error)
-    }
+  const handleRenameList = async () => {
+    if (!selectedList || !renamedListName.trim()) return
+
+    await updatePlayerListName(selectedList.myPlayerListID, selectedList.id, renamedListName.trim())
+    setSelectedList({ ...selectedList, name: renamedListName.trim() })
+    setShowRenameListModal(false)
+    await loadPlayerLists()
   }
 
-  const handleDeletePlayer = async (playerId: string) => {
-    if (!selectedList) return
-    
-    try {
-      await deleteImportedPlayer(selectedList.id, playerId)
-      // Reload players
-      const playerData = await getImportPlayerList(selectedList.id)
-      setPlayers(playerData.length > 0 ? sortPlayers(playerData) : [])
-    } catch (error) {
-      console.error('Error deleting player:', error)
+  const handleDeleteList = async () => {
+    if (!pendingDeleteList) return
+
+    await deletePlayerList(pendingDeleteList.myPlayerListID)
+    if (selectedList?.myPlayerListID === pendingDeleteList.myPlayerListID) {
+      setSelectedList(null)
+      setPlayers([])
+      setShowPlayersModal(false)
     }
+    setPendingDeleteList(null)
+    await loadPlayerLists()
+  }
+
+  const handleDeletePlayer = async () => {
+    if (!selectedList || !pendingDeletePlayer) return
+
+    await deleteImportedPlayer(selectedList.id, pendingDeletePlayer.id)
+    setPendingDeletePlayer(null)
+    await reloadSelectedListPlayers(selectedList.id)
   }
 
   if (authLoading || loading) {
@@ -150,12 +179,7 @@ export default function PlayersPage() {
       <VStack space="md" className="p-4">
         <HStack className="justify-between items-center">
           <Heading size="lg">Players</Heading>
-          <Button 
-            size="sm" 
-            variant="solid" 
-            action="primary"
-            onClick={() => setShowNewListModal(true)}
-          >
+          <Button size="sm" variant="solid" action="primary" onClick={() => setShowNewListModal(true)}>
             <PlusIcon size={16} />
             <Text className="ml-1 text-white">New List</Text>
           </Button>
@@ -169,138 +193,197 @@ export default function PlayersPage() {
               <Text className="text-gray-400 text-sm">Create a list to start adding players</Text>
             </Box>
           ) : (
-            playerLists.map(([listKey, list]) => (
-              <Pressable
-                key={listKey}
-                onPress={() => handleSelectList(list.id, list.playerListName)}
-              >
-                <Card variant="elevated" className="mb-2">
-                  <CardBody>
-                    <HStack className="justify-between items-center">
+            playerLists.map(([myPlayerListID, list]) => (
+              <Card key={myPlayerListID} variant="elevated" className="mb-2">
+                <CardBody>
+                  <HStack className="justify-between items-center gap-3">
+                    <Pressable
+                      className="flex-1"
+                      onPress={() => handleSelectList(myPlayerListID, list.id, list.playerListName)}
+                    >
                       <VStack className="flex-1">
                         <Text fontWeight="bold">{list.playerListName}</Text>
-                        <Text className="text-gray-500 text-sm">List</Text>
+                        <Text className="text-gray-500 text-sm">Player list</Text>
                       </VStack>
+                    </Pressable>
+                    <HStack className="items-center gap-2">
+                      <Pressable
+                        className="rounded-lg border border-slate-200 p-2"
+                        onPress={() => {
+                          setSelectedList({ myPlayerListID, id: list.id, name: list.playerListName })
+                          setRenamedListName(list.playerListName)
+                          setShowRenameListModal(true)
+                        }}
+                      >
+                        <PencilIcon size={16} className="text-slate-500" />
+                      </Pressable>
+                      <Pressable
+                        className="rounded-lg border border-red-200 p-2"
+                        onPress={() => setPendingDeleteList({ myPlayerListID, id: list.id, name: list.playerListName })}
+                      >
+                        <TrashIcon size={16} className="text-red-500" />
+                      </Pressable>
                       <ChevronRightIcon size={20} className="text-gray-400" />
                     </HStack>
-                  </CardBody>
-                </Card>
-              </Pressable>
+                  </HStack>
+                </CardBody>
+              </Card>
             ))
           )}
         </VStack>
       </VStack>
 
-      {/* New List Modal */}
-      {showNewListModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-bold mb-4">Create New Player List</h3>
-            <VStack space="sm">
-              <Input
-                placeholder="List Name"
-                value={newListName}
-                onChangeText={setNewListName}
-              />
-              <HStack className="justify-end space-x-2">
-                <Button variant="outline" onClick={() => setShowNewListModal(false)}>
-                  <Text>Cancel</Text>
-                </Button>
-                <Button action="primary" onClick={handleCreateList}>
-                  <Text className="text-white">Create</Text>
-                </Button>
-              </HStack>
-            </VStack>
-          </div>
-        </div>
-      )}
+      <OverlayDialog
+        isOpen={showNewListModal}
+        onClose={() => setShowNewListModal(false)}
+        title="Create Player List"
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => setShowNewListModal(false)}>
+              <Text>Cancel</Text>
+            </Button>
+            <Button action="primary" onClick={handleCreateList}>
+              <Text className="text-white">Create</Text>
+            </Button>
+          </>
+        )}
+      >
+        <Input placeholder="List name" value={newListName} onChangeText={setNewListName} />
+      </OverlayDialog>
 
-      {/* Players List Modal */}
-      {showPlayersModal && selectedList && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[80vh] flex flex-col">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold">{selectedList.name}</h3>
-              <Button 
-                size="sm" 
-                variant="solid" 
-                action="primary"
-                onClick={() => setShowAddPlayerModal(true)}
-              >
-                <PlusIcon size={16} />
-                <Text className="ml-1 text-white">Add</Text>
-              </Button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto">
-              {players.length === 0 ? (
-                <Box className="text-center py-8">
-                  <Text className="text-gray-500">No players in this list</Text>
-                </Box>
-              ) : (
-                <VStack space="sm">
-                  {players.map(([playerId, player]) => (
-                    <Card key={playerId} variant="outline" className="relative">
-                      <CardBody className="py-3">
-                        <HStack className="justify-between items-center">
-                          <Text>{getPlayerFormatted(player)}</Text>
-                          <Pressable
-                            onPress={() => handleDeletePlayer(playerId)}
-                            className="p-2"
-                          >
-                            <TrashIcon size={18} className="text-red-500" />
-                          </Pressable>
-                        </HStack>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </VStack>
-              )}
-            </div>
-            
-            <Button 
-              variant="outline" 
-              className="mt-4"
-              onClick={() => {
-                setShowPlayersModal(false)
-                setSelectedList(null)
-                setPlayers([])
-              }}
-            >
+      <OverlayDialog
+        isOpen={showRenameListModal}
+        onClose={() => setShowRenameListModal(false)}
+        title="Rename Player List"
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => setShowRenameListModal(false)}>
+              <Text>Cancel</Text>
+            </Button>
+            <Button action="primary" onClick={handleRenameList}>
+              <Text className="text-white">Save</Text>
+            </Button>
+          </>
+        )}
+      >
+        <Input placeholder="List name" value={renamedListName} onChangeText={setRenamedListName} />
+      </OverlayDialog>
+
+      <OverlayDialog
+        isOpen={showPlayersModal && !!selectedList}
+        onClose={() => {
+          setShowPlayersModal(false)
+          setSelectedList(null)
+          setPlayers([])
+        }}
+        title={selectedList?.name || 'Player List'}
+        size="lg"
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => navigate(`/bulkplayer?playerListID=${selectedList?.id || ''}`)}>
+              <Text>Bulk Manage</Text>
+            </Button>
+            <Button variant="outline" onClick={() => setShowPlayersModal(false)}>
               <Text>Close</Text>
             </Button>
-          </div>
-        </div>
-      )}
+            <Button
+              action="primary"
+              onClick={() => {
+                setEditingPlayer(null)
+                setPlayerDraft(emptyPlayer)
+                setShowPlayerModal(true)
+              }}
+            >
+              <Text className="text-white">Add Player</Text>
+            </Button>
+          </>
+        )}
+      >
+        {players.length === 0 ? (
+          <Box className="py-10 text-center">
+            <Text className="text-gray-500">No players in this list yet</Text>
+          </Box>
+        ) : (
+          <VStack className="gap-3">
+            {players.map(([playerId, player]) => (
+              <Card key={playerId} variant="outline">
+                <CardBody>
+                  <HStack className="items-center justify-between gap-3">
+                    <VStack className="flex-1">
+                      <Text className="font-medium text-slate-900">{getPlayerFormatted(player)}</Text>
+                      <Text className="text-xs text-slate-500">{player.country || 'No country set'}</Text>
+                    </VStack>
+                    <HStack className="items-center gap-2">
+                      <Pressable
+                        className="rounded-lg border border-slate-200 p-2"
+                        onPress={() => {
+                          setEditingPlayer({ id: playerId, player })
+                          setPlayerDraft({
+                            firstName: player.firstName || '',
+                            lastName: player.lastName || '',
+                            imageURL: player.imageURL || '',
+                            country: player.country || '',
+                          })
+                          setShowPlayerModal(true)
+                        }}
+                      >
+                        <PencilIcon size={16} className="text-slate-500" />
+                      </Pressable>
+                      <Pressable
+                        className="rounded-lg border border-red-200 p-2"
+                        onPress={() => setPendingDeletePlayer({ id: playerId, name: getPlayerFormatted(player) })}
+                      >
+                        <TrashIcon size={16} className="text-red-500" />
+                      </Pressable>
+                    </HStack>
+                  </HStack>
+                </CardBody>
+              </Card>
+            ))}
+          </VStack>
+        )}
+      </OverlayDialog>
 
-      {/* Add Player Modal */}
-      {showAddPlayerModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-bold mb-4">Add Player</h3>
-            <VStack space="sm">
-              <Input
-                placeholder="First Name"
-                value={newPlayerFirstName}
-                onChangeText={setNewPlayerFirstName}
-              />
-              <Input
-                placeholder="Last Name"
-                value={newPlayerLastName}
-                onChangeText={setNewPlayerLastName}
-              />
-              <HStack className="justify-end space-x-2">
-                <Button variant="outline" onClick={() => setShowAddPlayerModal(false)}>
-                  <Text>Cancel</Text>
-                </Button>
-                <Button action="primary" onClick={handleAddPlayer}>
-                  <Text className="text-white">Add</Text>
-                </Button>
-              </HStack>
-            </VStack>
-          </div>
-        </div>
-      )}
+      <OverlayDialog
+        isOpen={showPlayerModal}
+        onClose={() => setShowPlayerModal(false)}
+        title={editingPlayer ? 'Edit Player' : 'Add Player'}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => setShowPlayerModal(false)}>
+              <Text>Cancel</Text>
+            </Button>
+            <Button action="primary" onClick={handleSavePlayer}>
+              <Text className="text-white">{editingPlayer ? 'Save Changes' : 'Add Player'}</Text>
+            </Button>
+          </>
+        )}
+      >
+        <VStack className="gap-3">
+          <Input placeholder="First name" value={playerDraft.firstName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, firstName: value }))} />
+          <Input placeholder="Last name" value={playerDraft.lastName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, lastName: value }))} />
+          <Input placeholder="Image URL" value={playerDraft.imageURL} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, imageURL: value }))} />
+          <Input placeholder="Country code" value={playerDraft.country} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, country: value.toUpperCase() }))} />
+        </VStack>
+      </OverlayDialog>
+
+      <ConfirmDialog
+        isOpen={!!pendingDeleteList}
+        onClose={() => setPendingDeleteList(null)}
+        onConfirm={handleDeleteList}
+        title="Remove Player List"
+        message={`Remove ${pendingDeleteList?.name || 'this list'} from your dashboard? This keeps the current data model compatible and hides it from your list view.`}
+        confirmLabel="Remove"
+      />
+
+      <ConfirmDialog
+        isOpen={!!pendingDeletePlayer}
+        onClose={() => setPendingDeletePlayer(null)}
+        onConfirm={handleDeletePlayer}
+        title="Remove Player"
+        message={`Remove ${pendingDeletePlayer?.name || 'this player'} from the selected player list?`}
+        confirmLabel="Remove"
+      />
     </Box>
   )
 }

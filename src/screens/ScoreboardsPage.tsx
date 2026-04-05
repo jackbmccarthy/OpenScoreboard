@@ -1,31 +1,30 @@
 // @ts-nocheck
-// Scoreboards Page
-// Migrated from Expo MyScoreboards.tsx
 
-import { Box, Heading, Text, VStack, Card, CardBody, HStack, Pressable, Button, Input } from '@/components/ui'
-import { PlusIcon, ScoreboardIcon, ChevronRightIcon, TrashIcon } from '@/components/icons'
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getMyScoreboards, addNewScoreboard, deleteMyScoreboard, getScoreboardTypesList } from '@/functions/scoreboards'
+import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Text, VStack } from '@/components/ui'
+import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/icons'
 import { useAuth } from '@/lib/auth'
+import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import OverlayDialog from '@/components/crud/OverlayDialog'
+import { addNewScoreboard, deleteMyScoreboard, getMyScoreboards, getScoreboardTypesList, updateScoreboardDetails } from '@/functions/scoreboards'
 
-interface Scoreboard {
-  id: string
-  name: string
-  type: string
-  createdOn?: string
+const emptyScoreboardDraft = {
+  name: '',
+  type: 'liveStream',
 }
 
 export default function ScoreboardsPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
-  
-  const [scoreboards, setScoreboards] = useState<[string, Scoreboard][]>([])
-  const [scoreboardTypes, setScoreboardTypes] = useState<{id: string, name: string}[]>([])
+
+  const [scoreboards, setScoreboards] = useState([])
+  const [scoreboardTypes, setScoreboardTypes] = useState([])
   const [loading, setLoading] = useState(true)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [newScoreboardName, setNewScoreboardName] = useState('')
-  const [selectedType, setSelectedType] = useState('liveStream')
+  const [showScoreboardModal, setShowScoreboardModal] = useState(false)
+  const [editingScoreboard, setEditingScoreboard] = useState(null)
+  const [scoreboardDraft, setScoreboardDraft] = useState(emptyScoreboardDraft)
+  const [pendingDeleteScoreboard, setPendingDeleteScoreboard] = useState(null)
 
   const loadScoreboards = useCallback(async () => {
     try {
@@ -44,26 +43,46 @@ export default function ScoreboardsPage() {
     loadScoreboards()
   }, [authLoading, loadScoreboards])
 
-  const handleAddScoreboard = async () => {
-    if (!newScoreboardName.trim()) return
-    
-    try {
-      await addNewScoreboard(newScoreboardName.trim(), selectedType)
-      setNewScoreboardName('')
-      setShowAddForm(false)
-      await loadScoreboards()
-    } catch (error) {
-      console.error('Error adding scoreboard:', error)
-    }
+  const openNewScoreboardModal = () => {
+    setEditingScoreboard(null)
+    setScoreboardDraft(emptyScoreboardDraft)
+    setShowScoreboardModal(true)
   }
 
-  const handleDeleteScoreboard = async (myScoreboardId: string) => {
-    try {
-      await deleteMyScoreboard(myScoreboardId)
-      await loadScoreboards()
-    } catch (error) {
-      console.error('Error deleting scoreboard:', error)
+  const openEditScoreboardModal = (myScoreboardID, scoreboard) => {
+    setEditingScoreboard({ myScoreboardID, scoreboardID: scoreboard.id })
+    setScoreboardDraft({
+      name: scoreboard.name || '',
+      type: scoreboard.type || 'liveStream',
+    })
+    setShowScoreboardModal(true)
+  }
+
+  const handleSaveScoreboard = async () => {
+    if (!scoreboardDraft.name.trim()) return
+
+    if (editingScoreboard) {
+      await updateScoreboardDetails(
+        editingScoreboard.scoreboardID,
+        editingScoreboard.myScoreboardID,
+        scoreboardDraft.name.trim(),
+        scoreboardDraft.type
+      )
+    } else {
+      await addNewScoreboard(scoreboardDraft.name.trim(), scoreboardDraft.type)
     }
+
+    setShowScoreboardModal(false)
+    setEditingScoreboard(null)
+    setScoreboardDraft(emptyScoreboardDraft)
+    await loadScoreboards()
+  }
+
+  const handleDeleteScoreboard = async () => {
+    if (!pendingDeleteScoreboard) return
+    await deleteMyScoreboard(pendingDeleteScoreboard.myScoreboardID)
+    setPendingDeleteScoreboard(null)
+    await loadScoreboards()
   }
 
   if (authLoading || loading) {
@@ -92,69 +111,37 @@ export default function ScoreboardsPage() {
       <VStack space="md" className="p-4">
         <HStack className="justify-between items-center">
           <Heading size="lg">My Scoreboards</Heading>
-          <Button 
-            size="sm" 
-            variant="solid" 
-            action="primary"
-            onClick={() => setShowAddForm(!showAddForm)}
-          >
+          <Button size="sm" variant="solid" action="primary" onClick={openNewScoreboardModal}>
             <PlusIcon size={16} />
             <Text className="ml-1 text-white">New</Text>
           </Button>
         </HStack>
 
-        {showAddForm && (
-          <Card variant="outline">
-            <CardBody>
-              <VStack space="sm">
-                <Input
-                  placeholder="Scoreboard Name"
-                  value={newScoreboardName}
-                  onChangeText={setNewScoreboardName}
-                />
-                <HStack className="justify-end space-x-2">
-                  <Button size="sm" variant="outline" onClick={() => setShowAddForm(false)}>
-                    <Text>Cancel</Text>
-                  </Button>
-                  <Button size="sm" action="primary" onClick={handleAddScoreboard}>
-                    <Text className="text-white">Create</Text>
-                  </Button>
-                </HStack>
-              </VStack>
-            </CardBody>
-          </Card>
-        )}
-
-        <VStack space="sm">
-          {scoreboards.length === 0 && !showAddForm ? (
+        <VStack className="gap-3">
+          {scoreboards.length === 0 ? (
             <Box className="p-8 text-center">
               <ScoreboardIcon size={48} className="mx-auto text-gray-300 mb-4" />
               <Text className="text-gray-500">No scoreboards yet</Text>
               <Text className="text-gray-400 text-sm">Create your first scoreboard</Text>
             </Box>
           ) : (
-            scoreboards.map(([myScoreboardId, scoreboard]) => (
-              <Card key={myScoreboardId} variant="elevated" className="mb-2">
+            scoreboards.map(([myScoreboardID, scoreboard]) => (
+              <Card key={myScoreboardID} variant="elevated">
                 <CardBody>
-                  <HStack className="justify-between items-center">
-                    <Pressable 
-                      className="flex-1"
-                      onPress={() => navigate(`/scoreboard/${scoreboard.id}`)}
-                    >
-                      <VStack className="flex-1">
-                        <Text fontWeight="bold">{scoreboard.name}</Text>
-                        <Text className="text-gray-500 text-sm">
-                          {scoreboard.type || 'Live Stream'}
-                        </Text>
-                      </VStack>
-                    </Pressable>
-                    <HStack className="items-center">
-                      <ChevronRightIcon size={20} className="text-gray-400" />
-                      <Pressable
-                        onPress={() => handleDeleteScoreboard(myScoreboardId)}
-                        className="p-2 ml-2"
-                      >
-                        <TrashIcon size={18} className="text-red-500" />
+                  <HStack className="justify-between items-center gap-3">
+                    <VStack className="flex-1">
+                      <Text fontWeight="bold">{scoreboard.name}</Text>
+                      <Text className="text-gray-500 text-sm">{scoreboard.type || 'Live Stream'}</Text>
+                    </VStack>
+                    <HStack className="items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/editor?sid=${scoreboard.id}`)}>
+                        <Text>Editor</Text>
+                      </Button>
+                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openEditScoreboardModal(myScoreboardID, scoreboard)}>
+                        <PencilIcon size={16} className="text-slate-500" />
+                      </Pressable>
+                      <Pressable className="rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteScoreboard({ myScoreboardID, name: scoreboard.name })}>
+                        <TrashIcon size={16} className="text-red-500" />
                       </Pressable>
                     </HStack>
                   </HStack>
@@ -164,6 +151,40 @@ export default function ScoreboardsPage() {
           )}
         </VStack>
       </VStack>
+
+      <OverlayDialog
+        isOpen={showScoreboardModal}
+        onClose={() => setShowScoreboardModal(false)}
+        title={editingScoreboard ? 'Edit Scoreboard' : 'Create Scoreboard'}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => setShowScoreboardModal(false)}>
+              <Text>Cancel</Text>
+            </Button>
+            <Button action="primary" onClick={handleSaveScoreboard}>
+              <Text className="text-white">{editingScoreboard ? 'Save Changes' : 'Create Scoreboard'}</Text>
+            </Button>
+          </>
+        )}
+      >
+        <VStack className="gap-3">
+          <Input placeholder="Scoreboard name" value={scoreboardDraft.name} onChangeText={(value) => setScoreboardDraft((current) => ({ ...current, name: value }))} />
+          <Select value={scoreboardDraft.type} onValueChange={(value) => setScoreboardDraft((current) => ({ ...current, type: value }))}>
+            {scoreboardTypes.map((type) => (
+              <option key={type.id} value={type.id}>{type.name}</option>
+            ))}
+          </Select>
+        </VStack>
+      </OverlayDialog>
+
+      <ConfirmDialog
+        isOpen={!!pendingDeleteScoreboard}
+        onClose={() => setPendingDeleteScoreboard(null)}
+        onConfirm={handleDeleteScoreboard}
+        title="Remove Scoreboard"
+        message={`Remove ${pendingDeleteScoreboard?.name || 'this scoreboard'} from your visible scoreboard list?`}
+        confirmLabel="Remove"
+      />
     </Box>
   )
 }
