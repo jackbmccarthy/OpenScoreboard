@@ -1,12 +1,14 @@
 // @ts-nocheck
 
 import { useEffect, useMemo, useState } from 'react'
-import { Box, Button, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
+import { Avatar, Box, Button, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { useSearchParams } from 'react-router-dom'
 import { getImportPlayerList, getMyPlayerLists, replacePlayersInList, sortPlayers } from '@/functions/players'
 import { v4 as uuidv4 } from 'uuid'
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
+import countries from '@/flags/countries.json'
+import { UserIcon } from '@/components/icons'
 
 function createEmptyRow() {
   return {
@@ -17,6 +19,58 @@ function createEmptyRow() {
     country: '',
     isNew: true,
   }
+}
+
+function parseSpreadsheetRows(value) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const columns = line.includes('\t') ? line.split('\t') : line.split(',')
+      return {
+        id: uuidv4(),
+        firstName: (columns[0] || '').trim(),
+        lastName: (columns[1] || '').trim(),
+        imageURL: (columns[2] || '').trim(),
+        country: (columns[3] || '').trim().toUpperCase(),
+        isNew: true,
+      }
+    })
+}
+
+const countryOptions = Object.entries(countries)
+  .map(([code, name]) => ({ code, name }))
+  .sort((a, b) => a.name.localeCompare(b.name))
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return <Text className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">{children}</Text>
+}
+
+function ImagePreview({
+  src,
+  alt,
+}: {
+  src?: string
+  alt: string
+}) {
+  const [hasError, setHasError] = useState(false)
+  const hasImage = Boolean(src?.trim()) && !hasError
+
+  return (
+    <Box className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+      {hasImage ? (
+        <img
+          src={src}
+          alt={alt}
+          className="h-full w-full object-cover"
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <UserIcon size={22} className="text-slate-300" />
+      )}
+    </Box>
+  )
 }
 
 export default function BulkPlayerPage() {
@@ -30,6 +84,8 @@ export default function BulkPlayerPage() {
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
   const [pendingRemoval, setPendingRemoval] = useState(null)
+  const [viewMode, setViewMode] = useState<'form' | 'spreadsheet'>('form')
+  const [spreadsheetValue, setSpreadsheetValue] = useState('')
 
   async function loadPlayerLists() {
     setDoneLoading(false)
@@ -77,6 +133,14 @@ export default function BulkPlayerPage() {
 
   const visibleRows = useMemo(() => rows, [rows])
 
+  useEffect(() => {
+    setSpreadsheetValue(
+      rows
+        .map((row) => [row.firstName || '', row.lastName || '', row.imageURL || '', row.country || ''].join('\t'))
+        .join('\n')
+    )
+  }, [rows])
+
   const updateRow = (id, field, value) => {
     setRows((current) =>
       current.map((row) => row.id === id ? { ...row, [field]: value } : row)
@@ -85,6 +149,13 @@ export default function BulkPlayerPage() {
 
   const handleAddRow = () => {
     setRows((current) => [...current, createEmptyRow()])
+  }
+
+  const handleApplySpreadsheet = () => {
+    const parsedRows = parseSpreadsheetRows(spreadsheetValue)
+    setRows(parsedRows)
+    setSuccess(`Loaded ${parsedRows.length} row${parsedRows.length === 1 ? '' : 's'} from spreadsheet data.`)
+    setError(null)
   }
 
   const confirmRemoveRow = () => {
@@ -151,6 +222,15 @@ export default function BulkPlayerPage() {
           Add rows, edit fields inline, or remove rows before saving the entire player list in one pass.
         </Text>
 
+        <HStack className="gap-2">
+          <Button variant={viewMode === 'form' ? 'solid' : 'outline'} onClick={() => setViewMode('form')}>
+            <Text className={viewMode === 'form' ? 'text-white' : ''}>Field View</Text>
+          </Button>
+          <Button variant={viewMode === 'spreadsheet' ? 'solid' : 'outline'} onClick={() => setViewMode('spreadsheet')}>
+            <Text className={viewMode === 'spreadsheet' ? 'text-white' : ''}>Spreadsheet View</Text>
+          </Button>
+        </HStack>
+
         <Select value={selectedPlayerListID} onValueChange={setSelectedPlayerListID}>
           <option value="">Select a player list</option>
           {myPlayerLists.map(([id, list]) => (
@@ -158,25 +238,78 @@ export default function BulkPlayerPage() {
           ))}
         </Select>
 
-        <VStack className="gap-3">
-          {visibleRows.map((row) => (
-            <Box key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-              <VStack className="gap-3">
-                <HStack className="gap-3">
-                  <Input placeholder="First name" value={row.firstName} onChangeText={(value) => updateRow(row.id, 'firstName', value)} />
-                  <Input placeholder="Last name" value={row.lastName} onChangeText={(value) => updateRow(row.id, 'lastName', value)} />
-                </HStack>
-                <HStack className="gap-3">
-                  <Input placeholder="Image URL" value={row.imageURL} onChangeText={(value) => updateRow(row.id, 'imageURL', value)} />
-                  <Input placeholder="Country" value={row.country} onChangeText={(value) => updateRow(row.id, 'country', value.toUpperCase())} />
-                </HStack>
-                <Button variant="outline" onClick={() => setPendingRemoval({ id: row.id, label: `${row.firstName} ${row.lastName}`.trim() || 'this player row' })}>
-                  <Text>Remove Row</Text>
+        {viewMode === 'form' ? (
+          <VStack className="gap-3">
+            {visibleRows.map((row) => (
+              <Box key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <VStack className="gap-3">
+                  <HStack className="items-start gap-4">
+                    <ImagePreview
+                      src={row.imageURL}
+                      alt={`${row.firstName || ''} ${row.lastName || ''}`.trim() || 'Player image preview'}
+                    />
+                    <VStack className="flex-1 gap-3">
+                      <HStack className="gap-3">
+                        <Box className="flex-1">
+                          <FieldLabel>First Name</FieldLabel>
+                          <Input value={row.firstName} onChangeText={(value) => updateRow(row.id, 'firstName', value)} />
+                        </Box>
+                        <Box className="flex-1">
+                          <FieldLabel>Last Name</FieldLabel>
+                          <Input value={row.lastName} onChangeText={(value) => updateRow(row.id, 'lastName', value)} />
+                        </Box>
+                      </HStack>
+                      <HStack className="gap-3">
+                        <Box className="flex-[1.4]">
+                          <FieldLabel>Image URL</FieldLabel>
+                          <Input value={row.imageURL} onChangeText={(value) => updateRow(row.id, 'imageURL', value)} />
+                        </Box>
+                        <Box className="flex-1">
+                          <FieldLabel>Country</FieldLabel>
+                          <Select value={row.country} onValueChange={(value) => updateRow(row.id, 'country', value.toUpperCase())}>
+                            <option value="">Select country</option>
+                            {countryOptions.map((country) => (
+                              <option key={country.code} value={country.code}>
+                                {country.name}
+                              </option>
+                            ))}
+                          </Select>
+                        </Box>
+                      </HStack>
+                    </VStack>
+                  </HStack>
+                  <Button variant="outline" onClick={() => setPendingRemoval({ id: row.id, label: `${row.firstName} ${row.lastName}`.trim() || 'this player row' })}>
+                    <Text>Remove Row</Text>
+                  </Button>
+                </VStack>
+              </Box>
+            ))}
+          </VStack>
+        ) : (
+          <Box className="rounded-2xl border border-slate-200 bg-white p-4">
+            <VStack className="gap-3">
+              <Text className="text-sm text-slate-600">
+                Paste rows from Excel, Google Sheets, or Numbers using this column order:
+                <br />
+                `First Name`, `Last Name`, `Image URL`, `Country Code`
+              </Text>
+              <textarea
+                className="min-h-[320px] w-full rounded-xl border border-slate-200 px-3 py-3 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                value={spreadsheetValue}
+                onChange={(event) => setSpreadsheetValue(event.target.value)}
+                placeholder={`First Name\tLast Name\tImage URL\tCountry Code\nJane\tDoe\thttps://example.com/avatar.jpg\tUS`}
+              />
+              <HStack className="gap-3">
+                <Button variant="outline" onClick={handleApplySpreadsheet}>
+                  <Text>Apply Spreadsheet Changes</Text>
                 </Button>
-              </VStack>
-            </Box>
-          ))}
-        </VStack>
+                <Text className="self-center text-xs text-slate-500">
+                  Tab-separated values work best, but comma-separated rows are also accepted.
+                </Text>
+              </HStack>
+            </VStack>
+          </Box>
+        )}
 
         {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
         {success ? <Text className="text-sm text-green-600">{success}</Text> : null}
