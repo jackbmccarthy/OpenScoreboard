@@ -153,12 +153,12 @@ export function Modal({ children, isOpen, onClose, className = '', ...props }: M
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm"
       onClick={onClose}
       {...props}
     >
       <div
-        className={mergeClasses('bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl', className)}
+        className={mergeClasses('premium-panel w-full max-w-md rounded-[1.75rem] border border-white/70 p-6 shadow-2xl', className)}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -239,7 +239,7 @@ export function Input({
   return (
     <input
       className={mergeClasses(
-        'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
+        'w-full rounded-xl border border-slate-200 bg-white/90 px-3.5 py-3 text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100',
         className,
       )}
       onChange={handleChange}
@@ -263,7 +263,7 @@ export function Select({
   return (
     <select
       className={mergeClasses(
-        'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
+        'w-full rounded-xl border border-slate-200 bg-white/90 px-3.5 py-3 text-slate-900 shadow-sm transition-all focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100',
         className,
       )}
       value={value}
@@ -322,12 +322,12 @@ export function Button({
   ...props
 }: ButtonProps) {
   const variantClasses: Record<string, string> = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700',
-    secondary: 'bg-gray-600 text-white hover:bg-gray-700',
-    outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50',
-    ghost: 'text-gray-700 hover:bg-gray-100',
-    danger: 'bg-red-600 text-white hover:bg-red-700',
-    solid: 'bg-blue-600 text-white hover:bg-blue-700',
+    primary: 'bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-cyan-300',
+    secondary: 'bg-slate-700 text-white shadow-md shadow-slate-400/15 hover:bg-slate-800',
+    outline: 'border border-slate-200 bg-white/90 text-slate-700 shadow-sm hover:border-slate-300 hover:bg-white',
+    ghost: 'text-slate-700 hover:bg-slate-100/80',
+    danger: 'bg-gradient-to-r from-rose-600 to-red-500 text-white shadow-lg shadow-rose-500/20 hover:from-rose-500 hover:to-red-400',
+    solid: 'bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-cyan-300',
   }
 
   const sizeClasses: Record<string, string> = {
@@ -340,7 +340,7 @@ export function Button({
     <button
       type="button"
       className={mergeClasses(
-        'rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
+        'rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed',
         variantClasses[variant] ?? variantClasses.primary,
         sizeClasses[size] ?? sizeClasses.md,
         className,
@@ -364,7 +364,7 @@ export function Pressable({ children, className = '', onPress, onClick, ...props
 
 export function Card({ children, className = '', ...props }: BoxProps) {
   return (
-    <div className={mergeClasses('bg-white rounded-lg shadow-sm border', className)} {...props}>
+    <div className={mergeClasses('premium-card rounded-[1.5rem] border border-white/70 shadow-lg shadow-slate-200/70', className)} {...props}>
       {children}
     </div>
   )

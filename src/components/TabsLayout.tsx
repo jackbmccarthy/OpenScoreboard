@@ -13,7 +13,9 @@ import {
   SettingsIcon,
   HomeIcon,
   MenuIcon,
-  XIcon
+  XIcon,
+  LogoutIcon,
+  UserIcon
 } from './icons'
 
 interface TabItem {
@@ -68,36 +70,35 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
   }
 
   return (
-    <Box className="flex flex-col min-h-screen bg-gray-50">
-      {/* Top Navigation Bar - Modern gradient style */}
-      <Box className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
-        <HStack className="max-w-7xl mx-auto justify-between items-center px-4 lg:px-6">
+    <Box className="app-shell-bg flex min-h-screen flex-col">
+      <Box className="sticky top-0 z-40 px-3 pt-3 sm:px-4 lg:px-6">
+        <HStack className="app-glass mx-auto max-w-7xl items-center justify-between rounded-[1.75rem] border border-white/70 px-4 py-3 lg:px-5">
           {/* Logo */}
-          <Link to="/dashboard" className="flex items-center gap-3 py-3 group">
-            <Box className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
+          <Link to="/dashboard" className="group flex items-center gap-3">
+            <Box className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-lg shadow-blue-500/20 transition-transform group-hover:scale-[1.03]">
               <ScoreboardIcon size={22} color="white" />
             </Box>
-            <VStack className="gap-0 hidden sm:block">
-              <Text className="font-bold text-gray-900 text-lg leading-tight">Open Scoreboard</Text>
-              <Text className="text-xs text-gray-500 leading-tight">Scorekeeping Made Simple</Text>
+            <VStack className="hidden gap-0 sm:block">
+              <Text className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600">Open Scoreboard</Text>
+              <Text className="text-xs text-slate-500">Built for stream desks and tournament ops</Text>
             </VStack>
           </Link>
 
           {/* Desktop Navigation */}
-          <HStack className="hidden lg:flex items-center gap-1">
+          <HStack className="hidden items-center gap-2 lg:flex">
             {tabs.map((tab) => {
               const isActive = getCurrentTab() === tab.name
               return (
                 <Link 
                   key={tab.name} 
                   to={tab.path}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                  className={`nav-pill flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all ${
                     isActive
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      ? 'bg-slate-950 text-white shadow-lg shadow-slate-900/15'
+                      : 'text-slate-600 hover:bg-white hover:text-slate-950'
                   }`}
                 >
-                  <span className={isActive ? 'text-white' : 'text-gray-400'}>{tab.icon}</span>
+                  <span className={isActive ? 'text-white' : 'text-slate-400'}>{tab.icon}</span>
                   {tab.label}
                 </Link>
               )
@@ -105,27 +106,27 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
           </HStack>
 
           {/* User Section */}
-          <HStack className="items-center gap-3">
+          <HStack className="items-center gap-2">
             <Box className="relative">
               <Button
                 variant="ghost"
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-gray-100 transition-colors"
+                className="rounded-2xl px-2 py-1.5 hover:bg-white"
               >
-                <Box className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm">
+                <Box className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
                   {user?.photoURL ? (
-                    <img src={user.photoURL} alt="" className="w-9 h-9 rounded-full object-cover" />
+                    <img src={user.photoURL} alt="" className="h-10 w-10 rounded-2xl object-cover" />
                   ) : (
-                    <Text className="text-white font-semibold text-sm">
+                    <Text className="text-sm font-semibold text-white">
                       {user?.email?.charAt(0).toUpperCase() || 'U'}
                     </Text>
                   )}
                 </Box>
-                <VStack className="gap-0 hidden md:block text-left">
-                  <Text className="text-gray-900 text-sm font-medium max-w-[120px] truncate">
+                <VStack className="hidden gap-0 text-left md:block">
+                  <Text className="max-w-[140px] truncate text-sm font-semibold text-slate-900">
                     {user?.displayName || 'User'}
                   </Text>
-                  <Text className="text-gray-500 text-xs truncate max-w-[120px]">
+                  <Text className="max-w-[140px] truncate text-xs text-slate-500">
                     {user?.email}
                   </Text>
                 </VStack>
@@ -133,38 +134,40 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
 
               {/* User Menu Dropdown */}
               {showUserMenu && (
-                <Box className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <Box className="px-4 py-2 border-b border-gray-100">
-                    <Text className="text-xs text-gray-500 uppercase tracking-wide">Signed in as</Text>
-                    <Text className="text-sm font-medium text-gray-900 truncate">{user?.email}</Text>
+                <Box className="premium-card absolute right-0 mt-3 w-64 rounded-[1.5rem] border border-white/80 py-2 shadow-2xl z-50">
+                  <Box className="px-4 py-3">
+                    <Text className="text-xs uppercase tracking-[0.22em] text-slate-400">Signed in as</Text>
+                    <Text className="truncate text-sm font-semibold text-slate-900">{user?.email}</Text>
                   </Box>
+                  <Box className="premium-divider mx-4" />
                   <Link
                     to="/my-account"
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 transition-colors hover:bg-slate-50"
                     onClick={() => setShowUserMenu(false)}
                   >
-                    <Box className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <Text className="text-gray-500">👤</Text>
+                    <Box className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100">
+                      <UserIcon size={16} className="text-slate-500" />
                     </Box>
                     My Account
                   </Link>
                   <Link
                     to="/my-scoreboards"
-                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 transition-colors hover:bg-slate-50"
                     onClick={() => setShowUserMenu(false)}
                   >
-                    <Box className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-                      <ScoreboardIcon size={16} color="gray" />
+                    <Box className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100">
+                      <ScoreboardIcon size={16} className="text-slate-500" />
                     </Box>
                     My Scoreboards
                   </Link>
-                  <Box className="border-t border-gray-100 mt-2 pt-2">
+                  <Box className="premium-divider mx-4 mt-2" />
+                  <Box className="pt-2">
                     <button
                       onClick={handleLogout}
-                      className="flex items-center gap-3 w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
                     >
-                      <Box className="w-8 h-8 bg-red-50 rounded-lg flex items-center justify-center">
-                        <Text className="text-red-500">↩</Text>
+                      <Box className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50">
+                        <LogoutIcon size={16} className="text-rose-500" />
                       </Box>
                       Sign Out
                     </button>
@@ -177,7 +180,7 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
             <Button
               variant="ghost"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+              className="rounded-2xl p-2 lg:hidden hover:bg-white"
             >
               {mobileMenuOpen ? <XIcon size={24} /> : <MenuIcon size={24} />}
             </Button>
@@ -186,8 +189,9 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
 
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <Box className="lg:hidden border-t border-gray-100 bg-white">
-            <VStack className="p-3 gap-1">
+          <Box className="mobile-sheet-enter app-glass mt-3 rounded-[1.75rem] border border-white/80 p-3 lg:hidden">
+            <VStack className="gap-2">
+              <Text className="px-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Navigate</Text>
               {tabs.map((tab) => {
                 const isActive = getCurrentTab() === tab.name
                 return (
@@ -195,10 +199,10 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
                     key={tab.name} 
                     to={tab.path}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+                    className={`nav-pill flex items-center gap-3 rounded-2xl px-4 py-3 font-medium transition-all ${
                       isActive
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-600 hover:bg-gray-100'
+                        ? 'bg-slate-950 text-white shadow-lg shadow-slate-900/15'
+                        : 'text-slate-700 hover:bg-white'
                     }`}
                   >
                     {tab.icon}
@@ -206,23 +210,30 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
                   </Link>
                 )
               })}
+              <Box className="premium-divider my-2" />
+              <Link to="/my-account" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 hover:bg-white">
+                My Account
+              </Link>
+              <Link to="/my-scoreboards" onClick={() => setMobileMenuOpen(false)} className="rounded-2xl px-4 py-3 text-sm font-medium text-slate-700 hover:bg-white">
+                My Scoreboards
+              </Link>
             </VStack>
           </Box>
         )}
       </Box>
       
       {/* Page Content */}
-      <Box className="flex-1 max-w-7xl mx-auto w-full p-4 lg:p-6">
+      <Box className="flex-1 mx-auto w-full max-w-7xl px-4 pb-8 pt-6 lg:px-6 lg:pt-8">
         {children ?? <Outlet />}
       </Box>
 
       {/* Footer */}
-      <Box className="border-t border-gray-200 bg-white py-4">
-        <HStack className="max-w-7xl mx-auto px-4 justify-between items-center text-sm text-gray-500">
+      <Box className="px-3 pb-3 sm:px-4 lg:px-6">
+        <HStack className="app-glass mx-auto max-w-7xl items-center justify-between rounded-[1.5rem] border border-white/70 px-4 py-4 text-sm text-slate-500">
           <Text>Open Scoreboard v3.0</Text>
           <HStack className="gap-4">
-            <Link to="/settings" className="hover:text-gray-700 transition-colors">Settings</Link>
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-gray-700 transition-colors">GitHub</a>
+            <Link to="/settings" className="transition-colors hover:text-slate-900">Settings</Link>
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-slate-900">GitHub</a>
           </HStack>
         </HStack>
       </Box>

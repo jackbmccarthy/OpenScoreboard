@@ -1,4 +1,4 @@
-import { Box, Text, VStack, HStack, Card, CardBody, Pressable, Heading, Spinner } from '@/components/ui'
+import { Box, Text, VStack, HStack, Pressable, Heading, Spinner, Badge } from '@/components/ui'
 import { ScoreboardIcon, PlayersIcon, TeamsIcon, TablesIcon, SettingsIcon, ChevronRightIcon } from '@/components/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
@@ -95,12 +95,12 @@ function DashboardItem({ item }: DashboardItemProps) {
 
   return (
     <Pressable
-      className="group rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-lg"
+      className="premium-card group rounded-[1.75rem] border border-white/70 p-5 transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-xl"
       onPress={() => navigate(item.route)}
     >
       <HStack className="items-start justify-between gap-4">
         <HStack className="items-start gap-3 flex-1">
-          <Box className="mt-0.5 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <Box className="mt-0.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600/10 to-cyan-400/10 text-blue-600">
             <Icon size={22} className="text-blue-600" />
           </Box>
           <VStack className="gap-1 flex-1">
@@ -128,15 +128,25 @@ export default function DashboardPage() {
   return (
     <Box className="flex-1">
       <VStack space="lg">
-        <Box className="rounded-3xl bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 px-6 py-8 text-white shadow-2xl">
-          <VStack className="gap-3">
-            <Text className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-200">Dashboard</Text>
-            <Heading size="2xl" className="text-white">
+        <Box className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 px-6 py-8 text-white shadow-2xl shadow-slate-900/10 lg:px-8 lg:py-10">
+          <Box className="premium-orb -right-10 top-6 h-40 w-40 bg-cyan-300/20" />
+          <Box className="premium-orb bottom-0 left-1/3 h-52 w-52 bg-blue-400/20 premium-delay-2" />
+          <VStack className="relative z-10 gap-6">
+            <VStack className="gap-3">
+              <Text className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-200">Dashboard</Text>
+              <Heading size="2xl" className="max-w-3xl text-white">
               {user?.displayName ? `Welcome back, ${user.displayName}.` : 'Run your event from one control room.'}
-            </Heading>
-            <Text className="max-w-2xl text-sm leading-7 text-slate-200">
-              Create tables, update scores, manage players and teams, and push scoreboard changes live without changing your existing data contract.
-            </Text>
+              </Heading>
+              <Text className="max-w-2xl text-sm leading-7 text-slate-200">
+                Create tables, update scores, manage players and teams, and push scoreboard changes live without changing your existing data contract.
+              </Text>
+            </VStack>
+
+            <HStack className="flex-wrap gap-3">
+              <Badge className="rounded-full bg-white/10 px-3 py-1.5 text-blue-100">High-contrast scoring UI</Badge>
+              <Badge className="rounded-full bg-white/10 px-3 py-1.5 text-blue-100">Realtime overlay control</Badge>
+              <Badge className="rounded-full bg-white/10 px-3 py-1.5 text-blue-100">Fast operator workflows</Badge>
+            </HStack>
           </VStack>
         </Box>
 
