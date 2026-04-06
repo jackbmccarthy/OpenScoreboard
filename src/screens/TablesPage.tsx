@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack, Card, CardBody } from '@/components/ui'
-import { PencilIcon, PlusIcon, TablesIcon, TrashIcon } from '@/components/icons'
+import { CopyIcon, ExternalLinkIcon, LinkIcon, PencilIcon, PlusIcon, ScoreboardIcon, TablesIcon, TrashIcon } from '@/components/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
@@ -10,6 +10,8 @@ import OverlayDialog from '@/components/crud/OverlayDialog'
 import { createNewTable, deleteTable, getMyTables, updateTable } from '@/functions/tables'
 import { getMyPlayerLists } from '@/functions/players'
 import { supportedSports } from '@/functions/sports'
+import { getMyScoreboards } from '@/functions/scoreboards'
+import { addDynamicURL, getMyDynamicURLs } from '@/functions/dynamicurls'
 
 const emptyTableDraft = {
   tableName: '',
@@ -24,10 +26,17 @@ export default function TablesPage() {
 
   const [tables, setTables] = useState([])
   const [playerLists, setPlayerLists] = useState([])
+  const [scoreboards, setScoreboards] = useState([])
+  const [dynamicURLs, setDynamicURLs] = useState([])
   const [loading, setLoading] = useState(true)
   const [showTableModal, setShowTableModal] = useState(false)
+  const [showTableLinksModal, setShowTableLinksModal] = useState(false)
+  const [showDynamicURLSaveModal, setShowDynamicURLSaveModal] = useState(false)
   const [editingTable, setEditingTable] = useState(null)
+  const [selectedTableForLinks, setSelectedTableForLinks] = useState(null)
+  const [selectedLinkCombo, setSelectedLinkCombo] = useState(null)
   const [tableDraft, setTableDraft] = useState(emptyTableDraft)
+  const [dynamicURLName, setDynamicURLName] = useState('')
   const [pendingDeleteTable, setPendingDeleteTable] = useState(null)
 
   useEffect(() => {
@@ -41,6 +50,8 @@ export default function TablesPage() {
         ])
         setTables(myTables.map(([myTableID, data]) => ({ myTableID, ...data })))
         setPlayerLists(myPlayerLists)
+        setScoreboards(await getMyScoreboards(user?.uid || 'mylocalserver'))
+        setDynamicURLs(await getMyDynamicURLs())
       } catch (error) {
         console.error('Error fetching tables:', error)
       } finally {
@@ -59,6 +70,7 @@ export default function TablesPage() {
   const reloadTables = async () => {
     const myTables = await getMyTables()
     setTables(myTables.map(([myTableID, data]) => ({ myTableID, ...data })))
+    setDynamicURLs(await getMyDynamicURLs())
   }
 
   const openNewTableModal = () => {
@@ -103,6 +115,54 @@ export default function TablesPage() {
     await deleteTable(pendingDeleteTable.myTableID)
     setPendingDeleteTable(null)
     await reloadTables()
+  }
+
+  const getTableScoreboardLinks = (table) => {
+    const baseURL = typeof window !== 'undefined' ? window.location.origin : ''
+    return scoreboards.map(([myScoreboardID, scoreboard]) => {
+      const href = `${baseURL}/scoreboard/view?sid=${scoreboard.id}&tid=${table.tableID}`
+      const existingDynamicURL = dynamicURLs.find(([, dynamicURL]) => dynamicURL.tableID === table.tableID && dynamicURL.scoreboardID === scoreboard.id)
+      return {
+        myScoreboardID,
+        scoreboardID: scoreboard.id,
+        scoreboardName: scoreboard.name || 'Untitled Scoreboard',
+        scoreboardType: scoreboard.type || 'liveStream',
+        href,
+        existingDynamicURL,
+      }
+    })
+  }
+
+  const handleCopyLink = async (href) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(href)
+    }
+  }
+
+  const openTableLinksModal = (table) => {
+    setSelectedTableForLinks(table)
+    setShowTableLinksModal(true)
+  }
+
+  const openSaveDynamicURLModal = (table, combo) => {
+    setSelectedLinkCombo({ table, combo })
+    setDynamicURLName(`${table.tableName} • ${combo.scoreboardName}`)
+    setShowDynamicURLSaveModal(true)
+  }
+
+  const handleSaveDynamicURL = async () => {
+    if (!selectedLinkCombo || !dynamicURLName.trim()) return
+
+    await addDynamicURL({
+      dynamicURLName: dynamicURLName.trim(),
+      scoreboardID: selectedLinkCombo.combo.scoreboardID,
+      tableID: selectedLinkCombo.table.tableID,
+    })
+
+    setShowDynamicURLSaveModal(false)
+    setSelectedLinkCombo(null)
+    setDynamicURLName('')
+    setDynamicURLs(await getMyDynamicURLs())
   }
 
   if (authLoading || loading) {
@@ -163,6 +223,9 @@ export default function TablesPage() {
                       <Button size="sm" variant="outline" onClick={() => navigate(`/scoring/table/${table.tableID}`)}>
                         <Text>Score</Text>
                       </Button>
+                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openTableLinksModal(table)}>
+                        <LinkIcon size={16} className="text-slate-500" />
+                      </Pressable>
                       <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openEditTableModal(table)}>
                         <PencilIcon size={16} className="text-slate-500" />
                       </Pressable>
@@ -225,6 +288,87 @@ export default function TablesPage() {
         message={`Remove ${pendingDeleteTable?.tableName || 'this table'} from your visible table list?`}
         confirmLabel="Remove"
       />
+
+      <OverlayDialog
+        isOpen={showTableLinksModal && !!selectedTableForLinks}
+        onClose={() => {
+          setShowTableLinksModal(false)
+          setSelectedTableForLinks(null)
+        }}
+        title={`Scoreboard Links for ${selectedTableForLinks?.tableName || 'Table'}`}
+        description="Each link combines this table's data with one scoreboard display. Open or copy a link directly, or save a combo as a dynamic URL."
+        size="xl"
+      >
+        <VStack className="gap-3">
+          {selectedTableForLinks ? getTableScoreboardLinks(selectedTableForLinks).map((combo) => (
+            <Card key={combo.scoreboardID} variant="elevated">
+              <CardBody>
+                <VStack className="gap-3">
+                  <HStack className="items-start justify-between gap-3">
+                    <HStack className="items-start gap-3">
+                      <Box className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600/10 to-cyan-400/10">
+                        <ScoreboardIcon size={18} className="text-blue-600" />
+                      </Box>
+                      <VStack className="gap-1">
+                        <Text className="font-semibold text-slate-900">{combo.scoreboardName}</Text>
+                        <Text className="text-xs uppercase tracking-[0.18em] text-slate-500">{combo.scoreboardType}</Text>
+                      </VStack>
+                    </HStack>
+                    {combo.existingDynamicURL ? (
+                      <Text className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                        Saved as {combo.existingDynamicURL[1].dynamicURLName || 'Dynamic URL'}
+                      </Text>
+                    ) : null}
+                  </HStack>
+
+                  <Box className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <Text className="break-all font-mono text-xs text-slate-600">{combo.href}</Text>
+                  </Box>
+
+                  <HStack className="flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => handleCopyLink(combo.href)}>
+                      <CopyIcon size={14} />
+                      <Text className="ml-1">Copy Link</Text>
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => window.open(combo.href, '_blank')}>
+                      <ExternalLinkIcon size={14} />
+                      <Text className="ml-1">Open Link</Text>
+                    </Button>
+                    {!combo.existingDynamicURL ? (
+                      <Button size="sm" action="primary" onClick={() => openSaveDynamicURLModal(selectedTableForLinks, combo)}>
+                        <PlusIcon size={14} />
+                        <Text className="ml-1 text-white">Save as Dynamic URL</Text>
+                      </Button>
+                    ) : null}
+                  </HStack>
+                </VStack>
+              </CardBody>
+            </Card>
+          )) : null}
+        </VStack>
+      </OverlayDialog>
+
+      <OverlayDialog
+        isOpen={showDynamicURLSaveModal && !!selectedLinkCombo}
+        onClose={() => {
+          setShowDynamicURLSaveModal(false)
+          setSelectedLinkCombo(null)
+        }}
+        title="Save Dynamic URL"
+        description="Dynamic URLs let you save a table + scoreboard display combo as a reusable entry."
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => setShowDynamicURLSaveModal(false)}>
+              <Text>Cancel</Text>
+            </Button>
+            <Button action="primary" onClick={handleSaveDynamicURL}>
+              <Text className="text-white">Save Dynamic URL</Text>
+            </Button>
+          </>
+        )}
+      >
+        <Input value={dynamicURLName} onChangeText={setDynamicURLName} placeholder="Dynamic URL name" />
+      </OverlayDialog>
     </Box>
   )
 }
