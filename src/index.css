@@ -122,7 +122,17 @@ h6 {
   gap: 0.5rem;
   min-width: 0;
   max-width: 100%;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+
+.adaptive-button .adaptive-button-content > p,
+.adaptive-button .adaptive-button-content > span,
+.adaptive-button .adaptive-button-content > div > p,
+.adaptive-button .adaptive-button-content > div > span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .adaptive-button .adaptive-button-content svg {

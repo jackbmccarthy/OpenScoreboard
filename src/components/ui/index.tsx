@@ -357,7 +357,7 @@ export function Button({
     <button
       type="button"
       className={mergeClasses(
-        'adaptive-button inline-flex max-w-full items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed',
+        'adaptive-button inline-flex max-w-full items-center justify-center gap-2 overflow-hidden rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed',
         variantClasses[variant] ?? variantClasses.primary,
         sizeClasses[size] ?? sizeClasses.md,
         className,
