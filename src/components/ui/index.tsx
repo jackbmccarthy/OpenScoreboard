@@ -367,7 +367,7 @@ export function Button({
       title={inferredTitle}
       {...props}
     >
-      {children}
+      <span className="adaptive-button-content">{children}</span>
     </button>
   )
 }

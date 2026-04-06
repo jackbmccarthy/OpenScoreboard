@@ -114,30 +114,35 @@ h6 {
   container-type: inline-size;
 }
 
-.adaptive-button > p,
-.adaptive-button > span,
-.adaptive-button > div,
-.adaptive-button > div > p,
-.adaptive-button > div > span {
-  margin: 0;
-}
-
-.adaptive-button > div {
+.adaptive-button .adaptive-button-content,
+.adaptive-button .adaptive-button-content > div {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   min-width: 0;
   max-width: 100%;
+  flex-wrap: nowrap;
 }
 
-.adaptive-button:has(svg) > p,
-.adaptive-button:has(svg) > span,
-.adaptive-button:has(svg) > div > p,
-.adaptive-button:has(svg) > div > span {
+.adaptive-button .adaptive-button-content > p,
+.adaptive-button .adaptive-button-content > span,
+.adaptive-button .adaptive-button-content > div > p,
+.adaptive-button .adaptive-button-content > div > span {
+  margin: 0;
+}
+
+.adaptive-button .adaptive-button-content > p,
+.adaptive-button .adaptive-button-content > span,
+.adaptive-button .adaptive-button-content > div > p,
+.adaptive-button .adaptive-button-content > div > span {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.adaptive-button .adaptive-button-content svg {
+  flex-shrink: 0;
 }
 
 .copy-pop {
@@ -193,14 +198,15 @@ h6 {
 }
 
 @container (max-width: 8.25rem) {
-  .adaptive-button:has(svg) > p,
-  .adaptive-button:has(svg) > span,
-  .adaptive-button:has(svg) > div > p,
-  .adaptive-button:has(svg) > div > span {
+  .adaptive-button .adaptive-button-content > p,
+  .adaptive-button .adaptive-button-content > span,
+  .adaptive-button .adaptive-button-content > div > p,
+  .adaptive-button .adaptive-button-content > div > span {
     display: none;
   }
 
-  .adaptive-button:has(svg) > div {
+  .adaptive-button .adaptive-button-content,
+  .adaptive-button .adaptive-button-content > div {
     gap: 0;
   }
 }
