@@ -47,6 +47,34 @@ export async function addNewScoreboard(name, type) {
     return newlyAdded.key
 }
 
+export async function getScoreboard(scoreboardID) {
+    const snapshot = await db.ref(`scoreboards/${scoreboardID}`).get()
+    return snapshot.val()
+}
+
+export async function duplicateScoreboard(sourceScoreboardID, myScoreboardName) {
+    const scoreboard = await getScoreboard(sourceScoreboardID)
+    if (!scoreboard) {
+        return null
+    }
+
+    const duplicated = {
+        ...scoreboard,
+        ownerID: getUserPath(),
+        name: myScoreboardName || `${scoreboard.name || 'Scoreboard'} Copy`,
+    }
+
+    const newlyAdded = await db.ref("scoreboards").push(duplicated)
+    await db.ref(`users/${getUserPath()}/myScoreboards`).push({
+        id: newlyAdded.key,
+        createdOn: new Date(),
+        name: duplicated.name,
+        type: duplicated.type || 'liveStream'
+    })
+
+    return newlyAdded.key
+}
+
 export async function updateScoreboardDetails(scoreboardID, myScoreboardID, name, type) {
     await Promise.all([
         db.ref(`scoreboards/${scoreboardID}/name`).set(name),

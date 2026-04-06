@@ -122,23 +122,7 @@ h6 {
   gap: 0.5rem;
   min-width: 0;
   max-width: 100%;
-  flex-wrap: nowrap;
-}
-
-.adaptive-button .adaptive-button-content > p,
-.adaptive-button .adaptive-button-content > span,
-.adaptive-button .adaptive-button-content > div > p,
-.adaptive-button .adaptive-button-content > div > span {
-  margin: 0;
-}
-
-.adaptive-button .adaptive-button-content > p,
-.adaptive-button .adaptive-button-content > span,
-.adaptive-button .adaptive-button-content > div > p,
-.adaptive-button .adaptive-button-content > div > span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex-wrap: wrap;
 }
 
 .adaptive-button .adaptive-button-content svg {
@@ -194,20 +178,6 @@ h6 {
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-
-@container (max-width: 8.25rem) {
-  .adaptive-button .adaptive-button-content > p,
-  .adaptive-button .adaptive-button-content > span,
-  .adaptive-button .adaptive-button-content > div > p,
-  .adaptive-button .adaptive-button-content > div > span {
-    display: none;
-  }
-
-  .adaptive-button .adaptive-button-content,
-  .adaptive-button .adaptive-button-content > div {
-    gap: 0;
   }
 }
 

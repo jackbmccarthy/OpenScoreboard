@@ -1,5 +1,5 @@
 import type React from 'react'
-import { Modal, ModalBody, ModalFooter, ModalHeader, Text, VStack } from '@/components/ui'
+import { Modal, ModalBody, ModalCloseButton, ModalFooter, ModalHeader, Text, VStack } from '@/components/ui'
 
 interface OverlayDialogProps {
   isOpen: boolean
@@ -28,6 +28,13 @@ export default function OverlayDialog({
 }: OverlayDialogProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} className={`${sizeClasses[size]} max-h-[90vh] overflow-y-auto rounded-2xl`}>
+      <ModalCloseButton
+        className="right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm hover:border-slate-300 hover:text-slate-800"
+        onClick={onClose}
+        aria-label="Close dialog"
+      >
+        ×
+      </ModalCloseButton>
       <ModalHeader className="mb-1">{title}</ModalHeader>
       <ModalBody className="mb-0">
         <VStack className="gap-4">

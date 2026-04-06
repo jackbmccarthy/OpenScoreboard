@@ -6,6 +6,7 @@ import HomePage from './screens/HomePage'
 import DashboardPage from './screens/DashboardPage'
 import PlayersPage from './screens/PlayersPage'
 import TeamsPage from './screens/TeamsPage'
+import TeamDetailPage from './screens/TeamDetailPage'
 import SettingsPage from './screens/SettingsPage'
 import LoginPage from './screens/LoginPage'
 import MyAccountPage from './screens/MyAccountPage'
@@ -20,6 +21,7 @@ import MatchPage from './screens/MatchPage'
 import ArchivedMatchesPage from './screens/ArchivedMatchesPage'
 import ScheduledTableMatchesPage from './screens/ScheduledTableMatchesPage'
 import ScoreboardsPage from './screens/ScoreboardsPage'
+import ScoreboardTemplatesPage from './screens/ScoreboardTemplatesPage'
 import TeamMatchesPage from './screens/TeamMatchesPage'
 import PlayerListsPage from './screens/PlayerListsPage'
 import PlayerRegistrationPage from './screens/PlayerRegistrationPage'
@@ -58,6 +60,7 @@ function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/players" element={<PlayersPage />} />
           <Route path="/teams" element={<TeamsPage />} />
+          <Route path="/teams/:id" element={<TeamDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/my-account" element={<MyAccountPage />} />
           <Route path="/tables" element={<TablesPage />} />
@@ -69,6 +72,7 @@ function App() {
           <Route path="/archivedmatches" element={<ArchivedMatchesPage />} />
           <Route path="/scheduledtablematches" element={<ScheduledTableMatchesPage />} />
           <Route path="/scoreboards" element={<ScoreboardsPage />} />
+          <Route path="/scoreboards/templates" element={<ScoreboardTemplatesPage />} />
           <Route path="/teammatches" element={<TeamMatchesPage />} />
           <Route path="/player-lists" element={<PlayerListsPage />} />
           <Route path="/playerregistration/:id" element={<PlayerRegistrationPage />} />

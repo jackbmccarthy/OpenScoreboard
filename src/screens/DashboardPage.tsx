@@ -42,16 +42,10 @@ const sections = [
     title: 'Broadcast',
     items: [
       {
-        route: '/scoreboards',
-        title: 'Scoreboards',
-        description: 'Create and manage overlays tied to your matches.',
+        route: '/my-scoreboards',
+        title: 'My Scoreboards',
+        description: 'Manage overlays, previews, templates, and editor entrypoints from one place.',
         icon: ScoreboardIcon,
-      },
-      {
-        route: '/editor',
-        title: 'Scoreboard Editor',
-        description: 'Design layouts in GrapesJS and publish updates live.',
-        icon: SettingsIcon,
       },
       {
         route: '/dynamic-urls',
@@ -64,12 +58,6 @@ const sections = [
   {
     title: 'Account',
     items: [
-      {
-        route: '/my-scoreboards',
-        title: 'My Scoreboards',
-        description: 'Review your saved overlays and quick links.',
-        icon: ScoreboardIcon,
-      },
       {
         route: '/settings',
         title: 'Settings',

@@ -20,6 +20,7 @@ import {
   updatePlayerListName,
 } from '@/functions/players'
 import { newImportedPlayer } from '@/classes/Player'
+import countries from '@/flags/countries.json'
 
 interface PlayerList {
   id: string
@@ -42,6 +43,10 @@ const emptyPlayer = {
   imageURL: '',
   country: '',
 }
+
+const countryOptions = Object.entries(countries)
+  .map(([code, name]) => ({ code, name }))
+  .sort((a, b) => a.name.localeCompare(b.name))
 
 export default function PlayersPage() {
   const navigate = useNavigate()
@@ -363,7 +368,14 @@ export default function PlayersPage() {
           <Input placeholder="First name" value={playerDraft.firstName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, firstName: value }))} />
           <Input placeholder="Last name" value={playerDraft.lastName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, lastName: value }))} />
           <Input placeholder="Image URL" value={playerDraft.imageURL} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, imageURL: value }))} />
-          <Input placeholder="Country code" value={playerDraft.country} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, country: value.toUpperCase() }))} />
+          <Select value={playerDraft.country || ''} onValueChange={(value) => setPlayerDraft((current) => ({ ...current, country: value.toUpperCase() }))}>
+            <option value="">Select country</option>
+            {countryOptions.map((country) => (
+              <option key={country.code} value={country.code}>
+                {country.name}
+              </option>
+            ))}
+          </Select>
         </VStack>
       </OverlayDialog>
 

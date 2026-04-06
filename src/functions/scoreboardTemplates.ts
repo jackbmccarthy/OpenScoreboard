@@ -1,0 +1,94 @@
+import db, { getUserPath } from '@/lib/database'
+import { newScoreboard } from '@/classes/Scoreboard'
+import { defaultScoreboard } from '@/scoreboard/templates/defaultscoreboard'
+
+function normalizeTemplatePayload(template) {
+  return {
+    name: template.name || 'Untitled Template',
+    description: template.description || '',
+    category: template.category || 'General',
+    createdBy: template.createdBy || getUserPath(),
+    isActive: template.isActive !== false,
+    web: {
+      html: template.web?.html || '',
+      css: template.web?.css || '',
+      javascript: template.web?.javascript || '',
+    },
+    config: template.config || {},
+    type: template.type || 'liveStream',
+  }
+}
+
+export function getBuiltInScoreboardTemplates() {
+  return [
+    {
+      id: 'builtin-default-stream',
+      name: 'Default Stream Scoreboard',
+      description: 'Classic overlay layout with names, scores, and match point indicators.',
+      category: 'Built-in',
+      type: 'liveStream',
+      isBuiltIn: true,
+      web: {
+        html: defaultScoreboard.html,
+        css: defaultScoreboard.css,
+        javascript: '',
+      },
+      config: {},
+      isActive: true,
+    },
+  ]
+}
+
+export async function getScoreboardTemplates() {
+  const builtIns = getBuiltInScoreboardTemplates()
+  const snapshot = await db.ref('scoreboardTemplates').get()
+  const templates = snapshot.val()
+  const custom: Array<Record<string, any>> = templates && typeof templates === 'object'
+    ? Object.entries(templates).map(([id, template]) => ({ id, ...(template as Record<string, any>) }))
+    : []
+
+  return [...builtIns, ...custom].filter((template: Record<string, any>) => template.isActive !== false)
+}
+
+export async function getAdminManagedScoreboardTemplates() {
+  const snapshot = await db.ref('scoreboardTemplates').get()
+  const templates = snapshot.val()
+  return templates && typeof templates === 'object'
+    ? Object.entries(templates).map(([id, template]) => ({ id, ...(template as Record<string, any>) }))
+    : []
+}
+
+export async function addScoreboardTemplate(template) {
+  const payload = normalizeTemplatePayload(template)
+  const newTemplate = await db.ref('scoreboardTemplates').push(payload)
+  return newTemplate.key
+}
+
+export async function updateScoreboardTemplate(templateID, template) {
+  await db.ref(`scoreboardTemplates/${templateID}`).set(normalizeTemplatePayload(template))
+}
+
+export async function deleteScoreboardTemplate(templateID) {
+  await db.ref(`scoreboardTemplates/${templateID}`).remove()
+}
+
+export async function createScoreboardFromTemplate(name, template, ownerID = getUserPath()) {
+  const scoreboardPayload = {
+    ...newScoreboard(ownerID, name, template.type || 'liveStream'),
+    config: template.config || {},
+    web: {
+      html: template.web?.html || '',
+      css: template.web?.css || '',
+      javascript: template.web?.javascript || '',
+    },
+  }
+
+  const newlyAdded = await db.ref('scoreboards').push(scoreboardPayload)
+  await db.ref(`users/${ownerID}/myScoreboards`).push({
+    id: newlyAdded.key,
+    createdOn: new Date(),
+    name,
+    type: template.type || 'liveStream',
+  })
+  return newlyAdded.key
+}

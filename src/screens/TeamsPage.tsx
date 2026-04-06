@@ -53,16 +53,6 @@ export default function TeamsPage() {
     setShowTeamModal(true)
   }
 
-  const openEditTeamModal = async (myTeamID: string, teamID: string) => {
-    const team = await getTeam(teamID)
-    setEditingTeam({ myTeamID, teamID })
-    setTeamDraft({
-      teamName: team?.teamName || '',
-      teamLogoURL: team?.teamLogoURL || '',
-    })
-    setShowTeamModal(true)
-  }
-
   const handleSaveTeam = async () => {
     if (!teamDraft.teamName.trim()) return
 
@@ -141,7 +131,7 @@ export default function TeamsPage() {
               <Card key={myTeamId} variant="elevated" className="mb-2">
                 <CardBody>
                   <HStack className="justify-between items-center gap-3">
-                    <Pressable className="flex-1" onPress={() => openEditTeamModal(myTeamId, team.id)}>
+                    <Pressable className="flex-1" onPress={() => navigate(`/teams/${team.id}`)}>
                       <VStack className="flex-1">
                         <Text fontWeight="bold">{team.name}</Text>
                         {team.createdOn ? (
@@ -150,7 +140,7 @@ export default function TeamsPage() {
                       </VStack>
                     </Pressable>
                     <HStack className="items-center gap-2">
-                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openEditTeamModal(myTeamId, team.id)}>
+                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => navigate(`/teams/${team.id}`)}>
                         <PencilIcon size={16} className="text-slate-500" />
                       </Pressable>
                       <Pressable className="rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteTeam({ myTeamID: myTeamId, name: team.name })}>
