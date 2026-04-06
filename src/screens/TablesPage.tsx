@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack, Card, CardBody } from '@/components/ui'
-import { CopyIcon, ExternalLinkIcon, LinkIcon, PencilIcon, PlusIcon, ScoreboardIcon, TablesIcon, TrashIcon } from '@/components/icons'
+import { CheckIcon, CopyIcon, ExternalLinkIcon, LinkIcon, PencilIcon, PlusIcon, ScoreboardIcon, TablesIcon, TrashIcon } from '@/components/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
@@ -38,6 +38,7 @@ export default function TablesPage() {
   const [tableDraft, setTableDraft] = useState(emptyTableDraft)
   const [dynamicURLName, setDynamicURLName] = useState('')
   const [pendingDeleteTable, setPendingDeleteTable] = useState(null)
+  const [copiedHref, setCopiedHref] = useState('')
 
   useEffect(() => {
     if (authLoading) return
@@ -136,6 +137,10 @@ export default function TablesPage() {
   const handleCopyLink = async (href) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(href)
+      setCopiedHref(href)
+      window.setTimeout(() => {
+        setCopiedHref((current) => current === href ? '' : current)
+      }, 1800)
     }
   }
 
@@ -326,9 +331,14 @@ export default function TablesPage() {
                   </Box>
 
                   <HStack className="flex-wrap gap-2">
-                    <Button size="sm" variant="outline" onClick={() => handleCopyLink(combo.href)}>
-                      <CopyIcon size={14} />
-                      <Text className="ml-1">Copy Link</Text>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleCopyLink(combo.href)}
+                      className={copiedHref === combo.href ? 'copy-pop border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-50' : ''}
+                    >
+                      {copiedHref === combo.href ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+                      <Text className="ml-1">{copiedHref === combo.href ? 'Copied' : 'Copy Link'}</Text>
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => window.open(combo.href, '_blank')}>
                       <ExternalLinkIcon size={14} />

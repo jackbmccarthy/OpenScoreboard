@@ -101,6 +101,20 @@ function resolveHandler<T extends (...args: any[]) => any>(
   }
 }
 
+function getTextContent(children: React.ReactNode): string {
+  return React.Children.toArray(children).map((child) => {
+    if (typeof child === 'string' || typeof child === 'number') {
+      return String(child)
+    }
+
+    if (React.isValidElement(child)) {
+      return getTextContent((child.props as AnyProps).children)
+    }
+
+    return ''
+  }).join(' ').replace(/\s+/g, ' ').trim()
+}
+
 export function VStack({ children, space, className, ...props }: StackProps) {
   const spaceClass = space ? `space-y-${space}` : ''
   return (
@@ -319,6 +333,7 @@ export function Button({
   onPress,
   onClick,
   disabled,
+  title,
   ...props
 }: ButtonProps) {
   const variantClasses: Record<string, string> = {
@@ -336,17 +351,20 @@ export function Button({
     lg: 'px-6 py-3 text-lg',
   }
 
+  const inferredTitle = title || getTextContent(children) || undefined
+
   return (
     <button
       type="button"
       className={mergeClasses(
-        'rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed',
+        'adaptive-button inline-flex max-w-full items-center justify-center gap-2 overflow-hidden rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed',
         variantClasses[variant] ?? variantClasses.primary,
         sizeClasses[size] ?? sizeClasses.md,
         className,
       )}
       onClick={onClick ?? onPress}
       disabled={disabled}
+      title={inferredTitle}
       {...props}
     >
       {children}

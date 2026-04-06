@@ -110,6 +110,40 @@ h6 {
   animation: mobileSheetIn 0.24s ease-out both;
 }
 
+.adaptive-button {
+  container-type: inline-size;
+}
+
+.adaptive-button > p,
+.adaptive-button > span,
+.adaptive-button > div,
+.adaptive-button > div > p,
+.adaptive-button > div > span {
+  margin: 0;
+}
+
+.adaptive-button > div {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.adaptive-button:has(svg) > p,
+.adaptive-button:has(svg) > span,
+.adaptive-button:has(svg) > div > p,
+.adaptive-button:has(svg) > div > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copy-pop {
+  animation: copyPop 0.3s ease-out both;
+}
+
 .premium-fade-up {
   animation: premiumFadeUp 0.8s ease-out both;
 }
@@ -155,5 +189,33 @@ h6 {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@container (max-width: 8.25rem) {
+  .adaptive-button:has(svg) > p,
+  .adaptive-button:has(svg) > span,
+  .adaptive-button:has(svg) > div > p,
+  .adaptive-button:has(svg) > div > span {
+    display: none;
+  }
+
+  .adaptive-button:has(svg) > div {
+    gap: 0;
+  }
+}
+
+@keyframes copyPop {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.2;
+  }
+  70% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
