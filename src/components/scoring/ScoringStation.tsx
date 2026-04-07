@@ -10,6 +10,7 @@ import {
   AWonRally_PB,
   BWonRally_PB,
   MinusPoint,
+  endGame,
   getCurrentGameNumber,
   getCurrentGameScore,
   getCurrentMatchForTable,
@@ -20,6 +21,7 @@ import {
   isFinalGame,
   isGameFinished,
   isGamePoint,
+  isMatchFinished,
   setBestOf,
   setChangeServiceEveryXPoints,
   setGamePointsToWinGame,
@@ -52,7 +54,41 @@ const countryOptions = Object.entries(countries)
   .map(([code, name]) => ({ code, name }))
   .sort((a, b) => a.name.localeCompare(b.name))
 
-function TeamPlayerPreview({ player, fallback }: { player: any; fallback: string }) {
+function getReadableTextColor(color?: string) {
+  if (!color) return '#ffffff'
+
+  const normalized = color.trim().toLowerCase()
+  const hex = normalized.startsWith('#') ? normalized.slice(1) : ''
+  const fullHex = hex.length === 3
+    ? hex.split('').map((char) => `${char}${char}`).join('')
+    : hex
+
+  if (/^[0-9a-f]{6}$/i.test(fullHex)) {
+    const r = Number.parseInt(fullHex.slice(0, 2), 16)
+    const g = Number.parseInt(fullHex.slice(2, 4), 16)
+    const b = Number.parseInt(fullHex.slice(4, 6), 16)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    return luminance > 0.62 ? '#0f172a' : '#ffffff'
+  }
+
+  const rgbMatch = normalized.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/)
+  if (rgbMatch) {
+    const [, rValue, gValue, bValue] = rgbMatch
+    const r = Number(rValue)
+    const g = Number(gValue)
+    const b = Number(bValue)
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+    return luminance > 0.62 ? '#0f172a' : '#ffffff'
+  }
+
+  return '#ffffff'
+}
+
+function getSideBackground(player: any, fallback: string) {
+  return player?.jerseyColor?.trim() || fallback
+}
+
+function TeamPlayerPreview({ player, fallback, textColor, mutedTextColor }: { player: any; fallback: string; textColor: string; mutedTextColor: string }) {
   const hasImage = Boolean(player?.imageURL?.trim())
 
   return (
@@ -65,8 +101,8 @@ function TeamPlayerPreview({ player, fallback }: { player: any; fallback: string
         </Box>
       )}
       <VStack className="gap-0">
-        <Text className="text-base font-semibold text-white">{player?.firstName || player?.lastName ? `${player.firstName || ''} ${player.lastName || ''}`.trim() : fallback}</Text>
-        <Text className="text-xs uppercase tracking-[0.16em] text-white/70">{player?.country || 'No country'}</Text>
+        <Text className="text-base font-semibold" style={{ color: textColor }}>{player?.firstName || player?.lastName ? `${player.firstName || ''} ${player.lastName || ''}`.trim() : fallback}</Text>
+        <Text className="text-xs uppercase tracking-[0.16em]" style={{ color: mutedTextColor }}>{player?.country || 'No country'}</Text>
       </VStack>
     </HStack>
   )
@@ -76,6 +112,7 @@ function ScoreSide({
   side,
   isLeft,
   match,
+  disabled,
   onAddPoint,
   onMinusPoint,
   onEditPlayer,
@@ -84,6 +121,7 @@ function ScoreSide({
   side: 'A' | 'B'
   isLeft: boolean
   match: any
+  disabled?: boolean
   onAddPoint: () => void | Promise<void>
   onMinusPoint: () => void | Promise<void>
   onEditPlayer: (playerKey: string) => void
@@ -98,46 +136,57 @@ function ScoreSide({
   const gameScore = match?.[`game${gameNumber}${side}Score`] || 0
   const matchScore = getMatchScore(match)[isSideA ? 'a' : 'b']
   const servingThisSide = isSideA ? match?.isACurrentlyServing : !match?.isACurrentlyServing
-  const sideColor = isSideA ? 'from-blue-700 via-blue-600 to-cyan-500' : 'from-slate-900 via-slate-800 to-slate-700'
+  const backgroundColor = getSideBackground(sidePlayer, isSideA ? '#1d4ed8' : '#0f172a')
+  const textColor = getReadableTextColor(backgroundColor)
+  const mutedTextColor = textColor === '#ffffff' ? 'rgba(255,255,255,0.78)' : 'rgba(15,23,42,0.74)'
+  const cardStyle = {
+    backgroundColor,
+    color: textColor,
+  }
+  const overlayStyle = {
+    backgroundColor: textColor === '#ffffff' ? 'rgba(255,255,255,0.12)' : 'rgba(15,23,42,0.08)',
+    color: textColor,
+    borderColor: textColor === '#ffffff' ? 'rgba(255,255,255,0.18)' : 'rgba(15,23,42,0.12)',
+  }
 
   return (
-    <Box className={`relative flex min-h-[calc(100vh-5rem)] flex-1 flex-col justify-between bg-gradient-to-b ${sideColor} px-4 py-5 text-white lg:px-6`}>
-      <VStack className="gap-4">
-        <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/15" onClick={() => onEditPlayer(primaryPlayerKey)}>
-          <TeamPlayerPreview player={sidePlayer} fallback={isSideA ? 'Player A' : 'Player B'} />
+    <Box className="relative flex min-h-0 flex-1 flex-col justify-between px-3 py-3 lg:px-4 lg:py-4" style={cardStyle}>
+      <VStack className="gap-2">
+        <Button variant="outline" className="min-h-[3.75rem] rounded-2xl px-3 py-2" style={overlayStyle} onClick={() => onEditPlayer(primaryPlayerKey)}>
+          <TeamPlayerPreview player={sidePlayer} fallback={isSideA ? 'Player A' : 'Player B'} textColor={textColor} mutedTextColor={mutedTextColor} />
         </Button>
         {match?.isDoubles ? (
-          <Button variant="outline" className="border-white/20 bg-white/10 text-white hover:bg-white/15" onClick={() => onEditPlayer(secondaryPlayerKey)}>
-            <TeamPlayerPreview player={sidePlayer2} fallback={isSideA ? 'Player A2' : 'Player B2'} />
+          <Button variant="outline" className="min-h-[3.75rem] rounded-2xl px-3 py-2" style={overlayStyle} onClick={() => onEditPlayer(secondaryPlayerKey)}>
+            <TeamPlayerPreview player={sidePlayer2} fallback={isSideA ? 'Player A2' : 'Player B2'} textColor={textColor} mutedTextColor={mutedTextColor} />
           </Button>
         ) : null}
       </VStack>
 
-      <VStack className="items-center gap-4 py-6">
-        <Badge className="rounded-full bg-white/10 px-4 py-1.5 text-white/90">Games Won: {matchScore}</Badge>
-        <Text className="text-[8rem] font-black leading-none tracking-[-0.08em]">{gameScore}</Text>
-        <HStack className="items-center gap-2">
-          {servingThisSide ? <Badge className="rounded-full bg-white px-3 py-1 text-slate-900">Serving</Badge> : null}
+      <VStack className="items-center gap-2 py-2">
+        <Badge className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]" style={overlayStyle}>Games Won {matchScore}</Badge>
+        <Text className="text-center font-black leading-none tracking-[-0.08em]" style={{ color: textColor, fontSize: 'clamp(4rem, 11vw, 8rem)' }}>{gameScore}</Text>
+        <HStack className="flex-wrap items-center justify-center gap-2">
+          {servingThisSide ? <Badge className="rounded-full px-3 py-1" style={{ backgroundColor: textColor, color: backgroundColor }}>Serving</Badge> : null}
           {match?.isGamePoint && isGamePoint(match) ? <Badge className="rounded-full bg-amber-300 px-3 py-1 text-slate-950">Game Point</Badge> : null}
           {match?.isMatchPoint && isGamePoint(match) && isFinalGame(match) ? <Badge className="rounded-full bg-rose-300 px-3 py-1 text-slate-950">Match Point</Badge> : null}
         </HStack>
       </VStack>
 
-      <VStack className="gap-3">
-        <Button action="primary" className="min-h-[7rem] rounded-[1.75rem] bg-white text-slate-950 hover:bg-slate-100" onClick={onAddPoint}>
-          <Text className="text-5xl font-black text-slate-950">+</Text>
+      <VStack className="gap-2">
+        <Button action="primary" className="min-h-[5.5rem] rounded-[1.75rem] hover:opacity-95" style={{ backgroundColor: textColor, color: backgroundColor }} onClick={onAddPoint} disabled={disabled}>
+          <Text className="text-5xl font-black" style={{ color: backgroundColor }}>+</Text>
         </Button>
         <HStack className="gap-3">
-          <Button variant="outline" className="flex-1 border-white/20 bg-white/10 text-white hover:bg-white/15" onClick={onMinusPoint}>
-            <Text className="text-2xl font-black text-white">-</Text>
+          <Button variant="outline" className="flex-1 min-h-[3.75rem] rounded-2xl" style={overlayStyle} onClick={onMinusPoint} disabled={disabled}>
+            <Text className="text-2xl font-black" style={{ color: textColor }}>-</Text>
           </Button>
-          <Button variant="outline" className="flex-1 border-white/20 bg-white/10 text-white hover:bg-white/15" onClick={onSetServer}>
-            <Text className="text-sm font-semibold text-white">Set Server</Text>
+          <Button variant="outline" className="flex-1 min-h-[3.75rem] rounded-2xl px-2" style={overlayStyle} onClick={onSetServer} disabled={disabled}>
+            <Text className="text-sm font-semibold" style={{ color: textColor }}>Set Server</Text>
           </Button>
         </HStack>
       </VStack>
 
-      <Box className={`absolute ${isLeft ? 'right-4' : 'left-4'} top-1/2 -translate-y-1/2 rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-white/80`}>
+      <Box className={`absolute ${isLeft ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em]`} style={overlayStyle}>
         {isLeft ? 'Left Side' : 'Right Side'}
       </Box>
     </Box>
@@ -169,6 +218,8 @@ export default function ScoringStation({
   const [match, setMatch] = useState<any>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showPlayerEditor, setShowPlayerEditor] = useState(false)
+  const [showGameEndDialog, setShowGameEndDialog] = useState(false)
+  const [showMatchEndDialog, setShowMatchEndDialog] = useState(false)
   const [editingPlayerKey, setEditingPlayerKey] = useState('')
   const [playerDraft, setPlayerDraft] = useState(getNewPlayer())
   const [settingsDraft, setSettingsDraft] = useState({
@@ -288,6 +339,14 @@ export default function ScoringStation({
     await setIsMatchPoint(matchID, gamePoint && isFinalGame(nextMatch))
   }
 
+  const refreshMatch = async () => {
+    if (!matchID) return null
+    const refreshed = await getMatchData(matchID)
+    setMatch(refreshed)
+    await syncPointFlags(refreshed)
+    return refreshed
+  }
+
   const applyPoint = async (side: 'A' | 'B', increment: boolean) => {
     if (!matchID || !match) return
 
@@ -317,9 +376,27 @@ export default function ScoringStation({
       }
     }
 
-    const refreshed = await getMatchData(matchID)
-    setMatch(refreshed)
-    await syncPointFlags(refreshed)
+    const refreshed = await refreshMatch()
+    if (!refreshed) return
+
+    const currentGame = getCurrentGameNumber(refreshed) || gameNumber
+    const gameDone = isGameFinished(
+      refreshed.enforceGameScore,
+      refreshed[`game${currentGame}AScore`],
+      refreshed[`game${currentGame}BScore`],
+      refreshed.pointsToWinGame
+    )
+
+    if (gameDone && !refreshed[`isGame${currentGame}Finished`]) {
+      await endGame(matchID, currentGame)
+      const afterEnd = await refreshMatch()
+      if (!afterEnd) return
+      if (isMatchFinished(afterEnd)) {
+        setShowMatchEndDialog(true)
+      } else {
+        setShowGameEndDialog(true)
+      }
+    }
   }
 
   const handleSwitchSides = async () => {
@@ -343,7 +420,7 @@ export default function ScoringStation({
       await updateService(matchID, settingsDraft.isAInitialServer, getCurrentGameNumber(match) || 1, 0, Number(settingsDraft.changeServeEveryXPoints), Number(settingsDraft.pointsToWinGame), match.sportName, settingsDraft.scoringType)
     }
     setShowSettings(false)
-    setMatch(await getMatchData(matchID))
+    await refreshMatch()
   }
 
   const handleSavePlayer = async () => {
@@ -351,7 +428,25 @@ export default function ScoringStation({
     await updateCurrentPlayer(matchID, editingPlayerKey, playerDraft)
     setShowPlayerEditor(false)
     setEditingPlayerKey('')
-    setMatch(await getMatchData(matchID))
+    await refreshMatch()
+  }
+
+  const handleStartNextGame = async () => {
+    if (!matchID || !match) return
+    const gameNumber = getCurrentGameNumber(match) || 1
+    await startGame(matchID, gameNumber)
+    await updateService(
+      matchID,
+      settingsDraft.isAInitialServer,
+      gameNumber,
+      0,
+      Number(settingsDraft.changeServeEveryXPoints),
+      Number(settingsDraft.pointsToWinGame),
+      match.sportName,
+      settingsDraft.scoringType
+    )
+    setShowGameEndDialog(false)
+    await refreshMatch()
   }
 
   const handleCreateMatch = async () => {
@@ -381,6 +476,7 @@ export default function ScoringStation({
   const leftSide = match?.isSwitched ? 'B' : 'A'
   const rightSide = match?.isSwitched ? 'A' : 'B'
   const teamMatchTables = teamMatch?.currentMatches ? Object.keys(teamMatch.currentMatches) : ['1']
+  const scoreActionsDisabled = !matchID || showGameEndDialog || showMatchEndDialog || !!match?.isInBetweenGames || (match ? isMatchFinished(match) : false)
 
   if (authLoading || loading) {
     return (
@@ -421,7 +517,7 @@ export default function ScoringStation({
   }
 
   return (
-    <Box className="min-h-screen bg-slate-950">
+    <Box className="h-[100dvh] overflow-hidden bg-slate-950">
       {user ? (
         <HStack className="items-center justify-between border-b border-white/10 bg-slate-950/90 px-4 py-3 text-white backdrop-blur">
           <VStack className="gap-0">
@@ -444,37 +540,43 @@ export default function ScoringStation({
         </HStack>
       ) : null}
 
-      <HStack className="items-center justify-between gap-3 border-b border-white/10 bg-slate-900 px-4 py-3 text-white">
-        <HStack className="items-center gap-2">
-          <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => startTimeOut(matchID, 'A')} disabled={!matchID}>
-            <Text className="text-white">A Timeout</Text>
-          </Button>
-          <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => startTimeOut(matchID, 'B')} disabled={!matchID}>
-            <Text className="text-white">B Timeout</Text>
-          </Button>
-          <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={handleSwitchSides} disabled={!matchID}>
-            <Text className="text-white">Switch Sides</Text>
-          </Button>
-          <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => setShowSettings(true)} disabled={!matchID}>
-            <SettingsIcon size={14} />
-            <Text className="ml-1 text-white">Settings</Text>
-          </Button>
-        </HStack>
+      <Box className="border-b border-white/10 bg-slate-900 px-3 py-2 text-white">
+        <VStack className="gap-2">
+          <Box className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
+            <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => startTimeOut(matchID, 'A')} disabled={!matchID}>
+              <Text className="text-white">A Timeout</Text>
+            </Button>
+            <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => startTimeOut(matchID, 'B')} disabled={!matchID}>
+              <Text className="text-white">B Timeout</Text>
+            </Button>
+            <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={handleSwitchSides} disabled={!matchID}>
+              <Text className="text-white">Switch Sides</Text>
+            </Button>
+            <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => setShowSettings(true)} disabled={!matchID}>
+              <SettingsIcon size={14} />
+              <Text className="ml-1 text-white">Match Settings</Text>
+            </Button>
+          </Box>
 
-        {mode === 'teamMatch' ? (
-          <HStack className="items-center gap-2">
-            <Text className="text-sm text-white/70">Table</Text>
-            <Select value={activeTableNumber} onValueChange={setActiveTableNumber} className="min-w-[6rem] bg-white text-slate-900">
-              {teamMatchTables.map((tableNumber) => (
-                <option key={tableNumber} value={tableNumber}>{tableNumber}</option>
-              ))}
-            </Select>
-          </HStack>
-        ) : null}
-      </HStack>
+          {mode === 'teamMatch' ? (
+            <HStack className="items-center gap-2">
+              <Text className="text-sm text-white/70">Table</Text>
+              <Select value={activeTableNumber} onValueChange={setActiveTableNumber} className="min-w-[6rem] bg-white text-slate-900">
+                {teamMatchTables.map((tableNumber) => (
+                  <option key={tableNumber} value={tableNumber}>{tableNumber}</option>
+                ))}
+              </Select>
+            </HStack>
+          ) : (
+            <Text className="text-xs uppercase tracking-[0.16em] text-white/60">
+              Fullscreen scoring station for officials and venue-side operators
+            </Text>
+          )}
+        </VStack>
+      </Box>
 
       {!match ? (
-        <Box className="flex min-h-[calc(100vh-8rem)] items-center justify-center p-6 text-white">
+        <Box className="flex h-[calc(100dvh-7.5rem)] items-center justify-center p-6 text-white">
           <VStack className="items-center gap-4 text-center">
             <Heading size="lg" className="text-white">No active match</Heading>
             <Text className="max-w-md text-sm text-white/70">Create a new match to begin scoring on this station.</Text>
@@ -484,11 +586,12 @@ export default function ScoringStation({
           </VStack>
         </Box>
       ) : (
-        <HStack className="min-h-[calc(100vh-8rem)] flex-col lg:flex-row">
+        <HStack className="h-[calc(100dvh-7.5rem)] min-h-0 flex-row overflow-hidden">
           <ScoreSide
             side={leftSide}
             isLeft={true}
             match={match}
+            disabled={scoreActionsDisabled}
             onAddPoint={() => applyPoint(leftSide, true)}
             onMinusPoint={() => applyPoint(leftSide, false)}
             onEditPlayer={(playerKey) => {
@@ -502,6 +605,7 @@ export default function ScoringStation({
             side={rightSide}
             isLeft={false}
             match={match}
+            disabled={scoreActionsDisabled}
             onAddPoint={() => applyPoint(rightSide, true)}
             onMinusPoint={() => applyPoint(rightSide, false)}
             onEditPlayer={(playerKey) => {
@@ -581,6 +685,44 @@ export default function ScoringStation({
             {countryOptions.map((country) => <option key={country.code} value={country.code}>{country.name}</option>)}
           </Select>
         </VStack>
+      </OverlayDialog>
+
+      <OverlayDialog
+        isOpen={showGameEndDialog}
+        onClose={() => setShowGameEndDialog(false)}
+        title="Game Complete"
+        description="The current game reached a valid finishing score."
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => setShowGameEndDialog(false)}>
+              <Text>Stay Here</Text>
+            </Button>
+            <Button action="primary" onClick={handleStartNextGame}>
+              <Text className="text-white">Start Next Game</Text>
+            </Button>
+          </>
+        )}
+      >
+        <Text className="text-sm text-slate-600">Review the score, switch sides if needed, and start the next game when the players are ready.</Text>
+      </OverlayDialog>
+
+      <OverlayDialog
+        isOpen={showMatchEndDialog}
+        onClose={() => setShowMatchEndDialog(false)}
+        title="Match Complete"
+        description="The match reached its finishing condition."
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => setShowMatchEndDialog(false)}>
+              <Text>Keep View Open</Text>
+            </Button>
+            <Button action="primary" onClick={handleCreateMatch}>
+              <Text className="text-white">Start New Match</Text>
+            </Button>
+          </>
+        )}
+      >
+        <Text className="text-sm text-slate-600">No further points can be added until a new match or next assigned match is started.</Text>
       </OverlayDialog>
     </Box>
   )
