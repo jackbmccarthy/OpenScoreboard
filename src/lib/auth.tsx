@@ -18,6 +18,10 @@ const localUser = {
   displayName: 'Local User',
 } as firebase.User;
 
+function missingFirebaseConfigError() {
+  return new Error('Firebase auth is not configured. Set the NEXT_PUBLIC_FIREBASE_* environment variables for this environment.');
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<firebase.User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +59,7 @@ export function useAuth() {
 
 export function signInWithGoogle() {
   if (!hasValidConfig) {
-    return Promise.resolve(null as any);
+    return Promise.reject(missingFirebaseConfigError());
   }
   const provider = new firebase.auth.GoogleAuthProvider();
   provider.addScope('email');
@@ -65,7 +69,7 @@ export function signInWithGoogle() {
 
 export function signInWithGoogleRedirect() {
   if (!hasValidConfig) {
-    return Promise.resolve(null as any);
+    return Promise.reject(missingFirebaseConfigError());
   }
   const provider = new firebase.auth.GoogleAuthProvider();
   provider.addScope('email');
@@ -76,7 +80,7 @@ export function signInWithGoogleRedirect() {
 
 export function signInWithApple() {
   if (!hasValidConfig) {
-    return Promise.resolve(null as any);
+    return Promise.reject(missingFirebaseConfigError());
   }
   const provider = new firebase.auth.OAuthProvider('apple.com');
   return firebase.auth().signInWithPopup(provider);
@@ -84,7 +88,7 @@ export function signInWithApple() {
 
 export function signInWithAppleRedirect() {
   if (!hasValidConfig) {
-    return Promise.resolve(null as any);
+    return Promise.reject(missingFirebaseConfigError());
   }
   const provider = new firebase.auth.OAuthProvider('apple.com');
   return firebase.auth().signInWithRedirect(provider);
@@ -92,14 +96,14 @@ export function signInWithAppleRedirect() {
 
 export function signInWithEmail(email: string, password: string) {
   if (!hasValidConfig) {
-    return Promise.resolve(null as any);
+    return Promise.reject(missingFirebaseConfigError());
   }
   return firebase.auth().signInWithEmailAndPassword(email, password);
 }
 
 export function signUpWithEmail(email: string, password: string) {
   if (!hasValidConfig) {
-    return Promise.resolve(null as any);
+    return Promise.reject(missingFirebaseConfigError());
   }
   return firebase.auth().createUserWithEmailAndPassword(email, password);
 }
@@ -133,7 +137,7 @@ export function isAuthenticated() {
 
 export function handleRedirectResult() {
   if (!hasValidConfig) {
-    return Promise.resolve(null as any);
+    return Promise.reject(missingFirebaseConfigError());
   }
   return firebase.auth().getRedirectResult();
 }

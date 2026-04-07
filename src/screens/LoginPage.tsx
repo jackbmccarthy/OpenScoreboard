@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react'
 import { Box, Text, VStack, Button, Input, Heading, HStack } from '@/components/ui'
 import { useNavigate } from 'react-router-dom'
-import { signInWithGoogle, signInWithApple, signInWithEmail, signUpWithEmail, useAuth } from '@/lib/auth'
+import { signInWithGoogle, signInWithGoogleRedirect, signInWithApple, signInWithEmail, signUpWithEmail, useAuth } from '@/lib/auth'
 import { isLocalDatabase } from '@/lib/firebase'
 
 const proofPoints = [
@@ -90,7 +90,14 @@ export default function LoginPage() {
     try {
       await signInWithGoogle()
     } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        try {
+          await signInWithGoogleRedirect()
+          return
+        } catch (redirectErr: any) {
+          setError(redirectErr.message || 'Google sign in failed')
+        }
+      } else if (err.code !== 'auth/popup-closed-by-user') {
         setError(err.message || 'Google sign in failed')
       }
     } finally {
@@ -295,9 +302,10 @@ export default function LoginPage() {
                 </Button>
               </VStack>
 
-              <Text className="text-center text-sm text-slate-500">
+              <Text as="div" className="text-center text-sm text-slate-500">
                 {mode === 'signin' ? "Don't have an account? " : 'Already have an account? '}
                 <Text
+                  as="span"
                   className="cursor-pointer font-semibold text-blue-600 hover:text-blue-500"
                   onClick={() => {
                     setMode(mode === 'signin' ? 'signup' : 'signin')

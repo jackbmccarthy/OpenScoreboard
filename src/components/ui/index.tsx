@@ -41,6 +41,7 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> &
   AnyProps & {
     children?: React.ReactNode
     variant?: string
+    action?: string
     size?: string
     onPress?: () => void
     onClick?: React.MouseEventHandler<HTMLButtonElement> | (() => void)
@@ -329,6 +330,7 @@ export function Button({
   children,
   className = '',
   variant = 'primary',
+  action,
   size = 'md',
   onPress,
   onClick,
@@ -336,6 +338,10 @@ export function Button({
   title,
   ...props
 }: ButtonProps) {
+  const resolvedVariant = action === 'negative'
+    ? 'danger'
+    : variant
+
   const variantClasses: Record<string, string> = {
     primary: 'bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/20 hover:from-blue-500 hover:to-cyan-300',
     secondary: 'bg-slate-700 text-white shadow-md shadow-slate-400/15 hover:bg-slate-800',
@@ -357,8 +363,8 @@ export function Button({
     <button
       type="button"
       className={mergeClasses(
-        'adaptive-button inline-flex max-w-full items-center justify-center gap-2 overflow-hidden rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed',
-        variantClasses[variant] ?? variantClasses.primary,
+        'inline-flex max-w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed',
+        variantClasses[resolvedVariant] ?? variantClasses.primary,
         sizeClasses[size] ?? sizeClasses.md,
         className,
       )}
@@ -367,7 +373,7 @@ export function Button({
       title={inferredTitle}
       {...props}
     >
-      <span className="adaptive-button-content">{children}</span>
+      {children}
     </button>
   )
 }

@@ -22,6 +22,7 @@ import {
   isGameFinished,
   isGamePoint,
   isMatchFinished,
+  isValidGameScore,
   setBestOf,
   setChangeServiceEveryXPoints,
   setGamePointsToWinGame,
@@ -32,11 +33,15 @@ import {
   setRedFlag,
   setScoringType,
   setServerManually,
+  setisManualMode,
+  setUsedTimeOut,
   setYellowFlag,
   startGame,
   startTimeOut,
+  resetUsedTimeOut,
   switchSides,
   syncShowInBetweenGamesModal,
+  manuallySetGameScore,
   updateCurrentPlayer,
   updateService,
   watchForPasswordChange,
@@ -88,21 +93,22 @@ function getSideBackground(player: any, fallback: string) {
   return player?.jerseyColor?.trim() || fallback
 }
 
-function TeamPlayerPreview({ player, fallback, textColor, mutedTextColor }: { player: any; fallback: string; textColor: string; mutedTextColor: string }) {
+function TeamPlayerPreview({ player, fallback, textColor }: { player: any; fallback: string; textColor: string }) {
   const hasImage = Boolean(player?.imageURL?.trim())
 
   return (
-    <HStack className="items-center gap-3">
+    <HStack className="min-w-0 items-center gap-2 sm:gap-3">
       {hasImage ? (
-        <Avatar src={player.imageURL} alt={fallback} className="h-12 w-12 rounded-2xl border border-white/40" />
+        <Avatar src={player.imageURL} alt={fallback} className="h-10 w-10 rounded-2xl border border-white/40 sm:h-12 sm:w-12" />
       ) : (
-        <Box className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/25 bg-white/10">
-          <UserIcon size={18} className="text-white/80" />
+        <Box className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/25 bg-white/10 sm:h-12 sm:w-12">
+          <UserIcon size={16} className="text-white/80 sm:h-auto sm:w-auto" />
         </Box>
       )}
-      <VStack className="gap-0">
-        <Text className="text-base font-semibold" style={{ color: textColor }}>{player?.firstName || player?.lastName ? `${player.firstName || ''} ${player.lastName || ''}`.trim() : fallback}</Text>
-        <Text className="text-xs uppercase tracking-[0.16em]" style={{ color: mutedTextColor }}>{player?.country || 'No country'}</Text>
+      <VStack className="min-w-0 flex-1 gap-0">
+        <Text className="truncate text-sm font-semibold sm:text-base" style={{ color: textColor }}>
+          {player?.firstName || player?.lastName ? `${player.firstName || ''} ${player.lastName || ''}`.trim() : fallback}
+        </Text>
       </VStack>
     </HStack>
   )
@@ -116,7 +122,7 @@ function ScoreSide({
   onAddPoint,
   onMinusPoint,
   onEditPlayer,
-  onSetServer,
+  onToggleServer,
 }: {
   side: 'A' | 'B'
   isLeft: boolean
@@ -125,7 +131,7 @@ function ScoreSide({
   onAddPoint: () => void | Promise<void>
   onMinusPoint: () => void | Promise<void>
   onEditPlayer: (playerKey: string) => void
-  onSetServer: () => void | Promise<void>
+  onToggleServer: () => void | Promise<void>
 }) {
   const isSideA = side === 'A'
   const primaryPlayerKey = isSideA ? 'playerA' : 'playerB'
@@ -150,45 +156,66 @@ function ScoreSide({
   }
 
   return (
-    <Box className="relative flex min-h-0 flex-1 flex-col justify-between px-3 py-3 lg:px-4 lg:py-4" style={cardStyle}>
-      <VStack className="gap-2">
-        <Button variant="outline" className="min-h-[3.75rem] rounded-2xl px-3 py-2" style={overlayStyle} onClick={() => onEditPlayer(primaryPlayerKey)}>
-          <TeamPlayerPreview player={sidePlayer} fallback={isSideA ? 'Player A' : 'Player B'} textColor={textColor} mutedTextColor={mutedTextColor} />
-        </Button>
-        {match?.isDoubles ? (
-          <Button variant="outline" className="min-h-[3.75rem] rounded-2xl px-3 py-2" style={overlayStyle} onClick={() => onEditPlayer(secondaryPlayerKey)}>
-            <TeamPlayerPreview player={sidePlayer2} fallback={isSideA ? 'Player A2' : 'Player B2'} textColor={textColor} mutedTextColor={mutedTextColor} />
-          </Button>
-        ) : null}
-      </VStack>
+    <Box className="relative min-w-0 basis-1/2 flex-1 px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4" style={cardStyle}>
+      <VStack className="h-full min-h-0 gap-2">
+        <Box className="flex items-center justify-center">
+          <Box className="rounded-[1rem] px-3 py-1.5 sm:px-4 sm:py-2" style={overlayStyle}>
+            <Text className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.08em] sm:text-xs sm:tracking-[0.12em]" style={{ color: mutedTextColor }}>
+              Games Won
+            </Text>
+            <Text className="text-center text-xl font-black sm:text-2xl" style={{ color: textColor }}>
+              {matchScore}
+            </Text>
+          </Box>
+        </Box>
 
-      <VStack className="items-center gap-2 py-2">
-        <Badge className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]" style={overlayStyle}>Games Won {matchScore}</Badge>
-        <Text className="text-center font-black leading-none tracking-[-0.08em]" style={{ color: textColor, fontSize: 'clamp(4rem, 11vw, 8rem)' }}>{gameScore}</Text>
-        <HStack className="flex-wrap items-center justify-center gap-2">
-          {servingThisSide ? <Badge className="rounded-full px-3 py-1" style={{ backgroundColor: textColor, color: backgroundColor }}>Serving</Badge> : null}
-          {match?.isGamePoint && isGamePoint(match) ? <Badge className="rounded-full bg-amber-300 px-3 py-1 text-slate-950">Game Point</Badge> : null}
-          {match?.isMatchPoint && isGamePoint(match) && isFinalGame(match) ? <Badge className="rounded-full bg-rose-300 px-3 py-1 text-slate-950">Match Point</Badge> : null}
+        <VStack className="min-h-0 flex-[0_0_30%] gap-2 overflow-hidden">
+          <Button variant="outline" className="min-h-[3rem] rounded-2xl px-2 py-2 sm:min-h-[3.5rem] sm:px-3" style={overlayStyle} onClick={() => onEditPlayer(primaryPlayerKey)}>
+          <TeamPlayerPreview player={sidePlayer} fallback={isSideA ? 'Player A' : 'Player B'} textColor={textColor} />
+          </Button>
+          {match?.isDoubles ? (
+            <Button variant="outline" className="min-h-[3rem] rounded-2xl px-2 py-2 sm:min-h-[3.5rem] sm:px-3" style={overlayStyle} onClick={() => onEditPlayer(secondaryPlayerKey)}>
+              <TeamPlayerPreview player={sidePlayer2} fallback={isSideA ? 'Player A2' : 'Player B2'} textColor={textColor} />
+            </Button>
+          ) : null}
+        </VStack>
+
+        <VStack className="flex-[0_0_20%] items-center justify-center gap-1 pt-2 sm:gap-2 sm:pt-3">
+          <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] sm:text-xs" style={{ color: mutedTextColor }}>
+            Game Score
+          </Text>
+          <Text className="text-center font-black leading-none tracking-[-0.05em] sm:tracking-[-0.06em]" style={{ color: textColor, fontSize: 'clamp(3rem, 16vw, 6rem)' }}>{gameScore}</Text>
+          <HStack className="flex-wrap items-center justify-center gap-1 sm:gap-2">
+          {match?.isManualServiceMode ? (
+            <Button
+              variant="outline"
+              className="rounded-full px-2.5 py-1 text-[10px] sm:px-3 sm:text-xs"
+              style={servingThisSide ? { backgroundColor: textColor, color: backgroundColor } : overlayStyle}
+              onClick={onToggleServer}
+              disabled={disabled}
+            >
+              <Text className="text-[10px] sm:text-xs" style={{ color: servingThisSide ? backgroundColor : textColor }}>
+                {servingThisSide ? 'Serving' : 'Set Server'}
+              </Text>
+            </Button>
+          ) : (
+            servingThisSide ? <Badge className="rounded-full px-2.5 py-1 text-[10px] sm:px-3 sm:text-xs" style={{ backgroundColor: textColor, color: backgroundColor }}>Serving</Badge> : null
+          )}
+          {match?.isGamePoint && isGamePoint(match) ? <Badge className="rounded-full bg-amber-300 px-2.5 py-1 text-[10px] text-slate-950 sm:px-3 sm:text-xs">Game Point</Badge> : null}
+          {match?.isMatchPoint && isGamePoint(match) && isFinalGame(match) ? <Badge className="rounded-full bg-rose-300 px-2.5 py-1 text-[10px] text-slate-950 sm:px-3 sm:text-xs">Match Point</Badge> : null}
         </HStack>
+        </VStack>
+
+        <VStack className="flex-[0_0_38%] justify-end gap-2 sm:gap-3">
+          <Button action="primary" className="min-h-[6.5rem] flex-1 rounded-[1.75rem] hover:opacity-95 sm:min-h-[8rem] sm:rounded-[1.9rem]" style={{ backgroundColor: textColor, color: backgroundColor }} onClick={onAddPoint} disabled={disabled}>
+            <Text className="text-5xl font-black sm:text-6xl" style={{ color: backgroundColor }}>+</Text>
+          </Button>
+          <Button variant="outline" className="h-20 rounded-2xl px-1.5 sm:h-24 sm:px-2" style={overlayStyle} onClick={onMinusPoint} disabled={disabled}>
+            <Text className="text-3xl font-black" style={{ color: textColor }}>-</Text>
+          </Button>
+        </VStack>
       </VStack>
 
-      <VStack className="gap-2">
-        <Button action="primary" className="min-h-[5.5rem] rounded-[1.75rem] hover:opacity-95" style={{ backgroundColor: textColor, color: backgroundColor }} onClick={onAddPoint} disabled={disabled}>
-          <Text className="text-5xl font-black" style={{ color: backgroundColor }}>+</Text>
-        </Button>
-        <HStack className="gap-3">
-          <Button variant="outline" className="flex-1 min-h-[3.75rem] rounded-2xl" style={overlayStyle} onClick={onMinusPoint} disabled={disabled}>
-            <Text className="text-2xl font-black" style={{ color: textColor }}>-</Text>
-          </Button>
-          <Button variant="outline" className="flex-1 min-h-[3.75rem] rounded-2xl px-2" style={overlayStyle} onClick={onSetServer} disabled={disabled}>
-            <Text className="text-sm font-semibold" style={{ color: textColor }}>Set Server</Text>
-          </Button>
-        </HStack>
-      </VStack>
-
-      <Box className={`absolute ${isLeft ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em]`} style={overlayStyle}>
-        {isLeft ? 'Left Side' : 'Right Side'}
-      </Box>
     </Box>
   )
 }
@@ -217,6 +244,7 @@ export default function ScoringStation({
   const [matchID, setMatchID] = useState('')
   const [match, setMatch] = useState<any>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showTimeoutDialog, setShowTimeoutDialog] = useState(false)
   const [showPlayerEditor, setShowPlayerEditor] = useState(false)
   const [showGameEndDialog, setShowGameEndDialog] = useState(false)
   const [showMatchEndDialog, setShowMatchEndDialog] = useState(false)
@@ -228,9 +256,12 @@ export default function ScoringStation({
     changeServeEveryXPoints: 2,
     isDoubles: false,
     isAInitialServer: false,
+    isManualServiceMode: false,
     scoringType: 'normal',
   })
+  const [manualGameScores, setManualGameScores] = useState<Record<number, { a: string; b: string }>>({})
   const [copiedLink, setCopiedLink] = useState('')
+  const [activeAction, setActiveAction] = useState('')
 
   const loadMatchContext = useCallback(async () => {
     if (mode === 'table' && !tableID) return
@@ -322,8 +353,19 @@ export default function ScoringStation({
         changeServeEveryXPoints: match.changeServeEveryXPoints || 2,
         isDoubles: !!match.isDoubles,
         isAInitialServer: !!match.isAInitialServer,
+        isManualServiceMode: !!match.isManualServiceMode,
         scoringType: match.scoringType || 'normal',
       })
+      const nextManualScores: Record<number, { a: string; b: string }> = {}
+      for (let gameNumber = 1; gameNumber <= 9; gameNumber++) {
+        if (match[`isGame${gameNumber}Finished`]) {
+          nextManualScores[gameNumber] = {
+            a: String(match[`game${gameNumber}AScore`] ?? 0),
+            b: String(match[`game${gameNumber}BScore`] ?? 0),
+          }
+        }
+      }
+      setManualGameScores(nextManualScores)
     }
   }, [match])
 
@@ -401,26 +443,43 @@ export default function ScoringStation({
 
   const handleSwitchSides = async () => {
     if (!matchID) return
+    setActiveAction('switch')
     await switchSides(matchID)
     setMatch(await getMatchData(matchID))
+    setActiveAction('')
   }
 
   const handleSaveSettings = async () => {
     if (!matchID) return
+    setActiveAction('settings')
     await Promise.all([
       setBestOf(matchID, Number(settingsDraft.bestOf)),
       setGamePointsToWinGame(matchID, Number(settingsDraft.pointsToWinGame)),
       setChangeServiceEveryXPoints(matchID, Number(settingsDraft.changeServeEveryXPoints)),
       setIsDoubles(matchID, settingsDraft.isDoubles),
       setInitialMatchServer(matchID, settingsDraft.isAInitialServer),
+      setisManualMode(matchID, settingsDraft.isManualServiceMode),
       setScoringType(matchID, settingsDraft.scoringType),
       syncShowInBetweenGamesModal(matchID, false),
     ])
+    for (const [gameNumberString, scores] of Object.entries(manualGameScores)) {
+      const gameNumber = Number(gameNumberString)
+      const aScore = Number(scores.a)
+      const bScore = Number(scores.b)
+      if (
+        Number.isFinite(aScore) &&
+        Number.isFinite(bScore) &&
+        isValidGameScore(true, aScore, bScore, Number(settingsDraft.pointsToWinGame))
+      ) {
+        await manuallySetGameScore(matchID, gameNumber, aScore, bScore)
+      }
+    }
     if (!hasActiveGame(match)) {
       await updateService(matchID, settingsDraft.isAInitialServer, getCurrentGameNumber(match) || 1, 0, Number(settingsDraft.changeServeEveryXPoints), Number(settingsDraft.pointsToWinGame), match.sportName, settingsDraft.scoringType)
     }
     setShowSettings(false)
     await refreshMatch()
+    setActiveAction('')
   }
 
   const handleSavePlayer = async () => {
@@ -450,10 +509,12 @@ export default function ScoringStation({
   }
 
   const handleCreateMatch = async () => {
+    setActiveAction('start-match')
     if (mode === 'table' && tableID && tableInfo) {
       const newMatchID = await createNewMatch(tableID, tableInfo.sportName || 'tableTennis', null, false, tableInfo.scoringType || 'normal')
       setMatchID(newMatchID)
       setMatch(await getMatchData(newMatchID))
+      setActiveAction('')
       return
     }
 
@@ -462,6 +523,7 @@ export default function ScoringStation({
       setMatchID(newMatchID)
       setMatch(await getMatchData(newMatchID))
     }
+    setActiveAction('')
   }
 
   const handleCopyScoringLink = async () => {
@@ -529,34 +591,35 @@ export default function ScoringStation({
             </Heading>
           </VStack>
           <HStack className="gap-2">
-            <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={handleCopyScoringLink}>
+            <Button
+              variant="solid"
+              className={copiedLink ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-500/20 hover:bg-cyan-300'}
+              onClick={handleCopyScoringLink}
+            >
               <CopyIcon size={14} />
-              <Text className="ml-1 text-white">{copiedLink ? 'Copied' : 'Copy Link'}</Text>
+              <Text className={`ml-1 ${copiedLink ? 'text-emerald-700' : 'text-slate-950'}`}>{copiedLink ? 'Copied' : 'Copy Link'}</Text>
             </Button>
-            <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => navigate(mode === 'table' ? '/tables' : '/teammatches')}>
-              <Text className="text-white">Back</Text>
+            <Button variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10" onClick={() => navigate(mode === 'table' ? '/tables' : '/teammatches')}>
+              <Text className="text-white/90">Back</Text>
             </Button>
           </HStack>
         </HStack>
       ) : null}
 
-      <Box className="border-b border-white/10 bg-slate-900 px-3 py-2 text-white">
+      <Box className="border-b border-white/10 bg-slate-950 px-3 py-2 text-white">
         <VStack className="gap-2">
-          <Box className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
-            <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => startTimeOut(matchID, 'A')} disabled={!matchID}>
-              <Text className="text-white">A Timeout</Text>
+          <HStack className="gap-2">
+            <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={() => setShowTimeoutDialog(true)} disabled={!matchID}>
+              <Text className="text-slate-900">Timeout</Text>
             </Button>
-            <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => startTimeOut(matchID, 'B')} disabled={!matchID}>
-              <Text className="text-white">B Timeout</Text>
+            <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={handleSwitchSides} disabled={!matchID || activeAction === 'switch'}>
+              {activeAction === 'switch' ? <Spinner size="sm" /> : null}
+              <Text className="text-slate-900">Switch Sides</Text>
             </Button>
-            <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={handleSwitchSides} disabled={!matchID}>
-              <Text className="text-white">Switch Sides</Text>
+            <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={() => setShowSettings(true)} disabled={!matchID}>
+              <Text className="text-slate-900">Match Settings</Text>
             </Button>
-            <Button variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10" onClick={() => setShowSettings(true)} disabled={!matchID}>
-              <SettingsIcon size={14} />
-              <Text className="ml-1 text-white">Match Settings</Text>
-            </Button>
-          </Box>
+          </HStack>
 
           {mode === 'teamMatch' ? (
             <HStack className="items-center gap-2">
@@ -567,11 +630,7 @@ export default function ScoringStation({
                 ))}
               </Select>
             </HStack>
-          ) : (
-            <Text className="text-xs uppercase tracking-[0.16em] text-white/60">
-              Fullscreen scoring station for officials and venue-side operators
-            </Text>
-          )}
+          ) : null}
         </VStack>
       </Box>
 
@@ -580,7 +639,8 @@ export default function ScoringStation({
           <VStack className="items-center gap-4 text-center">
             <Heading size="lg" className="text-white">No active match</Heading>
             <Text className="max-w-md text-sm text-white/70">Create a new match to begin scoring on this station.</Text>
-            <Button action="primary" onClick={handleCreateMatch}>
+            <Button action="primary" onClick={handleCreateMatch} disabled={activeAction === 'start-match'}>
+              {activeAction === 'start-match' ? <Spinner size="sm" /> : null}
               <Text className="text-white">Start Match</Text>
             </Button>
           </VStack>
@@ -599,7 +659,7 @@ export default function ScoringStation({
               setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
               setShowPlayerEditor(true)
             }}
-            onSetServer={() => setServerManually(matchID, leftSide === 'A')}
+            onToggleServer={() => setServerManually(matchID, leftSide === 'A')}
           />
           <ScoreSide
             side={rightSide}
@@ -613,10 +673,108 @@ export default function ScoringStation({
               setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
               setShowPlayerEditor(true)
             }}
-            onSetServer={() => setServerManually(matchID, rightSide === 'A')}
+            onToggleServer={() => setServerManually(matchID, rightSide === 'A')}
           />
         </HStack>
       )}
+
+      <OverlayDialog
+        isOpen={showTimeoutDialog}
+        onClose={() => setShowTimeoutDialog(false)}
+        title="Timeout"
+        footer={(
+          <Button variant="outline" onClick={() => setShowTimeoutDialog(false)}>
+            <Text>Close</Text>
+          </Button>
+        )}
+      >
+        <VStack className="gap-3">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setActiveAction('timeout-a')
+              await startTimeOut(matchID, 'A')
+              setShowTimeoutDialog(false)
+              await refreshMatch()
+              setActiveAction('')
+            }}
+            disabled={!matchID}
+          >
+            {activeAction === 'timeout-a' ? <Spinner size="sm" /> : null}
+            <Text>Start A Timeout</Text>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setActiveAction('timeout-b')
+              await startTimeOut(matchID, 'B')
+              setShowTimeoutDialog(false)
+              await refreshMatch()
+              setActiveAction('')
+            }}
+            disabled={!matchID}
+          >
+            {activeAction === 'timeout-b' ? <Spinner size="sm" /> : null}
+            <Text>Start B Timeout</Text>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setActiveAction('timeout-reset-a')
+              await resetUsedTimeOut(matchID, 'A')
+              setShowTimeoutDialog(false)
+              await refreshMatch()
+              setActiveAction('')
+            }}
+            disabled={!matchID}
+          >
+            {activeAction === 'timeout-reset-a' ? <Spinner size="sm" /> : null}
+            <Text>Reset A Timeout</Text>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setActiveAction('timeout-reset-b')
+              await resetUsedTimeOut(matchID, 'B')
+              setShowTimeoutDialog(false)
+              await refreshMatch()
+              setActiveAction('')
+            }}
+            disabled={!matchID}
+          >
+            {activeAction === 'timeout-reset-b' ? <Spinner size="sm" /> : null}
+            <Text>Reset B Timeout</Text>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setActiveAction('timeout-use-a')
+              await setUsedTimeOut(matchID, 'A')
+              setShowTimeoutDialog(false)
+              await refreshMatch()
+              setActiveAction('')
+            }}
+            disabled={!matchID}
+          >
+            {activeAction === 'timeout-use-a' ? <Spinner size="sm" /> : null}
+            <Text>Mark A Timeout Used</Text>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setActiveAction('timeout-use-b')
+              await setUsedTimeOut(matchID, 'B')
+              setShowTimeoutDialog(false)
+              await refreshMatch()
+              setActiveAction('')
+            }}
+            disabled={!matchID}
+          >
+            {activeAction === 'timeout-use-b' ? <Spinner size="sm" /> : null}
+            <Text>Mark B Timeout Used</Text>
+          </Button>
+        </VStack>
+      </OverlayDialog>
 
       <OverlayDialog
         isOpen={showSettings}
@@ -627,7 +785,8 @@ export default function ScoringStation({
             <Button variant="outline" onClick={() => setShowSettings(false)}>
               <Text>Cancel</Text>
             </Button>
-            <Button action="primary" onClick={handleSaveSettings}>
+            <Button action="primary" onClick={handleSaveSettings} disabled={activeAction === 'settings'}>
+              {activeAction === 'settings' ? <Spinner size="sm" /> : null}
               <Text className="text-white">Save Settings</Text>
             </Button>
           </>
@@ -647,6 +806,10 @@ export default function ScoringStation({
             <option value="singles">Singles</option>
             <option value="doubles">Doubles</option>
           </Select>
+          <Select value={settingsDraft.isManualServiceMode ? 'manual' : 'auto'} onValueChange={(value) => setSettingsDraft((current) => ({ ...current, isManualServiceMode: value === 'manual' }))}>
+            <option value="auto">Automatic service</option>
+            <option value="manual">Manual service mode</option>
+          </Select>
           {supportedSports[match?.sportName]?.hasScoringTypes ? (
             <Select value={settingsDraft.scoringType} onValueChange={(value) => setSettingsDraft((current) => ({ ...current, scoringType: value }))}>
               {Object.entries(supportedSports[match?.sportName]?.scoringTypes || {}).map(([key, config]) => (
@@ -658,6 +821,24 @@ export default function ScoringStation({
             <option value="A">Player A serves first</option>
             <option value="B">Player B serves first</option>
           </Select>
+          <VStack className="gap-2">
+            <Text className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Completed Game Scores</Text>
+            {Object.keys(manualGameScores).length === 0 ? (
+              <Text className="text-sm text-slate-500">No completed games yet.</Text>
+            ) : (
+              Object.entries(manualGameScores).map(([gameNumber, scores]) => {
+                const isValid = isValidGameScore(true, Number(scores.a || 0), Number(scores.b || 0), Number(settingsDraft.pointsToWinGame))
+                return (
+                  <HStack key={gameNumber} className="items-center gap-2">
+                    <Text className="w-16 text-sm font-semibold text-slate-700">{`Game ${gameNumber}`}</Text>
+                    <Input value={scores.a} onChangeText={(value) => setManualGameScores((current) => ({ ...current, [Number(gameNumber)]: { ...current[Number(gameNumber)], a: value } }))} />
+                    <Input value={scores.b} onChangeText={(value) => setManualGameScores((current) => ({ ...current, [Number(gameNumber)]: { ...current[Number(gameNumber)], b: value } }))} />
+                    <Text className={`text-xs ${isValid ? 'text-emerald-600' : 'text-rose-600'}`}>{isValid ? 'Valid' : 'Invalid'}</Text>
+                  </HStack>
+                )
+              })
+            )}
+          </VStack>
         </VStack>
       </OverlayDialog>
 
@@ -677,13 +858,25 @@ export default function ScoringStation({
         )}
       >
         <VStack className="gap-3">
-          <Input placeholder="First name" value={playerDraft.firstName || ''} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, firstName: value }))} />
-          <Input placeholder="Last name" value={playerDraft.lastName || ''} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, lastName: value }))} />
-          <Input placeholder="Image URL" value={playerDraft.imageURL || ''} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, imageURL: value }))} />
-          <Select value={playerDraft.country || ''} onValueChange={(value) => setPlayerDraft((current) => ({ ...current, country: value }))}>
-            <option value="">Select country</option>
-            {countryOptions.map((country) => <option key={country.code} value={country.code}>{country.name}</option>)}
-          </Select>
+          <VStack className="gap-1">
+            <Text className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">First Name</Text>
+            <Input value={playerDraft.firstName || ''} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, firstName: value }))} />
+          </VStack>
+          <VStack className="gap-1">
+            <Text className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Last Name</Text>
+            <Input value={playerDraft.lastName || ''} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, lastName: value }))} />
+          </VStack>
+          <VStack className="gap-1">
+            <Text className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Image URL</Text>
+            <Input value={playerDraft.imageURL || ''} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, imageURL: value }))} />
+          </VStack>
+          <VStack className="gap-1">
+            <Text className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Country</Text>
+            <Select value={playerDraft.country || ''} onValueChange={(value) => setPlayerDraft((current) => ({ ...current, country: value }))}>
+              <option value="">Select country</option>
+              {countryOptions.map((country) => <option key={country.code} value={country.code}>{country.name}</option>)}
+            </Select>
+          </VStack>
         </VStack>
       </OverlayDialog>
 
