@@ -1,4 +1,5 @@
 import db, { getUserPath } from '../lib/database'
+import { isRecordActive, softDeleteCanonical } from './deletion'
 
 function getDynamicURLPayload(dynamicURL) {
   return {
@@ -26,7 +27,22 @@ function getDynamicURLPreview(dynamicURLID, dynamicURL) {
 export async function getMyDynamicURLs() {
   const snapshot = await db.ref(`users/${getUserPath()}/myDynamicURLs`).get()
   const dynamicURLs = snapshot.val()
-  return dynamicURLs && typeof dynamicURLs === 'object' ? Object.entries(dynamicURLs) : []
+  if (!dynamicURLs || typeof dynamicURLs !== 'object') {
+    return []
+  }
+
+  return Promise.all(Object.entries(dynamicURLs).map(async ([myDynamicURLID, preview]) => {
+    const previewEntry = preview as Record<string, any>
+    const dynamicURLID = previewEntry?.id
+    if (typeof dynamicURLID !== 'string' || dynamicURLID.length === 0) {
+      return null
+    }
+    const canonicalSnapshot = await db.ref(`dynamicurls/${dynamicURLID}`).get()
+    if (!isRecordActive(canonicalSnapshot.val())) {
+      return null
+    }
+    return [myDynamicURLID, previewEntry]
+  })).then((entries) => entries.filter(Boolean))
 }
 
 export async function addDynamicURL(dynamicURL) {
@@ -45,8 +61,16 @@ export async function updateDynamicURL(myDynamicURLID, dynamicURLID, dynamicURL)
 }
 
 export async function deleteDynamicURL(myDynamicURLID, dynamicURLID) {
+  const previewPath = `users/${getUserPath()}/myDynamicURLs/${myDynamicURLID}`
+  await softDeleteCanonical(`dynamicurls/${dynamicURLID}`, {
+    deleteReason: 'delete_dynamic_url'
+  }, {
+    entityType: 'dynamicURL',
+    canonicalID: dynamicURLID,
+    ownerID: getUserPath(),
+    previewPath,
+  })
   await Promise.all([
-    db.ref(`users/${getUserPath()}/myDynamicURLs/${myDynamicURLID}`).remove(),
-    db.ref(`dynamicurls/${dynamicURLID}`).remove(),
+    db.ref(previewPath).remove(),
   ])
 }

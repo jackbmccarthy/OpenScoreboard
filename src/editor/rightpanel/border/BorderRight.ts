@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type grapesjs from 'grapesjs'
 export function BorderRight(editor: grapesjs.Editor) {
     editor.StyleManager.addProperty('Borders', {
         name: 'Border right',

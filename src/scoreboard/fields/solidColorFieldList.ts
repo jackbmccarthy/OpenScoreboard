@@ -1,5 +1,11 @@
-// @ts-nocheck
-export const solidColorFieldList = [
+type SolidColorFieldEntry = {
+    field: string
+    label: string
+    category: string
+    sample: string
+}
+
+export const solidColorFieldList: SolidColorFieldEntry[] = [
     {
         field: "jerseyColorA",
         label: "Jersey Color A",

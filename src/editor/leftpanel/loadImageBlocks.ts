@@ -1,5 +1,14 @@
-// @ts-nocheck
-export function loadImageBlocks(editor, fieldList) {
+import type grapesjs from 'grapesjs'
+
+type ImageBlockField = {
+    field: string
+    label: string
+    sample: string
+    category: string
+    name?: string
+}
+
+export function loadImageBlocks(editor: grapesjs.Editor, fieldList: ImageBlockField[]) {
 
     for (const item of fieldList) {
         // Define a new custom component

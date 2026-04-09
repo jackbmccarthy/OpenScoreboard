@@ -13,7 +13,7 @@ export default class Match {
         }
     }
 
-    getDefaultMatchSettings(sportName: string, previousMatchObj: any = null, isTeamMatch = false, scoringTypeDefault = "normal") {
+    getDefaultMatchSettings(sportName: string, previousMatchObj: any = null, isTeamMatch = false, scoringTypeDefault: string | null = "normal") {
 
         let matchSettings: Record<string, any> = {
             //Pregame settings
@@ -173,12 +173,13 @@ export default class Match {
                 changeServeEveryXPoints: changeServeEveryXPoints,
                 enforceGameScore: enforceGameScore,
                 sportName: sportName,
-                scoringType: scoringType ? scoringType : scoringTypeDefault
+                scoringType: scoringType ? scoringType : (scoringTypeDefault || "normal")
             }
         }
         else {
             const defaultOptions = supportedSports[sportName]?.defaults
-            const scoringTypeSettings = supportedSports[sportName]?.scoringTypes ? supportedSports[sportName]?.scoringTypes[scoringTypeDefault] : null
+            const scoringTypeKey = scoringTypeDefault || "normal"
+            const scoringTypeSettings = supportedSports[sportName]?.scoringTypes ? supportedSports[sportName]?.scoringTypes[scoringTypeKey] : null
             if (scoringTypeSettings && scoringTypeSettings.defaults) {
                 matchSettings = { ...matchSettings, ...defaultOptions, ...scoringTypeSettings.defaults }
             }
@@ -189,7 +190,7 @@ export default class Match {
         }
         return matchSettings
     }
-    createNew(sportName: string, previousMatchObj: object | null = null, isTeamMatch = false, scoringType = "normal") {
+    createNew(sportName: string, previousMatchObj: object | null = null, isTeamMatch = false, scoringType: string | null = "normal") {
         // createNew(bestOf, isTeamMatch=false, pointsToWinGame=11, isDoubles=false) {
         let newMatch = this.getDefaultMatchSettings(sportName, previousMatchObj, isTeamMatch, scoringType)
         return newMatch

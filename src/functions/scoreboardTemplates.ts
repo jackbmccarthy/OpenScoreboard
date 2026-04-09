@@ -1,6 +1,7 @@
 import db, { getUserPath } from '@/lib/database'
 import { newScoreboard } from '@/classes/Scoreboard'
 import { defaultScoreboard } from '@/scoreboard/templates/defaultscoreboard'
+import { isRecordActive, softDeleteCanonical } from './deletion'
 
 function normalizeTemplatePayload(template) {
   return {
@@ -54,7 +55,9 @@ export async function getAdminManagedScoreboardTemplates() {
   const snapshot = await db.ref('scoreboardTemplates').get()
   const templates = snapshot.val()
   return templates && typeof templates === 'object'
-    ? Object.entries(templates).map(([id, template]) => ({ id, ...(template as Record<string, any>) }))
+    ? Object.entries(templates)
+      .map(([id, template]) => ({ id, ...(template as Record<string, any>) }))
+      .filter((template) => isRecordActive(template))
     : []
 }
 
@@ -69,7 +72,13 @@ export async function updateScoreboardTemplate(templateID, template) {
 }
 
 export async function deleteScoreboardTemplate(templateID) {
-  await db.ref(`scoreboardTemplates/${templateID}`).remove()
+  await softDeleteCanonical(`scoreboardTemplates/${templateID}`, {
+    deleteReason: 'delete_scoreboard_template'
+  }, {
+    entityType: 'scoreboardTemplate',
+    canonicalID: templateID,
+    ownerID: getUserPath(),
+  })
 }
 
 export async function createScoreboardFromTemplate(name, template, ownerID = getUserPath()) {

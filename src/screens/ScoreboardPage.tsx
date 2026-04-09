@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Scoreboard Page - lists available scoreboard overlays
 // Migrated from app/scoreboard/page.tsx
 

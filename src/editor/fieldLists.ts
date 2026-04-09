@@ -1,6 +1,12 @@
-// @ts-nocheck
+type FieldListEntry = {
+    field: string
+    label?: string
+    category?: string
+    sample?: string | number
+    justify?: string
+}
 
-export const textFieldList = [
+export const textFieldList: FieldListEntry[] = [
     {
         field: "playerA",
         label: "Player A",
@@ -179,7 +185,7 @@ export const textFieldList = [
         justify: "flex-start"
     },
 ];
-export const currentGameFieldList = [
+export const currentGameFieldList: FieldListEntry[] = [
     {
         field: "currentAGameScore",
         label: "A Game Score",
@@ -224,7 +230,7 @@ export const currentGameFieldList = [
         justify: "flex-start"
     },
 ];
-export const teamFieldList = [
+export const teamFieldList: FieldListEntry[] = [
     {
         field: "teamAScore",
         label: "Team A Score",
@@ -254,7 +260,7 @@ export const teamFieldList = [
         justify: "flex-start"
     },
 ];
-export const conditionalShowFieldList = [
+export const conditionalShowFieldList: FieldListEntry[] = [
     {
         field: "isACurrentlyServing",
     },

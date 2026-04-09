@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Match Page
 // Migrated from app/match/[id]/page.tsx
 

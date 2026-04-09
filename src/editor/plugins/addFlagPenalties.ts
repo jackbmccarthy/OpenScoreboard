@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type grapesjs from 'grapesjs'
 import { isARedCarded } from "../leftpanel/penaltyflags/isARedCarded"
 import { isAYellowCarded } from "../leftpanel/penaltyflags/isAYellowCarded"
 import { isBRedCarded } from "../leftpanel/penaltyflags/isBRedCarded"
@@ -11,4 +11,3 @@ export function addFlagPenalties(editor:grapesjs.Editor){
     isARedCarded(editor)
     isBRedCarded(editor)
 }
-

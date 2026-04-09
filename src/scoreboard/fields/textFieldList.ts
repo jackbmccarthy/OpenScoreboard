@@ -1,8 +1,22 @@
-// @ts-nocheck
 import { updateInnerText } from "./updateInnerText";
 
+type ScoreboardPlayer = {
+    firstName: string
+    country?: string
+    imageURL?: string
+    jerseyColor?: string
+}
 
-export const textFieldList = [
+type TextFieldEntry = {
+    field: string
+    label: string
+    category: string
+    sample: string | number
+    justify: string
+    action: typeof updateInnerText | ((matchNode: HTMLElement, value: ScoreboardPlayer) => void)
+}
+
+export const textFieldList: TextFieldEntry[] = [
     {
         field: "playerA",
         label: "Player A",
@@ -11,12 +25,12 @@ export const textFieldList = [
         justify: "flex-start",
         action: (matchNode: HTMLElement, value) => {
             matchNode.innerText = value.firstName;
-            const jerseyAElements = document.getElementsByClassName("jerseyColorA");
+            const jerseyAElements = document.getElementsByClassName("jerseyColorA") as HTMLCollectionOf<HTMLElement>;
             for (const jerseyAEl of jerseyAElements) {
                 jerseyAEl.style.backgroundColor = value.jerseyColor || "transparent";
             }
 
-            Array.from(document.getElementsByClassName("countryA") as HTMLCollectionOf<HTMLElement>).forEach((countryAEl) => {
+            Array.from(document.getElementsByClassName("countryA") as HTMLCollectionOf<HTMLImageElement>).forEach((countryAEl) => {
                 const countryAFlag = `flags/${value.country.toLowerCase()}.png`;
                 if (countryAFlag) {
                     countryAEl.style.height = "100%";
@@ -26,7 +40,7 @@ export const textFieldList = [
                     countryAEl.style.height = "0px";
                 }
             });
-            Array.from(document.getElementsByClassName("imageURLA") as HTMLCollectionOf<HTMLElement>).forEach((imageAEl) => {
+            Array.from(document.getElementsByClassName("imageURLA") as HTMLCollectionOf<HTMLImageElement>).forEach((imageAEl) => {
                 const AImage = value.imageURL;
                 if (AImage && AImage.length > 0) {
                     imageAEl.style.height = "100%";
@@ -50,7 +64,7 @@ export const textFieldList = [
             for (const jerseyBEl of jerseyBElements) {
                 jerseyBEl.style.backgroundColor = value.jerseyColor || "transparent";
             }
-            Array.from(document.getElementsByClassName("countryB") as HTMLCollectionOf<HTMLElement>).forEach((countryBEl) => {
+            Array.from(document.getElementsByClassName("countryB") as HTMLCollectionOf<HTMLImageElement>).forEach((countryBEl) => {
                 const countryBFlag = `flags/${value.country.toLowerCase()}.png`;
                 if (value.country.length > 0) {
                     countryBEl.style.height = "100%";
@@ -62,7 +76,7 @@ export const textFieldList = [
 
             });
 
-            Array.from(document.getElementsByClassName("imageURLB") as HTMLCollectionOf<HTMLElement>).forEach((imageBEl) => {
+            Array.from(document.getElementsByClassName("imageURLB") as HTMLCollectionOf<HTMLImageElement>).forEach((imageBEl) => {
                 //console.log("ImageBEl", imageBEl)
                 const BImage = value.imageURL;
                 if (BImage && BImage.length > 0) {

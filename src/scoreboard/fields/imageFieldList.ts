@@ -1,5 +1,17 @@
-// @ts-nocheck
-export const imageFieldList = [
+type ImageFieldActionValue = {
+    playerA?: { jerseyColor?: string }
+    playerB?: { jerseyColor?: string }
+}
+
+type ImageFieldEntry = {
+    field: string
+    label: string
+    category: string
+    sample?: string
+    action?: (matchNode: HTMLImageElement, value: string | ImageFieldActionValue) => void
+}
+
+export const imageFieldList: ImageFieldEntry[] = [
     {
         field: "countryA",
         label: "Country Flag A",
@@ -15,8 +27,10 @@ export const imageFieldList = [
         label: "Player Image A",
         category: "Player Images",
         sample: "0",
-        action: (matchNode: HTMLElement, value) => {
-            matchNode.style.backgroundColor = value["playerA"].jerseyColor || "transparent";
+        action: (matchNode, value) => {
+            if (typeof value !== "string") {
+                matchNode.style.backgroundColor = value.playerA?.jerseyColor || "transparent";
+            }
 
         }
     },
@@ -25,8 +39,10 @@ export const imageFieldList = [
         label: "Player Image B",
         category: "Player Images",
         sample: "",
-        action: (matchNode: HTMLElement, value) => {
-            matchNode.style.backgroundColor = value["playerB"].jerseyColor || "blue";
+        action: (matchNode, value) => {
+            if (typeof value !== "string") {
+                matchNode.style.backgroundColor = value.playerB?.jerseyColor || "blue";
+            }
 
         }
     },
@@ -35,8 +51,10 @@ export const imageFieldList = [
         label: "Team A Logo URL",
         category: "Teams",
         sample: "",
-        action: (matchNode: HTMLElement, value) => {
-            matchNode.src = value;
+        action: (matchNode, value) => {
+            if (typeof value === "string") {
+                matchNode.src = value;
+            }
         }
         // justify: "center"
     },
@@ -45,8 +63,10 @@ export const imageFieldList = [
         label: "Team B Logo URL",
         category: "Teams",
         sample: "",
-        action: (matchNode: HTMLElement, value) => {
-            matchNode.src = value;
+        action: (matchNode, value) => {
+            if (typeof value === "string") {
+                matchNode.src = value;
+            }
         }
         // justify: "center"
     },

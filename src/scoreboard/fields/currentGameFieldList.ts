@@ -1,9 +1,18 @@
-// @ts-nocheck
 import { getCurrentGameScore, getMatchScore } from "../match";
 import { getCombinedPlayersFormatted } from "../players";
+import type { MatchSettings } from "../interfaces/Match";
 
+type CurrentGameFieldEntry = {
+    field: string
+    label?: string
+    category?: string
+    sample?: string
+    justify?: string
+    requiredFields?: string[]
+    action: (matchNode: HTMLElement, value: unknown, currentMatchSettings: MatchSettings) => void
+}
 
-export const currentGameFieldList = [
+export const currentGameFieldList: CurrentGameFieldEntry[] = [
     {
         field: "currentAGameScore",
         label: "A Game Score",
@@ -138,7 +147,7 @@ export const currentGameFieldList = [
 
         ],
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
-            matchNode.innerText = getMatchScore(currentMatchSettings).a || 0;
+            matchNode.innerText = String(getMatchScore(currentMatchSettings).a || 0);
         }
     },
     {
@@ -177,7 +186,7 @@ export const currentGameFieldList = [
 
         ],
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
-            matchNode.innerText = getMatchScore(currentMatchSettings).b || 0;
+            matchNode.innerText = String(getMatchScore(currentMatchSettings).b || 0);
 
         }
     },
@@ -198,7 +207,7 @@ export const currentGameFieldList = [
                 jerseyAEl.style.backgroundColor = currentMatchSettings["playerA"].jerseyColor || "transparent";
             });
 
-            Array.from(document.getElementsByClassName("countryA") as HTMLCollectionOf<HTMLElement>).forEach((countryAEl) => {
+            Array.from(document.getElementsByClassName("countryA") as HTMLCollectionOf<HTMLImageElement>).forEach((countryAEl) => {
                 ////console.log("updating from combinedB")
                 const countryAFlag = `flags/${currentMatchSettings["playerA"].country.toLowerCase()}.png`;
                 if (currentMatchSettings["playerA"].country?.length > 0) {
@@ -210,7 +219,7 @@ export const currentGameFieldList = [
                 }
                 ;
             });
-            Array.from(document.getElementsByClassName("imageURLA") as HTMLCollectionOf<HTMLElement>).forEach((imageAEl) => {
+            Array.from(document.getElementsByClassName("imageURLA") as HTMLCollectionOf<HTMLImageElement>).forEach((imageAEl) => {
                 ////console.log("updating from combinedB")
                 const AImage = currentMatchSettings["playerA"].imageURL;
                 if (AImage && AImage.length > 0) {
@@ -238,7 +247,7 @@ export const currentGameFieldList = [
                 jerseyBEl.style.backgroundColor = currentMatchSettings["playerB"].jerseyColor || "transparent";
             });
 
-            Array.from(document.getElementsByClassName("countryB") as HTMLCollectionOf<HTMLElement>).forEach((countryBEl) => {
+            Array.from(document.getElementsByClassName("countryB") as HTMLCollectionOf<HTMLImageElement>).forEach((countryBEl) => {
 
                 const countryBFlag = `flags/${currentMatchSettings["playerB"].country.toLowerCase()}.png`;
                 if (currentMatchSettings["playerB"].country?.length > 0) {
@@ -250,7 +259,7 @@ export const currentGameFieldList = [
                 }
             });
 
-            Array.from(document.getElementsByClassName("imageURLB") as HTMLCollectionOf<HTMLElement>).forEach((imageBEl) => {
+            Array.from(document.getElementsByClassName("imageURLB") as HTMLCollectionOf<HTMLImageElement>).forEach((imageBEl) => {
                 //console.log("updating from combinedB")
                 const BImage = currentMatchSettings["playerB"].imageURL;
                 if (BImage && BImage.length > 0) {

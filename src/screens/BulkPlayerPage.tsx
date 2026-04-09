@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar, Box, Button, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -10,7 +8,38 @@ import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 import countries from '@/flags/countries.json'
 import { UserIcon } from '@/components/icons'
 
-function createEmptyRow() {
+type PlayerListPreview = {
+  id: string
+  playerListName: string
+}
+
+type PlayerListEntry = [string, PlayerListPreview]
+
+type ImportedPlayer = {
+  firstName?: string
+  lastName?: string
+  imageURL?: string
+  country?: string
+  clubName?: string
+  jerseyColor?: string
+  firstNameInitial?: boolean
+  lastNameInitial?: boolean
+  isImported?: boolean
+}
+
+type PlayerRow = {
+  id: string
+  firstName: string
+  lastName: string
+  imageURL: string
+  country: string
+  raw?: ImportedPlayer
+  isNew: boolean
+}
+
+type PlayerEntry = [string, ImportedPlayer]
+
+function createEmptyRow(): PlayerRow {
   return {
     id: uuidv4(),
     firstName: '',
@@ -21,12 +50,12 @@ function createEmptyRow() {
   }
 }
 
-function parseSpreadsheetRows(value) {
+function parseSpreadsheetRows(value: string): PlayerRow[] {
   return value
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((line, index) => {
+    .map((line) => {
       const columns = line.includes('\t') ? line.split('\t') : line.split(',')
       return {
         id: uuidv4(),
@@ -77,13 +106,13 @@ export default function BulkPlayerPage() {
   const { loading: authLoading } = useAuth()
   const [searchParams] = useSearchParams()
   const [doneLoading, setDoneLoading] = useState(false)
-  const [myPlayerLists, setMyPlayerLists] = useState([])
+  const [myPlayerLists, setMyPlayerLists] = useState<PlayerListEntry[]>([])
   const [selectedPlayerListID, setSelectedPlayerListID] = useState(searchParams.get('playerListID') || '')
-  const [rows, setRows] = useState([])
+  const [rows, setRows] = useState<PlayerRow[]>([])
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
-  const [pendingRemoval, setPendingRemoval] = useState(null)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [pendingRemoval, setPendingRemoval] = useState<{ id: string; label: string } | null>(null)
   const [viewMode, setViewMode] = useState<'form' | 'spreadsheet'>('form')
   const [spreadsheetValue, setSpreadsheetValue] = useState('')
 
@@ -91,9 +120,10 @@ export default function BulkPlayerPage() {
     setDoneLoading(false)
     try {
       const lists = await getMyPlayerLists()
-      setMyPlayerLists(lists || [])
-      if (!selectedPlayerListID && lists?.length) {
-        setSelectedPlayerListID(lists[0][1].id)
+      const typedLists = (lists || []) as PlayerListEntry[]
+      setMyPlayerLists(typedLists)
+      if (!selectedPlayerListID && typedLists.length > 0) {
+        setSelectedPlayerListID(typedLists[0][1].id)
       }
     } catch (err) {
       console.error('Error loading player lists:', err)
@@ -102,15 +132,15 @@ export default function BulkPlayerPage() {
     }
   }
 
-  async function loadPlayers(playerListID) {
+  async function loadPlayers(playerListID: string) {
     if (!playerListID) {
       setRows([])
       return
     }
 
     const players = await getImportPlayerList(playerListID)
-    const sortedPlayers = players.length > 0 ? sortPlayers(players) : []
-    setRows(sortedPlayers.map(([id, player]) => ({
+    const sortedPlayers = players.length > 0 ? sortPlayers(players as PlayerEntry[]) : []
+    setRows((sortedPlayers as PlayerEntry[]).map(([id, player]) => ({
       id,
       firstName: player.firstName || '',
       lastName: player.lastName || '',
@@ -141,7 +171,7 @@ export default function BulkPlayerPage() {
     )
   }, [rows])
 
-  const updateRow = (id, field, value) => {
+  const updateRow = (id: string, field: keyof PlayerRow, value: string) => {
     setRows((current) =>
       current.map((row) => row.id === id ? { ...row, [field]: value } : row)
     )
@@ -175,7 +205,7 @@ export default function BulkPlayerPage() {
     setSuccess(null)
 
     try {
-      const payload = {}
+      const payload: Record<string, ImportedPlayer> = {}
       visibleRows.forEach((row) => {
         if (!row.firstName.trim() && !row.lastName.trim()) {
           return
@@ -199,8 +229,8 @@ export default function BulkPlayerPage() {
       await replacePlayersInList(selectedPlayerListID, payload)
       setSuccess('Bulk player changes saved.')
       await loadPlayers(selectedPlayerListID)
-    } catch (err: any) {
-      setError(err.message || 'Failed to save player changes')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save player changes')
     } finally {
       setSaving(false)
     }

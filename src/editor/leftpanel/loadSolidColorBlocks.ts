@@ -1,5 +1,13 @@
-// @ts-nocheck
-export function loadSolidColorBlocks(editor, fieldList) {
+import type grapesjs from 'grapesjs'
+
+type SolidColorBlockField = {
+    field: string
+    label: string
+    sample: string
+    category: string
+}
+
+export function loadSolidColorBlocks(editor: grapesjs.Editor, fieldList: SolidColorBlockField[]) {
 
     for (const item of fieldList) {
         // Define a new custom component

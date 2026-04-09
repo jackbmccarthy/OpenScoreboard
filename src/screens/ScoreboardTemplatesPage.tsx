@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useEffect, useState } from 'react'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Text, VStack } from '@/components/ui'
 import { useNavigate } from 'react-router-dom'
@@ -7,17 +5,42 @@ import { getScoreboardTemplates, createScoreboardFromTemplate } from '@/function
 import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 
+type ScoreboardTemplateRecord = {
+  id: string
+  name: string
+  description?: string
+  category?: string
+  type?: string
+  web?: {
+    html?: string
+    css?: string
+    javascript?: string
+  }
+  config?: Record<string, unknown>
+}
+
 export default function ScoreboardTemplatesPage() {
   const navigate = useNavigate()
-  const [templates, setTemplates] = useState([])
+  const [templates, setTemplates] = useState<ScoreboardTemplateRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedTemplate, setSelectedTemplate] = useState(null)
+  const [selectedTemplate, setSelectedTemplate] = useState<ScoreboardTemplateRecord | null>(null)
   const [scoreboardName, setScoreboardName] = useState('')
 
   useEffect(() => {
     async function loadTemplates() {
       try {
-        setTemplates(await getScoreboardTemplates())
+        const loadedTemplates = await getScoreboardTemplates()
+        setTemplates(
+          loadedTemplates.map((template) => ({
+            id: String(template.id || ''),
+            name: String(template.name || 'Untitled Template'),
+            description: typeof template.description === 'string' ? template.description : '',
+            category: typeof template.category === 'string' ? template.category : '',
+            type: typeof template.type === 'string' ? template.type : 'liveStream',
+            web: template.web || {},
+            config: template.config || {},
+          })),
+        )
       } finally {
         setLoading(false)
       }

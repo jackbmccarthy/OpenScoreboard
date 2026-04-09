@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack } from '@/components/ui'
@@ -12,25 +10,51 @@ import { getMyTeams } from '@/functions/teams'
 import { supportedSports } from '@/functions/sports'
 import { newTeamMatch } from '@/classes/TeamMatch'
 
+type TeamMatchDraft = {
+  teamAID: string
+  teamBID: string
+  startTime: string
+  sportName: string
+  scoringType: string
+}
+
+type TeamRow = {
+  id: string
+  name: string
+}
+
+type TeamEntry = [string, TeamRow]
+
+type TeamMatchRow = {
+  id: string
+  teamAName?: string
+  teamBName?: string
+  startTime?: string
+  sportName: string
+  scoringType?: string
+}
+
+type TeamMatchEntry = [string, TeamMatchRow]
+
 const emptyMatchDraft = {
   teamAID: '',
   teamBID: '',
   startTime: '',
   sportName: 'tableTennis',
   scoringType: '',
-}
+} satisfies TeamMatchDraft
 
 export default function TeamMatchesPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
 
-  const [teamMatches, setTeamMatches] = useState([])
-  const [teams, setTeams] = useState([])
+  const [teamMatches, setTeamMatches] = useState<TeamMatchEntry[]>([])
+  const [teams, setTeams] = useState<TeamEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showMatchModal, setShowMatchModal] = useState(false)
-  const [editingMatch, setEditingMatch] = useState(null)
-  const [matchDraft, setMatchDraft] = useState(emptyMatchDraft)
-  const [pendingDeleteMatch, setPendingDeleteMatch] = useState(null)
+  const [editingMatch, setEditingMatch] = useState<{ myTeamMatchID: string; teamMatchID: string } | null>(null)
+  const [matchDraft, setMatchDraft] = useState<TeamMatchDraft>(emptyMatchDraft)
+  const [pendingDeleteMatch, setPendingDeleteMatch] = useState<{ myTeamMatchID: string; name: string } | null>(null)
 
   useEffect(() => {
     if (authLoading) return
@@ -41,8 +65,8 @@ export default function TeamMatchesPage() {
           getMyTeamMatches(),
           getMyTeams(user?.uid || 'mylocalserver'),
         ])
-        setTeamMatches(matches || [])
-        setTeams(myTeams || [])
+        setTeamMatches((matches || []) as TeamMatchEntry[])
+        setTeams((myTeams || []) as TeamEntry[])
       } catch (error) {
         console.error('Error loading team matches:', error)
       } finally {
@@ -55,12 +79,14 @@ export default function TeamMatchesPage() {
 
   const scoringTypeOptions = useMemo(() => {
     const sport = supportedSports[matchDraft.sportName]
-    return sport?.scoringTypes ? Object.entries(sport.scoringTypes) : []
+    return sport?.scoringTypes
+      ? Object.entries(sport.scoringTypes as Record<string, { displayName: string }>)
+      : []
   }, [matchDraft.sportName])
 
   const reloadMatches = async () => {
     const matches = await getMyTeamMatches()
-    setTeamMatches(matches || [])
+    setTeamMatches((matches || []) as TeamMatchEntry[])
   }
 
   const openNewMatchModal = () => {
@@ -69,7 +95,7 @@ export default function TeamMatchesPage() {
     setShowMatchModal(true)
   }
 
-  const openEditMatchModal = async (myTeamMatchID, match) => {
+  const openEditMatchModal = async (myTeamMatchID: string, match: TeamMatchRow) => {
     const teamMatch = await getTeamMatch(match.id)
     setEditingMatch({ myTeamMatchID, teamMatchID: match.id })
     setMatchDraft({

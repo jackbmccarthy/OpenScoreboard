@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { BrowserRouter, Routes, Route } from '@/lib/router'
 
 // Pages

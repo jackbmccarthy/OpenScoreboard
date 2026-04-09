@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type grapesjs from 'grapesjs'
 export function addIsGameStartedFields(editor:grapesjs.Editor){
 
     const gameNumbers = [1,2,3,4,5,6,7,8,9]

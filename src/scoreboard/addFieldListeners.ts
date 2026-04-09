@@ -1,23 +1,26 @@
-// @ts-nocheck
 import { getBroadcastChannelName } from "./getBroadcastChannelName";
 
+type ListenerFieldEntry = {
+    field: string
+    requiredFields?: string[]
+    action?: (matchNode: HTMLElement, value: unknown, currentMatchSettings?: any) => void
+}
 
-export function addCurrentGameFieldListeners(fieldList) {
-    console.log("current field list", fieldList)
-
+export function addCurrentGameFieldListeners(fieldList: ListenerFieldEntry[]) {
     for (const item of fieldList) {
-        let currentMatchSettings = {};
-        let existingNodes = document.getElementsByClassName(item.field);
+        let currentMatchSettings: Record<string, unknown> = {};
+        let existingNodes = document.getElementsByClassName(item.field) as HTMLCollectionOf<HTMLElement>;
         //console.log(existingNodes)
         for (const matchNode of existingNodes) {
 
             if (item.requiredFields) {
-                for (const field of item.requiredFields) {
+                const requiredFields = item.requiredFields
+                for (const field of requiredFields) {
                     let bc = new BroadcastChannel(field+getBroadcastChannelName())
-                    bc.onmessage = (event) => {
+                    bc.onmessage = (event: MessageEvent<Record<string, unknown>>) => {
                         currentMatchSettings = { ...currentMatchSettings, ...event.data };
                         if (typeof item.action === "function") {
-                            if (Object.keys(currentMatchSettings).length === item.requiredFields.length)
+                            if (Object.keys(currentMatchSettings).length === requiredFields.length)
                                 item.action(matchNode, null, currentMatchSettings)
                         }
                     }
@@ -25,9 +28,8 @@ export function addCurrentGameFieldListeners(fieldList) {
             }
             else {
                 let bc = new BroadcastChannel(item.field+getBroadcastChannelName())
-                bc.onmessage = (event) => {
+                bc.onmessage = (event: MessageEvent<Record<string, unknown>>) => {
                     if (event.data && typeof event.data[item.field] !== "undefined") {
-                        const fieldName = item.field
                         const value = event.data[item.field]
                         if (typeof item.action === "function") {
                             item.action(matchNode, value)

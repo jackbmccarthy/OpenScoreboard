@@ -1,4 +1,3 @@
-// @ts-nocheck
 // My Account Page
 // Migrated from Expo MyAccount.tsx
 

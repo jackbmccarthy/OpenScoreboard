@@ -1,5 +1,6 @@
 import db, { getUserPath } from "../lib/database";
 import { newScoreboard } from "../classes/Scoreboard";
+import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
 
 
 export async function getMyScoreboards(userID,) {
@@ -7,7 +8,18 @@ export async function getMyScoreboards(userID,) {
     let myScoreboardsSnap = await db.ref("users" + "/" + userID + "/" + "myScoreboards").get()
     let myScoreboards = myScoreboardsSnap.val()
     if (myScoreboards !== null && typeof myScoreboards === "object") {
-        return Object.entries(myScoreboards)
+        return Promise.all(Object.entries(myScoreboards).map(async ([myScoreboardID, preview]) => {
+            const previewEntry = preview as Record<string, any>
+            const scoreboardID = previewEntry?.id
+            if (typeof scoreboardID !== 'string' || scoreboardID.length === 0) {
+                return null
+            }
+            const scoreboardSnapshot = await db.ref(`scoreboards/${scoreboardID}`).get()
+            if (!isRecordActive(scoreboardSnapshot.val())) {
+                return null
+            }
+            return [myScoreboardID, previewEntry]
+        })).then((entries) => entries.filter(Boolean))
     }
     else {
         return []
@@ -16,10 +28,25 @@ export async function getMyScoreboards(userID,) {
 }
 
 export async function deleteMyScoreboard(myScoreboardID) {
-
-    let myScoreboardsSnap = await db.ref(`users/${getUserPath()}/myScoreboards/${myScoreboardID}`).remove()
-
-
+    const previewPath = `users/${getUserPath()}/myScoreboards/${myScoreboardID}`
+    const preview = await getPreviewValue(previewPath)
+    const scoreboardID = preview?.id
+    if (typeof scoreboardID === 'string' && scoreboardID.length > 0) {
+        const softDeletedDependents = {
+            dynamicURLs: await softDeleteDynamicURLsByReference({ scoreboardID, reason: 'parent_scoreboard_soft_deleted' }),
+        }
+        await softDeleteCanonical(`scoreboards/${scoreboardID}`, {
+            deleteReason: 'delete_scoreboard',
+            softDeletedDependents,
+        }, {
+            entityType: 'scoreboard',
+            canonicalID: scoreboardID,
+            ownerID: getUserPath(),
+            previewPath,
+            dependents: softDeletedDependents,
+        })
+    }
+    await db.ref(previewPath).remove()
 }
 
 
@@ -49,7 +76,8 @@ export async function addNewScoreboard(name, type) {
 
 export async function getScoreboard(scoreboardID) {
     const snapshot = await db.ref(`scoreboards/${scoreboardID}`).get()
-    return snapshot.val()
+    const scoreboard = snapshot.val()
+    return isRecordActive(scoreboard) ? scoreboard : null
 }
 
 export async function duplicateScoreboard(sourceScoreboardID, myScoreboardName) {

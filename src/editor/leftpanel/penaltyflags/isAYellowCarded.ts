@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type grapesjs from 'grapesjs'
 export function isAYellowCarded(editor: grapesjs.Editor) {
     editor.Components.addType('isAYellowCarded', {
         model: {

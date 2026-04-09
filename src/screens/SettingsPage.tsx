@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Settings Page
 // Migrated from app/(tabs)/settings/index.tsx
 

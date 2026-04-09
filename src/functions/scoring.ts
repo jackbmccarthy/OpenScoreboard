@@ -1,4 +1,5 @@
 import db from '../lib/database';
+import { subscribeToPathValue, unwrapRealtimeValue } from '../lib/realtime';
 import Match from '../classes/Match';
 import { getNewPlayer } from '../classes/Player';
 import { getCombinedPlayerNames } from './players';
@@ -26,7 +27,16 @@ export async function MinusPoint(matchID, gameNumber, AorB) {
 
 }
 
-export async function updateService(matchID, isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame, sportName, scoringType = null) {
+export async function updateService(
+    matchID,
+    isAInitialServer,
+    gameNumber,
+    combinedPoints,
+    changeServeEveryXPoints,
+    pointsToWinGame,
+    sportName,
+    scoringType: string | null = null,
+) {
 
     switch (sportName) {
         case "tableTennis":
@@ -128,20 +138,11 @@ export async function subscribeToAllMatchFields(matchID, callback) {
     let match = await getMatchData(matchID)
     let offList: Array<() => void> = []
     for (const key in match) {
-        let matchRef = db.ref(`matches/${matchID}/${key}`)
-        matchRef.on("value", (snapShot) => {
-            if (typeof snapShot.val()["value"] !== "undefined") {
-                callback(snapShot.val()["value"], key)
-            }
-            else {
-                callback(snapShot.val(), key)
-            }
-
-
-        })
-        offList.push(() => {
-            matchRef.off()
-        })
+        offList.push(
+            subscribeToPathValue(`matches/${matchID}/${key}`, (value) => {
+                callback(unwrapRealtimeValue(value), key)
+            })
+        )
     }
     return offList
 }
@@ -154,7 +155,13 @@ export async function unsubscribeToAllMatchFields(matchID, match) {
     }
 }
 
-export async function createNewMatch(tableID, sportName, previousMatchObj = null, isTeamMatch: boolean | null = null, scoringType = null) {
+export async function createNewMatch(
+    tableID,
+    sportName,
+    previousMatchObj = null,
+    isTeamMatch: boolean | null = null,
+    scoringType: string | null = null,
+) {
     let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, isTeamMatch ?? false, scoringType ?? undefined))
     let currentMatchKey = await db.ref(`tables/${tableID}/currentMatch`).set(newMatch.key)
     return newMatch.key
@@ -626,13 +633,11 @@ export async function manuallySetGameScore(matchID, gameNumber, AScore, BScore) 
 }
 
 export function watchForPasswordChange(tableID, callback) {
-    let tableRef = db.ref(`tables/${tableID}/password`)
-    tableRef.on("value", (passwordRef) => {
-        if (typeof passwordRef.val() === "string") {
-            callback(passwordRef.val())
+    return subscribeToPathValue(`tables/${tableID}/password`, (passwordValue) => {
+        if (typeof passwordValue === "string") {
+            callback(passwordValue)
         }
     })
-    return () => { tableRef.off() }
 }
 
 

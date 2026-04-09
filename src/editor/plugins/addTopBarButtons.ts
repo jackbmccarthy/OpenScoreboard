@@ -1,8 +1,19 @@
-// @ts-nocheck
+import type grapesjs from 'grapesjs'
 import CryptoJS from  'crypto-js'
 
-export function addTopBarButtons(editor) {
-    let panelConfig = {
+export function addTopBarButtons(editor: grapesjs.Editor) {
+    let panelConfig: {
+        appendTo: string
+        id: string
+        visible: boolean
+        buttons: Array<{
+            id: string
+            label: string
+            command: {
+                run: (editor: grapesjs.Editor) => void | Promise<void>
+            }
+        }>
+    } = {
         appendTo: "#toppanel",
         id: "editing", visible: true, buttons: [
             {
@@ -34,7 +45,7 @@ export function addTopBarButtons(editor) {
             {
                 id: "exportButton", label: "Export", command: {
                     run: async function (editor) {
-                        const password = prompt("Please enter a password for the file.")
+                        const password = prompt("Please enter a password for the file.") || ""
                         const exportData = {
                             projectData: editor.getProjectData(),
                             html: editor.getHtml(),
@@ -60,7 +71,11 @@ export function addTopBarButtons(editor) {
                         fileInput.style="display:none;"
                         fileInput.type = 'file';
                         fileInput.onchange = function(event) {
-                          const file = event.target.files[0];
+                          const target = event.target as HTMLInputElement | null
+                          const file = target?.files?.[0];
+                          if (!file) {
+                            return
+                          }
                           const fileReader = new FileReader();
                           fileReader.onload = function() {
                             try {
@@ -68,8 +83,8 @@ export function addTopBarButtons(editor) {
                             } catch (error) {
                                 alert("Unable to upload the file, please check and make you have the correct file and password.")
                             }
-                            const fileContents = fileReader.result;
-                            const password = prompt("Password for the file:")
+                            const fileContents = typeof fileReader.result === "string" ? fileReader.result : ""
+                            const password = prompt("Password for the file:") || ""
                             const decryptedFile = CryptoJS.AES.decrypt(fileContents,password).toString(CryptoJS.enc.Utf8)
                             editor.loadProjectData(JSON.parse(decryptedFile).projectData)
                             

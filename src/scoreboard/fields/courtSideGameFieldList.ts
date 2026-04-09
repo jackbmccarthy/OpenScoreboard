@@ -1,8 +1,18 @@
-// @ts-nocheck
 import { getCurrentGameScore, getMatchScore } from "../match";
 import { getCombinedPlayersFormatted } from "../players";
+import type { MatchSettings } from "../interfaces/Match";
 
-export const courtSideGameFieldList = [
+type CourtSideFieldEntry = {
+    field: string
+    label: string
+    category: string
+    sample: string
+    justify?: string
+    requiredFields: string[]
+    action: (matchNode: HTMLElement, value: unknown, currentMatchSettings: MatchSettings) => void
+}
+
+export const courtSideGameFieldList: CourtSideFieldEntry[] = [
     {
         field: "courtSideAGameScore",
         label: "A Game Score",

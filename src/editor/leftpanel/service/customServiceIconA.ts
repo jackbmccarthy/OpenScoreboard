@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type grapesjs from 'grapesjs'
 
 export function customServiceIconA(editor: grapesjs.Editor) {
     editor.Components.addType('customServiceIconA', {

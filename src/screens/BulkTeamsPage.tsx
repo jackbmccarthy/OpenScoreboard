@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useEffect, useState } from 'react'
 import { Box, Button, HStack, Input, Spinner, Text, VStack } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -7,7 +5,32 @@ import { addNewTeam, deleteMyTeam, getMyTeams, getTeam, updateMyTeam, updateTeam
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 import { UserIcon } from '@/components/icons'
 
-function createEmptyRow() {
+type TeamPlayers = Record<string, unknown>
+
+type BulkTeamRow = {
+  id: string
+  myTeamID: string
+  teamID: string
+  teamName: string
+  teamLogoURL: string
+  players: TeamPlayers
+  isNew: boolean
+}
+
+type TeamPreview = {
+  id: string
+  name: string
+}
+
+type TeamEntry = [string, TeamPreview]
+
+type TeamRecord = {
+  teamName?: string
+  teamLogoURL?: string
+  players?: TeamPlayers
+}
+
+function createEmptyRow(): BulkTeamRow {
   return {
     id: `new-${Math.random().toString(36).slice(2)}`,
     myTeamID: '',
@@ -19,7 +42,7 @@ function createEmptyRow() {
   }
 }
 
-function parseSpreadsheetRows(value) {
+function parseSpreadsheetRows(value: string): BulkTeamRow[] {
   return value
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -70,12 +93,12 @@ function ImagePreview({
 
 export default function BulkTeamsPage() {
   const { loading: authLoading } = useAuth()
-  const [rows, setRows] = useState([])
+  const [rows, setRows] = useState<BulkTeamRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(null)
-  const [pendingRemoval, setPendingRemoval] = useState(null)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [pendingRemoval, setPendingRemoval] = useState<{ id: string; label: string } | null>(null)
   const [viewMode, setViewMode] = useState<'form' | 'spreadsheet'>('form')
   const [spreadsheetValue, setSpreadsheetValue] = useState('')
 
@@ -84,8 +107,8 @@ export default function BulkTeamsPage() {
     try {
       const myTeams = await getMyTeams()
       const detailedRows = await Promise.all(
-        myTeams.map(async ([myTeamID, preview]) => {
-          const team = await getTeam(preview.id)
+        (myTeams as TeamEntry[]).map(async ([myTeamID, preview]) => {
+          const team = await getTeam(preview.id) as TeamRecord | null
           return {
             id: preview.id,
             myTeamID,
@@ -98,8 +121,8 @@ export default function BulkTeamsPage() {
         })
       )
       setRows(detailedRows)
-    } catch (err: any) {
-      setError(err.message || 'Failed to load teams')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load teams')
     } finally {
       setLoading(false)
     }
@@ -118,7 +141,7 @@ export default function BulkTeamsPage() {
     )
   }, [rows])
 
-  const updateRow = (id, field, value) => {
+  const updateRow = (id: string, field: keyof BulkTeamRow, value: string) => {
     setRows((current) => current.map((row) => row.id === id ? { ...row, [field]: value } : row))
   }
 
@@ -142,7 +165,7 @@ export default function BulkTeamsPage() {
 
     try {
       const currentTeams = await getMyTeams()
-      const currentMap = new Map(currentTeams.map(([myTeamID, preview]) => [preview.id, { myTeamID, preview }]))
+      const currentMap = new Map((currentTeams as TeamEntry[]).map(([myTeamID, preview]) => [preview.id, { myTeamID, preview }]))
       const nextTeamIDs = new Set(rows.filter((row) => !row.isNew).map((row) => row.teamID))
 
       for (const row of rows) {
@@ -172,8 +195,8 @@ export default function BulkTeamsPage() {
 
       setSuccess('Bulk team changes saved.')
       await loadTeams()
-    } catch (err: any) {
-      setError(err.message || 'Failed to save teams')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save teams')
     } finally {
       setSaving(false)
     }

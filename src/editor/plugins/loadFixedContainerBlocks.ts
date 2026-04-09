@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type grapesjs from 'grapesjs'
 import { columnContainer } from "../leftpanel/container/columnContainer";
 import { rowContainer } from "../leftpanel/container/rowContainer";
 
@@ -9,4 +9,3 @@ export function loadFixedContainerBlocks(editor:grapesjs.Editor) {
 
 
 }
-

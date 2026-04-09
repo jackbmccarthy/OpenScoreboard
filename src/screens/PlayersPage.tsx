@@ -1,7 +1,5 @@
-// @ts-nocheck
-
 import { useEffect, useState, useCallback } from 'react'
-import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Text, VStack } from '@/components/ui'
+import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Text, VStack } from '@/components/ui'
 import { ChevronRightIcon, PencilIcon, PlayersIcon, PlusIcon, TrashIcon } from '@/components/icons'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
@@ -37,12 +35,15 @@ interface Player {
   lastNameInitial?: boolean
 }
 
+type PlayerListEntry = [string, PlayerList]
+type PlayerEntry = [string, Player]
+
 const emptyPlayer = {
   firstName: '',
   lastName: '',
   imageURL: '',
   country: '',
-}
+} satisfies Player
 
 const countryOptions = Object.entries(countries)
   .map(([code, name]) => ({ code, name }))
@@ -52,9 +53,9 @@ export default function PlayersPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
 
-  const [playerLists, setPlayerLists] = useState<[string, PlayerList][]>([])
+  const [playerLists, setPlayerLists] = useState<PlayerListEntry[]>([])
   const [selectedList, setSelectedList] = useState<{ myPlayerListID: string; id: string; name: string } | null>(null)
-  const [players, setPlayers] = useState<[string, Player][]>([])
+  const [players, setPlayers] = useState<PlayerEntry[]>([])
   const [loading, setLoading] = useState(true)
 
   const [showNewListModal, setShowNewListModal] = useState(false)
@@ -72,7 +73,7 @@ export default function PlayersPage() {
   const loadPlayerLists = useCallback(async () => {
     try {
       const lists = await getMyPlayerLists()
-      setPlayerLists(lists)
+      setPlayerLists((lists || []) as PlayerListEntry[])
     } catch (error) {
       console.error('Error loading player lists:', error)
     } finally {
@@ -82,7 +83,7 @@ export default function PlayersPage() {
 
   const reloadSelectedListPlayers = useCallback(async (playerListID: string) => {
     const playerData = await getImportPlayerList(playerListID)
-    setPlayers(playerData.length > 0 ? sortPlayers(playerData) : [])
+    setPlayers(playerData.length > 0 ? sortPlayers(playerData as PlayerEntry[]) as PlayerEntry[] : [])
   }, [])
 
   useEffect(() => {

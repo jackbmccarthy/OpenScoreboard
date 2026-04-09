@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack } from '@/components/ui'
 import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/icons'
@@ -11,6 +9,46 @@ import { getMyTables } from '@/functions/tables'
 import getMyTeamMatches from '@/functions/teammatches'
 import { useAuth } from '@/lib/auth'
 
+type DynamicURLDraft = {
+  dynamicURLName: string
+  scoreboardID: string
+  targetType: 'table' | 'teamMatch'
+  tableID: string
+  teammatchID: string
+  tableNumber: string
+}
+
+type DynamicURLRecord = {
+  id: string
+  dynamicURLName: string
+  scoreboardID: string
+  tableID?: string
+  teammatchID?: string
+  teamMatchID?: string
+  tableNumber?: string
+}
+
+type ScoreboardSummary = {
+  id: string
+  name: string
+}
+
+type TableSummary = {
+  tableID: string
+  tableName: string
+}
+
+type TeamMatchSummary = {
+  id: string
+  teamAName: string
+  teamBName: string
+}
+
+type DynamicURLEntry = [string, DynamicURLRecord]
+type ScoreboardEntry = [string, ScoreboardSummary]
+type TableEntry = [string, TableSummary]
+type TeamMatchEntry = [string, TeamMatchSummary]
+
 const emptyDynamicURLDraft = {
   dynamicURLName: '',
   scoreboardID: '',
@@ -18,19 +56,19 @@ const emptyDynamicURLDraft = {
   tableID: '',
   teammatchID: '',
   tableNumber: '',
-}
+} satisfies DynamicURLDraft
 
 export default function DynamicURLsPage() {
   const { user, loading: authLoading } = useAuth()
-  const [dynamicURLs, setDynamicURLs] = useState([])
-  const [scoreboards, setScoreboards] = useState([])
-  const [tables, setTables] = useState([])
-  const [teamMatches, setTeamMatches] = useState([])
+  const [dynamicURLs, setDynamicURLs] = useState<DynamicURLEntry[]>([])
+  const [scoreboards, setScoreboards] = useState<ScoreboardEntry[]>([])
+  const [tables, setTables] = useState<TableEntry[]>([])
+  const [teamMatches, setTeamMatches] = useState<TeamMatchEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showDynamicURLModal, setShowDynamicURLModal] = useState(false)
-  const [editingDynamicURL, setEditingDynamicURL] = useState(null)
-  const [dynamicURLDraft, setDynamicURLDraft] = useState(emptyDynamicURLDraft)
-  const [pendingDeleteDynamicURL, setPendingDeleteDynamicURL] = useState(null)
+  const [editingDynamicURL, setEditingDynamicURL] = useState<{ myDynamicURLID: string; dynamicURLID: string } | null>(null)
+  const [dynamicURLDraft, setDynamicURLDraft] = useState<DynamicURLDraft>(emptyDynamicURLDraft)
+  const [pendingDeleteDynamicURL, setPendingDeleteDynamicURL] = useState<{ myDynamicURLID: string; dynamicURLID: string; name: string } | null>(null)
 
   useEffect(() => {
     if (authLoading) return
@@ -43,10 +81,10 @@ export default function DynamicURLsPage() {
           getMyTables(),
           getMyTeamMatches(),
         ])
-        setDynamicURLs(urls)
-        setScoreboards(scoreboardRows)
-        setTables(tableRows)
-        setTeamMatches(teamMatchRows)
+        setDynamicURLs(urls as DynamicURLEntry[])
+        setScoreboards(scoreboardRows as ScoreboardEntry[])
+        setTables(tableRows as TableEntry[])
+        setTeamMatches(teamMatchRows as TeamMatchEntry[])
       } catch (error) {
         console.error('Error loading dynamic URLs:', error)
       } finally {
@@ -58,7 +96,7 @@ export default function DynamicURLsPage() {
   }, [authLoading, user])
 
   const reloadDynamicURLs = async () => {
-    setDynamicURLs(await getMyDynamicURLs())
+    setDynamicURLs((await getMyDynamicURLs()) as DynamicURLEntry[])
   }
 
   const openNewDynamicURLModal = () => {
@@ -67,7 +105,7 @@ export default function DynamicURLsPage() {
     setShowDynamicURLModal(true)
   }
 
-  const openEditDynamicURLModal = (myDynamicURLID, dynamicURL) => {
+  const openEditDynamicURLModal = (myDynamicURLID: string, dynamicURL: DynamicURLRecord) => {
     setEditingDynamicURL({ myDynamicURLID, dynamicURLID: dynamicURL.id })
     setDynamicURLDraft({
       dynamicURLName: dynamicURL.dynamicURLName || '',
@@ -111,7 +149,10 @@ export default function DynamicURLsPage() {
     await reloadDynamicURLs()
   }
 
-  const scoreboardOptions = useMemo(() => scoreboards.map(([id, scoreboard]) => ({ id: scoreboard.id, label: scoreboard.name })), [scoreboards])
+  const scoreboardOptions = useMemo(
+    () => scoreboards.map(([, scoreboard]) => ({ id: scoreboard.id, label: scoreboard.name })),
+    [scoreboards],
+  )
 
   if (authLoading || loading) {
     return (
@@ -124,7 +165,7 @@ export default function DynamicURLsPage() {
   return (
     <Box className="p-4">
       <VStack space="md">
-        <HStack className="justify-between items-center">
+        <HStack className="items-center justify-between">
           <Heading size="lg">Dynamic URLs</Heading>
           <Button onClick={openNewDynamicURLModal}>
             <PlusIcon size={16} />
@@ -135,9 +176,9 @@ export default function DynamicURLsPage() {
         <VStack className="gap-3">
           {dynamicURLs.length === 0 ? (
             <Box className="p-8 text-center">
-              <ScoreboardIcon size={48} className="mx-auto text-gray-300 mb-4" />
+              <ScoreboardIcon size={48} className="mx-auto mb-4 text-gray-300" />
               <Text className="text-gray-500">No dynamic URLs yet</Text>
-              <Text className="text-gray-400 text-sm">Create one to route overlays to tables or team matches.</Text>
+              <Text className="text-sm text-gray-400">Create one to route overlays to tables or team matches.</Text>
             </Box>
           ) : (
             dynamicURLs.map(([myDynamicURLID, dynamicURL]) => (
@@ -189,7 +230,7 @@ export default function DynamicURLsPage() {
               <option key={scoreboard.id} value={scoreboard.id}>{scoreboard.label}</option>
             ))}
           </Select>
-          <Select value={dynamicURLDraft.targetType} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, targetType: value }))}>
+          <Select value={dynamicURLDraft.targetType} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, targetType: value as DynamicURLDraft['targetType'] }))}>
             <option value="table">Table</option>
             <option value="teamMatch">Team Match</option>
           </Select>

@@ -1,10 +1,9 @@
-// @ts-nocheck
 // Player Registration Page
 // Migrated from Expo PlayerRegistration.tsx
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Text, VStack, HStack, Button, Input, Spinner } from '@/components/ui';
+import { Box, Text, VStack, Button, Input, Spinner } from '@/components/ui';
 
 export default function PlayerRegistrationPage() {
   const params = useParams<{ playerListID?: string; password?: string; id?: string }>();
@@ -21,12 +20,13 @@ export default function PlayerRegistrationPage() {
 
   useEffect(() => {
     async function checkPlayerList() {
+      let unSub: (() => void) | undefined
       try {
         const { getPlayerListName, watchForPlayerListPasswordChange } = await import('@/functions/players');
         
         // Watch for password changes
         if (playerListID) {
-          const unSub = watchForPlayerListPasswordChange(playerListID, (nextPassword: string) => {
+          unSub = watchForPlayerListPasswordChange(playerListID, (nextPassword: string) => {
             if (nextPassword && nextPassword !== password) {
               setUnauthorized(true);
             }
@@ -43,9 +43,18 @@ export default function PlayerRegistrationPage() {
       } finally {
         setLoading(false);
       }
+
+      return unSub
     }
 
-    checkPlayerList();
+    let cleanup: (() => void) | undefined
+    checkPlayerList().then((unsubscribe) => {
+      cleanup = unsubscribe
+    })
+
+    return () => {
+      cleanup?.()
+    }
   }, [password, playerListID]);
 
   const handleRegister = async () => {

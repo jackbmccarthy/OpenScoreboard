@@ -1,6 +1,8 @@
 import db, { getUserPath } from "../lib/database"
+import { subscribeToPathValue } from '../lib/realtime';
 
 import { v4 as uuidv4 } from 'uuid';
+import { getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
 
 export async function resetPlayerListPassword(playerListID) {
     let newPassword = uuidv4()
@@ -95,9 +97,14 @@ export async function getImportPlayerList(playerListID) {
 }
 
 export async function getPlayerListName(playerListID) {
+    const playerListSnapshot = await db.ref(`playerLists/${playerListID}`).get()
+    const playerListRecord = playerListSnapshot.val()
+    if (!isRecordActive(playerListRecord)) {
+        return ""
+    }
     let playerListRef = db.ref(`playerLists/${playerListID}/playerListName`)
-    let playerListSnapshot = await playerListRef.get()
-    let playerList = playerListSnapshot.val()
+    let playerListNameSnapshot = await playerListRef.get()
+    let playerList = playerListNameSnapshot.val()
     if (playerList) {
         return playerList
     }
@@ -166,13 +173,11 @@ export async function replacePlayersInList(playerListID, players) {
 }
 
 export function watchForPlayerListPasswordChange(playerListID, callback) {
-    let tableRef = db.ref(`playerLists/${playerListID}/password`)
-    tableRef.on("value", (passwordRef) => {
-        if (typeof passwordRef.val() === "string") {
-            callback(passwordRef.val())
+    return subscribeToPathValue(`playerLists/${playerListID}/password`, (passwordValue) => {
+        if (typeof passwordValue === "string") {
+            callback(passwordValue)
         }
     })
-    return () => { tableRef.off() }
 }
 
 export async function getMyPlayerLists() {
@@ -182,10 +187,15 @@ export async function getMyPlayerLists() {
         return Promise.all(Object.entries(myPlayerLists).map(async ([id, data]) => {
             const playerListEntry = data as Record<string, unknown>
             const playerListID = String(playerListEntry["id"] || '')
+            const canonicalSnapshot = await db.ref(`playerLists/${playerListID}`).get()
+            const canonicalPlayerList = canonicalSnapshot.val()
+            if (!isRecordActive(canonicalPlayerList)) {
+                return null
+            }
             let passwordRef = db.ref(`playerLists/${playerListID}/password`)
             let passwordSnap = await passwordRef.get()
             return [id, { ...playerListEntry, password: passwordSnap.val() }]
-        }))
+        })).then((entries) => entries.filter(Boolean))
     }
     else {
         return []
@@ -193,6 +203,19 @@ export async function getMyPlayerLists() {
 }
 
 export async function deletePlayerList(myPlayerListID) {
-    let myPlayerListsSnap = await db.ref(`users/${getUserPath()}/myPlayerLists/${myPlayerListID}`).remove()
+    const previewPath = `users/${getUserPath()}/myPlayerLists/${myPlayerListID}`
+    const preview = await getPreviewValue(previewPath)
+    const playerListID = preview?.id
+    if (typeof playerListID === 'string' && playerListID.length > 0) {
+        await softDeleteCanonical(`playerLists/${playerListID}`, {
+            deleteReason: 'delete_player_list'
+        }, {
+            entityType: 'playerList',
+            canonicalID: playerListID,
+            ownerID: getUserPath(),
+            previewPath,
+        })
+    }
+    await db.ref(previewPath).remove()
 
 }

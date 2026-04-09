@@ -1,12 +1,11 @@
-// @ts-nocheck
 // QR Code Page
 // Displays QR code for table scoring URL
 
-import { useParams } from 'react-router-dom';
-import { Box, Text, VStack, Spinner } from '@/components/ui';
+import { useParams } from 'react-router-dom'
+import { Box, Text, VStack } from '@/components/ui'
 
 export default function QRCodePage() {
-  const params = useParams<{ tableName?: string; url?: string }>();
+  const params = useParams<{ tableName?: string; url?: string }>()
 
   // For now, display the URL - QR code generation would require a library
   return (
@@ -26,5 +25,5 @@ export default function QRCodePage() {
         </Box>
       </VStack>
     </Box>
-  );
+  )
 }

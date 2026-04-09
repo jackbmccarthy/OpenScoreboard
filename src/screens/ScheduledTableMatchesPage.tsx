@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
@@ -24,7 +22,7 @@ interface ScheduledMatch {
 
 export default function ScheduledTableMatchesPage() {
   const params = useParams<{ tableID?: string }>()
-  const tableID = params.tableID as string | undefined
+  const tableID = params.tableID
   const { user, loading: authLoading } = useAuth()
   const [matches, setMatches] = useState<[string, ScheduledMatch][]>([])
   const [loading, setLoading] = useState(true)

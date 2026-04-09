@@ -1,5 +1,14 @@
-// @ts-nocheck
-export function loadTextBlocks(editor, fieldList) {
+import type grapesjs from 'grapesjs'
+
+type TextBlockField = {
+    field: string
+    label?: string
+    sample?: string | number
+    justify?: string
+    category?: string
+}
+
+export function loadTextBlocks(editor: grapesjs.Editor, fieldList: TextBlockField[]) {
 
     for (const item of fieldList) {
         // Define a new custom component

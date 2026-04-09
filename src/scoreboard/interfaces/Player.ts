@@ -1,6 +1,4 @@
-// @ts-nocheck
-
-interface Player {
+export interface Player {
     firstName: string;
     lastName: string;
     imageURL: string;

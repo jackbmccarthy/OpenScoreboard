@@ -1,54 +1,52 @@
-// @ts-nocheck
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { 
-  signInWithGoogle,
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import {
   signInWithGoogleRedirect,
-  signInWithEmail, 
-  signUpWithEmail 
-} from '@/lib/auth';
-import GoogleIcon from '@/components/ui/icons/google';
+  signInWithEmail,
+  signUpWithEmail
+} from '@/lib/auth'
+import GoogleIcon from '@/components/ui/icons/google'
 
 export default function Login() {
-  const navigate = useNavigate();
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate()
+  const [isSignUp, setIsSignUp] = useState(false)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   // Use redirect for maximum browser compatibility
   // Popup can be blocked by popup blockers in Safari, Firefox private browsing, etc.
   const handleGoogleLogin = async () => {
-    setLoading(true);
-    setError('');
+    setLoading(true)
+    setError('')
     try {
       // Redirect is the most reliable - works everywhere
-      await signInWithGoogleRedirect();
+      await signInWithGoogleRedirect()
       // After redirect, the /auth/callback page will handle the result
-    } catch (err: any) {
-      setError(err.message);
-      setLoading(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to launch Google sign-in')
+      setLoading(false)
     }
-  };
+  }
 
   const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
+    e.preventDefault()
+    setLoading(true)
+    setError('')
     try {
       if (isSignUp) {
-        await signUpWithEmail(email, password);
+        await signUpWithEmail(email, password)
       } else {
-        await signInWithEmail(email, password);
+        await signInWithEmail(email, password)
       }
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.message);
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to authenticate')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
@@ -175,5 +173,5 @@ export default function Login() {
         </p>
       </div>
     </div>
-  );
+  )
 }

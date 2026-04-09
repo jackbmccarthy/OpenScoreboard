@@ -1,8 +1,6 @@
-// @ts-nocheck
-
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Avatar, Badge, Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack } from '@/components/ui'
-import { ArrowRightIcon, ChevronRightIcon, CopyIcon, PencilIcon, PlusIcon, ScoreboardIcon, SettingsIcon, TrashIcon, UserIcon } from '@/components/icons'
+import { useCallback, useEffect, useState } from 'react'
+import { Avatar, Badge, Box, Button, Heading, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
+import { CopyIcon, UserIcon } from '@/components/icons'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import {
@@ -12,8 +10,6 @@ import {
   MinusPoint,
   endGame,
   getCurrentGameNumber,
-  getCurrentGameScore,
-  getCurrentMatchForTable,
   getMatchData,
   getMatchScore,
   getTableInfo,
@@ -30,12 +26,10 @@ import {
   setIsDoubles,
   setIsGamePoint,
   setIsMatchPoint,
-  setRedFlag,
   setScoringType,
   setServerManually,
   setisManualMode,
   setUsedTimeOut,
-  setYellowFlag,
   startGame,
   startTimeOut,
   resetUsedTimeOut,
@@ -50,7 +44,7 @@ import {
 import { createTeamMatchNewMatch, getTeamMatch, getTeamMatchCurrentMatch } from '@/functions/teammatches'
 import { getTablePassword } from '@/functions/tables'
 import { supportedSports } from '@/functions/sports'
-import { getNewPlayer, newImportedPlayer } from '@/classes/Player'
+import { getNewPlayer } from '@/classes/Player'
 import countries from '@/flags/countries.json'
 import { useAuth } from '@/lib/auth'
 import { useNavigate } from 'react-router-dom'
@@ -512,6 +506,10 @@ export default function ScoringStation({
     setActiveAction('start-match')
     if (mode === 'table' && tableID && tableInfo) {
       const newMatchID = await createNewMatch(tableID, tableInfo.sportName || 'tableTennis', null, false, tableInfo.scoringType || 'normal')
+      if (!newMatchID) {
+        setActiveAction('')
+        return
+      }
       setMatchID(newMatchID)
       setMatch(await getMatchData(newMatchID))
       setActiveAction('')
@@ -520,6 +518,10 @@ export default function ScoringStation({
 
     if (mode === 'teamMatch' && teamMatchID && teamMatch) {
       const newMatchID = await createTeamMatchNewMatch(teamMatchID, activeTableNumber, teamMatch.sportName || 'tableTennis', null, teamMatch.scoringType || 'normal')
+      if (!newMatchID) {
+        setActiveAction('')
+        return
+      }
       setMatchID(newMatchID)
       setMatch(await getMatchData(newMatchID))
     }
@@ -812,7 +814,7 @@ export default function ScoringStation({
           </Select>
           {supportedSports[match?.sportName]?.hasScoringTypes ? (
             <Select value={settingsDraft.scoringType} onValueChange={(value) => setSettingsDraft((current) => ({ ...current, scoringType: value }))}>
-              {Object.entries(supportedSports[match?.sportName]?.scoringTypes || {}).map(([key, config]) => (
+              {Object.entries((supportedSports[match?.sportName]?.scoringTypes || {}) as Record<string, { displayName: string }>).map(([key, config]) => (
                 <option key={key} value={key}>{config.displayName}</option>
               ))}
             </Select>

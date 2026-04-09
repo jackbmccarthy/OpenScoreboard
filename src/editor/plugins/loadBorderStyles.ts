@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type grapesjs from 'grapesjs'
 import { BorderBottom } from "../rightpanel/border/BorderBottom";
 import { BorderLeft } from "../rightpanel/border/BorderLeft";
 import { BorderRight } from "../rightpanel/border/BorderRight";
@@ -14,4 +14,3 @@ export function loadBorderStyles(editor:grapesjs.Editor) {
     BorderLeft(editor)
     BorderRight(editor)
 }
-

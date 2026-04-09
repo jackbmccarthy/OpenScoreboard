@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useParams } from 'react-router-dom'
 import ScoringStation from '@/components/scoring/ScoringStation'
 

@@ -1,8 +1,6 @@
-// @ts-nocheck
-
 import { useEffect, useMemo, useState } from 'react'
-import { Avatar, Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack } from '@/components/ui'
-import { ChevronRightIcon, PencilIcon, PlusIcon, TeamsIcon, TrashIcon, UserIcon } from '@/components/icons'
+import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack } from '@/components/ui'
+import { PencilIcon, PlusIcon, TeamsIcon, TrashIcon, UserIcon } from '@/components/icons'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import OverlayDialog from '@/components/crud/OverlayDialog'
@@ -12,13 +10,35 @@ import countries from '@/flags/countries.json'
 import { getNewPlayer } from '@/classes/Player'
 import { v4 as uuidv4 } from 'uuid'
 
+type TeamPlayer = {
+  firstName?: string
+  lastName?: string
+  imageURL?: string
+  country?: string
+  clubName?: string
+  jerseyColor?: string
+  firstNameInitial?: boolean
+  lastNameInitial?: boolean
+  isImported?: boolean
+}
+
+type TeamRecord = {
+  teamName?: string
+  teamLogoURL?: string
+  players?: Record<string, TeamPlayer>
+}
+
+type TeamEntry = [string, { id: string; name: string; createdOn?: string }]
+type TeamPlayerEntry = [string, TeamPlayer]
+type TeamDraft = { teamName: string; teamLogoURL: string }
+
 const countryOptions = Object.entries(countries)
   .map(([code, name]) => ({ code, name }))
   .sort((a, b) => a.name.localeCompare(b.name))
 
-const emptyPlayerDraft = getNewPlayer()
+const emptyPlayerDraft = getNewPlayer() as TeamPlayer
 
-function TeamImagePreview({ src, alt }) {
+function TeamImagePreview({ src, alt }: { src?: string; alt: string }) {
   const [hasError, setHasError] = useState(false)
   const hasImage = Boolean(src?.trim()) && !hasError
 
@@ -38,7 +58,7 @@ function TeamImagePreview({ src, alt }) {
   )
 }
 
-function PlayerImagePreview({ src, alt }) {
+function PlayerImagePreview({ src, alt }: { src?: string; alt: string }) {
   const [hasError, setHasError] = useState(false)
   const hasImage = Boolean(src?.trim()) && !hasError
 
@@ -58,7 +78,7 @@ function PlayerImagePreview({ src, alt }) {
   )
 }
 
-function parseBulkPlayers(value) {
+function parseBulkPlayers(value: string): Array<TeamPlayer & { id: string }> {
   return value
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -83,17 +103,17 @@ function parseBulkPlayers(value) {
 export default function TeamDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user, loading: authLoading } = useAuth()
+  const { loading: authLoading } = useAuth()
 
   const [loading, setLoading] = useState(true)
-  const [team, setTeam] = useState(null)
-  const [myTeamEntry, setMyTeamEntry] = useState(null)
-  const [teamDraft, setTeamDraft] = useState({ teamName: '', teamLogoURL: '' })
-  const [players, setPlayers] = useState([])
+  const [team, setTeam] = useState<TeamRecord | null>(null)
+  const [myTeamEntry, setMyTeamEntry] = useState<TeamEntry | null>(null)
+  const [teamDraft, setTeamDraft] = useState<TeamDraft>({ teamName: '', teamLogoURL: '' })
+  const [players, setPlayers] = useState<TeamPlayerEntry[]>([])
   const [showPlayerModal, setShowPlayerModal] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState(false)
   const [editingPlayerID, setEditingPlayerID] = useState<string | null>(null)
-  const [playerDraft, setPlayerDraft] = useState(emptyPlayerDraft)
+  const [playerDraft, setPlayerDraft] = useState<TeamPlayer>(emptyPlayerDraft)
   const [bulkValue, setBulkValue] = useState('')
   const [pendingDeletePlayer, setPendingDeletePlayer] = useState<{ id: string; label: string } | null>(null)
 
@@ -107,13 +127,13 @@ export default function TeamDetailPage() {
           getMyTeamEntryByTeamID(id),
         ])
 
-        setTeam(teamData)
-        setMyTeamEntry(myTeamData)
+        setTeam((teamData || null) as TeamRecord | null)
+        setMyTeamEntry((myTeamData || null) as TeamEntry | null)
         setTeamDraft({
           teamName: teamData?.teamName || '',
           teamLogoURL: teamData?.teamLogoURL || '',
         })
-        setPlayers(Object.entries(teamData?.players || {}))
+        setPlayers(Object.entries(teamData?.players || {}) as TeamPlayerEntry[])
       } catch (error) {
         console.error('Error loading team:', error)
       } finally {
@@ -139,7 +159,7 @@ export default function TeamDetailPage() {
     )
   }, [players])
 
-  const saveTeam = async (nextTeamDraft = teamDraft, nextPlayers = players) => {
+  const saveTeam = async (nextTeamDraft: TeamDraft = teamDraft, nextPlayers: TeamPlayerEntry[] = players) => {
     if (!id) return
 
     const playerPayload = Object.fromEntries(
@@ -189,7 +209,7 @@ export default function TeamDetailPage() {
     setShowPlayerModal(true)
   }
 
-  const openEditPlayer = (playerID, player) => {
+  const openEditPlayer = (playerID: string, player: TeamPlayer) => {
     setEditingPlayerID(playerID)
     setPlayerDraft({
       ...getNewPlayer(),
@@ -199,9 +219,9 @@ export default function TeamDetailPage() {
   }
 
   const handleSavePlayer = async () => {
-    const nextPlayers = editingPlayerID
-      ? players.map(([playerID, player]) => playerID === editingPlayerID ? [playerID, playerDraft] : [playerID, player])
-      : [...players, [uuidv4(), playerDraft]]
+    const nextPlayers: TeamPlayerEntry[] = editingPlayerID
+      ? players.map(([playerID, player]) => (playerID === editingPlayerID ? [playerID, playerDraft] : [playerID, player]) as TeamPlayerEntry)
+      : [...players, [uuidv4(), playerDraft] as TeamPlayerEntry]
 
     setPlayers(nextPlayers)
     setShowPlayerModal(false)
@@ -219,7 +239,7 @@ export default function TeamDetailPage() {
   }
 
   const handleApplyBulkPlayers = async () => {
-    const parsedPlayers = parseBulkPlayers(bulkValue).map((player) => [player.id, player])
+    const parsedPlayers = parseBulkPlayers(bulkValue).map((player) => [player.id, player] as TeamPlayerEntry)
     setPlayers(parsedPlayers)
     setShowBulkModal(false)
     await saveTeam(teamDraft, parsedPlayers)

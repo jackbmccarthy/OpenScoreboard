@@ -1,5 +1,9 @@
-// @ts-nocheck
-export const conditionalShowFieldList = [
+type ConditionalShowFieldEntry = {
+    field: string
+    action: (matchNode: HTMLElement, value: boolean) => void
+}
+
+export const conditionalShowFieldList: ConditionalShowFieldEntry[] = [
     {
         field: "isACurrentlyServing",
         action: (matchNode: HTMLElement, value) => {

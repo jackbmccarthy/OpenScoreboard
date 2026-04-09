@@ -1,8 +1,10 @@
-// @ts-nocheck
 import db from '@/lib/database';
 import { getBroadcastChannelName } from './getBroadcastChannelName';
 
-export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetListeners: {():void}, addToListenerList ) => {
+type SnapshotLike = { val: () => any }
+type ListenerAdder = (listener: () => void) => void
+
+export const updateCurrentMatch = async (currentMatchSnap: SnapshotLike, isInitialRun: boolean, resetListeners: {():void}, addToListenerList: ListenerAdder ) => {
     //console.log(resetListeners)
     resetListeners();
     let currentMatch = currentMatchSnap.val();
@@ -33,14 +35,11 @@ export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetLis
                     if (snapShot.val() !== null && snapShot.val()["cursor"] === undefined) {
                         //console.log(key, snapShot.val());
                         //console.log(key+getBroadcastChannelName())
-                        if(typeof snapShot.val() ==="object" && Object.keys(snapShot.val()).includes("cursor")){
-                            console.log("bad update value")
-                        }
-                        else{
+                        if(!(typeof snapShot.val() ==="object" && Object.keys(snapShot.val()).includes("cursor"))){
                             let bc = new BroadcastChannel(key+getBroadcastChannelName());
-                        bc.postMessage({ [key]: snapShot.val() });
-                        window.postMessage({ [key]: snapShot.val() });
-                        bc.close();
+                            bc.postMessage({ [key]: snapShot.val() });
+                            window.postMessage({ [key]: snapShot.val() });
+                            bc.close();
                         }
                         
                   
@@ -66,11 +65,9 @@ export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetLis
     }
 };
 
-export const updateTeamMatch = async (currentMatchSnap,isInitialRun, resetListeners, addToListenerList ) => {
+export const updateTeamMatch = async (currentMatchSnap: SnapshotLike, isInitialRun: boolean, resetListeners: {(): void}, addToListenerList: ListenerAdder ) => {
     // Resolve from Snapshot to values
     let currentMatch = currentMatchSnap.val();
-
-    let matchFieldListenerRemovalList: Array<() => void> = [];
     // console.log(currentMatch, typeof currentMatch === "string", currentMatch.length);
     if (typeof currentMatch === "string" && currentMatch.length > 0) {
         let match = await db.ref(`matches/${currentMatch}`).get();
@@ -108,11 +105,9 @@ export const updateTeamMatch = async (currentMatchSnap,isInitialRun, resetListen
         }
 
     }
-    return matchFieldListenerRemovalList;
 };
-export const updateTeamAID = async (TeamASnap,isInitialRun, resetListeners, addToListenerList ) => {
+export const updateTeamAID = async (TeamASnap: SnapshotLike, isInitialRun: boolean, resetListeners: {(): void}, addToListenerList: ListenerAdder ) => {
     let teamAID = TeamASnap.val();
-    console.log(teamAID);
     if (typeof teamAID === "string") {
         if (isInitialRun) {
             let teamRef = db.ref(`teams/${teamAID}/teamName`);
@@ -162,9 +157,8 @@ export const updateTeamAID = async (TeamASnap,isInitialRun, resetListeners, addT
     }
 };
 
-export const updateTeamBID = async (TeamBSnap,isInitialRun, resetListeners, addToListenerList ) => {
+export const updateTeamBID = async (TeamBSnap: SnapshotLike, isInitialRun: boolean, resetListeners: {(): void}, addToListenerList: ListenerAdder ) => {
     let teamBID = TeamBSnap.val();
-    console.log(teamBID);
     if (typeof teamBID === "string") {
         if (isInitialRun) {
             let teamRef = db.ref(`teams/${teamBID}/teamName`);
@@ -214,9 +208,8 @@ export const updateTeamBID = async (TeamBSnap,isInitialRun, resetListeners, addT
     }
 };
 
-export const updateTeamAScore = async (TeamASnap) => {
+export const updateTeamAScore = async (TeamASnap: SnapshotLike) => {
     let teamAScore = TeamASnap.val();
-    console.log(teamAScore);
     if (typeof teamAScore === "string" || typeof teamAScore === "number") {
         let bc = new BroadcastChannel("teamAScore"+getBroadcastChannelName());
                 bc.postMessage({ teamAScore:  TeamASnap.val()});
@@ -226,9 +219,8 @@ export const updateTeamAScore = async (TeamASnap) => {
     }
 };
 
-export const updateTeamBScore = async (TeamBSnap) => {
+export const updateTeamBScore = async (TeamBSnap: SnapshotLike) => {
     let teamBScore = TeamBSnap.val();
-    console.log(teamBScore);
     if (typeof teamBScore === "string" || typeof teamBScore === "number") {
         let bc = new BroadcastChannel("teamBScore"+getBroadcastChannelName());
                 bc.postMessage({  teamBScore:  TeamBSnap.val() });
@@ -238,9 +230,8 @@ export const updateTeamBScore = async (TeamBSnap) => {
     }
 
 };
-export const updateTeamALogoURL = async (TeamASnap) => {
+export const updateTeamALogoURL = async (TeamASnap: SnapshotLike) => {
     let teamAScore = TeamASnap.val();
-    console.log(teamAScore);
     if (typeof teamAScore === "string") {
         let bc = new BroadcastChannel("teamLogoURLA"+getBroadcastChannelName());
                 bc.postMessage({ teamLogoURLA: TeamASnap.val()  });
@@ -250,9 +241,8 @@ export const updateTeamALogoURL = async (TeamASnap) => {
     }
 };
 
-export const updateTeamBLogoURL = async (TeamBSnap) => {
+export const updateTeamBLogoURL = async (TeamBSnap: SnapshotLike) => {
     let teamBScore = TeamBSnap.val();
-    console.log(teamBScore);
     if (typeof teamBScore === "string") {
         let bc = new BroadcastChannel("teamLogoURLB"+getBroadcastChannelName());
                 bc.postMessage({teamLogoURLB: TeamBSnap.val()  });

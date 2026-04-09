@@ -1,6 +1,6 @@
-// @ts-nocheck
+import type { MatchSettings } from "./interfaces/Match"
 
-export function getCurrentGameScore(match:MatchSettings) {
+export function getCurrentGameScore(match: MatchSettings) {
     if (match) {
         console.log(match)
         if (match.isInBetweenGames) {

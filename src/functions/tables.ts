@@ -1,6 +1,7 @@
 import db, { getUserPath } from "../lib/database"
 import { v4 as uuidv4 } from 'uuid';
 import Table from "../classes/Table";
+import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
 export async function resetTablePassword(tableID) {
   let newPassword = uuidv4()
   await db.ref("tables/" + tableID + "/password").set(newPassword)
@@ -19,7 +20,8 @@ export async function createNewTable(tableName, playerListID, sportName, scoring
 
 export async function getTable(tableID) {
   const tableSnap = await db.ref(`tables/${tableID}`).get()
-  return tableSnap.val()
+  const table = tableSnap.val()
+  return isRecordActive(table) ? table : null
 }
 
 export async function updateTable(tableID, tableSettings) {
@@ -63,7 +65,24 @@ export async function deleteAllMyTables() {
 }
 
 export async function deleteTable(myTableID) {
-  await db.ref(`users/${getUserPath()}/myTables/${myTableID}`).remove()
+  const previewPath = `users/${getUserPath()}/myTables/${myTableID}`
+  const tableID = await getPreviewValue(previewPath)
+  if (typeof tableID === 'string' && tableID.length > 0) {
+    const softDeletedDependents = {
+      dynamicURLs: await softDeleteDynamicURLsByReference({ tableID, reason: 'parent_table_soft_deleted' }),
+    }
+    await softDeleteCanonical(`tables/${tableID}`, {
+      deleteReason: 'delete_table',
+      softDeletedDependents,
+    }, {
+      entityType: 'table',
+      canonicalID: tableID,
+      ownerID: getUserPath(),
+      previewPath,
+      dependents: softDeletedDependents,
+    })
+  }
+  await db.ref(previewPath).remove()
 }
 
 export async function setPlayerListToTable(tableID, playerListID, myTableID) {

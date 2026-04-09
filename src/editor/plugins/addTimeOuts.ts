@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type grapesjs from 'grapesjs'
 import { isATimeOutActive } from "../leftpanel/timeout/isATimeOutActive";
 import { isBTimeOutActive } from "../leftpanel/timeout/isBTimeOutActive";
 
@@ -8,4 +8,3 @@ export function addTimeOuts(editor:grapesjs.Editor){
 
    
 }
-

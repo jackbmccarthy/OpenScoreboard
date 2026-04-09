@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Text, VStack } from '@/components/ui'
@@ -15,26 +13,39 @@ interface TeamRow {
   createdOn?: string
 }
 
+type TeamDraft = {
+  teamName: string
+  teamLogoURL: string
+}
+
+type TeamRecord = {
+  teamName: string
+  teamLogoURL?: string
+  players?: Record<string, unknown>
+}
+
+type TeamEntry = [string, TeamRow]
+
 const emptyTeamDraft = {
   teamName: '',
   teamLogoURL: '',
-}
+} satisfies TeamDraft
 
 export default function TeamsPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
 
-  const [teams, setTeams] = useState<[string, TeamRow][]>([])
+  const [teams, setTeams] = useState<TeamEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [editingTeam, setEditingTeam] = useState<{ myTeamID: string; teamID?: string } | null>(null)
-  const [teamDraft, setTeamDraft] = useState(emptyTeamDraft)
+  const [teamDraft, setTeamDraft] = useState<TeamDraft>(emptyTeamDraft)
   const [pendingDeleteTeam, setPendingDeleteTeam] = useState<{ myTeamID: string; name: string } | null>(null)
 
   const loadTeams = useCallback(async () => {
     try {
       const myTeams = await getMyTeams(user?.uid || 'mylocalserver')
-      setTeams(myTeams)
+      setTeams(myTeams as TeamEntry[])
     } catch (error) {
       console.error('Error loading teams:', error)
     } finally {
@@ -59,7 +70,7 @@ export default function TeamsPage() {
     const payload = {
       teamName: teamDraft.teamName.trim(),
       teamLogoURL: teamDraft.teamLogoURL.trim(),
-      players: editingTeam?.teamID ? (await getTeam(editingTeam.teamID))?.players || {} : {},
+      players: editingTeam?.teamID ? ((await getTeam(editingTeam.teamID)) as TeamRecord | null)?.players || {} : {},
     }
 
     if (editingTeam?.teamID) {

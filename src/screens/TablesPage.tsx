@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useEffect, useMemo, useState } from 'react'
 import { Box, Button, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack, Card, CardBody } from '@/components/ui'
 import { CheckIcon, CopyIcon, ExternalLinkIcon, LinkIcon, PencilIcon, PlusIcon, ScoreboardIcon, TablesIcon, TrashIcon } from '@/components/icons'
@@ -13,31 +11,79 @@ import { supportedSports } from '@/functions/sports'
 import { getMyScoreboards } from '@/functions/scoreboards'
 import { addDynamicURL, getMyDynamicURLs } from '@/functions/dynamicurls'
 
+type TableDraft = {
+  tableName: string
+  sportName: string
+  scoringType: string
+  playerListID: string
+}
+
+type TableRow = {
+  myTableID: string
+  tableID: string
+  tableName: string
+  sportName: string
+  scoringType?: string
+  playerListID?: string
+}
+
+type PlayerListRow = {
+  id: string
+  playerListName: string
+}
+
+type PlayerListEntry = [string, PlayerListRow]
+
+type ScoreboardRow = {
+  id: string
+  name: string
+  type?: string
+}
+
+type ScoreboardEntry = [string, ScoreboardRow]
+
+type DynamicURLRow = {
+  dynamicURLName?: string
+  scoreboardID?: string
+  tableID?: string
+}
+
+type DynamicURLEntry = [string, DynamicURLRow]
+
+type TableScoreboardLink = {
+  myScoreboardID: string
+  scoreboardID: string
+  scoreboardName: string
+  scoreboardType: string
+  href: string
+  existingDynamicURL?: DynamicURLEntry
+}
+
 const emptyTableDraft = {
   tableName: '',
   sportName: 'tableTennis',
   scoringType: '',
   playerListID: '',
-}
+} satisfies TableDraft
 
 export default function TablesPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
 
-  const [tables, setTables] = useState([])
-  const [playerLists, setPlayerLists] = useState([])
-  const [scoreboards, setScoreboards] = useState([])
-  const [dynamicURLs, setDynamicURLs] = useState([])
+  const [tables, setTables] = useState<TableRow[]>([])
+  const [playerLists, setPlayerLists] = useState<PlayerListEntry[]>([])
+  const [scoreboards, setScoreboards] = useState<ScoreboardEntry[]>([])
+  const [dynamicURLs, setDynamicURLs] = useState<DynamicURLEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showTableModal, setShowTableModal] = useState(false)
   const [showTableLinksModal, setShowTableLinksModal] = useState(false)
   const [showDynamicURLSaveModal, setShowDynamicURLSaveModal] = useState(false)
-  const [editingTable, setEditingTable] = useState(null)
-  const [selectedTableForLinks, setSelectedTableForLinks] = useState(null)
-  const [selectedLinkCombo, setSelectedLinkCombo] = useState(null)
-  const [tableDraft, setTableDraft] = useState(emptyTableDraft)
+  const [editingTable, setEditingTable] = useState<TableRow | null>(null)
+  const [selectedTableForLinks, setSelectedTableForLinks] = useState<TableRow | null>(null)
+  const [selectedLinkCombo, setSelectedLinkCombo] = useState<{ table: TableRow; combo: TableScoreboardLink } | null>(null)
+  const [tableDraft, setTableDraft] = useState<TableDraft>(emptyTableDraft)
   const [dynamicURLName, setDynamicURLName] = useState('')
-  const [pendingDeleteTable, setPendingDeleteTable] = useState(null)
+  const [pendingDeleteTable, setPendingDeleteTable] = useState<TableRow | null>(null)
   const [copiedHref, setCopiedHref] = useState('')
 
   useEffect(() => {
@@ -49,10 +95,10 @@ export default function TablesPage() {
           getMyTables(),
           getMyPlayerLists(),
         ])
-        setTables(myTables.map(([myTableID, data]) => ({ myTableID, ...data })))
-        setPlayerLists(myPlayerLists)
-        setScoreboards(await getMyScoreboards(user?.uid || 'mylocalserver'))
-        setDynamicURLs(await getMyDynamicURLs())
+        setTables((myTables as Array<[string, Omit<TableRow, 'myTableID'>]>).map(([myTableID, data]) => ({ myTableID, ...data })))
+        setPlayerLists((myPlayerLists || []) as PlayerListEntry[])
+        setScoreboards((await getMyScoreboards(user?.uid || 'mylocalserver')) as ScoreboardEntry[])
+        setDynamicURLs((await getMyDynamicURLs()) as DynamicURLEntry[])
       } catch (error) {
         console.error('Error fetching tables:', error)
       } finally {
@@ -65,13 +111,15 @@ export default function TablesPage() {
 
   const scoringTypeOptions = useMemo(() => {
     const sport = supportedSports[tableDraft.sportName]
-    return sport?.scoringTypes ? Object.entries(sport.scoringTypes) : []
+    return sport?.scoringTypes
+      ? Object.entries(sport.scoringTypes as Record<string, { displayName: string }>)
+      : []
   }, [tableDraft.sportName])
 
   const reloadTables = async () => {
     const myTables = await getMyTables()
-    setTables(myTables.map(([myTableID, data]) => ({ myTableID, ...data })))
-    setDynamicURLs(await getMyDynamicURLs())
+    setTables((myTables as Array<[string, Omit<TableRow, 'myTableID'>]>).map(([myTableID, data]) => ({ myTableID, ...data })))
+    setDynamicURLs((await getMyDynamicURLs()) as DynamicURLEntry[])
   }
 
   const openNewTableModal = () => {
@@ -80,7 +128,7 @@ export default function TablesPage() {
     setShowTableModal(true)
   }
 
-  const openEditTableModal = (table) => {
+  const openEditTableModal = (table: TableRow) => {
     setEditingTable(table)
     setTableDraft({
       tableName: table.tableName || '',
@@ -118,7 +166,7 @@ export default function TablesPage() {
     await reloadTables()
   }
 
-  const getTableScoreboardLinks = (table) => {
+  const getTableScoreboardLinks = (table: TableRow): TableScoreboardLink[] => {
     const baseURL = typeof window !== 'undefined' ? window.location.origin : ''
     return scoreboards.map(([myScoreboardID, scoreboard]) => {
       const href = `${baseURL}/scoreboard/view?sid=${scoreboard.id}&tid=${table.tableID}`
@@ -134,7 +182,7 @@ export default function TablesPage() {
     })
   }
 
-  const handleCopyLink = async (href) => {
+  const handleCopyLink = async (href: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(href)
       setCopiedHref(href)
@@ -144,12 +192,12 @@ export default function TablesPage() {
     }
   }
 
-  const openTableLinksModal = (table) => {
+  const openTableLinksModal = (table: TableRow) => {
     setSelectedTableForLinks(table)
     setShowTableLinksModal(true)
   }
 
-  const openSaveDynamicURLModal = (table, combo) => {
+  const openSaveDynamicURLModal = (table: TableRow, combo: TableScoreboardLink) => {
     setSelectedLinkCombo({ table, combo })
     setDynamicURLName(`${table.tableName} • ${combo.scoreboardName}`)
     setShowDynamicURLSaveModal(true)
@@ -167,7 +215,7 @@ export default function TablesPage() {
     setShowDynamicURLSaveModal(false)
     setSelectedLinkCombo(null)
     setDynamicURLName('')
-    setDynamicURLs(await getMyDynamicURLs())
+    setDynamicURLs((await getMyDynamicURLs()).filter(Boolean) as DynamicURLEntry[])
   }
 
   if (authLoading || loading) {

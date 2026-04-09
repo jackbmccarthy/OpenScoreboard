@@ -2,6 +2,7 @@ import db, { getUserPath } from '../lib/database';
 import Match from '../classes/Match';
 import { getCombinedPlayerNames } from './players';
 import { getMatchData, getMatchScore } from './scoring';
+import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
 import { supportedSports } from './sports';
 import { getTeam, getTeamName } from './teams';
 
@@ -13,9 +14,13 @@ export default async function getMyTeamMatches(userID = getUserPath()) {
     if (typeof myTeamMatches === "object" && myTeamMatches !== null) {
         return await Promise.all(Object.entries(myTeamMatches).map(async ([id, item]) => {
             const teamMatchEntry = item as Record<string, any>
+            const canonicalSnapshot = await db.ref(`teamMatches/${teamMatchEntry.id}`).get()
+            if (!isRecordActive(canonicalSnapshot.val())) {
+                return null
+            }
             let teamMatchScores = await getTeamMatchTeamScore(teamMatchEntry.id)
             return [id, { ...teamMatchEntry, teamAScore: teamMatchScores.a, teamBScore: teamMatchScores.b }]
-        }))
+        })).then((entries) => entries.filter(Boolean))
     }
     else {
         return []
@@ -23,7 +28,13 @@ export default async function getMyTeamMatches(userID = getUserPath()) {
 
 }
 
-export async function createTeamMatchNewMatch(teamMatchID, tableNumber, sportName, previousMatchObj, scoringType) {
+export async function createTeamMatchNewMatch(
+    teamMatchID,
+    tableNumber,
+    sportName,
+    previousMatchObj,
+    scoringType: string | null = null,
+) {
     let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, true, scoringType))
     let currentMatchKey = await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).set(newMatch.key)
     return newMatch.key
@@ -32,7 +43,8 @@ export async function createTeamMatchNewMatch(teamMatchID, tableNumber, sportNam
 
 export async function getTeamMatch(teamMatchID) {
     let pushedTeam = await db.ref(`teamMatches/${teamMatchID}`).get()
-    return pushedTeam.val()
+    const teamMatch = pushedTeam.val()
+    return isRecordActive(teamMatch) ? teamMatch : null
 }
 
 export async function getTeamMatchCurrentMatches(teamMatchID) {
@@ -81,7 +93,25 @@ export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
 }
 
 export async function deleteTeamMatch(myTeamMatchID) {
-    await db.ref(`users/${getUserPath()}/myTeamMatches/${myTeamMatchID}`).remove()
+    const previewPath = `users/${getUserPath()}/myTeamMatches/${myTeamMatchID}`
+    const preview = await getPreviewValue(previewPath)
+    const teamMatchID = preview?.id
+    if (typeof teamMatchID === 'string' && teamMatchID.length > 0) {
+        const softDeletedDependents = {
+            dynamicURLs: await softDeleteDynamicURLsByReference({ teamMatchID, reason: 'parent_team_match_soft_deleted' }),
+        }
+        await softDeleteCanonical(`teamMatches/${teamMatchID}`, {
+            deleteReason: 'delete_team_match',
+            softDeletedDependents,
+        }, {
+            entityType: 'teamMatch',
+            canonicalID: teamMatchID,
+            ownerID: getUserPath(),
+            previewPath,
+            dependents: softDeletedDependents,
+        })
+    }
+    await db.ref(previewPath).remove()
 }
 
 export async function getImportTeamMembersList(player, teamMatchID) {

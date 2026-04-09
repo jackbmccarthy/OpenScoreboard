@@ -1,52 +1,51 @@
-// @ts-nocheck
 // Scoreboard View Page - Live scoreboard overlay
 // Uses scoreboard logic from src/scoreboard/
 // Shows 404 if required params (sid, tid, or tmid) are not provided
 
-import { useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { runScoreboard, resetListeners } from '@/scoreboard';
-import { Box, Text, Heading } from '@/components/ui';
+import { useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { runScoreboard, resetListeners } from '@/scoreboard'
+import { Box, Text, Heading } from '@/components/ui'
 
 export default function ScoreboardViewPage() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
 
   useEffect(() => {
     // Get params from URL
-    const tableID = searchParams.get('tid');
-    const teamMatchID = searchParams.get('tmid');
-    const teamMatchTableNumber = searchParams.get('table');
-    const scoreboardID = searchParams.get('sid');
+    const tableID = searchParams.get('tid')
+    const teamMatchID = searchParams.get('tmid')
+    const teamMatchTableNumber = searchParams.get('table')
+    const scoreboardID = searchParams.get('sid')
 
     // Check if required params are present
     // Either (sid + tid) or (sid + tmid) are required
-    const hasTableParams = scoreboardID && tableID;
-    const hasTeamMatchParams = scoreboardID && teamMatchID;
+    const hasTableParams = Boolean(scoreboardID && tableID)
+    const hasTeamMatchParams = Boolean(scoreboardID && teamMatchID)
 
     if (!hasTableParams && !hasTeamMatchParams) {
       // Missing required params - will show 404 UI
-      return;
+      return
     }
 
     // Reset any existing listeners
-    resetListeners();
+    resetListeners()
 
     // Run the scoreboard
-    runScoreboard(scoreboardID, tableID, teamMatchID, teamMatchTableNumber);
+    runScoreboard(scoreboardID, tableID, teamMatchID, teamMatchTableNumber)
 
     return () => {
       // Cleanup listeners on unmount
-      resetListeners();
-    };
-  }, [searchParams]);
+      resetListeners()
+    }
+  }, [searchParams])
 
   // Check if required params are present
-  const scoreboardID = searchParams.get('sid');
-  const tableID = searchParams.get('tid');
-  const teamMatchID = searchParams.get('tmid');
-  const hasTableParams = scoreboardID && tableID;
-  const hasTeamMatchParams = scoreboardID && teamMatchID;
+  const scoreboardID = searchParams.get('sid')
+  const tableID = searchParams.get('tid')
+  const teamMatchID = searchParams.get('tmid')
+  const hasTableParams = Boolean(scoreboardID && tableID)
+  const hasTeamMatchParams = Boolean(scoreboardID && teamMatchID)
 
   // Show 404 if missing required params
   if (!hasTableParams && !hasTeamMatchParams) {
@@ -68,7 +67,7 @@ export default function ScoreboardViewPage() {
           </button>
         </Box>
       </Box>
-    );
+    )
   }
 
   return (
@@ -79,5 +78,5 @@ export default function ScoreboardViewPage() {
         height: '100vh'
       }}
     />
-  );
+  )
 }

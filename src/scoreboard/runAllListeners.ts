@@ -1,4 +1,3 @@
-// @ts-nocheck
 import db from '@/lib/database';
 //import { addMatchFieldListeners } from './addMatchFieldListeners';
 import { addCurrentGameFieldListeners } from './addFieldListeners';
@@ -15,7 +14,6 @@ export async function runAllListeners(isInitialRun: boolean, tableID: string | n
     addCurrentGameFieldListeners([...currentGameFieldList, ...courtSideGameFieldList, ...textFieldList, ...teamFieldList, ...solidColorFieldList, ...conditionalShowFieldList, ...imageFieldList]);
 
     if (tableID !== null && tableID.length > 0) {
-        console.log(isInitialRun)
         if (isInitialRun) {
 
             let currentMatchRef = db.ref(`tables/${tableID}/currentMatch`);
@@ -25,14 +23,12 @@ export async function runAllListeners(isInitialRun: boolean, tableID: string | n
 
         }
         else {
-            console.log("not initial run")
             updateCurrentMatch(await db.ref(`tables/${tableID}/currentMatch`).get(), isInitialRun, resetListeners, addToListenerList);
         }
 
     }
     if (teamMatchID !== null && tableNumber !== null && teamMatchID.length > 0) {
         if (isInitialRun) {
-            console.log("Initial Run Inside", isInitialRun);
             let teamTableRef = db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`);
             let teamAIDRef = db.ref(`teamMatches/${teamMatchID}/teamAID`);
             let teamBIDRef = db.ref(`teamMatches/${teamMatchID}/teamBID`);
@@ -65,7 +61,6 @@ export async function runAllListeners(isInitialRun: boolean, tableID: string | n
             });
         }
         else {
-            console.log("Initial Run ", isInitialRun);
             updateTeamMatch(await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).get(), isInitialRun, resetListeners, addToListenerList);
             updateTeamAID(await db.ref(`teamMatches/${teamMatchID}/teamAID`).get(), isInitialRun, resetListeners, addToListenerList);
             updateTeamBID(await db.ref(`teamMatches/${teamMatchID}/teamBID`).get(), isInitialRun, resetListeners, addToListenerList);

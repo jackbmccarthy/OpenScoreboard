@@ -1,4 +1,3 @@
-// @ts-nocheck
 import bgPlugin from 'grapesjs-style-bg';
 import grapesjs from 'grapesjs';
 import exportPlugin from 'grapesjs-plugin-export';
@@ -109,7 +108,6 @@ export function initializeGrapesJS(scoreboardID:string|null) {
         editor.Panels.removePanel("devices-c");
         editor.loadProjectData(await editor.Storage.load());
         editor.on("asset:upload:response", (response) => {
-            console.log(response);
         });
         const categories = editor.BlockManager.getCategories();
         categories.each(category => {

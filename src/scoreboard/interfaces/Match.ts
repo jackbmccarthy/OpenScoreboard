@@ -1,5 +1,6 @@
-// @ts-nocheck
-interface MatchSettings {
+import type { Player } from './Player'
+
+export interface MatchSettings {
     // Pregame settings
     isActive: boolean;
     isWarmUpStarted: boolean;
@@ -33,7 +34,7 @@ interface MatchSettings {
 
     // Pickleball
     isSecondServer: boolean;
-    scoringType: any; // Define the type for scoringTypeDefault
+    scoringType: string | null;
 
     // Team Fields for Table Only.
     isTeamMatch: boolean;
@@ -46,7 +47,7 @@ interface MatchSettings {
     eventName: string;
     isCourtSideScoreboardFlipped: boolean;
     isDoubles: boolean;
-    significantPoints: Record<string, any>;
+    significantPoints: Record<string, unknown>;
 
     // Final Point Flags
     isGamePoint: boolean;

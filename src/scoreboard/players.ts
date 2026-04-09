@@ -1,4 +1,5 @@
-// @ts-nocheck
+import type { Player } from "./interfaces/Player"
+
 function isFullNameEntered(player:Player){
     if( player && player.firstName && player.lastName && player.firstName.length > 0 && player.lastName.length > 0){
         return true;

@@ -1,4 +1,4 @@
-// @ts-nocheck
+import type grapesjs from 'grapesjs'
 
 export function SecondServerIconB(editor: grapesjs.Editor) {
     editor.Components.addType('SecondServerIconB', {

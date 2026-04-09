@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Scoreboard module - exported functions
 // Call these from React components
 
@@ -8,6 +7,8 @@ import { addScoreboardSettingListeners, getScoreboardSettings} from './addScoreb
 import { dynamicURLListener } from './dynamicurls';
 import { runAllListeners } from './runAllListeners';
 import { addCSS } from './addCSS';
+import type { DynamicURLDetails } from './dynamicurls';
+import { subscribeToPathValue } from '@/lib/realtime';
 
 export let listenerRemovalList: { (): void }[] = []
 
@@ -32,7 +33,7 @@ export async function runScoreboard(
 ) {
   const root = document.getElementById("gjs");
   await getScoreboardSettings(scoreboardID)
-  addScoreboardSettingListeners(scoreboardID, root)
+  addToListenerList(addScoreboardSettingListeners(scoreboardID, root))
   let isInitialRun = true;
   
   if (scoreboardID === null && root !== null) {
@@ -46,8 +47,7 @@ export async function runScoreboard(
       runAllListeners(isInitialRun, tableID, teamMatchID, tableNumber, resetListeners, addToListenerList);
     }
   } else {
-    db.ref(`/scoreboards/${scoreboardID}/web/html`).on("value", (html: any) => {
-      const newHTML = html.val();
+    addToListenerList(subscribeToPathValue(`/scoreboards/${scoreboardID}/web/html`, (newHTML) => {
       if (typeof newHTML === "string" && root !== null) {
         root.innerHTML = newHTML;
 
@@ -58,27 +58,26 @@ export async function runScoreboard(
           runAllListeners(isInitialRun, tableID, teamMatchID, tableNumber, resetListeners, addToListenerList);
         }
       }
-    });
+    }));
     
-    db.ref(`/scoreboards/${scoreboardID}/web/css`).on("value", (css: any) => {
+    addToListenerList(subscribeToPathValue(`/scoreboards/${scoreboardID}/web/css`, (newCSS) => {
       const scoreboardCSSTag = document.getElementById("newstyle")
       if (scoreboardCSSTag) {
         scoreboardCSSTag.remove()
       }
       
-      const newCSS = css.val();
       if (typeof newCSS === "string") {
         addCSS(newCSS);
       }
-    });
+    }));
   }
 }
 
 export async function setupDynamicURL(dynamicURLID: string) {
-  dynamicURLListener(dynamicURLID, (details: any) => {
-    const { id, dynamicURLName, tableID, teammatchID, tableNumber, scoreboardID } = details
-    console.log(details)
+  const unsubscribe = await dynamicURLListener(dynamicURLID, (details: DynamicURLDetails) => {
+    const { tableID, teammatchID, tableNumber, scoreboardID } = details as Record<string, string | undefined>
     resetListeners()
-    runScoreboard(scoreboardID, tableID, teammatchID, tableNumber)
+    runScoreboard(scoreboardID || null, tableID || null, teammatchID || null, tableNumber || null)
   })
+  addToListenerList(unsubscribe)
 }

@@ -1,7 +1,8 @@
-// @ts-nocheck
 import db from "@/lib/database"
 
-export async function getScoreboardSettings(scoreboardID,) {
+type ScoreboardContextMessage = Record<string, unknown>
+
+export async function getScoreboardSettings(scoreboardID: string | null) {
     let settings = await Promise.all([
         db.ref(`scoreboards/${scoreboardID}/showDuringActiveMatch`).get(),
         db.ref(`scoreboards/${scoreboardID}/showDuringTimeOuts`).get(),
@@ -15,8 +16,8 @@ export async function getScoreboardSettings(scoreboardID,) {
 
 }
 
-function isRelevantToScoreboardSetting(eventData) {
-    if (typeof eventData === "object") {
+function isRelevantToScoreboardSetting(eventData: unknown) {
+    if (eventData && typeof eventData === "object") {
         const isReleventList = Object.keys(eventData).filter((keyName) => {
             return ["isInBetweenGames", "isATimeOutActive", "isBTimeOutActive", "isMatchStarted"].includes(keyName)
         })
@@ -24,29 +25,31 @@ function isRelevantToScoreboardSetting(eventData) {
     }
 }
 
-function animateScoreboardFadeAway(rootNode) {
+function animateScoreboardFadeAway(rootNode: HTMLElement) {
 
     var fadeOutEffect = setInterval(function () {
         if (!rootNode.style.opacity) {
-            rootNode.style.opacity = 1;
+            rootNode.style.opacity = "1";
         }
-        if (rootNode.style.opacity > 0) {
-            rootNode.style.opacity -= 0.033;
+        const currentOpacity = Number(rootNode.style.opacity || "0")
+        if (currentOpacity > 0) {
+            rootNode.style.opacity = String(currentOpacity - 0.033);
         } else {
-            rootNode.style.opacity = 0;
+            rootNode.style.opacity = "0";
             clearInterval(fadeOutEffect);
         }
     }, 1000 / 30);
 }
 
-function animateScoreboardFadeIn(rootNode) {
+function animateScoreboardFadeIn(rootNode: HTMLElement) {
     let opacity = 0
     var fadeInEffect = setInterval(function () {
-        if (!rootNode.style.opacity || rootNode.style.opacity < 1) {
+        const currentOpacity = Number(rootNode.style.opacity || "0")
+        if (!rootNode.style.opacity || currentOpacity < 1) {
             opacity += 0.033
-            rootNode.style.opacity = opacity
+            rootNode.style.opacity = String(opacity)
         } else {
-            rootNode.style.opacity = 1;
+            rootNode.style.opacity = "1";
             clearInterval(fadeInEffect);
         }
     }, 1000 / 30);
@@ -54,12 +57,14 @@ function animateScoreboardFadeIn(rootNode) {
 
 
 
-export function addScoreboardSettingListeners(scoreboardID, rootNode) {
-    let currentContext = {}
-    //let rootNode = document.createElement("div")
-    window.addEventListener("message", (event) => {
+export function addScoreboardSettingListeners(scoreboardID: string | null, rootNode: HTMLElement | null) {
+    let currentContext: ScoreboardContextMessage = {}
+    const handleMessage = (event: MessageEvent<ScoreboardContextMessage>) => {
         currentContext = { ...currentContext, ...event.data }
         //console.log(event.data, currentContext)
+        if (!rootNode) {
+            return
+        }
         if (!getAlwaysShow(scoreboardID)) {
             if (isRelevantToScoreboardSetting(event.data)) {
                 if (getShowInBetweenGames(scoreboardID) && typeof event.data["isInBetweenGames"] !== "undefined") {
@@ -75,7 +80,6 @@ export function addScoreboardSettingListeners(scoreboardID, rootNode) {
 
                 // }
                 if (getShowDuringActiveMatch(scoreboardID) && (typeof event.data["isMatchStarted"] !== "undefined" || typeof event.data["isInBetweenGames"] !== "undefined")) {
-                    console.log(currentContext["isMatchStarted"] && !currentContext["isInBetweenGames"], currentContext["isMatchStarted"], !currentContext["isInBetweenGames"])
                     if (typeof currentContext["isMatchStarted"] !== 'undefined' && typeof !currentContext["isInBetweenGames"] !== "undefined") {
                         if (currentContext["isMatchStarted"] && !currentContext["isInBetweenGames"]) {
                             animateScoreboardFadeIn(rootNode)
@@ -90,37 +94,43 @@ export function addScoreboardSettingListeners(scoreboardID, rootNode) {
             }
         }
 
-    })
+    }
+
+    window.addEventListener("message", handleMessage)
+
+    return () => {
+        window.removeEventListener("message", handleMessage)
+    }
 }
 
-function getShowDuringActiveMatch(scoreboardID) {
+function getShowDuringActiveMatch(scoreboardID: string | null) {
     return localStorage.getItem(scoreboardID + "_showDuringActiveMatch") === "true" ? true : false
 }
 
-function getShowInBetweenGames(scoreboardID) {
+function getShowInBetweenGames(scoreboardID: string | null) {
     return localStorage.getItem(scoreboardID + "_showInBetweenGames") === "true" ? true : false
 }
 
-function getShowDuringTimeOuts(scoreboardID) {
+function getShowDuringTimeOuts(scoreboardID: string | null) {
     return localStorage.getItem(scoreboardID + "_showDuringTimeOuts") === "true" ? true : false
 }
 
-function getAlwaysShow(scoreboardID) {
+function getAlwaysShow(scoreboardID: string | null) {
     return localStorage.getItem(scoreboardID + "_alwaysShow") === "true" ? true : false
 }
 
-function setShowDuringActiveMatch(scoreboardID, value) {
+function setShowDuringActiveMatch(scoreboardID: string | null, value: unknown) {
     localStorage.setItem(scoreboardID + "_showDuringActiveMatch", value ? "true" : "false")
 }
 
-function setShowInBetweenGames(scoreboardID, value) {
+function setShowInBetweenGames(scoreboardID: string | null, value: unknown) {
     localStorage.setItem(scoreboardID + "_showInBetweenGames", value ? "true" : "false")
 }
 
-function setShowDuringTimeOuts(scoreboardID, value) {
+function setShowDuringTimeOuts(scoreboardID: string | null, value: unknown) {
     localStorage.setItem(scoreboardID + "_showDuringTimeOuts", value ? "true" : "false")
 }
 
-function setAlwaysShow(scoreboardID, value) {
+function setAlwaysShow(scoreboardID: string | null, value: unknown) {
     localStorage.setItem(scoreboardID + "_alwaysShow", value ? "true" : "false")
 }

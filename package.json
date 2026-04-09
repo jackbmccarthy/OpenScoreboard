@@ -10,7 +10,9 @@
     "build": "next build",
     "start": "next start",
     "preview": "next start",
-    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json"
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "check:ts-nocheck": "bash scripts/check-no-new-ts-nocheck.sh",
+    "audit:ownership": "node scripts/report-orphans.mjs"
   },
   "dependencies": {
     "@google/stitch-sdk": "^0.1.0",

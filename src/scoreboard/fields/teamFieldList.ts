@@ -1,7 +1,15 @@
-// @ts-nocheck
 import { updateInnerText } from "./updateInnerText";
 
-export const teamFieldList = [
+type TeamFieldEntry = {
+    field: string
+    label: string
+    category: string
+    sample: string
+    justify: string
+    action: typeof updateInnerText
+}
+
+export const teamFieldList: TeamFieldEntry[] = [
     {
         field: "teamAScore",
         label: "Team A Score",

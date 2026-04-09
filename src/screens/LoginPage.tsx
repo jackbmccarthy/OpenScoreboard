@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Login Page
 // Migrated from app/login/page.tsx
 
@@ -67,7 +66,7 @@ export default function LoginPage() {
       } else {
         await signInWithEmail(email, password)
       }
-    } catch (err: any) {
+    } catch (err) {
       const errorMap: Record<string, string> = {
         'auth/user-not-found': 'No account found with this email',
         'auth/wrong-password': 'Incorrect password',
@@ -77,7 +76,9 @@ export default function LoginPage() {
         'auth/too-many-requests': 'Too many attempts. Please try again later',
         'auth/invalid-credential': 'Invalid email or password',
       }
-      setError(errorMap[err.code] || err.message || 'Authentication failed')
+      const authCode = typeof err === 'object' && err && 'code' in err ? String((err as { code?: unknown }).code || '') : ''
+      const message = err instanceof Error ? err.message : 'Authentication failed'
+      setError(errorMap[authCode] || message)
     } finally {
       setIsLoading(false)
     }
@@ -89,16 +90,17 @@ export default function LoginPage() {
     
     try {
       await signInWithGoogle()
-    } catch (err: any) {
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+    } catch (err) {
+      const authCode = typeof err === 'object' && err && 'code' in err ? String((err as { code?: unknown }).code || '') : ''
+      if (authCode === 'auth/popup-blocked' || authCode === 'auth/cancelled-popup-request') {
         try {
           await signInWithGoogleRedirect()
           return
-        } catch (redirectErr: any) {
-          setError(redirectErr.message || 'Google sign in failed')
+        } catch (redirectErr) {
+          setError(redirectErr instanceof Error ? redirectErr.message : 'Google sign in failed')
         }
-      } else if (err.code !== 'auth/popup-closed-by-user') {
-        setError(err.message || 'Google sign in failed')
+      } else if (authCode !== 'auth/popup-closed-by-user') {
+        setError(err instanceof Error ? err.message : 'Google sign in failed')
       }
     } finally {
       setIsLoading(false)
@@ -111,9 +113,10 @@ export default function LoginPage() {
     
     try {
       await signInWithApple()
-    } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError(err.message || 'Apple sign in failed')
+    } catch (err) {
+      const authCode = typeof err === 'object' && err && 'code' in err ? String((err as { code?: unknown }).code || '') : ''
+      if (authCode !== 'auth/popup-closed-by-user') {
+        setError(err instanceof Error ? err.message : 'Apple sign in failed')
       }
     } finally {
       setIsLoading(false)

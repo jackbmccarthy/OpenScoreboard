@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Text, VStack } from '@/components/ui'
@@ -11,25 +9,62 @@ import { addNewScoreboard, deleteMyScoreboard, duplicateScoreboard, getMyScorebo
 import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
 import { createScoreboardFromTemplate, getScoreboardTemplates } from '@/functions/scoreboardTemplates'
 
+type ScoreboardDraft = {
+  name: string
+  type: string
+}
+
+type ScoreboardTypeOption = {
+  id: string
+  name: string
+}
+
+type ScoreboardTemplateRecord = {
+  id: string
+  name: string
+  description?: string
+  category?: string
+  type?: string
+  web?: {
+    html?: string
+    css?: string
+    javascript?: string
+  }
+  config?: Record<string, unknown>
+}
+
+type ScoreboardRecord = {
+  id: string
+  name: string
+  type?: string
+  web?: {
+    html?: string
+    css?: string
+    javascript?: string
+  }
+}
+
+type ScoreboardEntry = [string, ScoreboardRecord]
+
 const emptyScoreboardDraft = {
   name: '',
   type: 'liveStream',
-}
+} satisfies ScoreboardDraft
 
 export default function ScoreboardsPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
 
-  const [scoreboards, setScoreboards] = useState([])
-  const [scoreboardTypes, setScoreboardTypes] = useState([])
-  const [templates, setTemplates] = useState([])
+  const [scoreboards, setScoreboards] = useState<ScoreboardEntry[]>([])
+  const [scoreboardTypes, setScoreboardTypes] = useState<ScoreboardTypeOption[]>([])
+  const [templates, setTemplates] = useState<ScoreboardTemplateRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [showScoreboardModal, setShowScoreboardModal] = useState(false)
   const [showCreateOptionsModal, setShowCreateOptionsModal] = useState(false)
-  const [editingScoreboard, setEditingScoreboard] = useState(null)
-  const [scoreboardDraft, setScoreboardDraft] = useState(emptyScoreboardDraft)
-  const [pendingDeleteScoreboard, setPendingDeleteScoreboard] = useState(null)
-  const [previewScoreboard, setPreviewScoreboard] = useState(null)
+  const [editingScoreboard, setEditingScoreboard] = useState<{ myScoreboardID: string; scoreboardID: string } | null>(null)
+  const [scoreboardDraft, setScoreboardDraft] = useState<ScoreboardDraft>(emptyScoreboardDraft)
+  const [pendingDeleteScoreboard, setPendingDeleteScoreboard] = useState<{ myScoreboardID: string; name: string } | null>(null)
+  const [previewScoreboard, setPreviewScoreboard] = useState<ScoreboardRecord | null>(null)
   const [creationMode, setCreationMode] = useState<'scratch' | 'duplicate' | 'template'>('scratch')
   const [selectedTemplateID, setSelectedTemplateID] = useState('')
   const [selectedDuplicateID, setSelectedDuplicateID] = useState('')
@@ -37,9 +72,20 @@ export default function ScoreboardsPage() {
   const loadScoreboards = useCallback(async () => {
     try {
       const myScoreboards = await getMyScoreboards(user?.uid || 'mylocalserver')
-      setScoreboards(myScoreboards)
-      setScoreboardTypes(getScoreboardTypesList())
-      setTemplates(await getScoreboardTemplates())
+      setScoreboards(myScoreboards as ScoreboardEntry[])
+      setScoreboardTypes(getScoreboardTypesList() as ScoreboardTypeOption[])
+      const loadedTemplates = await getScoreboardTemplates()
+      setTemplates(
+        loadedTemplates.map((template) => ({
+          id: String(template.id || ''),
+          name: String(template.name || 'Untitled Template'),
+          description: typeof template.description === 'string' ? template.description : '',
+          category: typeof template.category === 'string' ? template.category : '',
+          type: typeof template.type === 'string' ? template.type : 'liveStream',
+          web: template.web || {},
+          config: template.config || {},
+        })),
+      )
     } catch (error) {
       console.error('Error loading scoreboards:', error)
     } finally {
@@ -61,7 +107,7 @@ export default function ScoreboardsPage() {
     setShowCreateOptionsModal(true)
   }
 
-  const openEditScoreboardModal = (myScoreboardID, scoreboard) => {
+  const openEditScoreboardModal = (myScoreboardID: string, scoreboard: ScoreboardRecord) => {
     setEditingScoreboard({ myScoreboardID, scoreboardID: scoreboard.id })
     setScoreboardDraft({
       name: scoreboard.name || '',
@@ -86,6 +132,9 @@ export default function ScoreboardsPage() {
         navigate(`/editor?sid=${duplicatedID}`)
       } else if (creationMode === 'template' && selectedTemplateID) {
         const template = templates.find((item) => item.id === selectedTemplateID)
+        if (!template) {
+          return
+        }
         const createdID = await createScoreboardFromTemplate(scoreboardDraft.name.trim(), template)
         navigate(`/editor?sid=${createdID}`)
       } else {
