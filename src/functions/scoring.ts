@@ -1,8 +1,10 @@
 import db from '../lib/database';
+import { MATCH_SCHEMA_VERSION, appendMatchAuditEvent, appendMatchPointHistory, normalizeMatchSchema, syncMatchSchemaFromFlat } from './matchSchema';
 import { subscribeToPathValue, unwrapRealtimeValue } from '../lib/realtime';
 import Match from '../classes/Match';
 import { getNewPlayer } from '../classes/Player';
 import { getCombinedPlayerNames } from './players';
+import type { ScheduledMatch, ScheduledMatchStatus } from '../types/matches';
 
 
 
@@ -11,7 +13,19 @@ export async function AddPoint(matchID, gameNumber, AorB) {
     let pointUpdateRef = db.ref(`matches/${matchID}/game${gameNumber}${AorB}Score`)
     let currentPointSnapShot = await pointUpdateRef.get()
     let newScore = parseInt(currentPointSnapShot.val()) + 1
-    pointUpdateRef.set(newScore)
+    await pointUpdateRef.set(newScore)
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchPointHistory(matchID, {
+            action: 'point_added',
+            createdAt: new Date().toISOString(),
+            gameNumber,
+            side: AorB,
+            scoreA: Number(match[`game${gameNumber}AScore`] || 0),
+            scoreB: Number(match[`game${gameNumber}BScore`] || 0),
+        })
+    }
     return newScore
 }
 
@@ -21,10 +35,114 @@ export async function MinusPoint(matchID, gameNumber, AorB) {
     let currentPointSnapShot = await pointUpdateRef.get()
     let newScore = parseInt(currentPointSnapShot.val()) - 1
     if (newScore >= 0) {
-        pointUpdateRef.set(newScore)
+        await pointUpdateRef.set(newScore)
+        const match = await getMatchData(matchID)
+        if (match) {
+            await syncMatchSchemaFromFlat(matchID, match)
+            await appendMatchPointHistory(matchID, {
+                action: 'point_removed',
+                createdAt: new Date().toISOString(),
+                gameNumber,
+                side: AorB,
+                scoreA: Number(match[`game${gameNumber}AScore`] || 0),
+                scoreB: Number(match[`game${gameNumber}BScore`] || 0),
+            })
+        }
     }
     return newScore < 0 ? 0 : newScore
 
+}
+
+function sortPointHistoryEntries(pointHistory: Record<string, Record<string, unknown>> | undefined) {
+    return Object.entries(pointHistory || {}).sort((a, b) => {
+        const createdAtA = String(a[1]?.createdAt || '')
+        const createdAtB = String(b[1]?.createdAt || '')
+        return new Date(createdAtB).getTime() - new Date(createdAtA).getTime()
+    })
+}
+
+export function getRecentPointHistory(match: Record<string, any> | null, limit = 5) {
+    if (!match?.pointHistory || typeof match.pointHistory !== 'object') {
+        return []
+    }
+
+    return sortPointHistoryEntries(match.pointHistory as Record<string, Record<string, unknown>>)
+        .slice(0, limit)
+        .map(([eventID, event]) => ({
+            eventID,
+            action: String(event?.action || ''),
+            createdAt: String(event?.createdAt || ''),
+            gameNumber: Number(event?.gameNumber || 1),
+            side: String(event?.side || ''),
+            scoreA: Number(event?.scoreA || 0),
+            scoreB: Number(event?.scoreB || 0),
+            undone: Boolean(event?.undone),
+        }))
+}
+
+export function getLatestUndoablePointEvent(match: Record<string, any> | null) {
+    if (!match?.pointHistory || typeof match.pointHistory !== 'object') {
+        return null
+    }
+
+    return sortPointHistoryEntries(match.pointHistory as Record<string, Record<string, unknown>>)
+        .find(([, event]) => {
+            const action = String(event?.action || '')
+            const undone = Boolean(event?.undone)
+            return !undone && (action === 'point_added' || action === 'point_removed')
+        }) || null
+}
+
+export async function undoLastPointAction(matchID: string) {
+    const match = await getMatchData(matchID)
+    const latestUndoableEvent = getLatestUndoablePointEvent(match as Record<string, any> | null)
+    if (!match || !latestUndoableEvent) {
+        return null
+    }
+
+    const [eventID, event] = latestUndoableEvent
+    const gameNumber = Number(event.gameNumber || 1)
+    const side = String(event.side || 'A')
+    const scorePath = `matches/${matchID}/game${gameNumber}${side}Score`
+    const scoreSnapshot = await db.ref(scorePath).get()
+    const currentScore = Number(scoreSnapshot.val() || 0)
+    const nextScore = event.action === 'point_added'
+        ? Math.max(0, currentScore - 1)
+        : currentScore + 1
+
+    await db.ref(scorePath).set(nextScore)
+    await db.ref(`matches/${matchID}/pointHistory/${eventID}`).update({
+        undone: true,
+        undoneAt: new Date().toISOString(),
+    })
+
+    if (match.sportName !== 'pickleball' && !match.isManualServiceMode) {
+        const otherSide = side === 'A' ? 'B' : 'A'
+        const combinedPoints = nextScore + Number(match[`game${gameNumber}${otherSide}Score`] || 0)
+        await updateService(
+            matchID,
+            match.isAInitialServer,
+            gameNumber,
+            combinedPoints,
+            match.changeServeEveryXPoints,
+            match.pointsToWinGame,
+            match.sportName,
+            match.scoringType,
+        )
+    }
+
+    const refreshedMatch = await getMatchData(matchID)
+    if (refreshedMatch) {
+        await syncMatchSchemaFromFlat(matchID, refreshedMatch)
+    }
+    await appendMatchAuditEvent(matchID, 'undo_applied', {
+        eventID,
+        sourceAction: event.action,
+        gameNumber,
+        side,
+        resultingScore: nextScore,
+    })
+    return refreshedMatch
 }
 
 export async function updateService(
@@ -40,17 +158,19 @@ export async function updateService(
 
     switch (sportName) {
         case "tableTennis":
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
+            await db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
 
             break;
         case "pickleball":
             //This function is not used in pickleball, only when creating a new game. 
             // Also setting this to isSecondServer:true
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
-            db.ref(`matches/${matchID}/isSecondServer`).set(true)
+            await Promise.all([
+                db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame)),
+                db.ref(`matches/${matchID}/isSecondServer`).set(true),
+            ])
             break;
         default:
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
+            await db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
 
             break;
     }
@@ -130,8 +250,28 @@ export async function getMatchData(matchID) {
 
     let matchRef = db.ref(`matches/${matchID}/`)
     let matchSnapShot = await matchRef.get()
-    return matchSnapShot.val()
+    return normalizeMatchSchema(matchSnapShot.val())
 
+}
+
+async function syncMatchSchemaAndAudit(matchID, action, payload = {}) {
+    const match = await getMatchData(matchID)
+    if (!match) {
+        return null
+    }
+
+    await syncMatchSchemaFromFlat(matchID, match)
+    await appendMatchAuditEvent(matchID, action, payload)
+    return match
+}
+
+export function subscribeToMatchData(
+    matchID: string,
+    callback: (match: Record<string, unknown> | null) => void,
+) {
+    return subscribeToPathValue(`matches/${matchID}`, (matchValue) => {
+        callback(normalizeMatchSchema(matchValue as Record<string, any> | null) as Record<string, unknown> | null)
+    })
 }
 
 export async function subscribeToAllMatchFields(matchID, callback) {
@@ -162,8 +302,28 @@ export async function createNewMatch(
     isTeamMatch: boolean | null = null,
     scoringType: string | null = null,
 ) {
+    const existingCurrentMatchID = await getCurrentMatchForTable(tableID)
     let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, isTeamMatch ?? false, scoringType ?? undefined))
-    let currentMatchKey = await db.ref(`tables/${tableID}/currentMatch`).set(newMatch.key)
+    try {
+        await db.ref(`tables/${tableID}/currentMatch`).compareSet(existingCurrentMatchID || "", newMatch.key)
+    } catch {
+        if (newMatch.key) {
+            await db.ref(`matches/${newMatch.key}`).remove()
+        }
+        throw new Error('Table already has an active match')
+    }
+    if (existingCurrentMatchID) {
+        await reconcileScheduledQueueItemForMatch(tableID, existingCurrentMatchID, 'completed', false)
+    }
+    if (newMatch.key) {
+        await Promise.all([
+            db.ref(`matches/${newMatch.key}/schemaVersion`).set(MATCH_SCHEMA_VERSION),
+            db.ref(`matches/${newMatch.key}/scheduling`).update({
+                tableID,
+                sourceType: 'table',
+            }),
+        ])
+    }
     return newMatch.key
 }
 
@@ -172,6 +332,160 @@ export async function createNewScheduledMatch(sportName) {
     return newMatch.key
 }
 
+export const scheduledMatchStatusOptions: ScheduledMatchStatus[] = [
+    'scheduled',
+    'queued',
+    'called',
+    'active',
+    'paused',
+    'completed',
+    'cancelled',
+    'archived',
+]
+
+const promotableScheduledMatchStatuses = new Set<ScheduledMatchStatus>(['scheduled', 'queued', 'called', 'paused'])
+const scheduledMatchStatusTransitions: Record<ScheduledMatchStatus, ScheduledMatchStatus[]> = {
+    scheduled: ['queued', 'called', 'paused', 'cancelled', 'archived'],
+    queued: ['scheduled', 'called', 'paused', 'cancelled', 'archived'],
+    called: ['queued', 'paused', 'cancelled', 'archived'],
+    active: ['paused', 'completed', 'cancelled', 'archived'],
+    paused: ['queued', 'called', 'cancelled', 'archived'],
+    completed: ['archived'],
+    cancelled: ['archived'],
+    archived: [],
+}
+
+function getQueueTimestamp(value: string | undefined) {
+    const parsed = value ? new Date(value).getTime() : Number.NaN
+    return Number.isFinite(parsed) ? parsed : Date.now()
+}
+
+export function normalizeScheduledMatchEntry(
+    scheduledMatchID: string,
+    scheduledMatch: ScheduledMatch | null | undefined,
+): [string, ScheduledMatch] {
+    const normalized = scheduledMatch || {}
+    const scheduledOn = typeof normalized.scheduledOn === 'string' && normalized.scheduledOn
+        ? normalized.scheduledOn
+        : new Date().toISOString()
+
+    return [scheduledMatchID, {
+        ...normalized,
+        matchID: typeof normalized.matchID === 'string' ? normalized.matchID : '',
+        playerA: typeof normalized.playerA === 'string' ? normalized.playerA : 'TBD',
+        playerB: typeof normalized.playerB === 'string' ? normalized.playerB : 'TBD',
+        status: scheduledMatchStatusOptions.includes(normalized.status as ScheduledMatchStatus)
+            ? normalized.status as ScheduledMatchStatus
+            : 'scheduled',
+        queueOrder: typeof normalized.queueOrder === 'number'
+            ? normalized.queueOrder
+            : getQueueTimestamp(normalized.startTime || scheduledOn),
+        scheduledOn,
+        updatedAt: typeof normalized.updatedAt === 'string' ? normalized.updatedAt : scheduledOn,
+        operatorNotes: typeof normalized.operatorNotes === 'string' ? normalized.operatorNotes : '',
+        assignedScorerID: typeof normalized.assignedScorerID === 'string' ? normalized.assignedScorerID : '',
+    }]
+}
+
+export function sortScheduledMatchEntries(entries: Array<[string, ScheduledMatch]>) {
+    return [...entries]
+        .map(([scheduledMatchID, scheduledMatch]) => normalizeScheduledMatchEntry(scheduledMatchID, scheduledMatch))
+        .sort((a, b) => {
+            const orderA = typeof a[1].queueOrder === 'number' ? a[1].queueOrder : Number.MAX_SAFE_INTEGER
+            const orderB = typeof b[1].queueOrder === 'number' ? b[1].queueOrder : Number.MAX_SAFE_INTEGER
+            if (orderA !== orderB) {
+                return orderA - orderB
+            }
+            return getQueueTimestamp(a[1].startTime || a[1].scheduledOn) - getQueueTimestamp(b[1].startTime || b[1].scheduledOn)
+        })
+}
+
+export function isScheduledMatchPromotable(scheduledMatch: ScheduledMatch | null | undefined) {
+    return promotableScheduledMatchStatuses.has((scheduledMatch?.status || 'scheduled') as ScheduledMatchStatus)
+}
+
+export function canTransitionScheduledMatchStatus(
+    currentStatus: ScheduledMatchStatus | undefined,
+    nextStatus: ScheduledMatchStatus,
+) {
+    const normalizedCurrentStatus = (currentStatus || 'scheduled') as ScheduledMatchStatus
+    if (normalizedCurrentStatus === nextStatus) {
+        return true
+    }
+    return scheduledMatchStatusTransitions[normalizedCurrentStatus]?.includes(nextStatus) || false
+}
+
+export function getNextPromotableScheduledMatch(entries: Array<[string, ScheduledMatch]>) {
+    return sortScheduledMatchEntries(entries).find(([, scheduledMatch]) => isScheduledMatchPromotable(scheduledMatch)) || null
+}
+
+async function getScheduledMatchesByTable(tableID: string) {
+    const snapshot = await db.ref(`tables/${tableID}/scheduledMatches`).get()
+    const scheduledMatches = snapshot.val() && typeof snapshot.val() === 'object'
+        ? snapshot.val() as Record<string, ScheduledMatch>
+        : {}
+    return scheduledMatches
+}
+
+async function persistScheduledMatch(tableID: string, scheduledMatchID: string, scheduledMatch: ScheduledMatch) {
+    await db.ref(`tables/${tableID}/scheduledMatches/${scheduledMatchID}`).set(scheduledMatch)
+    return scheduledMatch
+}
+
+async function applyRootUpdate(update: Record<string, unknown>) {
+    await db.ref('').update(update)
+}
+
+async function clearCurrentMatchIfMatches(tableID: string, matchID: string) {
+    try {
+        await db.ref(`tables/${tableID}/currentMatch`).compareSet(matchID, "")
+    } catch {
+        const currentMatchID = await getCurrentMatchForTable(tableID)
+        if (currentMatchID === matchID) {
+            throw new Error('Failed to clear the current match claim')
+        }
+    }
+}
+
+async function findScheduledMatchRowForMatch(tableID: string, matchID: string) {
+    const scheduledMatches = await getScheduledMatchesByTable(tableID)
+    return sortScheduledMatchEntries(Object.entries(scheduledMatches)).find(([, scheduledMatch]) => scheduledMatch.matchID === matchID) || null
+}
+
+export async function reconcileScheduledQueueItemForMatch(
+    tableID: string,
+    matchID: string,
+    nextStatus: Extract<ScheduledMatchStatus, 'completed' | 'archived' | 'cancelled'> = 'completed',
+    clearCurrentMatch = true,
+) {
+    const queueMatch = await findScheduledMatchRowForMatch(tableID, matchID)
+    if (!queueMatch) {
+        if (clearCurrentMatch) {
+            await clearCurrentMatchIfMatches(tableID, matchID)
+        }
+        return null
+    }
+
+    const [scheduledMatchID, scheduledMatch] = queueMatch
+    const now = new Date().toISOString()
+    const reconciledMatch: ScheduledMatch = {
+        ...scheduledMatch,
+        status: nextStatus,
+        updatedAt: now,
+        ...(nextStatus === 'completed' ? { completedAt: now } : {}),
+        ...(nextStatus === 'archived' ? { archivedAt: now } : {}),
+        ...(nextStatus === 'cancelled' ? { cancelledAt: now } : {}),
+    }
+
+    const update: Record<string, unknown> = {
+        [`tables/${tableID}/scheduledMatches/${scheduledMatchID}`]: reconciledMatch,
+    }
+    if (clearCurrentMatch) {
+        update[`tables/${tableID}/currentMatch`] = ''
+    }
+    await applyRootUpdate(update)
+    return reconciledMatch
+}
 
 
 export async function getCurrentMatchForTable(tableID) {
@@ -200,6 +514,11 @@ export async function archiveMatchForTable(tableID, matchID, matchSettings = nul
         playerB: getCombinedPlayerNames(match["playerA"], match["playerB"], match["playerA2"], match["playerB2"]).b,
         AScore: matchScores.a,
         BScore: matchScores.b,
+        tournamentID: match["tournamentID"] || "",
+        eventID: match["eventID"] || "",
+        roundID: match["roundID"] || "",
+        eventName: match["eventName"] || "",
+        matchRound: match["matchRound"] || "",
         archivedOn: new Date().toISOString(),
         startTime: match["matchStartTime"]
     }
@@ -207,6 +526,20 @@ export async function archiveMatchForTable(tableID, matchID, matchSettings = nul
     let currentMatchSnapShot = await db.ref(`tables/${tableID}/archivedMatches`).push(archivedMatch)
     return currentMatchSnapShot.key
 
+}
+
+export async function completeCurrentTableMatch(
+    tableID,
+    matchID,
+    matchSettings = null,
+    shouldPromoteNext: boolean = false,
+) {
+    await archiveMatchForTable(tableID, matchID, matchSettings)
+    await reconcileScheduledQueueItemForMatch(tableID, matchID, 'completed', true)
+    if (shouldPromoteNext) {
+        return promoteNextScheduledMatch(tableID)
+    }
+    return null
 }
 
 
@@ -237,8 +570,11 @@ export async function getArchivedMatchesForTeamMatch(teamMatchID) {
     }
 }
 
-export async function addScheduledMatch(tableID, matchID, startTime) {
+export async function addScheduledMatch(tableID, matchID, startTime, patch: Partial<ScheduledMatch> = {}) {
     let match = await getMatchData(matchID)
+    if (!match) {
+        return null
+    }
     let matchScores = getMatchScore(match)
 
     let matchSummary = {
@@ -247,27 +583,245 @@ export async function addScheduledMatch(tableID, matchID, startTime) {
         playerB: getCombinedPlayerNames(match["playerA"], match["playerB"], match["playerA2"], match["playerB2"]).b,
         AScore: matchScores.a,
         BScore: matchScores.b,
+        status: 'scheduled',
+        queueOrder: getQueueTimestamp(startTime),
         scheduledOn: new Date().toISOString(),
-        startTime: startTime
+        updatedAt: new Date().toISOString(),
+        startTime: startTime,
+        sourceType: 'manual',
+        sourceID: matchID,
+        operatorNotes: '',
+        assignedScorerID: '',
+        ...patch,
     }
     let currentMatchSnapShot = await db.ref(`tables/${tableID}/scheduledMatches`).push(matchSummary)
     return currentMatchSnapShot.key
 }
 
-export async function updateScheduledMatch(tableID, scheduledMatchID, matchID, startTime) {
+export async function updateScheduledMatch(tableID, scheduledMatchID, matchID, startTime, patch: Partial<ScheduledMatch> = {}) {
     let match = await getMatchData(matchID)
+    if (!match) {
+        return null
+    }
+    const existingScheduledMatches = await getScheduledMatchesByTable(tableID)
+    if (!existingScheduledMatches[scheduledMatchID]) {
+        throw new Error('Scheduled match was not found')
+    }
+    if (patch.status === 'active') {
+        throw new Error('Use promoteScheduledTableMatch to activate a queue row')
+    }
+    const [, existing] = normalizeScheduledMatchEntry(scheduledMatchID, existingScheduledMatches[scheduledMatchID])
     let matchScores = getMatchScore(match)
     let matchSummary = {
+        ...existing,
+        ...patch,
         matchID: matchID,
         playerA: getCombinedPlayerNames(match["playerA"], match["playerB"], match["playerA2"], match["playerB2"]).a,
         playerB: getCombinedPlayerNames(match["playerA"], match["playerB"], match["playerA2"], match["playerB2"]).b,
         AScore: matchScores.a,
         BScore: matchScores.b,
-        scheduledOn: new Date().toISOString(),
+        queueOrder: typeof patch.queueOrder === 'number' ? patch.queueOrder : existing.queueOrder,
+        scheduledOn: existing.scheduledOn || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         startTime: startTime
     }
-    let currentMatchSnapShot = await db.ref(`tables/${tableID}/scheduledMatches/${scheduledMatchID}`).set(matchSummary)
+    await persistScheduledMatch(tableID, scheduledMatchID, matchSummary)
     return matchSummary
+}
+
+export async function setScheduledTableMatchStatus(tableID, scheduledMatchID, status: ScheduledMatchStatus) {
+    const scheduledMatches = await getScheduledMatchesByTable(tableID)
+    if (!scheduledMatches[scheduledMatchID]) {
+        throw new Error('Scheduled match was not found')
+    }
+    const [, scheduledMatch] = normalizeScheduledMatchEntry(scheduledMatchID, scheduledMatches[scheduledMatchID])
+    if (status === 'active') {
+        throw new Error('Use promoteScheduledTableMatch to activate a queue row')
+    }
+    if (!canTransitionScheduledMatchStatus((scheduledMatch.status || 'scheduled') as ScheduledMatchStatus, status)) {
+        throw new Error(`Invalid queue status transition from ${scheduledMatch.status || 'scheduled'} to ${status}`)
+    }
+    const now = new Date().toISOString()
+    const nextScheduledMatch: ScheduledMatch = {
+        ...scheduledMatch,
+        status,
+        updatedAt: now,
+        ...(status === 'completed' ? { completedAt: now } : {}),
+        ...(status === 'cancelled' ? { cancelledAt: now } : {}),
+        ...(status === 'archived' ? { archivedAt: now } : {}),
+    }
+    const update: Record<string, unknown> = {
+        [`tables/${tableID}/scheduledMatches/${scheduledMatchID}`]: nextScheduledMatch,
+    }
+    if (scheduledMatch.status === 'active' && scheduledMatch.matchID) {
+        update[`tables/${tableID}/currentMatch`] = ''
+    }
+    await applyRootUpdate(update)
+    return nextScheduledMatch
+}
+
+export async function reorderScheduledTableMatch(tableID, scheduledMatchID, direction: 'up' | 'down') {
+    const scheduledMatches = await getScheduledMatchesByTable(tableID)
+    const orderedEntries = sortScheduledMatchEntries(Object.entries(scheduledMatches))
+    const currentIndex = orderedEntries.findIndex(([currentScheduledMatchID]) => currentScheduledMatchID === scheduledMatchID)
+    if (currentIndex < 0) {
+        return orderedEntries
+    }
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+    if (targetIndex < 0 || targetIndex >= orderedEntries.length) {
+        return orderedEntries
+    }
+
+    const reorderedEntries = [...orderedEntries]
+    const [movedEntry] = reorderedEntries.splice(currentIndex, 1)
+    reorderedEntries.splice(targetIndex, 0, movedEntry)
+
+    const reorderedRecord = Object.fromEntries(reorderedEntries.map(([currentScheduledMatchID, currentScheduledMatch], index) => [
+        currentScheduledMatchID,
+        {
+            ...currentScheduledMatch,
+            queueOrder: (index + 1) * 1000,
+            updatedAt: new Date().toISOString(),
+        },
+    ]))
+
+    await db.ref(`tables/${tableID}/scheduledMatches`).set(reorderedRecord)
+    return sortScheduledMatchEntries(Object.entries(reorderedRecord))
+}
+
+export async function copyScheduledTableMatchesToTable(
+    sourceTableID: string,
+    targetTableID: string,
+    scheduledMatchIDs: string[],
+    removeSource: boolean = false,
+) {
+    if (!sourceTableID || !targetTableID || sourceTableID === targetTableID) {
+        return { copied: 0, removed: 0, skipped: scheduledMatchIDs.length }
+    }
+
+    const sourceScheduledMatches = await getScheduledMatchesByTable(sourceTableID)
+    const targetScheduledMatches = await getScheduledMatchesByTable(targetTableID)
+    const sortedTargetEntries = sortScheduledMatchEntries(Object.entries(targetScheduledMatches))
+    let nextQueueOrder = sortedTargetEntries.length > 0
+        ? Math.max(...sortedTargetEntries.map(([, scheduledMatch]) => Number(scheduledMatch.queueOrder || 0))) + 1000
+        : 1000
+
+    let copied = 0
+    let removed = 0
+    let skipped = 0
+
+    for (const scheduledMatchID of scheduledMatchIDs) {
+        const sourceMatch = sourceScheduledMatches[scheduledMatchID]
+        if (!sourceMatch) {
+            skipped += 1
+            continue
+        }
+
+        const [, normalizedMatch] = normalizeScheduledMatchEntry(scheduledMatchID, sourceMatch)
+        if (normalizedMatch.status === 'active') {
+            skipped += 1
+            continue
+        }
+
+        const clonedMatch: ScheduledMatch = {
+            ...normalizedMatch,
+            queueOrder: nextQueueOrder,
+            updatedAt: new Date().toISOString(),
+            scheduledOn: normalizedMatch.scheduledOn || new Date().toISOString(),
+            promotionSource: removeSource ? 'bulk-move' : 'bulk-copy',
+        }
+        nextQueueOrder += 1000
+
+        await db.ref(`tables/${targetTableID}/scheduledMatches`).push(clonedMatch)
+        copied += 1
+
+        if (removeSource) {
+            await deleteScheduledTableMatch(sourceTableID, scheduledMatchID)
+            removed += 1
+        }
+    }
+
+    return { copied, removed, skipped }
+}
+
+export async function moveScheduledTableMatchToTable(
+    sourceTableID: string,
+    targetTableID: string,
+    scheduledMatchID: string,
+) {
+    if (!sourceTableID || !targetTableID || sourceTableID === targetTableID) {
+        return null
+    }
+
+    const sourceScheduledMatches = await getScheduledMatchesByTable(sourceTableID)
+    const sourceMatch = sourceScheduledMatches[scheduledMatchID]
+    if (!sourceMatch) {
+        throw new Error('Scheduled match was not found')
+    }
+
+    const [, normalizedMatch] = normalizeScheduledMatchEntry(scheduledMatchID, sourceMatch)
+    const targetScheduledMatches = await getScheduledMatchesByTable(targetTableID)
+    const sortedTargetEntries = sortScheduledMatchEntries(Object.entries(targetScheduledMatches))
+    const nextQueueOrder = sortedTargetEntries.length > 0
+        ? Math.max(...sortedTargetEntries.map(([, scheduledMatch]) => Number(scheduledMatch.queueOrder || 0))) + 1000
+        : 1000
+
+    const pushedScheduledMatch = await db.ref(`tables/${targetTableID}/scheduledMatches`).push({
+        ...normalizedMatch,
+        queueOrder: nextQueueOrder,
+        updatedAt: new Date().toISOString(),
+        promotionSource: 'bulk-move',
+    })
+
+    await deleteScheduledTableMatch(sourceTableID, scheduledMatchID)
+    return pushedScheduledMatch.key
+}
+
+export async function promoteScheduledTableMatch(tableID, scheduledMatchID, promotionSource = 'manual') {
+    const scheduledMatches = await getScheduledMatchesByTable(tableID)
+    if (!scheduledMatches[scheduledMatchID]) {
+        throw new Error('Scheduled match was not found')
+    }
+    const [, scheduledMatch] = normalizeScheduledMatchEntry(scheduledMatchID, scheduledMatches[scheduledMatchID])
+    if (!scheduledMatch.matchID || !isScheduledMatchPromotable(scheduledMatch)) {
+        throw new Error('Scheduled match is not promotable')
+    }
+
+    const now = new Date().toISOString()
+    const nextScheduledMatch: ScheduledMatch = {
+        ...scheduledMatch,
+        status: 'active',
+        promotedAt: now,
+        updatedAt: now,
+        promotionSource,
+    }
+    try {
+        await db.ref(`tables/${tableID}/currentMatch`).compareSet("", scheduledMatch.matchID)
+    } catch {
+        throw new Error('Table already has an active match')
+    }
+    try {
+        await applyRootUpdate({
+            [`tables/${tableID}/scheduledMatches/${scheduledMatchID}`]: nextScheduledMatch,
+            [`matches/${scheduledMatch.matchID}/scheduling/tableID`]: tableID,
+            [`matches/${scheduledMatch.matchID}/scheduling/queueItemID`]: scheduledMatchID,
+            [`matches/${scheduledMatch.matchID}/scheduling/sourceType`]: 'scheduled-table-queue',
+        })
+    } catch (error) {
+        await clearCurrentMatchIfMatches(tableID, scheduledMatch.matchID)
+        throw error
+    }
+    return scheduledMatch.matchID
+}
+
+export async function promoteNextScheduledMatch(tableID) {
+    const scheduledMatches = await getScheduledMatchesByTable(tableID)
+    const nextScheduledMatch = getNextPromotableScheduledMatch(Object.entries(scheduledMatches))
+    if (!nextScheduledMatch) {
+        return null
+    }
+    return promoteScheduledTableMatch(tableID, nextScheduledMatch[0], 'promote-next')
 }
 
 export async function deleteScheduledTableMatch(tableID, scheduledMatchID) {
@@ -426,6 +980,15 @@ export async function endGame(matchID, gameNumber) {
     ])
 
 
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'game_finished', {
+            gameNumber,
+            winner: match.games?.[String(gameNumber)]?.winner || '',
+        })
+    }
+
     return {
         [`isGame${gameNumber}Finished`]: true,
         [`game${gameNumber}EndTime`]: new Date().toISOString(),
@@ -443,6 +1006,14 @@ export async function startGame(matchID, gameNumber) {
         db.ref(`matches/${matchID}/isInBetweenGames`).set(false),
     ])
 
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'game_started', {
+            gameNumber,
+        })
+    }
+
 
 
 }
@@ -452,6 +1023,11 @@ export async function startGame(matchID, gameNumber) {
 export async function setInitialMatchServer(matchID, isAInitialServer) {
     await db.ref(`matches/${matchID}/isInitialServerSelected`).set(true)
     await db.ref(`matches/${matchID}/isAInitialServer`).set(isAInitialServer)
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'initial_server_set', { isAInitialServer })
+    }
 }
 
 export function isGamePoint(match) {
@@ -506,13 +1082,24 @@ export function isFinalGame(match) {
 
 export async function setIsGamePoint(matchID, isGamePoint) {
     await db.ref(`matches/${matchID}/isGamePoint`).set(isGamePoint)
+    await syncMatchSchemaAndAudit(matchID, 'game_point_flag_set', { isGamePoint })
 }
 export async function setIsMatchPoint(matchID, isGamePoint) {
     await db.ref(`matches/${matchID}/isMatchPoint`).set(isGamePoint)
+    await syncMatchSchemaAndAudit(matchID, 'match_point_flag_set', { isMatchPoint: isGamePoint })
 }
 
 export async function setRoundName(matchID, roundName) {
-    await db.ref(`matches/${matchID}/matchRound`).set(roundName)
+    await Promise.all([
+        db.ref(`matches/${matchID}/matchRound`).set(roundName),
+        db.ref(`matches/${matchID}/schemaVersion`).set(MATCH_SCHEMA_VERSION),
+        db.ref(`matches/${matchID}/tournamentContext/matchRound`).set(roundName),
+    ])
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'round_name_set', { roundName })
+    }
 }
 
 export async function addSignificantPoint(matchID, gameNumber, playerAScore, playerBScore) {
@@ -520,6 +1107,13 @@ export async function addSignificantPoint(matchID, gameNumber, playerAScore, pla
         playerAScore: playerAScore,
         playerBScore: playerBScore,
         gameNumber: gameNumber
+    })
+    await appendMatchPointHistory(matchID, {
+        action: 'significant_point',
+        createdAt: new Date().toISOString(),
+        gameNumber,
+        scoreA: playerAScore,
+        scoreB: playerBScore,
     })
 }
 
@@ -536,28 +1130,74 @@ export async function getSignificantPoints(matchID) {
 
 export async function setIsDoubles(matchID, isDoubles) {
     await db.ref(`matches/${matchID}/isDoubles`).set(isDoubles)
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'doubles_mode_set', { isDoubles })
+    }
 }
 
 export async function setYellowFlag(matchID, AorB, isFlagged) {
     await db.ref(`matches/${matchID}/is${AorB}YellowCarded`).set(isFlagged)
+    await syncMatchSchemaAndAudit(matchID, 'yellow_card_set', { side: AorB, isFlagged })
 }
 export async function setRedFlag(matchID, AorB, isFlagged) {
     await db.ref(`matches/${matchID}/is${AorB}RedCarded`).set(isFlagged)
+    await syncMatchSchemaAndAudit(matchID, 'red_card_set', { side: AorB, isFlagged })
+}
+
+export async function setJudgePauseState(matchID, isPaused, reason = "") {
+    await Promise.all([
+        db.ref(`matches/${matchID}/isJudgePaused`).set(isPaused),
+        db.ref(`matches/${matchID}/judgePauseReason`).set(isPaused ? reason : ""),
+    ])
+    await syncMatchSchemaAndAudit(matchID, 'judge_pause_set', { isPaused, reason: isPaused ? reason : "" })
+}
+
+export async function setMatchDisputeState(matchID, isDisputed, note = "") {
+    await db.ref(`matches/${matchID}/isDisputed`).set(isDisputed)
+    if (note) {
+        await Promise.all([
+            db.ref(`matches/${matchID}/latestJudgeNote`).set(note),
+            db.ref(`matches/${matchID}/latestJudgeNoteAt`).set(new Date().toISOString()),
+        ])
+    }
+    await syncMatchSchemaAndAudit(matchID, 'match_dispute_set', { isDisputed, note })
+}
+
+export async function addJudgeNote(matchID, note) {
+    const trimmedNote = typeof note === 'string' ? note.trim() : ''
+    if (!trimmedNote) {
+        return
+    }
+    const createdAt = new Date().toISOString()
+    await Promise.all([
+        db.ref(`matches/${matchID}/latestJudgeNote`).set(trimmedNote),
+        db.ref(`matches/${matchID}/latestJudgeNoteAt`).set(createdAt),
+    ])
+    await appendMatchAuditEvent(matchID, 'judge_note_added', { note: trimmedNote, createdAt })
 }
 
 export async function setisManualMode(matchID, isManual) {
     await db.ref(`matches/${matchID}/isManualServiceMode`).set(isManual)
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'manual_service_mode_set', { isManual })
+    }
 }
 
 export async function flipScoreboard(matchID) {
     let currentFlipSnap = await db.ref(`matches/${matchID}/isCourtSideScoreboardFlipped`).get()
     let currentFlip = currentFlipSnap.val()
     await db.ref(`matches/${matchID}/isCourtSideScoreboardFlipped`).set(currentFlip ? false : true)
+    await appendMatchAuditEvent(matchID, 'scoreboard_flipped', { isCourtSideScoreboardFlipped: !currentFlip })
 }
 
 export async function setUsedTimeOut(matchID, AorB) {
     await db.ref(`matches/${matchID}/is${AorB}TimeOutUsed`).set(true)
     await db.ref(`matches/${matchID}/is${AorB}TimeOutActive`).set(false)
+    await syncMatchSchemaAndAudit(matchID, 'timeout_used', { side: AorB })
 }
 export async function resetUsedTimeOut(matchID, AorB) {
     await Promise.all(
@@ -566,16 +1206,19 @@ export async function resetUsedTimeOut(matchID, AorB) {
             db.ref(`matches/${matchID}/is${AorB}TimeOutActive`).set(false)
         ]
     )
+    await syncMatchSchemaAndAudit(matchID, 'timeout_reset', { side: AorB })
 
 }
 
 export async function startTimeOut(matchID, AorB) {
     await db.ref(`matches/${matchID}/timeOutStartTime${AorB}`).set(new Date().toISOString())
     await db.ref(`matches/${matchID}/is${AorB}TimeOutActive`).set(true)
+    await syncMatchSchemaAndAudit(matchID, 'timeout_started', { side: AorB })
 }
 
 export async function setServerManually(matchID, isAServing) {
     await db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing)
+    await syncMatchSchemaAndAudit(matchID, 'server_manually_set', { isAServing })
 }
 
 export function isMatchFinished(match) {
@@ -591,6 +1234,7 @@ export function isMatchFinished(match) {
 
 export async function clearPlayer(matchID, player) {
     await db.ref(`matches/${matchID}/${player}`).set(getNewPlayer())
+    await syncMatchSchemaAndAudit(matchID, 'player_cleared', { player })
 }
 
 export async function start2MinuteWarmUp(matchID,) {
@@ -598,6 +1242,7 @@ export async function start2MinuteWarmUp(matchID,) {
         db.ref(`matches/${matchID}/isWarmUpStarted`).set(true),
         db.ref(`matches/${matchID}/warmUpStartTime`).set(new Date().toISOString())
     ])
+    await syncMatchSchemaAndAudit(matchID, 'warmup_started')
 
 }
 
@@ -605,6 +1250,7 @@ export async function stop2MinuteWarmUp(matchID,) {
     await Promise.all([
         db.ref(`matches/${matchID}/isWarmUpFinished`).set(true),
     ])
+    await syncMatchSchemaAndAudit(matchID, 'warmup_finished')
 
 }
 
@@ -612,17 +1258,32 @@ export async function setBestOf(matchID, maxGames) {
     await Promise.all([
         db.ref(`matches/${matchID}/bestOf`).set(maxGames),
     ])
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'best_of_set', { bestOf: maxGames })
+    }
 }
 export async function setGamePointsToWinGame(matchID, pointsToWin) {
     await Promise.all([
         db.ref(`matches/${matchID}/pointsToWinGame`).set(pointsToWin),
     ])
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'points_to_win_set', { pointsToWinGame: pointsToWin })
+    }
 }
 
 export async function setChangeServiceEveryXPoints(matchID, changeEveryPoints) {
     await Promise.all([
         db.ref(`matches/${matchID}/changeServeEveryXPoints`).set(changeEveryPoints),
     ])
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'serve_rotation_set', { changeServeEveryXPoints: changeEveryPoints })
+    }
 }
 
 export async function manuallySetGameScore(matchID, gameNumber, AScore, BScore) {
@@ -630,12 +1291,27 @@ export async function manuallySetGameScore(matchID, gameNumber, AScore, BScore) 
         db.ref(`matches/${matchID}/game${gameNumber}AScore`).set(AScore),
         db.ref(`matches/${matchID}/game${gameNumber}BScore`).set(BScore),
     ])
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'manual_game_score_set', {
+            gameNumber,
+            resultingScoreA: AScore,
+            resultingScoreB: BScore,
+        })
+    }
 }
 
 export function watchForPasswordChange(tableID, callback) {
-    return subscribeToPathValue(`tables/${tableID}/password`, (passwordValue) => {
-        if (typeof passwordValue === "string") {
-            callback(passwordValue)
+    return subscribeToPathValue(`tables/${tableID}`, (tableValue) => {
+        if (tableValue && typeof tableValue === "object") {
+            const accessRecord = tableValue as Record<string, any>
+            callback([
+                accessRecord.accessSecretMode || "",
+                accessRecord.passwordUpdatedAt || "",
+                accessRecord.passwordHash || "",
+                accessRecord.password || "",
+            ].join(":"))
         }
     })
 }
@@ -657,7 +1333,11 @@ export async function getScoringTypeForTable(tableID) {
 }
 export async function setScoringType(matchID, value) {
     let currentMatchSnapShot = await db.ref(`matches/${matchID}/scoringType`).set(value)
-
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'scoring_type_set', { scoringType: value })
+    }
 
 }
 
@@ -671,31 +1351,32 @@ export async function getPointsToWinGameForTable(tableID) {
 export async function BWonRally_PB(matchID, gameNumber, isACurrentlyServing, isSecondServer, isDoubles, isRallyScoring = false, pointsToWin, BScore) {
     if (isRallyScoring) {
         if (pointsToWin - 1 === parseInt(BScore) && isACurrentlyServing) {
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
+            const serviceUpdates = [db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)]
             if (isDoubles) {
-                db.ref(`matches/${matchID}/isSecondServer`).set(BScore % 2 === 0 ? false : true)
+                serviceUpdates.push(db.ref(`matches/${matchID}/isSecondServer`).set(BScore % 2 === 0 ? false : true))
 
             }
             else {
-                db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                serviceUpdates.push(db.ref(`matches/${matchID}/isSecondServer`).set(false))
 
             }
+            await Promise.all(serviceUpdates)
             return BScore
         }
         else {
 
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
+            await db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
             let newScoreB = await AddPoint(matchID, gameNumber, "B")
             if (isDoubles) {
                 if (newScoreB % 2 === 0) {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                    await db.ref(`matches/${matchID}/isSecondServer`).set(false)
                 }
                 else {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
+                    await db.ref(`matches/${matchID}/isSecondServer`).set(true)
                 }
             }
             else {
-                db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                await db.ref(`matches/${matchID}/isSecondServer`).set(false)
 
             }
 
@@ -709,16 +1390,18 @@ export async function BWonRally_PB(matchID, gameNumber, isACurrentlyServing, isS
         else {
             if (isDoubles) {
                 if (isSecondServer) {
-                    db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
-                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                    await Promise.all([
+                        db.ref(`matches/${matchID}/isACurrentlyServing`).set(false),
+                        db.ref(`matches/${matchID}/isSecondServer`).set(false),
+                    ])
 
                 }
                 else {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
+                    await db.ref(`matches/${matchID}/isSecondServer`).set(true)
                 }
             }
             else {
-                db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
+                await db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
             }
 
         }
@@ -730,30 +1413,31 @@ export async function BWonRally_PB(matchID, gameNumber, isACurrentlyServing, isS
 export async function AWonRally_PB(matchID, gameNumber, isACurrentlyServing, isSecondServer, isDoubles, isRallyScoring = false, pointsToWin, AScore) {
     if (isRallyScoring) {
         if (pointsToWin - 1 === parseInt(AScore) && !isACurrentlyServing) {
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
+            const serviceUpdates = [db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)]
             if (isDoubles) {
-                db.ref(`matches/${matchID}/isSecondServer`).set(AScore % 2 === 0 ? false : true)
+                serviceUpdates.push(db.ref(`matches/${matchID}/isSecondServer`).set(AScore % 2 === 0 ? false : true))
             }
             else {
-                db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                serviceUpdates.push(db.ref(`matches/${matchID}/isSecondServer`).set(false))
             }
+            await Promise.all(serviceUpdates)
 
             return AScore
         }
         else {
 
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
+            await db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
             let newScoreA = await AddPoint(matchID, gameNumber, "A")
             if (isDoubles) {
                 if (newScoreA % 2 === 0) {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                    await db.ref(`matches/${matchID}/isSecondServer`).set(false)
                 }
                 else {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
+                    await db.ref(`matches/${matchID}/isSecondServer`).set(true)
                 }
             }
             else {
-                db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                await db.ref(`matches/${matchID}/isSecondServer`).set(false)
             }
 
             return newScoreA
@@ -769,16 +1453,18 @@ export async function AWonRally_PB(matchID, gameNumber, isACurrentlyServing, isS
         else {
             if (isDoubles) {
                 if (isSecondServer) {
-                    db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
-                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                    await Promise.all([
+                        db.ref(`matches/${matchID}/isACurrentlyServing`).set(true),
+                        db.ref(`matches/${matchID}/isSecondServer`).set(false),
+                    ])
 
                 }
                 else {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
+                    await db.ref(`matches/${matchID}/isSecondServer`).set(true)
                 }
             }
             else {
-                db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
+                await db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
             }
 
         }

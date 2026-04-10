@@ -8,6 +8,12 @@ const sections = [
     title: 'Scoring',
     items: [
       {
+        route: '/tournaments',
+        title: 'Tournaments',
+        description: 'Create tournament shells, event schedules, and bracket entry points.',
+        icon: TablesIcon,
+      },
+      {
         route: '/tables',
         title: 'Tables',
         description: 'Create tables, assign matches, and run live scoring.',

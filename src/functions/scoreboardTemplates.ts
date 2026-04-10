@@ -1,4 +1,5 @@
 import db, { getUserPath } from '@/lib/database'
+import { subscribeToPathValue } from '@/lib/realtime'
 import { newScoreboard } from '@/classes/Scoreboard'
 import { defaultScoreboard } from '@/scoreboard/templates/defaultscoreboard'
 import { isRecordActive, softDeleteCanonical } from './deletion'
@@ -51,6 +52,17 @@ export async function getScoreboardTemplates() {
   return [...builtIns, ...custom].filter((template: Record<string, any>) => template.isActive !== false)
 }
 
+export function subscribeToScoreboardTemplates(callback: (templates: Array<Record<string, any>>) => void) {
+  const builtIns = getBuiltInScoreboardTemplates()
+  return subscribeToPathValue('scoreboardTemplates', (templatesValue) => {
+    const custom = templatesValue && typeof templatesValue === 'object'
+      ? Object.entries(templatesValue as Record<string, Record<string, any>>).map(([id, template]) => ({ id, ...template }))
+      : []
+
+    callback([...builtIns, ...custom].filter((template: Record<string, any>) => template.isActive !== false))
+  })
+}
+
 export async function getAdminManagedScoreboardTemplates() {
   const snapshot = await db.ref('scoreboardTemplates').get()
   const templates = snapshot.val()
@@ -69,6 +81,31 @@ export async function addScoreboardTemplate(template) {
 
 export async function updateScoreboardTemplate(templateID, template) {
   await db.ref(`scoreboardTemplates/${templateID}`).set(normalizeTemplatePayload(template))
+}
+
+export async function duplicateScoreboardTemplate(templateID, ownerID = getUserPath()) {
+  const snapshot = await db.ref(`scoreboardTemplates/${templateID}`).get()
+  const template = snapshot.val()
+  if (!template || typeof template !== 'object') {
+    throw new Error('Template not found')
+  }
+  return addScoreboardTemplate({
+    ...(template as Record<string, any>),
+    name: `${(template as Record<string, any>).name || 'Template'} Copy`,
+    createdBy: ownerID,
+  })
+}
+
+export async function toggleScoreboardTemplateActive(templateID, isActive) {
+  const snapshot = await db.ref(`scoreboardTemplates/${templateID}`).get()
+  const template = snapshot.val()
+  if (!template || typeof template !== 'object') {
+    throw new Error('Template not found')
+  }
+  await updateScoreboardTemplate(templateID, {
+    ...(template as Record<string, any>),
+    isActive,
+  })
 }
 
 export async function deleteScoreboardTemplate(templateID) {

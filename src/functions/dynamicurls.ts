@@ -1,4 +1,5 @@
 import db, { getUserPath } from '../lib/database'
+import { subscribeToPathValue } from '../lib/realtime'
 import { isRecordActive, softDeleteCanonical } from './deletion'
 
 function getDynamicURLPayload(dynamicURL) {
@@ -43,6 +44,30 @@ export async function getMyDynamicURLs() {
     }
     return [myDynamicURLID, previewEntry]
   })).then((entries) => entries.filter(Boolean))
+}
+
+export function subscribeToMyDynamicURLs(
+  callback: (dynamicURLs: Array<[string, Record<string, any>]>) => void,
+  userID = getUserPath(),
+) {
+  return subscribeToPathValue(`users/${userID}/myDynamicURLs`, async (dynamicURLsValue) => {
+    const dynamicURLs = dynamicURLsValue && typeof dynamicURLsValue === 'object'
+      ? await Promise.all(Object.entries(dynamicURLsValue as Record<string, unknown>).map(async ([myDynamicURLID, preview]) => {
+          const previewEntry = preview as Record<string, any>
+          const dynamicURLID = previewEntry?.id
+          if (typeof dynamicURLID !== 'string' || dynamicURLID.length === 0) {
+            return null
+          }
+          const canonicalSnapshot = await db.ref(`dynamicurls/${dynamicURLID}`).get()
+          if (!isRecordActive(canonicalSnapshot.val())) {
+            return null
+          }
+          return [myDynamicURLID, previewEntry] as [string, Record<string, any>]
+        }))
+      : []
+
+    callback(dynamicURLs.filter(Boolean) as Array<[string, Record<string, any>]>)
+  })
 }
 
 export async function addDynamicURL(dynamicURL) {

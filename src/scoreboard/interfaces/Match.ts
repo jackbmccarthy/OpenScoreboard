@@ -1,6 +1,7 @@
 import type { Player } from './Player'
 
 export interface MatchSettings {
+    schemaVersion?: number;
     // Pregame settings
     isActive: boolean;
     isWarmUpStarted: boolean;
@@ -48,6 +49,11 @@ export interface MatchSettings {
     isCourtSideScoreboardFlipped: boolean;
     isDoubles: boolean;
     significantPoints: Record<string, unknown>;
+    isJudgePaused?: boolean;
+    judgePauseReason?: string;
+    isDisputed?: boolean;
+    latestJudgeNote?: string;
+    latestJudgeNoteAt?: string;
 
     // Final Point Flags
     isGamePoint: boolean;
@@ -135,4 +141,20 @@ export interface MatchSettings {
     playerB2: Player;
 
     sportName: string;
+
+    games?: Record<string, {
+        gameNumber: number;
+        status: string;
+        startedAt: string;
+        endedAt: string;
+        winner: string | null;
+        scoreA: number;
+        scoreB: number;
+    }>;
+    pointHistory?: Record<string, Record<string, unknown>>;
+    auditTrail?: Record<string, Record<string, unknown>>;
+    tournamentContext?: Record<string, unknown>;
+    context?: Record<string, unknown>;
+    scheduling?: Record<string, unknown>;
+    scoringRules?: Record<string, unknown>;
 }

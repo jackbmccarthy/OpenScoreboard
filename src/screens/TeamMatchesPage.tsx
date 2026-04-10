@@ -5,10 +5,12 @@ import { PencilIcon, PlusIcon, TeamsIcon, TrashIcon } from '@/components/icons'
 import { useAuth } from '@/lib/auth'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
-import getMyTeamMatches, { addNewTeamMatch, deleteTeamMatch, getTeamMatch, updateTeamMatch } from '@/functions/teammatches'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
+import getMyTeamMatches, { addNewTeamMatch, deleteTeamMatch, getTeamMatch, subscribeToMyTeamMatches, updateTeamMatch } from '@/functions/teammatches'
 import { getMyTeams } from '@/functions/teams'
 import { supportedSports } from '@/functions/sports'
 import { newTeamMatch } from '@/classes/TeamMatch'
+import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
 
 type TeamMatchDraft = {
   teamAID: string
@@ -32,6 +34,18 @@ type TeamMatchRow = {
   startTime?: string
   sportName: string
   scoringType?: string
+  teamAScore?: number
+  teamBScore?: number
+  tableCount?: number
+  activeTableCount?: number
+  currentTableSummaries?: Array<{
+    tableNumber: string
+    matchID: string
+    label: string
+    status: string
+    contextLabel?: string
+  }>
+  status?: string
 }
 
 type TeamMatchEntry = [string, TeamMatchRow]
@@ -55,17 +69,15 @@ export default function TeamMatchesPage() {
   const [editingMatch, setEditingMatch] = useState<{ myTeamMatchID: string; teamMatchID: string } | null>(null)
   const [matchDraft, setMatchDraft] = useState<TeamMatchDraft>(emptyMatchDraft)
   const [pendingDeleteMatch, setPendingDeleteMatch] = useState<{ myTeamMatchID: string; name: string } | null>(null)
+  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
+  const [selectedMatchDetail, setSelectedMatchDetail] = useState<TeamMatchRow | null>(null)
 
   useEffect(() => {
     if (authLoading) return
 
-    async function loadData() {
+    async function loadStaticData() {
       try {
-        const [matches, myTeams] = await Promise.all([
-          getMyTeamMatches(),
-          getMyTeams(user?.uid || 'mylocalserver'),
-        ])
-        setTeamMatches((matches || []) as TeamMatchEntry[])
+        const myTeams = await getMyTeams(user?.uid || 'mylocalserver')
         setTeams((myTeams || []) as TeamEntry[])
       } catch (error) {
         console.error('Error loading team matches:', error)
@@ -74,7 +86,19 @@ export default function TeamMatchesPage() {
       }
     }
 
-    loadData()
+    loadStaticData()
+
+    const unsubscribeMatchState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myTeamMatches`, (state) => {
+      setSyncStatus(state.status)
+    })
+    const unsubscribeMatches = subscribeToMyTeamMatches((matches) => {
+      setTeamMatches(matches as TeamMatchEntry[])
+    }, user?.uid || 'mylocalserver')
+
+    return () => {
+      unsubscribeMatchState()
+      unsubscribeMatches()
+    }
   }, [authLoading, user])
 
   const scoringTypeOptions = useMemo(() => {
@@ -116,7 +140,8 @@ export default function TeamMatchesPage() {
       matchDraft.teamBID,
       new Date(matchDraft.startTime).toISOString(),
       matchDraft.sportName,
-      matchDraft.scoringType || ''
+      matchDraft.scoringType || '',
+      user?.uid || 'mylocalserver',
     )
 
     if (editingMatch) {
@@ -150,7 +175,10 @@ export default function TeamMatchesPage() {
     <Box className="p-4">
       <VStack space="md">
         <HStack className="justify-between items-center">
-          <Heading size="lg">Team Matches</Heading>
+          <VStack className="gap-1">
+            <Heading size="lg">Team Matches</Heading>
+            <LiveStatusBadge status={syncStatus} />
+          </VStack>
           <Button onClick={openNewMatchModal}>
             <PlusIcon size={16} />
             <Text className="ml-1 text-white">New Match</Text>
@@ -173,10 +201,36 @@ export default function TeamMatchesPage() {
                           {supportedSports[match.sportName]?.displayName || match.sportName || 'Table Tennis'}
                           {match.scoringType ? ` • ${match.scoringType}` : ''}
                         </Text>
+                        <Text className="text-xs font-medium text-slate-700">
+                          Team score: {match.teamAScore || 0} - {match.teamBScore || 0}
+                        </Text>
+                        <Text className="text-xs text-slate-500">
+                          {match.activeTableCount || 0} active table{match.activeTableCount === 1 ? '' : 's'} of {match.tableCount || 0}
+                        </Text>
+                        {match.currentTableSummaries && match.currentTableSummaries.length > 0 ? (
+                          <VStack className="gap-1 pt-1">
+                            {match.currentTableSummaries.map((tableSummary) => (
+                              <VStack key={tableSummary.matchID} className="gap-0.5">
+                                <Text className="text-xs text-slate-500">
+                                  Table {tableSummary.tableNumber}: {tableSummary.label}
+                                </Text>
+                                {tableSummary.contextLabel ? (
+                                  <Text className="text-[11px] text-slate-400">{tableSummary.contextLabel}</Text>
+                                ) : null}
+                              </VStack>
+                            ))}
+                          </VStack>
+                        ) : null}
                       </VStack>
                       <HStack className="items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setSelectedMatchDetail(match)}>
+                          <Text>Details</Text>
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => navigate(`/teamscoring/teammatch/${match.id}`)}>
                           <Text>Score</Text>
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?teamMatchID=${match.id}&table=1&matchID=${match.currentTableSummaries?.[0]?.matchID || ''}&label=${encodeURIComponent(`${match.teamAName || 'Team A'} vs ${match.teamBName || 'Team B'}`)}`)}>
+                          <Text>Secure Link</Text>
                         </Button>
                         <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openEditMatchModal(myTeamMatchID, match)}>
                           <PencilIcon size={16} className="text-slate-500" />
@@ -257,6 +311,40 @@ export default function TeamMatchesPage() {
         message={`Remove ${pendingDeleteMatch?.name || 'this team match'} from your visible team match list?`}
         confirmLabel="Remove"
       />
+
+      <OverlayDialog
+        isOpen={Boolean(selectedMatchDetail)}
+        onClose={() => setSelectedMatchDetail(null)}
+        title="Team Match Details"
+        footer={(
+          <Button variant="outline" onClick={() => setSelectedMatchDetail(null)}>
+            <Text>Close</Text>
+          </Button>
+        )}
+      >
+        {selectedMatchDetail ? (
+          <VStack className="gap-3">
+            <Text className="font-semibold text-slate-900">{selectedMatchDetail.teamAName || 'Team A'} vs {selectedMatchDetail.teamBName || 'Team B'}</Text>
+            <Text className="text-sm text-slate-600">Status: {selectedMatchDetail.status || 'not-started'}</Text>
+            <Text className="text-sm text-slate-600">Team score: {selectedMatchDetail.teamAScore || 0} - {selectedMatchDetail.teamBScore || 0}</Text>
+            <Text className="text-sm text-slate-600">Active tables: {selectedMatchDetail.activeTableCount || 0} / {selectedMatchDetail.tableCount || 0}</Text>
+            {selectedMatchDetail.currentTableSummaries && selectedMatchDetail.currentTableSummaries.length > 0 ? (
+              <VStack className="gap-2">
+                {selectedMatchDetail.currentTableSummaries.map((tableSummary) => (
+                  <Box key={tableSummary.matchID} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <Text className="font-medium text-slate-900">Table {tableSummary.tableNumber}</Text>
+                    <Text className="text-sm text-slate-600">{tableSummary.label}</Text>
+                    {tableSummary.contextLabel ? <Text className="text-xs text-slate-500">{tableSummary.contextLabel}</Text> : null}
+                    <Text className="text-xs text-slate-500">Status: {tableSummary.status}</Text>
+                  </Box>
+                ))}
+              </VStack>
+            ) : (
+              <Text className="text-sm text-slate-500">No active table assignments.</Text>
+            )}
+          </VStack>
+        ) : null}
+      </OverlayDialog>
     </Box>
   )
 }

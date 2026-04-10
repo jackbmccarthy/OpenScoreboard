@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Avatar, Box, Button, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { useSearchParams } from 'react-router-dom'
-import { getImportPlayerList, getMyPlayerLists, replacePlayersInList, sortPlayers } from '@/functions/players'
+import { replacePlayersInList, sortPlayers, subscribeToMyPlayerLists, subscribeToPlayerListPlayers } from '@/functions/players'
 import { v4 as uuidv4 } from 'uuid'
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 import countries from '@/flags/countries.json'
@@ -116,29 +116,16 @@ export default function BulkPlayerPage() {
   const [viewMode, setViewMode] = useState<'form' | 'spreadsheet'>('form')
   const [spreadsheetValue, setSpreadsheetValue] = useState('')
 
-  async function loadPlayerLists() {
+  function loadPlayerLists(lists: PlayerListEntry[]) {
     setDoneLoading(false)
-    try {
-      const lists = await getMyPlayerLists()
-      const typedLists = (lists || []) as PlayerListEntry[]
-      setMyPlayerLists(typedLists)
-      if (!selectedPlayerListID && typedLists.length > 0) {
-        setSelectedPlayerListID(typedLists[0][1].id)
-      }
-    } catch (err) {
-      console.error('Error loading player lists:', err)
-    } finally {
-      setDoneLoading(true)
+    setMyPlayerLists(lists)
+    if (!selectedPlayerListID && lists.length > 0) {
+      setSelectedPlayerListID(lists[0][1].id)
     }
+    setDoneLoading(true)
   }
 
-  async function loadPlayers(playerListID: string) {
-    if (!playerListID) {
-      setRows([])
-      return
-    }
-
-    const players = await getImportPlayerList(playerListID)
+  function loadPlayers(players: PlayerEntry[]) {
     const sortedPlayers = players.length > 0 ? sortPlayers(players as PlayerEntry[]) : []
     setRows((sortedPlayers as PlayerEntry[]).map(([id, player]) => ({
       id,
@@ -153,12 +140,19 @@ export default function BulkPlayerPage() {
 
   useEffect(() => {
     if (authLoading) return
-    loadPlayerLists()
-  }, [authLoading])
+    return subscribeToMyPlayerLists((lists) => {
+      loadPlayerLists((lists || []) as PlayerListEntry[])
+    })
+  }, [authLoading, selectedPlayerListID])
 
   useEffect(() => {
-    if (!selectedPlayerListID) return
-    loadPlayers(selectedPlayerListID)
+    if (!selectedPlayerListID) {
+      setRows([])
+      return
+    }
+    return subscribeToPlayerListPlayers(selectedPlayerListID, (players) => {
+      loadPlayers(players as PlayerEntry[])
+    })
   }, [selectedPlayerListID])
 
   const visibleRows = useMemo(() => rows, [rows])
@@ -228,7 +222,6 @@ export default function BulkPlayerPage() {
 
       await replacePlayersInList(selectedPlayerListID, payload)
       setSuccess('Bulk player changes saved.')
-      await loadPlayers(selectedPlayerListID)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save player changes')
     } finally {

@@ -23,8 +23,9 @@ export async function POST(request: Request) {
     const authToken = authorization?.startsWith('Bearer ')
       ? authorization.slice('Bearer '.length)
       : null
+    const capabilityToken = request.headers.get('x-openscoreboard-capability')
 
-    const results = await executeDatabaseActions(actions, authToken)
+    const results = await executeDatabaseActions(actions, authToken, capabilityToken)
     return NextResponse.json({ results })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Database request failed'

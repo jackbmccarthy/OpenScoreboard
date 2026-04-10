@@ -22,6 +22,9 @@ import ScheduledTableMatchesPage from './screens/ScheduledTableMatchesPage'
 import ScoreboardsPage from './screens/ScoreboardsPage'
 import ScoreboardTemplatesPage from './screens/ScoreboardTemplatesPage'
 import TeamMatchesPage from './screens/TeamMatchesPage'
+import TournamentsPage from './screens/TournamentsPage'
+import TournamentBracketPage from './screens/TournamentBracketPage'
+import TournamentDetailPage from './screens/TournamentDetailPage'
 import PlayerListsPage from './screens/PlayerListsPage'
 import PlayerRegistrationPage from './screens/PlayerRegistrationPage'
 import BulkPlayerPage from './screens/BulkPlayerPage'
@@ -53,6 +56,7 @@ function App() {
 
         {/* Public marketing home */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/tournaments/:id/brackets" element={<TournamentBracketPage />} />
 
         {/* Main app with tab navigation */}
         <Route element={<TabsLayout />}>
@@ -70,6 +74,8 @@ function App() {
           <Route path="/match/:id" element={<MatchPage />} />
           <Route path="/archivedmatches" element={<ArchivedMatchesPage />} />
           <Route path="/scheduledtablematches" element={<ScheduledTableMatchesPage />} />
+          <Route path="/tournaments" element={<TournamentsPage />} />
+          <Route path="/tournaments/:id" element={<TournamentDetailPage />} />
           <Route path="/scoreboards" element={<ScoreboardsPage />} />
           <Route path="/scoreboards/templates" element={<ScoreboardTemplatesPage />} />
           <Route path="/teammatches" element={<TeamMatchesPage />} />

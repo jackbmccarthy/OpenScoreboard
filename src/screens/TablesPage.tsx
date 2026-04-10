@@ -5,17 +5,22 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OverlayDialog from '@/components/crud/OverlayDialog'
-import { createNewTable, deleteTable, getMyTables, updateTable } from '@/functions/tables'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
+import { createNewTable, deleteTable, getMyTables, subscribeToMyTables, updateTable } from '@/functions/tables'
 import { getMyPlayerLists } from '@/functions/players'
 import { supportedSports } from '@/functions/sports'
-import { getMyScoreboards } from '@/functions/scoreboards'
-import { addDynamicURL, getMyDynamicURLs } from '@/functions/dynamicurls'
+import { getMyScoreboards, subscribeToMyScoreboards } from '@/functions/scoreboards'
+import { addDynamicURL, getMyDynamicURLs, subscribeToMyDynamicURLs } from '@/functions/dynamicurls'
+import { promoteNextScheduledMatch } from '@/functions/scoring'
+import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
 
 type TableDraft = {
   tableName: string
   sportName: string
   scoringType: string
   playerListID: string
+  autoAdvanceMode: 'manual' | 'prompt' | 'automatic'
+  autoAdvanceDelaySeconds: string
 }
 
 type TableRow = {
@@ -25,6 +30,21 @@ type TableRow = {
   sportName: string
   scoringType?: string
   playerListID?: string
+  currentMatchID?: string
+  currentMatchSummary?: {
+    label: string
+    scoreLabel: string
+    contextLabel?: string
+  } | null
+  queueCount?: number
+  nextScheduledMatch?: {
+    label: string
+    startTime: string
+    contextLabel?: string
+  } | null
+  autoAdvanceMode?: 'manual' | 'prompt' | 'automatic'
+  autoAdvanceDelaySeconds?: number
+  status?: string
 }
 
 type PlayerListRow = {
@@ -64,6 +84,8 @@ const emptyTableDraft = {
   sportName: 'tableTennis',
   scoringType: '',
   playerListID: '',
+  autoAdvanceMode: 'manual',
+  autoAdvanceDelaySeconds: '0',
 } satisfies TableDraft
 
 export default function TablesPage() {
@@ -85,20 +107,17 @@ export default function TablesPage() {
   const [dynamicURLName, setDynamicURLName] = useState('')
   const [pendingDeleteTable, setPendingDeleteTable] = useState<TableRow | null>(null)
   const [copiedHref, setCopiedHref] = useState('')
+  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
+  const [promotingTableID, setPromotingTableID] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | string>('all')
 
   useEffect(() => {
     if (authLoading) return
 
-    async function fetchData() {
+    async function fetchStaticData() {
       try {
-        const [myTables, myPlayerLists] = await Promise.all([
-          getMyTables(),
-          getMyPlayerLists(),
-        ])
-        setTables((myTables as Array<[string, Omit<TableRow, 'myTableID'>]>).map(([myTableID, data]) => ({ myTableID, ...data })))
+        const myPlayerLists = await getMyPlayerLists()
         setPlayerLists((myPlayerLists || []) as PlayerListEntry[])
-        setScoreboards((await getMyScoreboards(user?.uid || 'mylocalserver')) as ScoreboardEntry[])
-        setDynamicURLs((await getMyDynamicURLs()) as DynamicURLEntry[])
       } catch (error) {
         console.error('Error fetching tables:', error)
       } finally {
@@ -106,8 +125,28 @@ export default function TablesPage() {
       }
     }
 
-    fetchData()
-  }, [authLoading])
+    fetchStaticData()
+
+    const unsubscribeTableState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myTables`, (state) => {
+      setSyncStatus(state.status)
+    })
+    const unsubscribeTables = subscribeToMyTables((nextTables) => {
+      setTables(nextTables.map(([myTableID, data]) => ({ myTableID, ...(data as Omit<TableRow, 'myTableID'>) })))
+    })
+    const unsubscribeScoreboards = subscribeToMyScoreboards((nextScoreboards) => {
+      setScoreboards(nextScoreboards as ScoreboardEntry[])
+    }, user?.uid || 'mylocalserver')
+    const unsubscribeDynamicURLs = subscribeToMyDynamicURLs((nextDynamicURLs) => {
+      setDynamicURLs(nextDynamicURLs as DynamicURLEntry[])
+    })
+
+    return () => {
+      unsubscribeTableState()
+      unsubscribeTables()
+      unsubscribeScoreboards()
+      unsubscribeDynamicURLs()
+    }
+  }, [authLoading, user])
 
   const scoringTypeOptions = useMemo(() => {
     const sport = supportedSports[tableDraft.sportName]
@@ -115,6 +154,25 @@ export default function TablesPage() {
       ? Object.entries(sport.scoringTypes as Record<string, { displayName: string }>)
       : []
   }, [tableDraft.sportName])
+
+  const autoAdvanceOptions = [
+    { value: 'manual', label: 'Manual Only' },
+    { value: 'prompt', label: 'Prompt Operator' },
+    { value: 'automatic', label: 'Automatic After Match' },
+  ]
+  const tableStatusOptions = ['idle', 'queued', 'called', 'paused', 'active']
+  const visibleTables = tables.filter((table) => statusFilter === 'all' ? true : (table.status || 'idle') === statusFilter)
+
+  const handlePromoteNext = async (tableID: string) => {
+    setPromotingTableID(tableID)
+    try {
+      await promoteNextScheduledMatch(tableID)
+    } catch (error) {
+      console.error('Error promoting next match:', error)
+    } finally {
+      setPromotingTableID('')
+    }
+  }
 
   const reloadTables = async () => {
     const myTables = await getMyTables()
@@ -135,6 +193,8 @@ export default function TablesPage() {
       sportName: table.sportName || 'tableTennis',
       scoringType: table.scoringType || '',
       playerListID: table.playerListID || '',
+      autoAdvanceMode: table.autoAdvanceMode || 'manual',
+      autoAdvanceDelaySeconds: `${table.autoAdvanceDelaySeconds || 0}`,
     })
     setShowTableModal(true)
   }
@@ -143,13 +203,18 @@ export default function TablesPage() {
     if (!tableDraft.tableName.trim()) return
 
     if (editingTable) {
-      await updateTable(editingTable.tableID, tableDraft)
+      await updateTable(editingTable.tableID, {
+        ...tableDraft,
+        autoAdvanceDelaySeconds: Number(tableDraft.autoAdvanceDelaySeconds) || 0,
+      })
     } else {
       await createNewTable(
         tableDraft.tableName.trim(),
         tableDraft.playerListID || '',
         tableDraft.sportName,
-        tableDraft.scoringType || ''
+        tableDraft.scoringType || '',
+        tableDraft.autoAdvanceMode,
+        Number(tableDraft.autoAdvanceDelaySeconds) || 0,
       )
     }
 
@@ -246,22 +311,31 @@ export default function TablesPage() {
           <VStack className="gap-1">
             <Heading size="lg">Tables</Heading>
             <Text className="text-gray-600">Manage tables and jump straight into scoring</Text>
+            <LiveStatusBadge status={syncStatus} />
           </VStack>
-          <Button size="sm" action="primary" onClick={openNewTableModal}>
-            <PlusIcon size={16} />
-            <Text className="ml-1 text-white">Add Table</Text>
-          </Button>
+          <HStack className="gap-2">
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)} className="min-w-[11rem]">
+              <option value="all">All statuses</option>
+              {tableStatusOptions.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </Select>
+            <Button size="sm" action="primary" onClick={openNewTableModal}>
+              <PlusIcon size={16} />
+              <Text className="ml-1 text-white">Add Table</Text>
+            </Button>
+          </HStack>
         </HStack>
 
         <VStack className="gap-3">
-          {tables.length === 0 ? (
+          {visibleTables.length === 0 ? (
             <Box className="p-8 text-center">
               <TablesIcon size={48} className="mx-auto text-gray-300 mb-4" />
-              <Text className="text-gray-500 mb-2">No tables yet</Text>
-              <Text className="text-gray-400 text-sm">Create your first table to get started</Text>
+              <Text className="text-gray-500 mb-2">{tables.length === 0 ? 'No tables yet' : 'No tables match this status'}</Text>
+              <Text className="text-gray-400 text-sm">{tables.length === 0 ? 'Create your first table to get started' : 'Try a different filter to see more tables'}</Text>
             </Box>
           ) : (
-            tables.map((table) => (
+            visibleTables.map((table) => (
               <Card key={table.myTableID} variant="elevated">
                 <CardBody>
                   <HStack className="items-center justify-between gap-4">
@@ -271,10 +345,49 @@ export default function TablesPage() {
                         {supportedSports[table.sportName]?.displayName || 'Table Tennis'}
                         {table.scoringType ? ` • ${table.scoringType}` : ''}
                       </Text>
+                      <HStack className="flex-wrap gap-2 text-xs text-slate-500">
+                        <Text className="rounded-full bg-slate-100 px-2 py-1 uppercase tracking-[0.12em]">{table.status || 'idle'}</Text>
+                        <Text>{table.queueCount || 0} queued</Text>
+                        <Text>Advance: {table.autoAdvanceMode || 'manual'}</Text>
+                      </HStack>
+                      {table.currentMatchSummary ? (
+                        <VStack className="gap-0.5">
+                          <Text className="text-xs text-slate-700">
+                            Live: {table.currentMatchSummary.label} • {table.currentMatchSummary.scoreLabel}
+                          </Text>
+                          {table.currentMatchSummary.contextLabel ? (
+                            <Text className="text-[11px] text-slate-500">{table.currentMatchSummary.contextLabel}</Text>
+                          ) : null}
+                        </VStack>
+                      ) : null}
+                      {table.nextScheduledMatch ? (
+                        <VStack className="gap-0.5">
+                          <Text className="text-xs text-slate-500">
+                            Next: {table.nextScheduledMatch.label}
+                          </Text>
+                          {table.nextScheduledMatch.contextLabel ? (
+                            <Text className="text-[11px] text-slate-400">{table.nextScheduledMatch.contextLabel}</Text>
+                          ) : null}
+                        </VStack>
+                      ) : null}
                     </VStack>
                     <HStack className="items-center gap-2">
                       <Button size="sm" variant="outline" onClick={() => navigate(`/scoring/table/${table.tableID}`)}>
                         <Text>Score</Text>
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/scheduledtablematches?tableID=${table.tableID}`)}>
+                        <Text>Queue</Text>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handlePromoteNext(table.tableID)}
+                        disabled={promotingTableID === table.tableID || Boolean(table.currentMatchID) || !table.queueCount}
+                      >
+                        <Text>{promotingTableID === table.tableID ? 'Promoting...' : 'Promote Next'}</Text>
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?tableID=${table.tableID}&matchID=${table.currentMatchID || ''}&label=${encodeURIComponent(table.tableName)}`)}>
+                        <Text>Secure Link</Text>
                       </Button>
                       <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openTableLinksModal(table)}>
                         <LinkIcon size={16} className="text-slate-500" />
@@ -330,6 +443,18 @@ export default function TablesPage() {
               <option key={myPlayerListID} value={list.id}>{list.playerListName}</option>
             ))}
           </Select>
+          <Select value={tableDraft.autoAdvanceMode} onValueChange={(value) => setTableDraft((current) => ({ ...current, autoAdvanceMode: value as TableDraft['autoAdvanceMode'] }))}>
+            {autoAdvanceOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </Select>
+          <Input
+            type="number"
+            min="0"
+            placeholder="Auto-advance delay in seconds"
+            value={tableDraft.autoAdvanceDelaySeconds}
+            onChangeText={(value) => setTableDraft((current) => ({ ...current, autoAdvanceDelaySeconds: value }))}
+          />
         </VStack>
       </OverlayDialog>
 

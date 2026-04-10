@@ -1,4 +1,5 @@
 import db, { getUserPath } from '../lib/database';
+import { subscribeToPathValue } from '../lib/realtime';
 import { getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
 
 function normalizeTeam(team) {
@@ -42,6 +43,38 @@ export async function getMyTeams(userID = getUserPath()) {
         return []
     }
 
+}
+
+export function subscribeToMyTeams(
+    callback: (teams: Array<[string, Record<string, any>]>) => void,
+    userID = getUserPath(),
+) {
+    return subscribeToPathValue(`users/${userID}/myTeams`, async (myTeamsValue) => {
+        const teams = myTeamsValue && typeof myTeamsValue === "object"
+            ? await Promise.all(Object.entries(myTeamsValue as Record<string, unknown>).map(async ([myTeamID, preview]) => {
+                const previewEntry = preview as Record<string, any>
+                const teamID = previewEntry?.id
+                if (typeof teamID !== 'string' || teamID.length === 0) {
+                    return null
+                }
+                const teamSnapshot = await db.ref(`teams/${teamID}`).get()
+                if (!isRecordActive(teamSnapshot.val())) {
+                    return null
+                }
+                return [myTeamID, previewEntry] as [string, Record<string, any>]
+            }))
+            : []
+        callback(teams.filter(Boolean) as Array<[string, Record<string, any>]>)
+    })
+}
+
+export function subscribeToTeam(
+    teamID: string,
+    callback: (team: Record<string, any> | null) => void,
+) {
+    return subscribeToPathValue(`teams/${teamID}`, (teamValue) => {
+        callback(isRecordActive(teamValue) ? normalizeTeam(teamValue) : null)
+    })
 }
 
 export async function deleteMyTeam(myTeamID) {

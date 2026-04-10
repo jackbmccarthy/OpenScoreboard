@@ -7,6 +7,7 @@ import firebase from 'firebase/app'
 import 'firebase/database'
 import 'firebase/auth'
 import { isLocalDatabase, firebaseConfig, hasValidConfig } from './firebase'
+import { getCurrentCapabilityToken } from './capabilitySession'
 import { runServerDatabaseActions } from './serverDatabaseClient'
 
 let clientDb: AceBaseClient | firebase.database.Database | null = null
@@ -49,13 +50,74 @@ function createWriteReceipt(key?: string, value: unknown = null) {
   }
 }
 
+function createReadSnapshot<T = unknown>(value: T) {
+  return {
+    val() {
+      return value
+    }
+  }
+}
+
+function shouldUseServerReadProxy() {
+  if (isLocalDatabase) {
+    return false
+  }
+
+  const capabilityToken = getCurrentCapabilityToken()
+  if (!capabilityToken) {
+    return false
+  }
+
+  const currentUser = firebase.apps.length ? firebase.auth().currentUser : null
+  return !currentUser
+}
+
 function createRef(path: string) {
   const clientRef = () => getClientRef(path)
+  const pollingIntervals = new Set<number>()
+
+  const readViaServer = async () => {
+    const [result] = await runServerDatabaseActions([{ type: 'get', path }])
+    return createReadSnapshot(result?.value ?? null)
+  }
+
+  const clearPollingIntervals = () => {
+    for (const intervalID of pollingIntervals) {
+      window.clearInterval(intervalID)
+    }
+    pollingIntervals.clear()
+  }
 
   return {
-    get: () => clientRef().get(),
-    on: (...args: any[]) => (clientRef().on as any)(...args),
-    off: (...args: any[]) => (clientRef().off as any)(...args),
+    get: async () => {
+      if (shouldUseServerReadProxy()) {
+        return readViaServer()
+      }
+      return clientRef().get()
+    },
+    on: (...args: any[]) => {
+      if (shouldUseServerReadProxy() && args[0] === 'value' && typeof args[1] === 'function' && typeof window !== 'undefined') {
+        const callback = args[1] as (snapshot: { val(): unknown }) => void
+        const poll = async () => {
+          const snapshot = await readViaServer()
+          callback(snapshot)
+        }
+        void poll()
+        const intervalID = window.setInterval(() => {
+          void poll()
+        }, 1500)
+        pollingIntervals.add(intervalID)
+        return callback
+      }
+      return (clientRef().on as any)(...args)
+    },
+    off: (...args: any[]) => {
+      if (pollingIntervals.size > 0 && typeof window !== 'undefined') {
+        clearPollingIntervals()
+        return
+      }
+      return (clientRef().off as any)(...args)
+    },
     child: (childPath: string) => createRef(`${path}/${childPath}`),
     set: async (value: unknown) => {
       if (isLocalDatabase) {
@@ -63,6 +125,10 @@ function createRef(path: string) {
         return createWriteReceipt(undefined, typeof result?.val === 'function' ? result.val() : value)
       }
       const [result] = await runServerDatabaseActions([{ type: 'set', path, value }])
+      return createWriteReceipt(undefined, result?.value ?? null)
+    },
+    compareSet: async (expected: unknown, value: unknown) => {
+      const [result] = await runServerDatabaseActions([{ type: 'compareSet', path, expected, value }])
       return createWriteReceipt(undefined, result?.value ?? null)
     },
     update: async (value: Record<string, unknown>) => {

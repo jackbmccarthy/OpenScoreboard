@@ -1,11 +1,13 @@
 import firebase from 'firebase/app'
 import 'firebase/auth'
 
+import { getCurrentCapabilityToken } from './capabilitySession'
 import { isLocalDatabase } from './firebase'
 
 export type DatabaseAction =
   | { type: 'get'; path: string }
   | { type: 'set'; path: string; value: unknown }
+  | { type: 'compareSet'; path: string; expected: unknown; value: unknown }
   | { type: 'update'; path: string; value: Record<string, unknown> }
   | { type: 'remove'; path: string }
   | { type: 'push'; path: string; value: unknown }
@@ -17,15 +19,27 @@ export type DatabaseActionResult = {
 
 async function getAuthHeaders() {
   if (isLocalDatabase) {
-    return {}
+    return buildCapabilityHeaders()
   }
 
   const currentUser = firebase.auth().currentUser
   const token = currentUser ? await currentUser.getIdToken() : null
 
-  return token
+  return {
+    ...(token
+      ? {
+          Authorization: `Bearer ${token}`,
+        }
+      : {}),
+    ...buildCapabilityHeaders(),
+  }
+}
+
+function buildCapabilityHeaders() {
+  const capabilityToken = getCurrentCapabilityToken()
+  return capabilityToken
     ? {
-        Authorization: `Bearer ${token}`,
+        'X-OpenScoreboard-Capability': capabilityToken,
       }
     : {}
 }

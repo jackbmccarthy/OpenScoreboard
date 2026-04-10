@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Box, Button, Card, CardBody, Heading, HStack, Input, Text, VStack } from '@/components/ui'
+import { Box, Button, Card, CardBody, Heading, HStack, Input, Text, VStack, Badge } from '@/components/ui'
 import { useNavigate } from 'react-router-dom'
-import { getScoreboardTemplates, createScoreboardFromTemplate } from '@/functions/scoreboardTemplates'
+import { useAuth } from '@/lib/auth'
+import {
+  addScoreboardTemplate,
+  createScoreboardFromTemplate,
+  deleteScoreboardTemplate,
+  duplicateScoreboardTemplate,
+  subscribeToScoreboardTemplates,
+  toggleScoreboardTemplateActive,
+  updateScoreboardTemplate,
+} from '@/functions/scoreboardTemplates'
 import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 
@@ -17,42 +26,80 @@ type ScoreboardTemplateRecord = {
     javascript?: string
   }
   config?: Record<string, unknown>
+  createdBy?: string
+  isBuiltIn?: boolean
+  isActive?: boolean
 }
 
 export default function ScoreboardTemplatesPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [templates, setTemplates] = useState<ScoreboardTemplateRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTemplate, setSelectedTemplate] = useState<ScoreboardTemplateRecord | null>(null)
+  const [editingTemplate, setEditingTemplate] = useState<ScoreboardTemplateRecord | null>(null)
   const [scoreboardName, setScoreboardName] = useState('')
+  const [templateDraft, setTemplateDraft] = useState({
+    name: '',
+    description: '',
+    category: 'General',
+    type: 'liveStream',
+  })
 
   useEffect(() => {
-    async function loadTemplates() {
-      try {
-        const loadedTemplates = await getScoreboardTemplates()
-        setTemplates(
-          loadedTemplates.map((template) => ({
-            id: String(template.id || ''),
-            name: String(template.name || 'Untitled Template'),
-            description: typeof template.description === 'string' ? template.description : '',
-            category: typeof template.category === 'string' ? template.category : '',
-            type: typeof template.type === 'string' ? template.type : 'liveStream',
-            web: template.web || {},
-            config: template.config || {},
-          })),
-        )
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadTemplates()
+    return subscribeToScoreboardTemplates((loadedTemplates) => {
+      setTemplates(
+        loadedTemplates.map((template) => ({
+          id: String(template.id || ''),
+          name: String(template.name || 'Untitled Template'),
+          description: typeof template.description === 'string' ? template.description : '',
+          category: typeof template.category === 'string' ? template.category : '',
+          type: typeof template.type === 'string' ? template.type : 'liveStream',
+          web: template.web || {},
+          config: template.config || {},
+          createdBy: typeof template.createdBy === 'string' ? template.createdBy : '',
+          isBuiltIn: Boolean(template.isBuiltIn),
+          isActive: template.isActive !== false,
+        })),
+      )
+      setLoading(false)
+    })
   }, [])
+
+  const classifyTemplate = (template: ScoreboardTemplateRecord) => {
+    if (template.isBuiltIn) return 'Built-in'
+    if (template.createdBy && user?.uid && template.createdBy === user.uid) return 'Personal'
+    return 'Shared'
+  }
+
+  const canEditTemplate = (template: ScoreboardTemplateRecord) => !template.isBuiltIn && Boolean(user?.uid && template.createdBy === user.uid)
 
   const handleUseTemplate = async () => {
     if (!selectedTemplate || !scoreboardName.trim()) return
     const newScoreboardID = await createScoreboardFromTemplate(scoreboardName.trim(), selectedTemplate)
     navigate(`/editor?sid=${newScoreboardID}`)
+  }
+
+  const handleSaveTemplate = async () => {
+    if (!templateDraft.name.trim()) return
+    if (editingTemplate) {
+      await updateScoreboardTemplate(editingTemplate.id, {
+        ...editingTemplate,
+        ...templateDraft,
+      })
+    } else {
+      await addScoreboardTemplate({
+        ...templateDraft,
+        createdBy: user?.uid || 'mylocalserver',
+      })
+    }
+    setEditingTemplate(null)
+    setTemplateDraft({
+      name: '',
+      description: '',
+      category: 'General',
+      type: 'liveStream',
+    })
   }
 
   return (
@@ -63,9 +110,25 @@ export default function ScoreboardTemplatesPage() {
             <Heading size="lg">Scoreboard Templates</Heading>
             <Text className="text-sm text-slate-500">Browse reusable scoreboard layouts, preview them, and start a new scoreboard from a template.</Text>
           </VStack>
-          <Button variant="outline" onClick={() => navigate('/scoreboards')}>
-            <Text>Back to My Scoreboards</Text>
-          </Button>
+          <HStack className="gap-2">
+            <Button variant="outline" onClick={() => navigate('/scoreboards')}>
+              <Text>Back to My Scoreboards</Text>
+            </Button>
+            <Button
+              action="primary"
+              onClick={() => {
+                setEditingTemplate(null)
+                setTemplateDraft({
+                  name: 'New Personal Template',
+                  description: '',
+                  category: 'General',
+                  type: 'liveStream',
+                })
+              }}
+            >
+              <Text className="text-white">New Personal Template</Text>
+            </Button>
+          </HStack>
         </HStack>
 
         {loading ? (
@@ -80,14 +143,49 @@ export default function ScoreboardTemplatesPage() {
                     <VStack className="gap-1">
                       <Text className="font-semibold text-slate-900">{template.name}</Text>
                       <Text className="text-sm text-slate-500">{template.description || 'Reusable scoreboard layout'}</Text>
-                      <Text className="text-xs uppercase tracking-[0.16em] text-slate-400">{template.category || 'Template'}</Text>
+                      <HStack className="flex-wrap gap-2">
+                        <Text className="text-xs uppercase tracking-[0.16em] text-slate-400">{template.category || 'Template'}</Text>
+                        <Badge className="rounded-full bg-slate-100 px-2 py-1 text-[11px] text-slate-700">{classifyTemplate(template)}</Badge>
+                        {!template.isActive ? <Badge className="rounded-full bg-amber-100 px-2 py-1 text-[11px] text-amber-800">Unpublished</Badge> : null}
+                      </HStack>
                     </VStack>
-                    <Button action="primary" onClick={() => {
-                      setSelectedTemplate(template)
-                      setScoreboardName(template.name)
-                    }}>
-                      <Text className="text-white">Use Template</Text>
-                    </Button>
+                    <HStack className="flex-wrap gap-2">
+                      <Button action="primary" onClick={() => {
+                        setSelectedTemplate(template)
+                        setScoreboardName(template.name)
+                      }}>
+                        <Text className="text-white">Use Template</Text>
+                      </Button>
+                      <Button variant="outline" onClick={() => duplicateScoreboardTemplate(template.id, user?.uid || 'mylocalserver')} disabled={template.isBuiltIn}>
+                        <Text>Duplicate</Text>
+                      </Button>
+                      {canEditTemplate(template) ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setEditingTemplate(template)
+                            setTemplateDraft({
+                              name: template.name,
+                              description: template.description || '',
+                              category: template.category || 'General',
+                              type: template.type || 'liveStream',
+                            })
+                          }}
+                        >
+                          <Text>Edit</Text>
+                        </Button>
+                      ) : null}
+                      {canEditTemplate(template) ? (
+                        <Button variant="outline" onClick={() => toggleScoreboardTemplateActive(template.id, !template.isActive)}>
+                          <Text>{template.isActive ? 'Unpublish' : 'Publish'}</Text>
+                        </Button>
+                      ) : null}
+                      {canEditTemplate(template) ? (
+                        <Button variant="outline" onClick={() => deleteScoreboardTemplate(template.id)}>
+                          <Text>Archive</Text>
+                        </Button>
+                      ) : null}
+                    </HStack>
                   </VStack>
                 </CardBody>
               </Card>
@@ -112,6 +210,35 @@ export default function ScoreboardTemplatesPage() {
         )}
       >
         <Input value={scoreboardName} onChangeText={setScoreboardName} placeholder="Scoreboard name" />
+      </OverlayDialog>
+
+      <OverlayDialog
+        isOpen={!!editingTemplate || templateDraft.name.length > 0}
+        onClose={() => {
+          setEditingTemplate(null)
+          setTemplateDraft({ name: '', description: '', category: 'General', type: 'liveStream' })
+        }}
+        title={editingTemplate ? 'Edit Template' : 'New Personal Template'}
+        footer={(
+          <>
+            <Button variant="outline" onClick={() => {
+              setEditingTemplate(null)
+              setTemplateDraft({ name: '', description: '', category: 'General', type: 'liveStream' })
+            }}>
+              <Text>Cancel</Text>
+            </Button>
+            <Button action="primary" onClick={handleSaveTemplate}>
+              <Text className="text-white">{editingTemplate ? 'Save Template' : 'Create Template'}</Text>
+            </Button>
+          </>
+        )}
+      >
+        <VStack className="gap-3">
+          <Input value={templateDraft.name} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, name: value }))} placeholder="Template name" />
+          <Input value={templateDraft.description} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, description: value }))} placeholder="Description" />
+          <Input value={templateDraft.category} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, category: value }))} placeholder="Category" />
+          <Input value={templateDraft.type} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, type: value }))} placeholder="Type" />
+        </VStack>
       </OverlayDialog>
     </Box>
   )

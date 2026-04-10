@@ -14,6 +14,8 @@ interface ArchivedMatch {
   player2Score?: number
   date?: string
   winner?: string
+  eventName?: string
+  matchRound?: string
 }
 
 type ArchivedMatchEntry = [string, Record<string, unknown>]
@@ -31,6 +33,8 @@ function normalizeArchivedMatches(entries: ArchivedMatchEntry[]): ArchivedMatch[
         ? value.startTime
         : undefined,
     winner: typeof value.winner === 'string' ? value.winner : undefined,
+    eventName: typeof value.eventName === 'string' ? value.eventName : undefined,
+    matchRound: typeof value.matchRound === 'string' ? value.matchRound : undefined,
   }))
 }
 
@@ -95,6 +99,11 @@ export default function ArchivedMatchesPage() {
                 {match.date ? (
                   <Text className="text-sm text-gray-500">
                     {new Date(match.date).toLocaleDateString()}
+                  </Text>
+                ) : null}
+                {match.matchRound || match.eventName ? (
+                  <Text className="text-sm text-slate-500">
+                    {[match.matchRound, match.eventName].filter(Boolean).join(' • ')}
                   </Text>
                 ) : null}
                 {match.winner ? (

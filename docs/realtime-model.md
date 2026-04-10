@@ -39,13 +39,24 @@ Scoreboard runtime:
 
 `src/lib/realtime.ts` now provides:
 - `subscribeToPathValue(path, callback)`
+- `subscribeToPathState(path, callback)`
 - `unwrapRealtimeValue(value)`
+- `RealtimeState`
+- `RealtimeStatus`
 
 It is now used by:
 - `watchForPasswordChange`
 - `watchForPlayerListPasswordChange`
 - `dynamicURLListener`
 - `subscribeToAllMatchFields`
+
+## Backward compatibility notes
+
+- Existing Firebase/AceBase paths are unchanged.
+- Existing preview/index nodes under `users/*` are unchanged.
+- Existing scoreboard URL/query contracts such as `scoreboard/view?sid=...&tid=...` and `...&tmid=...` remain valid.
+- The new subscription helpers are additive wrappers around the existing database paths; they do not introduce a new canonical storage path.
+- Current CI-3 work replaces ad-hoc listener ownership with shared cleanup helpers, but does not remove legacy flat match fields.
 
 ## Next CI-3 target
 
@@ -61,3 +72,15 @@ That next slice should centralize:
 - listener cleanup
 - reconnect behavior
 - raw record + derived view model emission
+
+## Shared UI state contract
+
+`RealtimeState` standardizes the live-state vocabulary used by subscribed screens:
+- `idle`
+- `loading`
+- `live`
+- `error`
+- `stale`
+- `offline`
+
+Screens can opt into `subscribeToPathState(...)` when they need explicit loading/offline/error UI states. Existing `subscribeToPathValue(...)` remains available for compatibility-oriented call sites that only need values.

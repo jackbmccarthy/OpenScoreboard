@@ -124,6 +124,7 @@ export function useParams<TParams extends Record<string, string | string[] | und
   if (pathnameSegments[0] === 'playerregistration' && pathnameSegments[1]) {
     merged.id ??= pathnameSegments[1]
     merged.playerListID ??= pathnameSegments[1]
+    merged.password ??= pathnameSegments[2] || undefined
   }
 
   if (pathnameSegments[0] === 'qrcode') {

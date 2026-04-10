@@ -11,10 +11,10 @@ import {
   deleteImportedPlayer,
   deletePlayerList,
   editImportedPlayer,
-  getImportPlayerList,
-  getMyPlayerLists,
   getPlayerFormatted,
   sortPlayers,
+  subscribeToMyPlayerLists,
+  subscribeToPlayerListPlayers,
   updatePlayerListName,
 } from '@/functions/players'
 import { newImportedPlayer } from '@/classes/Player'
@@ -23,7 +23,6 @@ import countries from '@/flags/countries.json'
 interface PlayerList {
   id: string
   playerListName: string
-  password?: string
 }
 
 interface Player {
@@ -70,31 +69,28 @@ export default function PlayersPage() {
   const [renamedListName, setRenamedListName] = useState('')
   const [playerDraft, setPlayerDraft] = useState<Player>(emptyPlayer)
 
-  const loadPlayerLists = useCallback(async () => {
-    try {
-      const lists = await getMyPlayerLists()
-      setPlayerLists((lists || []) as PlayerListEntry[])
-    } catch (error) {
-      console.error('Error loading player lists:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  const reloadSelectedListPlayers = useCallback(async (playerListID: string) => {
-    const playerData = await getImportPlayerList(playerListID)
-    setPlayers(playerData.length > 0 ? sortPlayers(playerData as PlayerEntry[]) as PlayerEntry[] : [])
-  }, [])
-
   useEffect(() => {
     if (authLoading) return
-    loadPlayerLists()
-  }, [authLoading, loadPlayerLists])
+    return subscribeToMyPlayerLists((lists) => {
+      setPlayerLists((lists || []) as PlayerListEntry[])
+      setLoading(false)
+    }, user?.uid || 'mylocalserver')
+  }, [authLoading, user])
+
+  useEffect(() => {
+    if (!selectedList?.id) {
+      setPlayers([])
+      return
+    }
+
+    return subscribeToPlayerListPlayers(selectedList.id, (playerData) => {
+      setPlayers(playerData.length > 0 ? sortPlayers(playerData as PlayerEntry[]) as PlayerEntry[] : [])
+    })
+  }, [selectedList?.id])
 
   const handleSelectList = async (myPlayerListID: string, listId: string, listName: string) => {
     setSelectedList({ myPlayerListID, id: listId, name: listName })
     setShowPlayersModal(true)
-    await reloadSelectedListPlayers(listId)
   }
 
   const handleCreateList = async () => {
@@ -103,7 +99,6 @@ export default function PlayersPage() {
     await addPlayerList(newListName.trim())
     setNewListName('')
     setShowNewListModal(false)
-    await loadPlayerLists()
   }
 
   const handleSavePlayer = async () => {
@@ -126,7 +121,6 @@ export default function PlayersPage() {
     setEditingPlayer(null)
     setPlayerDraft(emptyPlayer)
     setShowPlayerModal(false)
-    await reloadSelectedListPlayers(selectedList.id)
   }
 
   const handleRenameList = async () => {
@@ -135,7 +129,6 @@ export default function PlayersPage() {
     await updatePlayerListName(selectedList.myPlayerListID, selectedList.id, renamedListName.trim())
     setSelectedList({ ...selectedList, name: renamedListName.trim() })
     setShowRenameListModal(false)
-    await loadPlayerLists()
   }
 
   const handleDeleteList = async () => {
@@ -148,7 +141,6 @@ export default function PlayersPage() {
       setShowPlayersModal(false)
     }
     setPendingDeleteList(null)
-    await loadPlayerLists()
   }
 
   const handleDeletePlayer = async () => {
@@ -156,7 +148,6 @@ export default function PlayersPage() {
 
     await deleteImportedPlayer(selectedList.id, pendingDeletePlayer.id)
     setPendingDeletePlayer(null)
-    await reloadSelectedListPlayers(selectedList.id)
   }
 
   if (authLoading || loading) {
@@ -213,6 +204,9 @@ export default function PlayersPage() {
                       </VStack>
                     </Pressable>
                     <HStack className="items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?playerListID=${list.id}&label=${encodeURIComponent(list.playerListName)}`)}>
+                        <Text>Secure Link</Text>
+                      </Button>
                       <Pressable
                         className="rounded-lg border border-slate-200 p-2"
                         onPress={() => {

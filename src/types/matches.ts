@@ -30,6 +30,8 @@ export interface Player {
 // Match Settings
 // ============================================
 export interface MatchSettings {
+  schemaVersion?: number;
+
   // Pregame settings
   isActive: boolean;
   isWarmUpStarted: boolean;
@@ -72,6 +74,10 @@ export interface MatchSettings {
   teamMatchID: string;
 
   isSwitched: boolean;
+  tournamentID?: string;
+  eventID?: string;
+  roundID?: string;
+  bracketNodeID?: string;
   matchRound: string;
   eventName: string;
   isCourtSideScoreboardFlipped: boolean;
@@ -165,6 +171,77 @@ export interface MatchSettings {
   playerB2: Player;
 
   sportName: string;
+
+  games?: Record<string, {
+    gameNumber: number;
+    status: string;
+    startedAt: string;
+    endedAt: string;
+    winner: string | null;
+    scoreA: number;
+    scoreB: number;
+    rules: {
+      sportName: string;
+      scoringType: string | null;
+      pointsToWinGame: number;
+      changeServeEveryXPoints: number;
+      enforceGameScore: boolean;
+      isManualServiceMode: boolean;
+      isDoubles: boolean;
+    };
+    metadata: {
+      significantPoints: Record<string, number>;
+    };
+  }>;
+  pointHistory?: Record<string, Record<string, unknown>>;
+  auditTrail?: Record<string, Record<string, unknown>>;
+  isJudgePaused?: boolean;
+  judgePauseReason?: string;
+  isDisputed?: boolean;
+  latestJudgeNote?: string;
+  latestJudgeNoteAt?: string;
+  tournamentContext?: {
+    tournamentID: string;
+    eventID: string;
+    roundID: string;
+    bracketNodeID: string;
+    teamMatchID: string;
+    matchRound: string;
+    eventName: string;
+    metadata: Record<string, unknown>;
+  };
+  context?: {
+    tournamentID: string;
+    eventID: string;
+    roundID: string;
+    bracketNodeID?: string;
+    teamMatchID?: string;
+    matchRound: string;
+    eventName: string;
+    metadata?: Record<string, unknown>;
+  };
+  scheduling?: {
+    tableID: string;
+    teamMatchID: string;
+    tableNumber: string;
+    queueItemID?: string;
+    scheduledMatchID?: string;
+    scheduledStartTime?: string;
+    matchStartTime?: string;
+    sourceType: string;
+    sourceID?: string;
+    metadata?: Record<string, unknown>;
+  };
+  scoringRules?: {
+    sportName: string;
+    scoringType: string | null;
+    bestOf: number;
+    pointsToWinGame: number;
+    changeServeEveryXPoints: number;
+    enforceGameScore: boolean;
+    isManualServiceMode: boolean;
+    isDoubles: boolean;
+  };
 }
 
 // ============================================
@@ -189,16 +266,44 @@ export interface Team {
 // Team Match
 // ============================================
 export interface TeamMatch {
+  schemaVersion?: number;
   teamAID: string;
   teamBID: string;
   teamAScore: number;
   teamBScore: number;
+  tournamentID?: string;
+  eventID?: string;
+  roundID?: string;
   startTime: string;
   sportName: string;
   scoringType: string;
   currentMatches: Record<string, string>;
   archivedMatches: Record<string, string>;
   scheduledMatches: Record<string, string>;
+  auditTrail?: Record<string, Record<string, unknown>>;
+  tournamentContext?: {
+    tournamentID: string;
+    eventID: string;
+    roundID: string;
+    matchRound: string;
+    eventName: string;
+    metadata: Record<string, unknown>;
+  };
+  context?: {
+    tournamentID: string;
+    eventID: string;
+    roundID: string;
+    matchRound: string;
+    eventName: string;
+    metadata?: Record<string, unknown>;
+  };
+  scheduling?: {
+    scheduledMatches: Record<string, string>;
+    currentMatches: Record<string, string>;
+    startTime: string;
+    teamMatchID?: string;
+    metadata?: Record<string, unknown>;
+  };
 }
 
 // ============================================
@@ -209,7 +314,12 @@ export interface Table {
   tableName: string;
   sportName?: string;
   scoringType?: string;
+  autoAdvanceMode?: 'manual' | 'prompt' | 'automatic';
+  autoAdvanceDelaySeconds?: number;
   password?: string;
+  passwordHash?: string;
+  passwordUpdatedAt?: string;
+  accessVersion?: number;
   currentMatch?: string;
   playerListID?: string;
   pointsToWinGame?: number;
@@ -217,12 +327,40 @@ export interface Table {
   scheduledMatches?: Record<string, ScheduledMatch>;
 }
 
+export type ScheduledMatchStatus =
+  | 'scheduled'
+  | 'queued'
+  | 'called'
+  | 'active'
+  | 'paused'
+  | 'completed'
+  | 'cancelled'
+  | 'archived';
+
 export interface ScheduledMatch {
   id?: string;
   startTime?: string;
   matchID?: string;
+  tournamentID?: string;
+  eventID?: string;
+  roundID?: string;
+  eventName?: string;
+  matchRound?: string;
   teamAID?: string;
   teamBID?: string;
+  status?: ScheduledMatchStatus;
+  queueOrder?: number;
+  scheduledOn?: string;
+  updatedAt?: string;
+  promotedAt?: string;
+  completedAt?: string;
+  cancelledAt?: string;
+  archivedAt?: string;
+  sourceType?: string;
+  sourceID?: string;
+  operatorNotes?: string;
+  assignedScorerID?: string;
+  promotionSource?: string;
   [key: string]: any;
 }
 
@@ -255,6 +393,9 @@ export interface PlayerList {
   playerListName: string;
   players: Record<string, Player>;
   password?: string;
+  passwordHash?: string;
+  passwordUpdatedAt?: string;
+  accessVersion?: number;
 }
 
 // ============================================

@@ -1,4 +1,5 @@
 import db, { getUserPath } from "../lib/database";
+import { subscribeToPathValue } from "../lib/realtime";
 import { newScoreboard } from "../classes/Scoreboard";
 import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
 
@@ -25,6 +26,30 @@ export async function getMyScoreboards(userID,) {
         return []
     }
 
+}
+
+export function subscribeToMyScoreboards(
+    callback: (scoreboards: Array<[string, Record<string, any>]>) => void,
+    userID = getUserPath(),
+) {
+    return subscribeToPathValue(`users/${userID}/myScoreboards`, async (scoreboardsValue) => {
+        const scoreboards = scoreboardsValue && typeof scoreboardsValue === "object"
+            ? await Promise.all(Object.entries(scoreboardsValue as Record<string, unknown>).map(async ([myScoreboardID, preview]) => {
+                const previewEntry = preview as Record<string, any>
+                const scoreboardID = previewEntry?.id
+                if (typeof scoreboardID !== 'string' || scoreboardID.length === 0) {
+                    return null
+                }
+                const scoreboardSnapshot = await db.ref(`scoreboards/${scoreboardID}`).get()
+                if (!isRecordActive(scoreboardSnapshot.val())) {
+                    return null
+                }
+                return [myScoreboardID, previewEntry] as [string, Record<string, any>]
+            }))
+            : []
+
+        callback(scoreboards.filter(Boolean) as Array<[string, Record<string, any>]>)
+    })
 }
 
 export async function deleteMyScoreboard(myScoreboardID) {

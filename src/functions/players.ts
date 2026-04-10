@@ -2,11 +2,16 @@ import db, { getUserPath } from "../lib/database"
 import { subscribeToPathValue } from '../lib/realtime';
 
 import { v4 as uuidv4 } from 'uuid';
+import { buildAccessSecretMetadata, hasAccessSecret, isAccessSecretValid } from './accessSecrets';
 import { getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
 
 export async function resetPlayerListPassword(playerListID) {
     let newPassword = uuidv4()
-    await db.ref("playerLists/" + playerListID + "/password").set(newPassword)
+    await db.ref("playerLists/" + playerListID).update({
+        password: "",
+        ...buildAccessSecretMetadata(newPassword),
+    })
+    return newPassword
 
 }
 
@@ -151,14 +156,27 @@ export function sortPlayers(playerValues) {
 
 export async function addPlayerList(name) {
 
+    const password = uuidv4()
     let playerListRef = await db.ref(`playerLists`).push({
         playerListName: name,
+        ownerID: getUserPath(),
         players: {},
-        password: uuidv4()
+        password: "",
+        ...buildAccessSecretMetadata(password),
 
     })
     await db.ref(`users/${getUserPath()}/myPlayerLists/`).push({ id: playerListRef.key, playerListName: name })
     return playerListRef.key
+}
+
+export async function verifyPlayerListPassword(playerListID: string, input: string) {
+    const playerListSnapshot = await db.ref(`playerLists/${playerListID}`).get()
+    return isAccessSecretValid(input, playerListSnapshot.val())
+}
+
+export async function isPlayerListAccessRequired(playerListID: string) {
+    const playerListSnapshot = await db.ref(`playerLists/${playerListID}`).get()
+    return hasAccessSecret(playerListSnapshot.val())
 }
 
 export async function updatePlayerListName(myPlayerListID, playerListID, name) {
@@ -173,9 +191,15 @@ export async function replacePlayersInList(playerListID, players) {
 }
 
 export function watchForPlayerListPasswordChange(playerListID, callback) {
-    return subscribeToPathValue(`playerLists/${playerListID}/password`, (passwordValue) => {
-        if (typeof passwordValue === "string") {
-            callback(passwordValue)
+    return subscribeToPathValue(`playerLists/${playerListID}`, (playerListValue) => {
+        if (playerListValue && typeof playerListValue === "object") {
+            const accessRecord = playerListValue as Record<string, any>
+            callback([
+                accessRecord.accessSecretMode || "",
+                accessRecord.passwordUpdatedAt || "",
+                accessRecord.passwordHash || "",
+                accessRecord.password || "",
+            ].join(":"))
         }
     })
 }
@@ -192,14 +216,43 @@ export async function getMyPlayerLists() {
             if (!isRecordActive(canonicalPlayerList)) {
                 return null
             }
-            let passwordRef = db.ref(`playerLists/${playerListID}/password`)
-            let passwordSnap = await passwordRef.get()
-            return [id, { ...playerListEntry, password: passwordSnap.val() }]
+            return [id, { ...playerListEntry }]
         })).then((entries) => entries.filter(Boolean))
     }
     else {
         return []
     }
+}
+
+export function subscribeToMyPlayerLists(
+    callback: (playerLists: Array<[string, Record<string, any>]>) => void,
+    userID = getUserPath(),
+) {
+    return subscribeToPathValue(`users/${userID}/myPlayerLists`, async (myPlayerListsValue) => {
+        const playerLists = myPlayerListsValue && typeof myPlayerListsValue === 'object'
+            ? await Promise.all(Object.entries(myPlayerListsValue as Record<string, unknown>).map(async ([id, data]) => {
+                const playerListEntry = data as Record<string, any>
+                const playerListID = String(playerListEntry.id || '')
+                const canonicalSnapshot = await db.ref(`playerLists/${playerListID}`).get()
+                if (!isRecordActive(canonicalSnapshot.val())) {
+                    return null
+                }
+                return [id, playerListEntry] as [string, Record<string, any>]
+            }))
+            : []
+        callback(playerLists.filter(Boolean) as Array<[string, Record<string, any>]>)
+    })
+}
+
+export function subscribeToPlayerListPlayers(
+    playerListID: string,
+    callback: (players: Array<[string, Record<string, any>]>) => void,
+) {
+    return subscribeToPathValue(`playerLists/${playerListID}/players`, (playersValue) => {
+        callback(playersValue && typeof playersValue === 'object'
+            ? Object.entries(playersValue as Record<string, Record<string, any>>)
+            : [])
+    })
 }
 
 export async function deletePlayerList(myPlayerListID) {

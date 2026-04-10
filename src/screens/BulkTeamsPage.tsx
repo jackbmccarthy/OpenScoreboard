@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Box, Button, HStack, Input, Spinner, Text, VStack } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { addNewTeam, deleteMyTeam, getMyTeams, getTeam, updateMyTeam, updateTeam } from '@/functions/teams'
+import { addNewTeam, deleteMyTeam, getMyTeams, subscribeToMyTeams, getTeam, updateMyTeam, updateTeam } from '@/functions/teams'
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 import { UserIcon } from '@/components/icons'
 
@@ -102,10 +102,10 @@ export default function BulkTeamsPage() {
   const [viewMode, setViewMode] = useState<'form' | 'spreadsheet'>('form')
   const [spreadsheetValue, setSpreadsheetValue] = useState('')
 
-  async function loadTeams() {
+  async function loadTeams(myTeamsOverride?: TeamEntry[]) {
     setLoading(true)
     try {
-      const myTeams = await getMyTeams()
+      const myTeams = myTeamsOverride || await getMyTeams()
       const detailedRows = await Promise.all(
         (myTeams as TeamEntry[]).map(async ([myTeamID, preview]) => {
           const team = await getTeam(preview.id) as TeamRecord | null
@@ -130,7 +130,9 @@ export default function BulkTeamsPage() {
 
   useEffect(() => {
     if (authLoading) return
-    loadTeams()
+    return subscribeToMyTeams((myTeams) => {
+      loadTeams(myTeams as TeamEntry[])
+    })
   }, [authLoading])
 
   useEffect(() => {
@@ -194,7 +196,6 @@ export default function BulkTeamsPage() {
       }
 
       setSuccess('Bulk team changes saved.')
-      await loadTeams()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save teams')
     } finally {

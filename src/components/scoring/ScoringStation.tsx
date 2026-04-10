@@ -1,24 +1,31 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Avatar, Badge, Box, Button, Heading, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
 import { CopyIcon, UserIcon } from '@/components/icons'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import {
   AddPoint,
   AWonRally_PB,
   BWonRally_PB,
   MinusPoint,
+  completeCurrentTableMatch as finalizeCurrentTableMatch,
+  getRecentPointHistory,
   endGame,
+  getLatestUndoablePointEvent,
+  getNextPromotableScheduledMatch,
   getCurrentGameNumber,
   getMatchData,
   getMatchScore,
-  getTableInfo,
   hasActiveGame,
   isFinalGame,
   isGameFinished,
   isGamePoint,
   isMatchFinished,
   isValidGameScore,
+  addJudgeNote,
+  setJudgePauseState,
+  setMatchDisputeState,
   setBestOf,
   setChangeServiceEveryXPoints,
   setGamePointsToWinGame,
@@ -28,6 +35,8 @@ import {
   setIsMatchPoint,
   setScoringType,
   setServerManually,
+  setYellowFlag,
+  setRedFlag,
   setisManualMode,
   setUsedTimeOut,
   startGame,
@@ -38,16 +47,21 @@ import {
   manuallySetGameScore,
   updateCurrentPlayer,
   updateService,
+  undoLastPointAction,
   watchForPasswordChange,
   createNewMatch,
+  subscribeToMatchData,
 } from '@/functions/scoring'
-import { createTeamMatchNewMatch, getTeamMatch, getTeamMatchCurrentMatch } from '@/functions/teammatches'
-import { getTablePassword } from '@/functions/tables'
+import { createTeamMatchNewMatch, subscribeToTeamMatch, subscribeToTeamMatchCurrentMatch } from '@/functions/teammatches'
+import { isTableAccessRequired, subscribeToTable, verifyTablePassword } from '@/functions/tables'
 import { supportedSports } from '@/functions/sports'
 import { getNewPlayer } from '@/classes/Player'
 import countries from '@/flags/countries.json'
+import { activateCapabilityToken, resolveCapabilityLink } from '@/functions/accessTokens'
+import { getCurrentCapabilityToken } from '@/lib/capabilitySession'
 import { useAuth } from '@/lib/auth'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
 
 const countryOptions = Object.entries(countries)
   .map(([code, name]) => ({ code, name }))
@@ -226,6 +240,7 @@ export default function ScoringStation({
   teamMatchTableNumber?: string
 }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user, loading: authLoading } = useAuth()
 
   const [loading, setLoading] = useState(true)
@@ -239,6 +254,7 @@ export default function ScoringStation({
   const [match, setMatch] = useState<any>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showTimeoutDialog, setShowTimeoutDialog] = useState(false)
+  const [showJudgeDialog, setShowJudgeDialog] = useState(false)
   const [showPlayerEditor, setShowPlayerEditor] = useState(false)
   const [showGameEndDialog, setShowGameEndDialog] = useState(false)
   const [showMatchEndDialog, setShowMatchEndDialog] = useState(false)
@@ -256,54 +272,40 @@ export default function ScoringStation({
   const [manualGameScores, setManualGameScores] = useState<Record<number, { a: string; b: string }>>({})
   const [copiedLink, setCopiedLink] = useState('')
   const [activeAction, setActiveAction] = useState('')
-
-  const loadMatchContext = useCallback(async () => {
-    if (mode === 'table' && !tableID) return
-    if (mode === 'teamMatch' && !teamMatchID) return
-
-    setLoading(true)
-    try {
-      if (mode === 'table') {
-        const info = await getTableInfo(tableID)
-        setTableInfo(info)
-        if (info?.currentMatch) {
-          setMatchID(info.currentMatch)
-          const matchData = await getMatchData(info.currentMatch)
-          setMatch(matchData)
-        } else {
-          setMatchID('')
-          setMatch(null)
-        }
-      } else {
-        const nextTeamMatch = await getTeamMatch(teamMatchID)
-        setTeamMatch(nextTeamMatch)
-        const currentMatch = await getTeamMatchCurrentMatch(teamMatchID, activeTableNumber)
-        if (currentMatch) {
-          setMatchID(currentMatch)
-          const matchData = await getMatchData(currentMatch)
-          setMatch(matchData)
-        } else {
-          setMatchID('')
-          setMatch(null)
-        }
-      }
-    } catch (error) {
-      console.error('Error loading scoring context:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [mode, tableID, teamMatchID, activeTableNumber])
+  const accessToken = searchParams.get('token')
+  const hasCapabilitySession = Boolean(accessToken || getCurrentCapabilityToken())
+  const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null)
+  const [judgeNote, setJudgeNote] = useState('')
+  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
+  const [syncError, setSyncError] = useState('')
+  const [matchSyncStatus, setMatchSyncStatus] = useState<RealtimeStatus>('idle')
+  const [matchSyncError, setMatchSyncError] = useState('')
 
   useEffect(() => {
     if (authLoading) return
 
     if (user) {
       setAccessGranted(true)
-      loadMatchContext()
       return
     }
 
     if (mode === 'teamMatch') {
+      if (accessToken && teamMatchID) {
+        resolveCapabilityLink(accessToken, 'team_match_scoring')
+          .then((resolved) => {
+            if (resolved?.record.teamMatchID === teamMatchID) {
+              activateCapabilityToken(accessToken)
+              setAccessGranted(true)
+              setPasswordError('')
+              return
+            }
+            setAccessGranted(false)
+            setLoading(false)
+          })
+          .catch(() => setLoading(false))
+        return
+      }
+
       setAccessGranted(false)
       setLoading(false)
       return
@@ -314,26 +316,129 @@ export default function ScoringStation({
       return
     }
 
-    getTablePassword(tableID)
-      .then((password) => {
-        if (!password) {
+    if (accessToken) {
+      resolveCapabilityLink(accessToken, 'table_scoring')
+        .then((resolved) => {
+          const record = resolved?.record
+          const isValid = record?.tableID === tableID
+          if (resolved && isValid) {
+            activateCapabilityToken(accessToken)
+            setAccessGranted(true)
+            setPasswordError('')
+            return
+          }
+          setLoading(false)
+        })
+        .catch(() => setLoading(false))
+      return
+    }
+
+    isTableAccessRequired(tableID)
+      .then((requiresAccess) => {
+        if (!requiresAccess) {
           setAccessGranted(true)
-          loadMatchContext()
           return
         }
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [authLoading, user, tableID, mode, loadMatchContext])
+  }, [authLoading, user, tableID, mode, accessToken, teamMatchID])
 
   useEffect(() => {
     if (!accessGranted || mode !== 'table' || !tableID) return
 
-    const unsubscribe = watchForPasswordChange(tableID, async (nextPassword) => {
-      if (!user && nextPassword && nextPassword !== passwordInput) {
+    const unsubscribeState = subscribeToPathState(`tables/${tableID}`, (state) => {
+      setSyncStatus(state.status)
+      setSyncError(state.error)
+    })
+    setLoading(true)
+    const unsubscribeTable = subscribeToTable(tableID, (nextTableInfo) => {
+      setTableInfo(nextTableInfo)
+      const nextMatchID = typeof nextTableInfo?.currentMatch === 'string' ? nextTableInfo.currentMatch : ''
+      setMatchID(nextMatchID)
+      if (!nextMatchID) {
+        setMatch(null)
+      }
+      setLoading(false)
+    })
+    return () => {
+      unsubscribeState()
+      unsubscribeTable()
+    }
+  }, [accessGranted, mode, tableID])
+
+  useEffect(() => {
+    if (!accessGranted || mode !== 'teamMatch' || !teamMatchID) return
+
+    const unsubscribeState = subscribeToPathState(`teamMatches/${teamMatchID}`, (state) => {
+      setSyncStatus(state.status)
+      setSyncError(state.error)
+    })
+    setLoading(true)
+    const unsubscribeTeamMatch = subscribeToTeamMatch(teamMatchID, (nextTeamMatch) => {
+      setTeamMatch(nextTeamMatch)
+      const currentMatches = nextTeamMatch?.currentMatches as Record<string, string> | undefined
+      const nextMatchID = currentMatches?.[activeTableNumber] || ''
+      setMatchID(nextMatchID)
+      if (!nextMatchID) {
+        setMatch(null)
+      }
+      setLoading(false)
+    })
+    return () => {
+      unsubscribeState()
+      unsubscribeTeamMatch()
+    }
+  }, [accessGranted, mode, teamMatchID, activeTableNumber])
+
+  useEffect(() => {
+    if (!accessGranted || mode !== 'teamMatch' || !teamMatchID) return
+
+    return subscribeToTeamMatchCurrentMatch(teamMatchID, activeTableNumber, (currentMatchID) => {
+      setMatchID(currentMatchID)
+      if (!currentMatchID) {
+        setMatch(null)
+      }
+    })
+  }, [accessGranted, mode, teamMatchID, activeTableNumber])
+
+  useEffect(() => {
+    if (!matchID) {
+      setMatch(null)
+      setMatchSyncStatus('idle')
+      setMatchSyncError('')
+      return
+    }
+
+    const unsubscribeState = subscribeToPathState(`matches/${matchID}`, (state) => {
+      setMatchSyncStatus(state.status)
+      setMatchSyncError(state.error)
+    })
+    const unsubscribeMatch = subscribeToMatchData(matchID, (nextMatch) => {
+      setMatch(nextMatch)
+    })
+    return () => {
+      unsubscribeState()
+      unsubscribeMatch()
+    }
+  }, [matchID])
+
+  useEffect(() => {
+    if (!accessGranted || mode !== 'table' || !tableID) return
+
+    let hasSeenInitialAccessValue = false
+    let lastAccessMarker = ''
+    const unsubscribe = watchForPasswordChange(tableID, async (accessMarker) => {
+      if (!hasSeenInitialAccessValue) {
+        hasSeenInitialAccessValue = true
+        lastAccessMarker = accessMarker
+        return
+      }
+      if (!user && accessMarker && accessMarker !== lastAccessMarker) {
         setAccessGranted(false)
         setPasswordError('The table password changed. Re-enter it to continue scoring.')
       }
+      lastAccessMarker = accessMarker
     })
 
     return unsubscribe
@@ -378,7 +483,6 @@ export default function ScoringStation({
   const refreshMatch = async () => {
     if (!matchID) return null
     const refreshed = await getMatchData(matchID)
-    setMatch(refreshed)
     await syncPointFlags(refreshed)
     return refreshed
   }
@@ -414,16 +518,17 @@ export default function ScoringStation({
 
     const refreshed = await refreshMatch()
     if (!refreshed) return
+    const refreshedMatch = refreshed as Record<string, any>
 
-    const currentGame = getCurrentGameNumber(refreshed) || gameNumber
+    const currentGame = getCurrentGameNumber(refreshedMatch) || gameNumber
     const gameDone = isGameFinished(
-      refreshed.enforceGameScore,
-      refreshed[`game${currentGame}AScore`],
-      refreshed[`game${currentGame}BScore`],
-      refreshed.pointsToWinGame
+      refreshedMatch.enforceGameScore,
+      refreshedMatch[`game${currentGame}AScore`],
+      refreshedMatch[`game${currentGame}BScore`],
+      refreshedMatch.pointsToWinGame
     )
 
-    if (gameDone && !refreshed[`isGame${currentGame}Finished`]) {
+    if (gameDone && !refreshedMatch[`isGame${currentGame}Finished`]) {
       await endGame(matchID, currentGame)
       const afterEnd = await refreshMatch()
       if (!afterEnd) return
@@ -439,7 +544,6 @@ export default function ScoringStation({
     if (!matchID) return
     setActiveAction('switch')
     await switchSides(matchID)
-    setMatch(await getMatchData(matchID))
     setActiveAction('')
   }
 
@@ -502,16 +606,22 @@ export default function ScoringStation({
     await refreshMatch()
   }
 
+  const canCreateAdHocMatch = !hasCapabilitySession
+  const canFinalizeAssignedTableMatch = mode === 'table' && Boolean(tableID && matchID && match)
+
   const handleCreateMatch = async () => {
+    if (!canCreateAdHocMatch) return
     setActiveAction('start-match')
     if (mode === 'table' && tableID && tableInfo) {
+      if (matchID && match && isMatchFinished(match)) {
+        await finalizeCurrentTableMatch(tableID, matchID, match, false)
+      }
       const newMatchID = await createNewMatch(tableID, tableInfo.sportName || 'tableTennis', null, false, tableInfo.scoringType || 'normal')
       if (!newMatchID) {
         setActiveAction('')
         return
       }
       setMatchID(newMatchID)
-      setMatch(await getMatchData(newMatchID))
       setActiveAction('')
       return
     }
@@ -523,10 +633,62 @@ export default function ScoringStation({
         return
       }
       setMatchID(newMatchID)
-      setMatch(await getMatchData(newMatchID))
     }
     setActiveAction('')
   }
+
+  const nextQueuedTableMatch = mode === 'table' && tableInfo?.scheduledMatches && typeof tableInfo.scheduledMatches === 'object'
+    ? getNextPromotableScheduledMatch(Object.entries(tableInfo.scheduledMatches as Record<string, Record<string, any>>))
+    : null
+  const latestUndoablePointEvent = getLatestUndoablePointEvent(match)
+  const recentPointHistory = getRecentPointHistory(match, 4)
+  const canUndoCurrentMatch = Boolean(matchID && latestUndoablePointEvent && match?.sportName !== 'pickleball')
+  const autoAdvanceMode = mode === 'table' ? (tableInfo?.autoAdvanceMode || 'manual') : 'manual'
+  const autoAdvanceDelaySeconds = mode === 'table' ? Number(tableInfo?.autoAdvanceDelaySeconds || 0) : 0
+
+  const handlePromoteNextAfterMatch = async () => {
+    if (mode !== 'table' || !tableID || !matchID || !match) return
+    setActiveAction('promote-next')
+    await finalizeCurrentTableMatch(tableID, matchID, match, true)
+    setShowMatchEndDialog(false)
+    setAutoAdvanceCountdown(null)
+    setActiveAction('')
+  }
+
+  useEffect(() => {
+    if (!showMatchEndDialog || mode !== 'table' || !canFinalizeAssignedTableMatch) {
+      setAutoAdvanceCountdown(null)
+      return
+    }
+    if (autoAdvanceMode !== 'automatic' || !nextQueuedTableMatch) {
+      setAutoAdvanceCountdown(null)
+      return
+    }
+
+    const startingCountdown = Math.max(0, autoAdvanceDelaySeconds)
+    setAutoAdvanceCountdown(startingCountdown)
+
+    if (startingCountdown === 0) {
+      void handlePromoteNextAfterMatch()
+      return
+    }
+
+    const intervalID = window.setInterval(() => {
+      setAutoAdvanceCountdown((current) => {
+        if (current === null) return null
+        if (current <= 1) {
+          window.clearInterval(intervalID)
+          void handlePromoteNextAfterMatch()
+          return 0
+        }
+        return current - 1
+      })
+    }, 1000)
+
+    return () => {
+      window.clearInterval(intervalID)
+    }
+  }, [showMatchEndDialog, mode, canFinalizeAssignedTableMatch, autoAdvanceMode, autoAdvanceDelaySeconds, nextQueuedTableMatch, tableID, matchID, match])
 
   const handleCopyScoringLink = async () => {
     const url = typeof window !== 'undefined' ? window.location.href : ''
@@ -541,6 +703,7 @@ export default function ScoringStation({
   const rightSide = match?.isSwitched ? 'A' : 'B'
   const teamMatchTables = teamMatch?.currentMatches ? Object.keys(teamMatch.currentMatches) : ['1']
   const scoreActionsDisabled = !matchID || showGameEndDialog || showMatchEndDialog || !!match?.isInBetweenGames || (match ? isMatchFinished(match) : false)
+  const scoringContextLabel = [match?.matchRound || match?.context?.matchRound || '', match?.eventName || match?.context?.eventName || ''].filter(Boolean).join(' • ')
 
   if (authLoading || loading) {
     return (
@@ -562,11 +725,10 @@ export default function ScoringStation({
             <Button
               action="primary"
               onClick={async () => {
-                const password = await getTablePassword(tableID || '')
-                if (passwordInput === password) {
+                const isValid = await verifyTablePassword(tableID || '', passwordInput)
+                if (isValid) {
                   setAccessGranted(true)
                   setPasswordError('')
-                  loadMatchContext()
                 } else {
                   setPasswordError('Incorrect password')
                 }
@@ -591,8 +753,12 @@ export default function ScoringStation({
             <Heading size="lg" className="text-white">
               {mode === 'table' ? tableInfo?.tableName || 'Scoring Station' : `${teamMatch?.sportDisplayName || 'Team Match'} • Table ${activeTableNumber}`}
             </Heading>
+            {scoringContextLabel ? (
+              <Text className="text-xs text-slate-300">{scoringContextLabel}</Text>
+            ) : null}
           </VStack>
-          <HStack className="gap-2">
+          <HStack className="gap-2 items-center">
+            <LiveStatusBadge status={syncStatus} prefix="Live" />
             <Button
               variant="solid"
               className={copiedLink ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-500/20 hover:bg-cyan-300'}
@@ -614,6 +780,23 @@ export default function ScoringStation({
             <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={() => setShowTimeoutDialog(true)} disabled={!matchID}>
               <Text className="text-slate-900">Timeout</Text>
             </Button>
+            <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={() => setShowJudgeDialog(true)} disabled={!matchID}>
+              <Text className="text-slate-900">Judge</Text>
+            </Button>
+            <Button
+              variant="outline"
+              className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100"
+              onClick={async () => {
+                setActiveAction('undo')
+                await undoLastPointAction(matchID)
+                await refreshMatch()
+                setActiveAction('')
+              }}
+              disabled={!canUndoCurrentMatch || activeAction === 'undo'}
+            >
+              {activeAction === 'undo' ? <Spinner size="sm" /> : null}
+              <Text className="text-slate-900">Undo</Text>
+            </Button>
             <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={handleSwitchSides} disabled={!matchID || activeAction === 'switch'}>
               {activeAction === 'switch' ? <Spinner size="sm" /> : null}
               <Text className="text-slate-900">Switch Sides</Text>
@@ -633,6 +816,40 @@ export default function ScoringStation({
               </Select>
             </HStack>
           ) : null}
+          {match?.isJudgePaused || match?.isDisputed ? (
+            <HStack className="flex-wrap gap-2">
+              {match?.isJudgePaused ? (
+                <Badge className="rounded-full bg-amber-200 px-3 py-1 text-xs text-slate-950">Judge Pause</Badge>
+              ) : null}
+              {match?.isDisputed ? (
+                <Badge className="rounded-full bg-rose-200 px-3 py-1 text-xs text-slate-950">Dispute Active</Badge>
+              ) : null}
+              {match?.latestJudgeNote ? (
+                <Text className="text-xs text-white/75">{match.latestJudgeNote}</Text>
+              ) : null}
+            </HStack>
+          ) : null}
+          {syncStatus === 'offline' || syncStatus === 'error' || matchSyncStatus === 'offline' || matchSyncStatus === 'error' ? (
+            <Box className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2">
+              <Text className="text-xs font-medium text-rose-700">
+                {syncStatus === 'offline' || matchSyncStatus === 'offline'
+                  ? 'Live scoring is offline. Changes may not sync until the connection returns.'
+                  : syncError || matchSyncError || 'A live sync error occurred.'}
+              </Text>
+            </Box>
+          ) : null}
+          {recentPointHistory.length > 0 ? (
+            <VStack className="gap-1">
+              <Text className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">Recent History</Text>
+              <HStack className="flex-wrap gap-2">
+                {recentPointHistory.map((event) => (
+                  <Badge key={event.eventID} className={`rounded-full px-2.5 py-1 text-[10px] ${event.undone ? 'bg-slate-700 text-slate-200' : 'bg-white/10 text-white'}`}>
+                    {event.action === 'point_added' ? '+' : event.action === 'point_removed' ? '-' : '*'} G{event.gameNumber} {event.side || '-'} {event.scoreA}-{event.scoreB}{event.undone ? ' undone' : ''}
+                  </Badge>
+                ))}
+              </HStack>
+            </VStack>
+          ) : null}
         </VStack>
       </Box>
 
@@ -640,11 +857,15 @@ export default function ScoringStation({
         <Box className="flex h-[calc(100dvh-7.5rem)] items-center justify-center p-6 text-white">
           <VStack className="items-center gap-4 text-center">
             <Heading size="lg" className="text-white">No active match</Heading>
-            <Text className="max-w-md text-sm text-white/70">Create a new match to begin scoring on this station.</Text>
-            <Button action="primary" onClick={handleCreateMatch} disabled={activeAction === 'start-match'}>
-              {activeAction === 'start-match' ? <Spinner size="sm" /> : null}
-              <Text className="text-white">Start Match</Text>
-            </Button>
+            <Text className="max-w-md text-sm text-white/70">
+              {canCreateAdHocMatch ? 'Create a new match to begin scoring on this station.' : 'This secure scoring link is tied to an existing match. Ask the owner to assign a current match before scoring.'}
+            </Text>
+            {canCreateAdHocMatch ? (
+              <Button action="primary" onClick={handleCreateMatch} disabled={activeAction === 'start-match'}>
+                {activeAction === 'start-match' ? <Spinner size="sm" /> : null}
+                <Text className="text-white">Start Match</Text>
+              </Button>
+            ) : null}
           </VStack>
         </Box>
       ) : (
@@ -774,6 +995,80 @@ export default function ScoringStation({
           >
             {activeAction === 'timeout-use-b' ? <Spinner size="sm" /> : null}
             <Text>Mark B Timeout Used</Text>
+          </Button>
+        </VStack>
+      </OverlayDialog>
+
+      <OverlayDialog
+        isOpen={showJudgeDialog}
+        onClose={() => setShowJudgeDialog(false)}
+        title="Judge Mode"
+        footer={(
+          <Button variant="outline" onClick={() => setShowJudgeDialog(false)}>
+            <Text>Close</Text>
+          </Button>
+        )}
+      >
+        <VStack className="gap-3">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setActiveAction('judge-pause')
+              await setJudgePauseState(matchID, !Boolean(match?.isJudgePaused), judgeNote)
+              await refreshMatch()
+              setActiveAction('')
+            }}
+            disabled={!matchID}
+          >
+            {activeAction === 'judge-pause' ? <Spinner size="sm" /> : null}
+            <Text>{match?.isJudgePaused ? 'Resume Match' : 'Pause Match'}</Text>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setActiveAction('judge-dispute')
+              await setMatchDisputeState(matchID, !Boolean(match?.isDisputed), judgeNote)
+              await refreshMatch()
+              setActiveAction('')
+            }}
+            disabled={!matchID}
+          >
+            {activeAction === 'judge-dispute' ? <Spinner size="sm" /> : null}
+            <Text>{match?.isDisputed ? 'Clear Dispute' : 'Mark Dispute'}</Text>
+          </Button>
+          <HStack className="flex-wrap gap-2">
+            <Button variant="outline" onClick={async () => { setActiveAction('judge-yellow-a'); await setYellowFlag(matchID, 'A', !Boolean(match?.isAYellowCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
+              <Text>{match?.isAYellowCarded ? 'Clear A Yellow' : 'A Yellow'}</Text>
+            </Button>
+            <Button variant="outline" onClick={async () => { setActiveAction('judge-yellow-b'); await setYellowFlag(matchID, 'B', !Boolean(match?.isBYellowCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
+              <Text>{match?.isBYellowCarded ? 'Clear B Yellow' : 'B Yellow'}</Text>
+            </Button>
+            <Button variant="outline" onClick={async () => { setActiveAction('judge-red-a'); await setRedFlag(matchID, 'A', !Boolean(match?.isARedCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
+              <Text>{match?.isARedCarded ? 'Clear A Red' : 'A Red'}</Text>
+            </Button>
+            <Button variant="outline" onClick={async () => { setActiveAction('judge-red-b'); await setRedFlag(matchID, 'B', !Boolean(match?.isBRedCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
+              <Text>{match?.isBRedCarded ? 'Clear B Red' : 'B Red'}</Text>
+            </Button>
+          </HStack>
+          <textarea
+            className="min-h-[6rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            value={judgeNote}
+            onChange={(event) => setJudgeNote(event.target.value)}
+            placeholder="Judge note, ruling, or interruption details"
+          />
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setActiveAction('judge-note')
+              await addJudgeNote(matchID, judgeNote)
+              setJudgeNote('')
+              await refreshMatch()
+              setActiveAction('')
+            }}
+            disabled={!matchID || !judgeNote.trim()}
+          >
+            {activeAction === 'judge-note' ? <Spinner size="sm" /> : null}
+            <Text>Save Judge Note</Text>
           </Button>
         </VStack>
       </OverlayDialog>
@@ -911,13 +1206,29 @@ export default function ScoringStation({
             <Button variant="outline" onClick={() => setShowMatchEndDialog(false)}>
               <Text>Keep View Open</Text>
             </Button>
-            <Button action="primary" onClick={handleCreateMatch}>
-              <Text className="text-white">Start New Match</Text>
-            </Button>
+            {mode === 'table' && canFinalizeAssignedTableMatch && nextQueuedTableMatch && autoAdvanceMode !== 'manual' ? (
+              <Button variant="outline" onClick={handlePromoteNextAfterMatch} disabled={activeAction === 'promote-next'}>
+                <Text>{activeAction === 'promote-next' ? 'Promoting...' : 'Promote Next Match'}</Text>
+              </Button>
+            ) : null}
+            {canCreateAdHocMatch ? (
+              <Button action="primary" onClick={handleCreateMatch}>
+                <Text className="text-white">Start New Match</Text>
+              </Button>
+            ) : null}
           </>
         )}
       >
-        <Text className="text-sm text-slate-600">No further points can be added until a new match or next assigned match is started.</Text>
+        <VStack className="gap-2">
+          <Text className="text-sm text-slate-600">No further points can be added until a new match or next assigned match is started.</Text>
+          {mode === 'table' && autoAdvanceMode === 'automatic' && nextQueuedTableMatch ? (
+            <Text className="text-sm text-slate-600">
+              {autoAdvanceCountdown === null
+                ? 'Auto-advance is enabled for this table.'
+                : `Auto-advancing to the next queued match in ${autoAdvanceCountdown}s.`}
+            </Text>
+          ) : null}
+        </VStack>
       </OverlayDialog>
     </Box>
   )

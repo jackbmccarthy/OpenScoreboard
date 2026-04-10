@@ -2,13 +2,16 @@
 // Migrated from Expo PlayerRegistration.tsx
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { Box, Text, VStack, Button, Input, Spinner } from '@/components/ui';
+import { activateCapabilityToken, resolveCapabilityLink } from '@/functions/accessTokens';
 
 export default function PlayerRegistrationPage() {
+  const [searchParams] = useSearchParams()
   const params = useParams<{ playerListID?: string; password?: string; id?: string }>();
   const playerListID = params.playerListID || params.id;
   const password = params.password;
+  const token = searchParams.get('token');
   const [selectedColor, setSelectedColor] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -22,12 +25,35 @@ export default function PlayerRegistrationPage() {
     async function checkPlayerList() {
       let unSub: (() => void) | undefined
       try {
-        const { getPlayerListName, watchForPlayerListPasswordChange } = await import('@/functions/players');
-        
+        const { getPlayerListName, isPlayerListAccessRequired, verifyPlayerListPassword, watchForPlayerListPasswordChange } = await import('@/functions/players');
+        if (token) {
+          const resolved = await resolveCapabilityLink(token, 'player_registration')
+          if (!resolved || resolved.record.playerListID !== playerListID) {
+            setUnauthorized(true)
+            return undefined
+          }
+          activateCapabilityToken(token)
+          const playerList = await getPlayerListName(playerListID || resolved.record.playerListID || '')
+          if (playerList.length > 0) {
+            setPlayerListExists(true)
+          }
+        }
+
         // Watch for password changes
-        if (playerListID) {
-          unSub = watchForPlayerListPasswordChange(playerListID, (nextPassword: string) => {
-            if (nextPassword && nextPassword !== password) {
+        if (playerListID && !token) {
+          const requiresAccess = await isPlayerListAccessRequired(playerListID)
+          const legacyPasswordAccepted = requiresAccess ? Boolean(password && await verifyPlayerListPassword(playerListID, password)) : true
+          if (!legacyPasswordAccepted) {
+            setUnauthorized(true)
+            return undefined
+          }
+          let hasSeenInitialAccessValue = false
+          unSub = watchForPlayerListPasswordChange(playerListID, (accessMarker: string) => {
+            if (!hasSeenInitialAccessValue) {
+              hasSeenInitialAccessValue = true
+              return
+            }
+            if (accessMarker) {
               setUnauthorized(true);
             }
           });
@@ -55,7 +81,7 @@ export default function PlayerRegistrationPage() {
     return () => {
       cleanup?.()
     }
-  }, [password, playerListID]);
+  }, [password, playerListID, token]);
 
   const handleRegister = async () => {
     if (!firstName.trim() || !lastName.trim()) {

@@ -1,0 +1,43 @@
+{
+  "active": true,
+  "iteration": 46,
+  "max_iterations": 50,
+  "current_phase": "executing",
+  "started_at": "2026-04-10T06:07:00Z",
+  "task_description": "Implement the full TASKS.md backlog in phased tranches; current tranche is queue-to-table workflow foundation",
+  "context_snapshot_path": "/Users/jackmccarthy/AIProjects/OpenScoreboard/.omx/context/tasks-md-program-20260408T061817Z.md",
+  "active_tranche": "Feature 3.4 bulk queue operations",
+  "last_turn_at": "2026-04-10T22:03:58.471Z",
+  "blockers": [
+    "capability helper missing Firebase auth header",
+    "capability issuance ownership missing",
+    "capability writes anonymous in Firebase",
+    "playerregistration under main auth layout",
+    "team match edit full-set wipes live state",
+    "remaining audit/write gaps"
+  ],
+  "verification": {
+    "auto_advance_tranche": "approved"
+  },
+  "pending": "architect verdict",
+  "max_iterations_auto_expand_count": 5,
+  "max_iterations_auto_expanded_at": "2026-04-10T21:29:36.848Z",
+  "completedTranche": "CI-3/CI-4/CI-5 verification and blocker fixes",
+  "finalVerifier": "APPROVE",
+  "remaining": "uncommitted worktree",
+  "ralph_phase_normalized_from": "completed",
+  "prd_path": "/Users/jackmccarthy/AIProjects/OpenScoreboard/.omx/plans/prd-tasks-md-program.md",
+  "test_spec_path": "/Users/jackmccarthy/AIProjects/OpenScoreboard/.omx/plans/test-spec-tasks-md-program.md",
+  "completed_foundations": [
+    "CI-1",
+    "CI-2",
+    "CI-3",
+    "CI-4",
+    "CI-5 verification tranche"
+  ],
+  "previous_tranche": "Feature 3 queue-to-table foundation",
+  "completed_tranches": [
+    "Feature 3 queue-to-table foundation",
+    "Feature 3.5 auto-advance options"
+  ]
+}

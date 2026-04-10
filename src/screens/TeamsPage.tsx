@@ -1,11 +1,11 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Text, VStack } from '@/components/ui'
 import { PencilIcon, PlusIcon, TeamsIcon, TrashIcon } from '@/components/icons'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OverlayDialog from '@/components/crud/OverlayDialog'
-import { addNewTeam, deleteMyTeam, getMyTeams, getTeam, updateMyTeam, updateTeam } from '@/functions/teams'
+import { addNewTeam, deleteMyTeam, getTeam, subscribeToMyTeams, updateMyTeam, updateTeam } from '@/functions/teams'
 
 interface TeamRow {
   id: string
@@ -42,21 +42,13 @@ export default function TeamsPage() {
   const [teamDraft, setTeamDraft] = useState<TeamDraft>(emptyTeamDraft)
   const [pendingDeleteTeam, setPendingDeleteTeam] = useState<{ myTeamID: string; name: string } | null>(null)
 
-  const loadTeams = useCallback(async () => {
-    try {
-      const myTeams = await getMyTeams(user?.uid || 'mylocalserver')
-      setTeams(myTeams as TeamEntry[])
-    } catch (error) {
-      console.error('Error loading teams:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [user])
-
   useEffect(() => {
     if (authLoading) return
-    loadTeams()
-  }, [authLoading, loadTeams])
+    return subscribeToMyTeams((myTeams) => {
+      setTeams(myTeams as TeamEntry[])
+      setLoading(false)
+    }, user?.uid || 'mylocalserver')
+  }, [authLoading, user])
 
   const openNewTeamModal = () => {
     setEditingTeam(null)
@@ -83,14 +75,12 @@ export default function TeamsPage() {
     setShowTeamModal(false)
     setEditingTeam(null)
     setTeamDraft(emptyTeamDraft)
-    await loadTeams()
   }
 
   const handleDeleteTeam = async () => {
     if (!pendingDeleteTeam) return
     await deleteMyTeam(pendingDeleteTeam.myTeamID)
     setPendingDeleteTeam(null)
-    await loadTeams()
   }
 
   if (authLoading || loading) {

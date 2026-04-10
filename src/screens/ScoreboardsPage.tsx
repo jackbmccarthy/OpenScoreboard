@@ -1,13 +1,13 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Text, VStack } from '@/components/ui'
 import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/icons'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OverlayDialog from '@/components/crud/OverlayDialog'
-import { addNewScoreboard, deleteMyScoreboard, duplicateScoreboard, getMyScoreboards, getScoreboardTypesList, updateScoreboardDetails } from '@/functions/scoreboards'
+import { addNewScoreboard, deleteMyScoreboard, duplicateScoreboard, getScoreboardTypesList, subscribeToMyScoreboards, updateScoreboardDetails } from '@/functions/scoreboards'
 import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
-import { createScoreboardFromTemplate, getScoreboardTemplates } from '@/functions/scoreboardTemplates'
+import { createScoreboardFromTemplate, subscribeToScoreboardTemplates } from '@/functions/scoreboardTemplates'
 
 type ScoreboardDraft = {
   name: string
@@ -69,12 +69,15 @@ export default function ScoreboardsPage() {
   const [selectedTemplateID, setSelectedTemplateID] = useState('')
   const [selectedDuplicateID, setSelectedDuplicateID] = useState('')
 
-  const loadScoreboards = useCallback(async () => {
-    try {
-      const myScoreboards = await getMyScoreboards(user?.uid || 'mylocalserver')
+  useEffect(() => {
+    if (authLoading) return
+
+    setScoreboardTypes(getScoreboardTypesList() as ScoreboardTypeOption[])
+    const unsubscribeScoreboards = subscribeToMyScoreboards((myScoreboards) => {
       setScoreboards(myScoreboards as ScoreboardEntry[])
-      setScoreboardTypes(getScoreboardTypesList() as ScoreboardTypeOption[])
-      const loadedTemplates = await getScoreboardTemplates()
+      setLoading(false)
+    }, user?.uid || 'mylocalserver')
+    const unsubscribeTemplates = subscribeToScoreboardTemplates((loadedTemplates) => {
       setTemplates(
         loadedTemplates.map((template) => ({
           id: String(template.id || ''),
@@ -86,17 +89,13 @@ export default function ScoreboardsPage() {
           config: template.config || {},
         })),
       )
-    } catch (error) {
-      console.error('Error loading scoreboards:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [user])
+    })
 
-  useEffect(() => {
-    if (authLoading) return
-    loadScoreboards()
-  }, [authLoading, loadScoreboards])
+    return () => {
+      unsubscribeScoreboards()
+      unsubscribeTemplates()
+    }
+  }, [authLoading, user])
 
   const openNewScoreboardModal = () => {
     setEditingScoreboard(null)
@@ -147,14 +146,12 @@ export default function ScoreboardsPage() {
     setShowCreateOptionsModal(false)
     setEditingScoreboard(null)
     setScoreboardDraft(emptyScoreboardDraft)
-    await loadScoreboards()
   }
 
   const handleDeleteScoreboard = async () => {
     if (!pendingDeleteScoreboard) return
     await deleteMyScoreboard(pendingDeleteScoreboard.myScoreboardID)
     setPendingDeleteScoreboard(null)
-    await loadScoreboards()
   }
 
   if (authLoading || loading) {

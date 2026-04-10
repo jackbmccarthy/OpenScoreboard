@@ -1,4 +1,5 @@
 import { supportedSports } from "../functions/sports"
+import { MATCH_SCHEMA_VERSION, buildMatchSchemaPatch } from "../functions/matchSchema"
 import { getNewPlayer } from "./Player"
 
 
@@ -62,11 +63,20 @@ export default class Match {
 
             isSwitched: false,
 
+            tournamentID: "",
+            eventID: "",
+            roundID: "",
+            bracketNodeID: "",
             matchRound: "",
             eventName: "",
             isCourtSideScoreboardFlipped: false,
             isDoubles: false,
             significantPoints: {},
+            isJudgePaused: false,
+            judgePauseReason: "",
+            isDisputed: false,
+            latestJudgeNote: "",
+            latestJudgeNoteAt: "",
 
 
             //Final Point Flags
@@ -157,13 +167,44 @@ export default class Match {
             playerB2: getNewPlayer(),
 
             sportName: sportName
-
-
+            ,
+            schemaVersion: MATCH_SCHEMA_VERSION,
+            games: {},
+            pointHistory: {},
+            auditTrail: {},
+            context: {
+                tournamentID: "",
+                eventID: "",
+                roundID: "",
+                matchRound: "",
+                eventName: "",
+            },
+            scheduling: {
+                tableID: "",
+                teamMatchID: "",
+                tableNumber: "",
+                scheduledMatchID: "",
+                sourceType: "",
+            }
 
         }
         if (previousMatchObj) {
 
-            const { bestOf, pointsToWinGame, isDoubles, isManualServiceMode, changeServeEveryXPoints, enforceGameScore, scoringType } = previousMatchObj
+            const {
+                bestOf,
+                pointsToWinGame,
+                isDoubles,
+                isManualServiceMode,
+                changeServeEveryXPoints,
+                enforceGameScore,
+                scoringType,
+                tournamentID,
+                eventID,
+                roundID,
+                bracketNodeID,
+                matchRound,
+                eventName,
+            } = previousMatchObj
             matchSettings = {
                 ...matchSettings,
                 bestOf: bestOf,
@@ -173,7 +214,13 @@ export default class Match {
                 changeServeEveryXPoints: changeServeEveryXPoints,
                 enforceGameScore: enforceGameScore,
                 sportName: sportName,
-                scoringType: scoringType ? scoringType : (scoringTypeDefault || "normal")
+                scoringType: scoringType ? scoringType : (scoringTypeDefault || "normal"),
+                tournamentID: tournamentID || "",
+                eventID: eventID || "",
+                roundID: roundID || "",
+                bracketNodeID: bracketNodeID || "",
+                matchRound: matchRound || "",
+                eventName: eventName || "",
             }
         }
         else {
@@ -188,7 +235,10 @@ export default class Match {
             }
 
         }
-        return matchSettings
+        return {
+            ...matchSettings,
+            ...buildMatchSchemaPatch(matchSettings),
+        }
     }
     createNew(sportName: string, previousMatchObj: object | null = null, isTeamMatch = false, scoringType: string | null = "normal") {
         // createNew(bestOf, isTeamMatch=false, pointsToWinGame=11, isDoubles=false) {

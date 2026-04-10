@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "active": true,
+  "skill": "ralph",
+  "keyword": "keep going",
+  "phase": "planning",
+  "activated_at": "2026-04-10T07:03:30.316Z",
+  "updated_at": "2026-04-10T07:22:06.004Z",
+  "source": "keyword-detector",
+  "session_id": "",
+  "thread_id": "019d5249-8aba-7122-9722-29952ac89dde",
+  "turn_id": "019d763f-292d-79a3-a013-9ddff57e474a",
+  "input_lock": {
+    "active": false,
+    "scope": "deep-interview-auto-approval",
+    "acquired_at": "2026-04-08T16:20:06.914Z",
+    "blocked_inputs": [
+      "yes",
+      "y",
+      "proceed",
+      "continue",
+      "ok",
+      "sure",
+      "go ahead",
+      "next i should"
+    ],
+    "message": "Deep interview is active; auto-approval shortcuts are blocked until the interview finishes.",
+    "released_at": "2026-04-10T07:22:06.004Z",
+    "exit_reason": "handoff"
+  },
+  "iteration": 44,
+  "last_turn_at": "2026-04-10T22:03:58.471Z"
+}

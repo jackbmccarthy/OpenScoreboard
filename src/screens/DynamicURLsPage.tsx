@@ -3,10 +3,10 @@ import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select,
 import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/icons'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
-import { addDynamicURL, deleteDynamicURL, getMyDynamicURLs, updateDynamicURL } from '@/functions/dynamicurls'
-import { getMyScoreboards } from '@/functions/scoreboards'
-import { getMyTables } from '@/functions/tables'
-import getMyTeamMatches from '@/functions/teammatches'
+import { addDynamicURL, deleteDynamicURL, subscribeToMyDynamicURLs, updateDynamicURL } from '@/functions/dynamicurls'
+import { subscribeToMyScoreboards } from '@/functions/scoreboards'
+import { subscribeToMyTables } from '@/functions/tables'
+import { subscribeToMyTeamMatches } from '@/functions/teammatches'
 import { useAuth } from '@/lib/auth'
 
 type DynamicURLDraft = {
@@ -73,30 +73,24 @@ export default function DynamicURLsPage() {
   useEffect(() => {
     if (authLoading) return
 
-    async function loadData() {
-      try {
-        const [urls, scoreboardRows, tableRows, teamMatchRows] = await Promise.all([
-          getMyDynamicURLs(),
-          getMyScoreboards(user?.uid || 'mylocalserver'),
-          getMyTables(),
-          getMyTeamMatches(),
-        ])
-        setDynamicURLs(urls as DynamicURLEntry[])
-        setScoreboards(scoreboardRows as ScoreboardEntry[])
-        setTables(tableRows as TableEntry[])
-        setTeamMatches(teamMatchRows as TeamMatchEntry[])
-      } catch (error) {
-        console.error('Error loading dynamic URLs:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
+    const unsubscribeURLs = subscribeToMyDynamicURLs((urls) => {
+      setDynamicURLs(urls as DynamicURLEntry[])
+      setLoading(false)
+    })
+    const unsubscribeScoreboards = subscribeToMyScoreboards((scoreboardRows) => setScoreboards(scoreboardRows as ScoreboardEntry[]), user?.uid || 'mylocalserver')
+    const unsubscribeTables = subscribeToMyTables((tableRows) => setTables(tableRows.map(([myTableID, table]) => [myTableID, table as TableSummary] as TableEntry)))
+    const unsubscribeTeamMatches = subscribeToMyTeamMatches((teamMatchRows) => setTeamMatches(teamMatchRows as TeamMatchEntry[]), user?.uid || 'mylocalserver')
 
-    loadData()
+    return () => {
+      unsubscribeURLs()
+      unsubscribeScoreboards()
+      unsubscribeTables()
+      unsubscribeTeamMatches()
+    }
   }, [authLoading, user])
 
   const reloadDynamicURLs = async () => {
-    setDynamicURLs((await getMyDynamicURLs()) as DynamicURLEntry[])
+    setShowDynamicURLModal(false)
   }
 
   const openNewDynamicURLModal = () => {

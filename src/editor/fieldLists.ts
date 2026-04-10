@@ -171,6 +171,13 @@ export const textFieldList: FieldListEntry[] = [
         justify: "center"
     },
     {
+        field: "eventName",
+        label: "Event Name",
+        category: "Match",
+        sample: "Open Singles",
+        justify: "center"
+    },
+    {
         field: "teamAName",
         label: "Team A Name",
         category: "Teams",

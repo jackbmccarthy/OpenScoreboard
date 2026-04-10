@@ -264,6 +264,14 @@ export const textFieldList: TextFieldEntry[] = [
         action: updateInnerText
     },
     {
+        field: "eventName",
+        label: "Event Name",
+        category: "Match",
+        sample: "Open Singles",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
         field: "teamAName",
         label: "Team A Name",
         category: "Teams",
