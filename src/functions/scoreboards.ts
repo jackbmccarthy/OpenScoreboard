@@ -1,7 +1,7 @@
 import db, { getUserPath } from "../lib/database";
 import { subscribeToPathValue } from "../lib/realtime";
 import { newScoreboard } from "../classes/Scoreboard";
-import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
+import { clearScoreboardIdFromTables, getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
 
 
 export async function getMyScoreboards(userID,) {
@@ -57,11 +57,14 @@ export async function deleteMyScoreboard(myScoreboardID) {
     const preview = await getPreviewValue(previewPath)
     const scoreboardID = preview?.id
     if (typeof scoreboardID === 'string' && scoreboardID.length > 0) {
+        // Clear dangling table references before soft-deleting the scoreboard
+        const clearedTables = await clearScoreboardIdFromTables(scoreboardID)
         const softDeletedDependents = {
             dynamicURLs: await softDeleteDynamicURLsByReference({ scoreboardID, reason: 'parent_scoreboard_soft_deleted' }),
         }
         await softDeleteCanonical(`scoreboards/${scoreboardID}`, {
             deleteReason: 'delete_scoreboard',
+            clearedTables,
             softDeletedDependents,
         }, {
             entityType: 'scoreboard',

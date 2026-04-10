@@ -156,6 +156,31 @@ export async function clearPlayerListIdFromTables(playerListID: string) {
 }
 
 /**
+ * Clear scoreboardID on any table records that reference the given scoreboard.
+ * This prevents dangling references after a scoreboard is deleted.
+ */
+export async function clearScoreboardIdFromTables(scoreboardID: string) {
+  const snapshot = await db.ref('tables').get()
+  const tables = snapshot.val()
+
+  if (!tables || typeof tables !== 'object') {
+    return []
+  }
+
+  const cleared: string[] = []
+
+  for (const [tableID, table] of Object.entries(tables)) {
+    const candidate = table as Record<string, any>
+    if (candidate.scoreboardID === scoreboardID) {
+      await db.ref(`tables/${tableID}/scoreboardID`).set(null)
+      cleared.push(tableID)
+    }
+  }
+
+  return cleared
+}
+
+/**
  * Returns the IDs of all child records at a given tournament sub-path.
  * Scans the path and returns active record IDs.
  */
