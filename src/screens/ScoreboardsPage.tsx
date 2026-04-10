@@ -318,6 +318,7 @@ export default function ScoreboardsPage() {
         onConfirm={handleDeleteScoreboard}
         title="Remove Scoreboard"
         message={`Remove ${pendingDeleteScoreboard?.name || 'this scoreboard'} from your visible scoreboard list?`}
+        description="This will archive the scoreboard and clear any table assignments. The scoreboard data will be preserved and can be recovered during the retention window."
         confirmLabel="Remove"
       />
 

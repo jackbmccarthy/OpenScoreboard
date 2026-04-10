@@ -183,6 +183,7 @@ export default function TeamsPage() {
         onConfirm={handleDeleteTeam}
         title="Remove Team"
         message={`Remove ${pendingDeleteTeam?.name || 'this team'} from your visible team list?`}
+        description="This will archive the team. If this team is still referenced by active team matches, those references will be preserved in the archive. The team can be recovered during the retention window."
         confirmLabel="Remove"
       />
     </Box>

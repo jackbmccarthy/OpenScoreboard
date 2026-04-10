@@ -379,7 +379,8 @@ export default function PlayersPage() {
         onClose={() => setPendingDeleteList(null)}
         onConfirm={handleDeleteList}
         title="Remove Player List"
-        message={`Remove ${pendingDeleteList?.name || 'this list'} from your dashboard? This keeps the current data model compatible and hides it from your list view.`}
+        message={`Remove ${pendingDeleteList?.name || 'this list'} from your dashboard?`}
+        description="This will archive the player list and clear any table assignments. The player list data will be preserved and can be recovered during the retention window."
         confirmLabel="Remove"
       />
 

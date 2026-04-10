@@ -464,6 +464,7 @@ export default function TablesPage() {
         onConfirm={handleDeleteTable}
         title="Remove Table"
         message={`Remove ${pendingDeleteTable?.tableName || 'this table'} from your visible table list?`}
+        description="This will archive the table and remove it from your dashboard. The table data will be preserved and can be recovered during the retention window."
         confirmLabel="Remove"
       />
 

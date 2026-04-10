@@ -309,6 +309,7 @@ export default function TeamMatchesPage() {
         onConfirm={handleDeleteMatch}
         title="Remove Team Match"
         message={`Remove ${pendingDeleteMatch?.name || 'this team match'} from your visible team match list?`}
+        description="This will archive the team match and all its sub-match references. The team match data will be preserved and can be recovered during the retention window."
         confirmLabel="Remove"
       />
 

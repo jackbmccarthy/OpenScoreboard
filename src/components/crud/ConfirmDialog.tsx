@@ -7,6 +7,7 @@ interface ConfirmDialogProps {
   onConfirm: () => void | Promise<void>
   title: string
   message: string
+  description?: string
   confirmLabel?: string
   tone?: 'danger' | 'primary'
 }
@@ -17,6 +18,7 @@ export function ConfirmDialog({
   onConfirm,
   title,
   message,
+  description,
   confirmLabel = 'Confirm',
   tone = 'danger',
 }: ConfirmDialogProps) {
@@ -37,6 +39,9 @@ export function ConfirmDialog({
       )}
     >
       <Text className="text-sm leading-6 text-slate-600">{message}</Text>
+      {description && (
+        <Text className="text-sm leading-6 text-slate-500 mt-2">{description}</Text>
+      )}
     </OverlayDialog>
   )
 }
