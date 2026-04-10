@@ -2,40 +2,6 @@
 
 _All work below is additive and backwards-compatible. Preserve existing Firebase/AceBase paths, existing preview/index nodes under `users/*`, existing scoreboard URLs/query params, and existing flat match fields until every reader has been migrated and verified. Every implementation task includes schema docs, migration/backfill work, UI states, permission checks, and automated verification before release._
 
-## Status Updates
-Completed items are marked here conservatively based on implemented and verified work.
-
-- [done] CI-1 core goal: typecheck baseline restored, `@ts-nocheck` regression gate added, and `npm run typecheck` / build baseline restored.
-- [done] CI-4 sub-task: replace raw table/player-list password storage with hashed or capability-based access while preserving legacy reads during migration.
-- [done] CI-4 sub-task: add signed QR/operator links for table scoring, team-match scoring, public score viewing, and player self-registration.
-- [done] CI-4 sub-task: add auth and permission enforcement in the server database proxy so client-side hiding is not the only protection layer.
-- [done] CI-4 sub-task: replace the QR placeholder page with a real generation/management workflow.
-- [done] CI-5 sub-task: define `schemaVersion` for matches and team matches.
-- [done] CI-5 sub-task: introduce additive normalized structures for per-game data, point history, audit events, and scheduling metadata.
-- [done] CI-5 sub-task: preserve current flat fields while normalized structures are added.
-- [done] Feature 1.2 foundation: reusable subscription helpers adopted across key admin screens including tables, team matches, scheduled queues, dynamic URLs, scoreboards, templates, players, and bulk pages.
-- [done] Feature 1.3 foundation: live table cards now show current match summary, queue count, next queued match, and sync-aware status.
-- [done] Feature 1.4 foundation: team-match cards now show live team score and current table summaries.
-- [done] Feature 3.1 foundation: scheduled-match queue model now carries explicit queue order, status, notes, and assigned-scorer metadata.
-- [done] Feature 3.2 foundation: `Promote next match` and `Promote selected match` workflows exist for table queues.
-- [done] Feature 3.4 foundation: bulk queue select/status/time/remove and copy/move between tables are implemented.
-- [done] Feature 3.5 foundation: table-level auto-advance settings now support `manual`, `prompt`, and `automatic` modes with delay.
-- [done] Feature 5.1 foundation: QR generation/management exists for scoring, public score view, and player registration links with revocation support.
-- [done] Feature 5.3 foundation: public score view route now has safe loading/expired/missing-target/no-active-match states plus live spectator context.
-- [done] Feature 5.4 foundation: floor judge mode now supports pause/resume, dispute flags, penalty/card updates, and judge notes with audit logging.
-- [done] Feature 5.5 foundation: player self-registration supports signed registration tokens while preserving existing routes.
-- [done] Feature 2.1 foundation: canonical `tournaments/{tournamentID}` records and user preview/index nodes under `users/{uid}` are implemented.
-- [done] Feature 2.2 foundation: tournament list/detail routes and core create/edit UI are implemented.
-- [done] Feature 2.2 slice: tournament list now supports create, duplicate, archive, and delete actions.
-- [done] Feature 2.3 foundation: bracket records, single-elimination bracket generation, manual seed editing, bracket-node editing, and a public bracket view route are implemented.
-- [done] Feature 2.4 foundation: rounds support edit/reorder/status transitions, lock state, visibility changes, and explicit override before mutating locked/completed rounds.
-- [done] Feature 2.5 foundation: tournament schedule blocks exist as event-level schedule records and can be assigned to tables.
-- [done] Feature 2.5 bridge: tournament schedule blocks can create source matches, queue onto table queues, and resync derived queue items.
-- [done] Feature 2.6 foundation: `matchRound` and `eventName` are now carried into table cards, team-match cards, scoring station headers, archived matches, public score view, and scoreboard/editor field lists.
-- [done] Feature 4.1 foundation: additive tournament-level role/grant model exists for `owner`, `admin`, `scorer`, and `viewer`.
-- [done] Feature 4.2 foundation: tournament staff management now supports direct user grants, pending email invites, role filtering, inline role changes, and revoke flows.
-- [done] Feature 4.4 foundation: tournament detail and tournament list now gate major management actions by effective role, and the server database proxy enforces tournament owner/admin writes for authenticated users.
-
 ## Critical Issues (Fix First)
 ### CI-1: Eliminate TypeScript debt and restore a green typecheck baseline
 - Task: Remove the current TypeScript delivery blocker by inventorying the 83 `@ts-nocheck` files, fixing the active `npm run typecheck` failures, and establishing a zero-regression baseline.
