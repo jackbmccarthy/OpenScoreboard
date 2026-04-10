@@ -6,6 +6,8 @@ import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import { addNewTeam, deleteMyTeam, getTeam, subscribeToMyTeams, updateMyTeam, updateTeam } from '@/functions/teams'
+import SyncIndicator from '@/components/realtime/SyncIndicator'
+import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
 
 interface TeamRow {
   id: string
@@ -37,6 +39,7 @@ export default function TeamsPage() {
 
   const [teams, setTeams] = useState<TeamEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [editingTeam, setEditingTeam] = useState<{ myTeamID: string; teamID?: string } | null>(null)
   const [teamDraft, setTeamDraft] = useState<TeamDraft>(emptyTeamDraft)
@@ -44,10 +47,17 @@ export default function TeamsPage() {
 
   useEffect(() => {
     if (authLoading) return
-    return subscribeToMyTeams((myTeams) => {
+    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myTeams`, (state) => {
+      setSyncStatus(state.status)
+    })
+    const unsubscribeTeams = subscribeToMyTeams((myTeams) => {
       setTeams(myTeams as TeamEntry[])
       setLoading(false)
     }, user?.uid || 'mylocalserver')
+    return () => {
+      unsubscribeState()
+      unsubscribeTeams()
+    }
   }, [authLoading, user])
 
   const openNewTeamModal = () => {
@@ -108,7 +118,13 @@ export default function TeamsPage() {
     <Box className="flex-1 bg-white">
       <VStack space="md" className="p-4">
         <HStack className="justify-between items-center">
-          <Heading size="lg">Teams</Heading>
+          <VStack className="gap-1">
+            <HStack className="items-center gap-2">
+              <Heading size="lg">Teams</Heading>
+              <SyncIndicator status={syncStatus} />
+            </HStack>
+            <Text className="text-gray-500 text-sm">Manage your teams for matches</Text>
+          </VStack>
           <HStack className="gap-2">
             <Button size="sm" variant="outline" onClick={() => navigate('/bulkteams')}>
               <Text>Bulk Manage</Text>

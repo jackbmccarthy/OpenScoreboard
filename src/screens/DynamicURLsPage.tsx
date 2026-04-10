@@ -8,6 +8,8 @@ import { subscribeToMyScoreboards } from '@/functions/scoreboards'
 import { subscribeToMyTables } from '@/functions/tables'
 import { subscribeToMyTeamMatches } from '@/functions/teammatches'
 import { useAuth } from '@/lib/auth'
+import SyncIndicator from '@/components/realtime/SyncIndicator'
+import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
 
 type DynamicURLDraft = {
   dynamicURLName: string
@@ -65,6 +67,7 @@ export default function DynamicURLsPage() {
   const [tables, setTables] = useState<TableEntry[]>([])
   const [teamMatches, setTeamMatches] = useState<TeamMatchEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
   const [showDynamicURLModal, setShowDynamicURLModal] = useState(false)
   const [editingDynamicURL, setEditingDynamicURL] = useState<{ myDynamicURLID: string; dynamicURLID: string } | null>(null)
   const [dynamicURLDraft, setDynamicURLDraft] = useState<DynamicURLDraft>(emptyDynamicURLDraft)
@@ -73,6 +76,9 @@ export default function DynamicURLsPage() {
   useEffect(() => {
     if (authLoading) return
 
+    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myDynamicURLs`, (state) => {
+      setSyncStatus(state.status)
+    })
     const unsubscribeURLs = subscribeToMyDynamicURLs((urls) => {
       setDynamicURLs(urls as DynamicURLEntry[])
       setLoading(false)
@@ -82,6 +88,7 @@ export default function DynamicURLsPage() {
     const unsubscribeTeamMatches = subscribeToMyTeamMatches((teamMatchRows) => setTeamMatches(teamMatchRows as TeamMatchEntry[]), user?.uid || 'mylocalserver')
 
     return () => {
+      unsubscribeState()
       unsubscribeURLs()
       unsubscribeScoreboards()
       unsubscribeTables()
@@ -160,7 +167,13 @@ export default function DynamicURLsPage() {
     <Box className="p-4">
       <VStack space="md">
         <HStack className="items-center justify-between">
-          <Heading size="lg">Dynamic URLs</Heading>
+          <VStack className="gap-1">
+            <HStack className="items-center gap-2">
+              <Heading size="lg">Dynamic URLs</Heading>
+              <SyncIndicator status={syncStatus} />
+            </HStack>
+            <Text className="text-gray-500 text-sm">Shareable scoreboard links for tables and team matches</Text>
+          </VStack>
           <Button onClick={openNewDynamicURLModal}>
             <PlusIcon size={16} />
             <Text className="ml-1 text-white">New Dynamic URL</Text>

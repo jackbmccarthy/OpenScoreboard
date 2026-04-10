@@ -17,6 +17,8 @@ import {
   subscribeToPlayerListPlayers,
   updatePlayerListName,
 } from '@/functions/players'
+import SyncIndicator from '@/components/realtime/SyncIndicator'
+import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
 import { newImportedPlayer } from '@/classes/Player'
 import countries from '@/flags/countries.json'
 
@@ -56,6 +58,7 @@ export default function PlayersPage() {
   const [selectedList, setSelectedList] = useState<{ myPlayerListID: string; id: string; name: string } | null>(null)
   const [players, setPlayers] = useState<PlayerEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
 
   const [showNewListModal, setShowNewListModal] = useState(false)
   const [showPlayersModal, setShowPlayersModal] = useState(false)
@@ -71,10 +74,17 @@ export default function PlayersPage() {
 
   useEffect(() => {
     if (authLoading) return
-    return subscribeToMyPlayerLists((lists) => {
+    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myPlayerLists`, (state) => {
+      setSyncStatus(state.status)
+    })
+    const unsubscribePlayerLists = subscribeToMyPlayerLists((lists) => {
       setPlayerLists((lists || []) as PlayerListEntry[])
       setLoading(false)
     }, user?.uid || 'mylocalserver')
+    return () => {
+      unsubscribeState()
+      unsubscribePlayerLists()
+    }
   }, [authLoading, user])
 
   useEffect(() => {
@@ -175,7 +185,13 @@ export default function PlayersPage() {
     <Box className="flex-1 bg-white">
       <VStack space="md" className="p-4">
         <HStack className="justify-between items-center">
-          <Heading size="lg">Players</Heading>
+          <VStack className="gap-1">
+            <HStack className="items-center gap-2">
+              <Heading size="lg">Players</Heading>
+              <SyncIndicator status={syncStatus} />
+            </HStack>
+            <Text className="text-gray-500 text-sm">Manage player lists and players</Text>
+          </VStack>
           <Button size="sm" variant="solid" action="primary" onClick={() => setShowNewListModal(true)}>
             <PlusIcon size={16} />
             <Text className="ml-1 text-white">New List</Text>

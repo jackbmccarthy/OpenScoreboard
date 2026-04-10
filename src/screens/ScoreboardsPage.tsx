@@ -8,6 +8,8 @@ import OverlayDialog from '@/components/crud/OverlayDialog'
 import { addNewScoreboard, deleteMyScoreboard, duplicateScoreboard, getScoreboardTypesList, subscribeToMyScoreboards, updateScoreboardDetails } from '@/functions/scoreboards'
 import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
 import { createScoreboardFromTemplate, subscribeToScoreboardTemplates } from '@/functions/scoreboardTemplates'
+import SyncIndicator from '@/components/realtime/SyncIndicator'
+import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
 
 type ScoreboardDraft = {
   name: string
@@ -59,6 +61,7 @@ export default function ScoreboardsPage() {
   const [scoreboardTypes, setScoreboardTypes] = useState<ScoreboardTypeOption[]>([])
   const [templates, setTemplates] = useState<ScoreboardTemplateRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
   const [showScoreboardModal, setShowScoreboardModal] = useState(false)
   const [showCreateOptionsModal, setShowCreateOptionsModal] = useState(false)
   const [editingScoreboard, setEditingScoreboard] = useState<{ myScoreboardID: string; scoreboardID: string } | null>(null)
@@ -73,6 +76,9 @@ export default function ScoreboardsPage() {
     if (authLoading) return
 
     setScoreboardTypes(getScoreboardTypesList() as ScoreboardTypeOption[])
+    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myScoreboards`, (state) => {
+      setSyncStatus(state.status)
+    })
     const unsubscribeScoreboards = subscribeToMyScoreboards((myScoreboards) => {
       setScoreboards(myScoreboards as ScoreboardEntry[])
       setLoading(false)
@@ -92,6 +98,7 @@ export default function ScoreboardsPage() {
     })
 
     return () => {
+      unsubscribeState()
       unsubscribeScoreboards()
       unsubscribeTemplates()
     }
@@ -180,7 +187,10 @@ export default function ScoreboardsPage() {
       <VStack space="md" className="p-4">
         <HStack className="justify-between items-center">
           <VStack className="gap-1">
-            <Heading size="lg">My Scoreboards</Heading>
+            <HStack className="items-center gap-2">
+              <Heading size="lg">My Scoreboards</Heading>
+              <SyncIndicator status={syncStatus} />
+            </HStack>
             <Text className="text-sm text-slate-500">Manage your scoreboards, previews, templates, and editor entrypoints from one page.</Text>
           </VStack>
           <Button size="sm" variant="solid" action="primary" onClick={openNewScoreboardModal}>
