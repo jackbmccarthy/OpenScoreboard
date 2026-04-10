@@ -2,7 +2,7 @@ import db, { getUserPath } from '@/lib/database'
 import { canManageTournament, canTransferTournament, canViewTournament } from '@/lib/tournamentPermissions'
 import { subscribeToPathValue } from '@/lib/realtime'
 import { newTournament } from '@/classes/Tournament'
-import { getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion'
+import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteTournamentChildren } from './deletion'
 import { addScheduledMatch, deleteScheduledTableMatch, moveScheduledTableMatchToTable, updateScheduledMatch } from './scoring'
 import Match from '@/classes/Match'
 
@@ -334,8 +334,11 @@ export async function deleteMyTournament(myTournamentID: string) {
   const preview = await getPreviewValue(previewPath)
   const tournamentID = preview?.id
   if (typeof tournamentID === 'string' && tournamentID.length > 0) {
+    // Cascade soft-delete to all child entities before soft-deleting the tournament
+    const deletedChildren = await softDeleteTournamentChildren(tournamentID, 'parent_tournament_deleted')
     await softDeleteCanonical(`tournaments/${tournamentID}`, {
       deleteReason: 'delete_tournament',
+      deletedChildren,
     }, {
       entityType: 'tournament',
       canonicalID: tournamentID,

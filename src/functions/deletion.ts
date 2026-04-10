@@ -154,3 +154,59 @@ export async function clearPlayerListIdFromTables(playerListID: string) {
 
   return cleared
 }
+
+/**
+ * Returns the IDs of all child records at a given tournament sub-path.
+ * Scans the path and returns active record IDs.
+ */
+async function getTournamentChildIds(tournamentID: string, childPath: string): Promise<string[]> {
+  const snapshot = await db.ref(`tournaments/${tournamentID}/${childPath}`).get()
+  const children = snapshot.val()
+
+  if (!children || typeof children !== 'object') {
+    return []
+  }
+
+  return Object.entries(children)
+    .filter(([, record]) => isRecordActive(record as Record<string, any>))
+    .map(([id]) => id)
+}
+
+/**
+ * Soft-delete all child entities of a tournament.
+ * Used as part of cascade delete when a tournament is deleted.
+ * Returns a map of child type -> deleted count.
+ */
+export async function softDeleteTournamentChildren(
+  tournamentID: string,
+  reason = 'parent_tournament_deleted',
+): Promise<Record<string, string[]>> {
+  const childPaths = [
+    'events',
+    'rounds',
+    'brackets',
+    'scheduleBlocks',
+    'staffAssignments',
+    'pendingInvites',
+  ]
+
+  const result: Record<string, string[]> = {}
+
+  for (const childPath of childPaths) {
+    const childIds = await getTournamentChildIds(tournamentID, childPath)
+    for (const childId of childIds) {
+      await softDeleteCanonical(
+        `tournaments/${tournamentID}/${childPath}/${childId}`,
+        { deleteReason: reason },
+        {
+          entityType: childPath.slice(0, -1), // singular form
+          canonicalID: childId,
+          ownerID: tournamentID,
+        },
+      )
+    }
+    result[childPath] = childIds
+  }
+
+  return result
+}
