@@ -73,11 +73,6 @@ export async function getTableName(tableID) {
   return name.val()
 }
 
-export async function getTablePassword(tableID) {
-  let passwordSnap = await db.ref("tables/" + tableID + "/password").get()
-  return passwordSnap.val()
-}
-
 export async function isTableAccessRequired(tableID: string) {
   const tableSnap = await db.ref(`tables/${tableID}`).get()
   return hasAccessSecret(tableSnap.val())
