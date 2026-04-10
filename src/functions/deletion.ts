@@ -129,3 +129,28 @@ export async function softDeleteDynamicURLsByReference({
 
   return deleted
 }
+
+/**
+ * Clear playerListID on any table records that reference the given player list.
+ * This prevents dangling references after a player list is deleted.
+ */
+export async function clearPlayerListIdFromTables(playerListID: string) {
+  const snapshot = await db.ref('tables').get()
+  const tables = snapshot.val()
+
+  if (!tables || typeof tables !== 'object') {
+    return []
+  }
+
+  const cleared: string[] = []
+
+  for (const [tableID, table] of Object.entries(tables)) {
+    const candidate = table as Record<string, any>
+    if (candidate.playerListID === playerListID) {
+      await db.ref(`tables/${tableID}/playerListID`).set(null)
+      cleared.push(tableID)
+    }
+  }
+
+  return cleared
+}

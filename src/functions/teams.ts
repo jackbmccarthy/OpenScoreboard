@@ -1,6 +1,6 @@
 import db, { getUserPath } from '../lib/database';
 import { subscribeToPathValue } from '../lib/realtime';
-import { getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
+import { clearPlayerListIdFromTables, getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
 
 function normalizeTeam(team) {
     return {
@@ -8,6 +8,29 @@ function normalizeTeam(team) {
         teamLogoURL: team?.teamLogoURL || "",
         players: team?.players || team?.teamPlayers || {}
     }
+}
+
+/**
+ * Returns team match IDs (canonical) that still have an active reference to the given team.
+ * Used to detect dangling references before deleting a team.
+ */
+async function getActiveTeamMatchRefs(teamID: string): Promise<string[]> {
+    const snapshot = await db.ref('teamMatches').get()
+    const teamMatches = snapshot.val()
+    if (!teamMatches || typeof teamMatches !== 'object') {
+        return []
+    }
+    const refs: string[] = []
+    for (const [teamMatchID, teamMatch] of Object.entries(teamMatches)) {
+        const candidate = teamMatch as Record<string, any>
+        if (
+            isRecordActive(candidate) &&
+            (candidate.teamAID === teamID || candidate.teamBID === teamID)
+        ) {
+            refs.push(teamMatchID)
+        }
+    }
+    return refs
 }
 
 export async function addNewTeam(team,) {
@@ -82,8 +105,10 @@ export async function deleteMyTeam(myTeamID) {
     const preview = await getPreviewValue(previewPath)
     const teamID = preview?.id
     if (typeof teamID === 'string' && teamID.length > 0) {
+        const activeTeamMatchRefs = await getActiveTeamMatchRefs(teamID)
         await softDeleteCanonical(`teams/${teamID}`, {
-            deleteReason: 'delete_team'
+            deleteReason: 'delete_team',
+            clearedTeamMatchRefs: activeTeamMatchRefs,
         }, {
             entityType: 'team',
             canonicalID: teamID,

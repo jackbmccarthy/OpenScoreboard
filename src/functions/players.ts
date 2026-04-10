@@ -3,7 +3,7 @@ import { subscribeToPathValue } from '../lib/realtime';
 
 import { v4 as uuidv4 } from 'uuid';
 import { buildAccessSecretMetadata, hasAccessSecret, isAccessSecretValid } from './accessSecrets';
-import { getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
+import { clearPlayerListIdFromTables, getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
 
 export async function resetPlayerListPassword(playerListID) {
     let newPassword = uuidv4()
@@ -260,8 +260,11 @@ export async function deletePlayerList(myPlayerListID) {
     const preview = await getPreviewValue(previewPath)
     const playerListID = preview?.id
     if (typeof playerListID === 'string' && playerListID.length > 0) {
+        // Clear dangling table references before soft-deleting the player list
+        const clearedTables = await clearPlayerListIdFromTables(playerListID)
         await softDeleteCanonical(`playerLists/${playerListID}`, {
-            deleteReason: 'delete_player_list'
+            deleteReason: 'delete_player_list',
+            clearedTables,
         }, {
             entityType: 'playerList',
             canonicalID: playerListID,
