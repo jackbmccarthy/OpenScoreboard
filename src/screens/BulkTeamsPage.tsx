@@ -130,9 +130,12 @@ export default function BulkTeamsPage() {
 
   useEffect(() => {
     if (authLoading) return
-    return subscribeToMyTeams((myTeams) => {
+    const unsubscribeTeams = subscribeToMyTeams((myTeams) => {
       loadTeams(myTeams as TeamEntry[])
     })
+    return () => {
+      unsubscribeTeams()
+    }
   }, [authLoading])
 
   useEffect(() => {

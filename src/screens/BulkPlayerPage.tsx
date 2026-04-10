@@ -140,9 +140,12 @@ export default function BulkPlayerPage() {
 
   useEffect(() => {
     if (authLoading) return
-    return subscribeToMyPlayerLists((lists) => {
+    const unsubscribePlayerLists = subscribeToMyPlayerLists((lists) => {
       loadPlayerLists((lists || []) as PlayerListEntry[])
     })
+    return () => {
+      unsubscribePlayerLists()
+    }
   }, [authLoading, selectedPlayerListID])
 
   useEffect(() => {
@@ -150,9 +153,12 @@ export default function BulkPlayerPage() {
       setRows([])
       return
     }
-    return subscribeToPlayerListPlayers(selectedPlayerListID, (players) => {
+    const unsubscribePlayers = subscribeToPlayerListPlayers(selectedPlayerListID, (players) => {
       loadPlayers(players as PlayerEntry[])
     })
+    return () => {
+      unsubscribePlayers()
+    }
   }, [selectedPlayerListID])
 
   const visibleRows = useMemo(() => rows, [rows])
