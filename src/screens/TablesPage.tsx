@@ -280,7 +280,7 @@ export default function TablesPage() {
     setShowDynamicURLSaveModal(false)
     setSelectedLinkCombo(null)
     setDynamicURLName('')
-    setDynamicURLs((await getMyDynamicURLs()).filter(Boolean) as DynamicURLEntry[])
+    // Subscription handles live updates — no manual reload needed
   }
 
   if (authLoading || loading) {
