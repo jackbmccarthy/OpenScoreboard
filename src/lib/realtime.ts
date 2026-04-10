@@ -1,3 +1,39 @@
+/**
+ * Shared realtime subscription layer for OpenScoreboard.
+ *
+ * ## When to Use Which Helper
+ *
+ * - `subscribeToPathValue` — use when you need the raw database value and don't need
+ *   to track connection status. Returns `(value, snapshot) => void`.
+ *
+ * - `subscribeToPathState` — use when you need a status UI (loading, live, stale, offline, error).
+ *   Wraps the raw value with a `RealtimeState<T>` that includes `status`, `value`,
+ *   `error`, and `updatedAt`. Has built-in stale detection (15s) and online/offline detection.
+ *
+ * ## Status Values
+ *
+ * | Status   | Meaning                                                       |
+ * |----------|---------------------------------------------------------------|
+ * | idle     | Initial state, before the first value arrives                   |
+ * | loading  | Connection established, waiting for first value                 |
+ * | live     | Value received and fresh                                      |
+ * | stale    | Value is older than 15 seconds (connection may be unhealthy)  |
+ * | error    | Subscription failed                                           |
+ * | offline  | Browser is offline                                             |
+ *
+ * ## Cleanup Contract
+ *
+ * Both helpers return an `RealtimeUnsubscribe` function. You MUST call it in the
+ * useEffect cleanup (return () => unsubscribe()). Failing to do so leaks listeners
+ * and causes duplicate updates, especially on route changes.
+ *
+ * ## Adding New Subscriptions
+ *
+ * When adding a new subscription to a screen:
+ * 1. Assign the unsubscribe function to a const
+ * 2. Add it to the useEffect cleanup return
+ * 3. Do not call ref.off() directly — always use the returned unsubscribe
+ */
 import db from './database'
 
 export type RealtimeSnapshot<T = unknown> = {
