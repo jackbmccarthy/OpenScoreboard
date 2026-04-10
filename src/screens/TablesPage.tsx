@@ -221,14 +221,14 @@ export default function TablesPage() {
     setShowTableModal(false)
     setEditingTable(null)
     setTableDraft(emptyTableDraft)
-    await reloadTables()
+    // Subscription (subscribeToPathState + subscribeToMyTables) fires when data changes — no manual reload needed
   }
 
   const handleDeleteTable = async () => {
     if (!pendingDeleteTable) return
     await deleteTable(pendingDeleteTable.myTableID)
     setPendingDeleteTable(null)
-    await reloadTables()
+    // Subscription fires when data changes — no manual reload needed
   }
 
   const getTableScoreboardLinks = (table: TableRow): TableScoreboardLink[] => {

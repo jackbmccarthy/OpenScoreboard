@@ -140,14 +140,14 @@ export default function DynamicURLsPage() {
     setShowDynamicURLModal(false)
     setEditingDynamicURL(null)
     setDynamicURLDraft(emptyDynamicURLDraft)
-    await reloadDynamicURLs()
+    // Subscription fires when data changes — no manual reload needed
   }
 
   const handleDeleteDynamicURL = async () => {
     if (!pendingDeleteDynamicURL) return
     await deleteDynamicURL(pendingDeleteDynamicURL.myDynamicURLID, pendingDeleteDynamicURL.dynamicURLID)
     setPendingDeleteDynamicURL(null)
-    await reloadDynamicURLs()
+    // Subscription fires when data changes — no manual reload needed
   }
 
   const scoreboardOptions = useMemo(
