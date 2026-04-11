@@ -184,6 +184,21 @@ export type TournamentPendingInviteRecord = {
   updatedAt: string
 }
 
+function normalizeTournamentEventRecord(
+  event: Partial<TournamentEventRecord> | null | undefined,
+): TournamentEventRecord {
+  const now = new Date().toISOString()
+  return {
+    name: String(event?.name || ''),
+    shortCode: String(event?.shortCode || ''),
+    format: String(event?.format || 'single-elimination'),
+    status: (event?.status || 'draft') as TournamentEventRecord['status'],
+    visibility: (event?.visibility || 'private') as TournamentVisibility,
+    createdAt: String(event?.createdAt || now),
+    updatedAt: String(event?.updatedAt || now),
+  }
+}
+
 function normalizeTournamentRoundRecord(
   round: Partial<TournamentRoundRecord> | null | undefined,
   orderFallback = 1,
@@ -249,6 +264,180 @@ function normalizeTournamentScheduleBlockRecord(
     generatedOrder: Number(scheduleBlock?.generatedOrder || 0),
     createdAt: String(scheduleBlock?.createdAt || now),
     updatedAt: String(scheduleBlock?.updatedAt || now),
+  }
+}
+
+function normalizeTournamentBracketNode(
+  node: Partial<TournamentBracketNode> | null | undefined,
+  nodeID = '',
+): TournamentBracketNode {
+  return {
+    id: String(node?.id || nodeID),
+    roundNumber: Number(node?.roundNumber || 1),
+    matchNumber: Number(node?.matchNumber || 1),
+    topSeed: typeof node?.topSeed === 'number' ? node.topSeed : null,
+    bottomSeed: typeof node?.bottomSeed === 'number' ? node.bottomSeed : null,
+    topLabel: String(node?.topLabel || 'TBD'),
+    bottomLabel: String(node?.bottomLabel || 'TBD'),
+    status: (node?.status || 'unassigned') as TournamentBracketNode['status'],
+    sourceMatchID: String(node?.sourceMatchID || ''),
+    scheduleBlockID: String(node?.scheduleBlockID || ''),
+    winnerSeed: typeof node?.winnerSeed === 'number' ? node.winnerSeed : null,
+  }
+}
+
+function normalizeTournamentBracketRecord(
+  bracket: Partial<TournamentBracketRecord> | null | undefined,
+): TournamentBracketRecord {
+  const now = new Date().toISOString()
+  const normalizedSeeds = Array.isArray(bracket?.seeds)
+    ? bracket.seeds
+      .filter((seed) => seed && typeof seed === 'object')
+      .map((seed, index) => ({
+        seedNumber: Number(seed.seedNumber || index + 1),
+        label: String(seed.label || `Seed ${index + 1}`),
+      }))
+    : []
+  const normalizedNodes = bracket?.nodes && typeof bracket.nodes === 'object'
+    ? Object.fromEntries(
+      Object.entries(bracket.nodes as Record<string, unknown>)
+        .filter(([, node]) => node && typeof node === 'object')
+        .map(([nodeID, node]) => [nodeID, normalizeTournamentBracketNode(node as Partial<TournamentBracketNode>, nodeID)]),
+    )
+    : {}
+
+  return {
+    name: String(bracket?.name || ''),
+    eventID: String(bracket?.eventID || ''),
+    format: (bracket?.format || 'single-elimination') as TournamentBracketRecord['format'],
+    seedCount: Number(bracket?.seedCount || normalizedSeeds.length || 8),
+    seeds: normalizedSeeds,
+    status: (bracket?.status || 'draft') as TournamentBracketRecord['status'],
+    visibility: (bracket?.visibility || 'private') as TournamentVisibility,
+    nodes: normalizedNodes,
+    settings: {
+      includeThirdPlaceMatch: Boolean(bracket?.settings?.includeThirdPlaceMatch),
+      allowManualOverrides: bracket?.settings?.allowManualOverrides !== false,
+      byeStrategy: (bracket?.settings?.byeStrategy || 'top-seeds') as TournamentBracketRecord['settings']['byeStrategy'],
+    },
+    createdAt: String(bracket?.createdAt || now),
+    updatedAt: String(bracket?.updatedAt || now),
+  }
+}
+
+function normalizeTournamentStaffAssignmentRecord(
+  assignment: Partial<TournamentStaffAssignmentRecord> | null | undefined,
+): TournamentStaffAssignmentRecord {
+  const now = new Date().toISOString()
+  return {
+    subjectType: 'user',
+    subjectID: String(assignment?.subjectID || ''),
+    role: (assignment?.role || 'viewer') as TournamentGrantRole,
+    scope: 'tournament',
+    note: String(assignment?.note || ''),
+    createdAt: String(assignment?.createdAt || now),
+    updatedAt: String(assignment?.updatedAt || now),
+  }
+}
+
+function normalizeTournamentPendingInviteRecord(
+  invite: Partial<TournamentPendingInviteRecord> | null | undefined,
+): TournamentPendingInviteRecord {
+  const now = new Date().toISOString()
+  return {
+    email: String(invite?.email || ''),
+    role: (invite?.role || 'viewer') as TournamentGrantRole,
+    scope: 'tournament',
+    note: String(invite?.note || ''),
+    expiresAt: String(invite?.expiresAt || now),
+    createdAt: String(invite?.createdAt || now),
+    updatedAt: String(invite?.updatedAt || now),
+  }
+}
+
+function normalizeTournamentRecord(
+  tournamentValue: Partial<TournamentRecord> | null | undefined,
+): TournamentRecord {
+  const now = new Date().toISOString()
+  const tournament = tournamentValue && typeof tournamentValue === 'object'
+    ? tournamentValue
+    : {}
+
+  const events = tournament.events && typeof tournament.events === 'object'
+    ? Object.fromEntries(
+      Object.entries(tournament.events as Record<string, unknown>)
+        .filter(([, event]) => event && typeof event === 'object')
+        .map(([eventID, event]) => [eventID, normalizeTournamentEventRecord(event as Partial<TournamentEventRecord>)]),
+    )
+    : {}
+  const rounds = tournament.rounds && typeof tournament.rounds === 'object'
+    ? Object.fromEntries(
+      Object.entries(tournament.rounds as Record<string, unknown>)
+        .filter(([, round]) => round && typeof round === 'object')
+        .map(([roundID, round], index) => [roundID, normalizeTournamentRoundRecord(round as Partial<TournamentRoundRecord>, index + 1)]),
+    )
+    : {}
+  const brackets = tournament.brackets && typeof tournament.brackets === 'object'
+    ? Object.fromEntries(
+      Object.entries(tournament.brackets as Record<string, unknown>)
+        .filter(([, bracket]) => bracket && typeof bracket === 'object')
+        .map(([bracketID, bracket]) => [bracketID, normalizeTournamentBracketRecord(bracket as Partial<TournamentBracketRecord>)]),
+    )
+    : {}
+  const scheduleBlocks = tournament.scheduleBlocks && typeof tournament.scheduleBlocks === 'object'
+    ? Object.fromEntries(
+      Object.entries(tournament.scheduleBlocks as Record<string, unknown>)
+        .filter(([, scheduleBlock]) => scheduleBlock && typeof scheduleBlock === 'object')
+        .map(([scheduleBlockID, scheduleBlock]) => [scheduleBlockID, normalizeTournamentScheduleBlockRecord(scheduleBlock as Partial<TournamentScheduleBlockRecord>)]),
+    )
+    : {}
+  const staffAssignments = tournament.staffAssignments && typeof tournament.staffAssignments === 'object'
+    ? Object.fromEntries(
+      Object.entries(tournament.staffAssignments as Record<string, unknown>)
+        .filter(([, assignment]) => assignment && typeof assignment === 'object')
+        .map(([assignmentID, assignment]) => [assignmentID, normalizeTournamentStaffAssignmentRecord(assignment as Partial<TournamentStaffAssignmentRecord>)]),
+    )
+    : {}
+  const pendingInvites = tournament.pendingInvites && typeof tournament.pendingInvites === 'object'
+    ? Object.fromEntries(
+      Object.entries(tournament.pendingInvites as Record<string, unknown>)
+        .filter(([, invite]) => invite && typeof invite === 'object')
+        .map(([inviteID, invite]) => [inviteID, normalizeTournamentPendingInviteRecord(invite as Partial<TournamentPendingInviteRecord>)]),
+    )
+    : {}
+
+  return {
+    ...tournament,
+    ownerID: String(tournament.ownerID || ''),
+    name: String(tournament.name || ''),
+    shortCode: String(tournament.shortCode || ''),
+    venue: String(tournament.venue || ''),
+    timezone: String(tournament.timezone || ''),
+    startDate: String(tournament.startDate || ''),
+    endDate: String(tournament.endDate || ''),
+    description: String(tournament.description || ''),
+    visibility: (tournament.visibility || 'private') as TournamentVisibility,
+    status: (tournament.status || 'draft') as TournamentStatus,
+    settings: tournament.settings && typeof tournament.settings === 'object'
+      ? tournament.settings as Record<string, unknown>
+      : {},
+    events,
+    rounds,
+    brackets,
+    scheduleBlocks,
+    staffAssignments,
+    pendingInvites,
+    publicVisibility: {
+      ...((tournament.publicVisibility && typeof tournament.publicVisibility === 'object')
+        ? tournament.publicVisibility
+        : {}),
+      registration: Boolean(tournament.publicVisibility?.registration),
+      brackets: Boolean(tournament.publicVisibility?.brackets),
+      liveScores: Boolean(tournament.publicVisibility?.liveScores),
+      schedule: Boolean(tournament.publicVisibility?.schedule),
+    },
+    createdAt: String(tournament.createdAt || now),
+    updatedAt: String(tournament.updatedAt || now),
   }
 }
 
@@ -1022,7 +1211,7 @@ export async function addNewTournament(input: {
 export async function getTournament(tournamentID: string) {
   const snapshot = await db.ref(`tournaments/${tournamentID}`).get()
   const tournament = snapshot.val()
-  return isRecordActive(tournament) ? tournament as TournamentRecord : null
+  return isRecordActive(tournament) ? normalizeTournamentRecord(tournament as Partial<TournamentRecord>) : null
 }
 
 export function subscribeToTournament(
@@ -1030,7 +1219,7 @@ export function subscribeToTournament(
   callback: (tournament: TournamentRecord | null) => void,
 ) {
   return subscribeToPathValue(`tournaments/${tournamentID}`, (tournamentValue) => {
-    callback(isRecordActive(tournamentValue) ? tournamentValue as TournamentRecord : null)
+    callback(isRecordActive(tournamentValue) ? normalizeTournamentRecord(tournamentValue as Partial<TournamentRecord>) : null)
   })
 }
 
@@ -1039,11 +1228,19 @@ export async function updateTournament(tournamentID: string, patch: Partial<Tour
   if (!currentTournament) {
     throw new Error('Tournament not found')
   }
-  const nextTournament: TournamentRecord = {
+  const nextTournament = normalizeTournamentRecord({
     ...currentTournament,
     ...patch,
+    settings: {
+      ...(currentTournament.settings || {}),
+      ...((patch.settings && typeof patch.settings === 'object') ? patch.settings : {}),
+    },
+    publicVisibility: {
+      ...(currentTournament.publicVisibility || {}),
+      ...((patch.publicVisibility && typeof patch.publicVisibility === 'object') ? patch.publicVisibility : {}),
+    },
     updatedAt: new Date().toISOString(),
-  }
+  })
   await db.ref(`tournaments/${tournamentID}`).set(nextTournament)
   return nextTournament
 }

@@ -202,6 +202,63 @@ export default function TournamentDetailPage() {
   const canManage = canManageTournament(effectiveRole)
   const canView = canViewTournament(effectiveRole)
   const canTransfer = canTransferTournament(effectiveRole)
+  const updateField = async (patch: Partial<TournamentRecord>) => {
+    if (!canManage) return
+    await updateTournament(tournamentID, patch)
+  }
+  const eventEntries = useMemo(
+    () => Object.entries((tournament?.events || {}) as Record<string, TournamentEventRecord>),
+    [tournament?.events],
+  )
+  const roundEntries = useMemo(
+    () => Object.entries((tournament?.rounds || {}) as Record<string, TournamentRoundRecord>)
+      .sort((a, b) => (a[1].order || 0) - (b[1].order || 0)),
+    [tournament?.rounds],
+  )
+  const bracketEntries = useMemo(
+    () => Object.entries((tournament?.brackets || {}) as Record<string, TournamentBracketRecord>),
+    [tournament?.brackets],
+  )
+  const scheduleEntries = useMemo(
+    () => Object.entries((tournament?.scheduleBlocks || {}) as Record<string, TournamentScheduleBlockRecord>)
+      .sort((a, b) => new Date(a[1].scheduledStartTime || 0).getTime() - new Date(b[1].scheduledStartTime || 0).getTime()),
+    [tournament?.scheduleBlocks],
+  )
+  const staffEntries = useMemo(
+    () => Object.entries((tournament?.staffAssignments || {}) as Record<string, TournamentStaffAssignmentRecord>),
+    [tournament?.staffAssignments],
+  )
+  const pendingInviteEntries = useMemo(
+    () => Object.entries((tournament?.pendingInvites || {}) as Record<string, TournamentPendingInviteRecord>),
+    [tournament?.pendingInvites],
+  )
+  const visibleStaffEntries = useMemo(
+    () => staffEntries.filter(([, assignment]) => staffRoleFilter === 'all' ? true : assignment.role === staffRoleFilter),
+    [staffEntries, staffRoleFilter],
+  )
+  const visibleInviteEntries = useMemo(
+    () => pendingInviteEntries.filter(([, invite]) => inviteRoleFilter === 'all' ? true : invite.role === inviteRoleFilter),
+    [pendingInviteEntries, inviteRoleFilter],
+  )
+  const visibleScheduleEntries = useMemo(() => scheduleEntries.filter(([, scheduleBlock]) => {
+    const eventMatches = scheduleEventFilter === 'all' ? true : scheduleBlock.eventID === scheduleEventFilter
+    const roundMatches = scheduleRoundFilter === 'all' ? true : scheduleBlock.roundID === scheduleRoundFilter
+    const typeMatches = scheduleBlockTypeFilter === 'all' ? true : scheduleBlock.blockType === scheduleBlockTypeFilter
+    return eventMatches && roundMatches && typeMatches
+  }), [scheduleBlockTypeFilter, scheduleEntries, scheduleEventFilter, scheduleRoundFilter])
+  const scheduleConflictCount = useMemo(
+    () => scheduleEntries.filter(([, scheduleBlock]) => scheduleBlock.hasConflicts).length,
+    [scheduleEntries],
+  )
+
+  const toggleRoundDraftTable = (tableID: string) => {
+    setEditingRoundDraft((current) => ({
+      ...current,
+      assignedTableIDs: current.assignedTableIDs.includes(tableID)
+        ? current.assignedTableIDs.filter((currentTableID) => currentTableID !== tableID)
+        : [...current.assignedTableIDs, tableID],
+    }))
+  }
 
   if (authLoading || loading) {
     return (
@@ -249,45 +306,6 @@ export default function TournamentDetailPage() {
         </VStack>
       </Box>
     )
-  }
-
-  const updateField = async (patch: Partial<TournamentRecord>) => {
-    if (!canManage) return
-    await updateTournament(tournamentID, patch)
-  }
-
-  const eventEntries = useMemo(() => Object.entries((tournament.events || {}) as Record<string, TournamentEventRecord>), [tournament.events])
-  const roundEntries = useMemo(() => Object.entries((tournament.rounds || {}) as Record<string, TournamentRoundRecord>).sort((a, b) => (a[1].order || 0) - (b[1].order || 0)), [tournament.rounds])
-  const bracketEntries = useMemo(() => Object.entries((tournament.brackets || {}) as Record<string, TournamentBracketRecord>), [tournament.brackets])
-  const scheduleEntries = useMemo(() => Object.entries((tournament.scheduleBlocks || {}) as Record<string, TournamentScheduleBlockRecord>).sort((a, b) => new Date(a[1].scheduledStartTime || 0).getTime() - new Date(b[1].scheduledStartTime || 0).getTime()), [tournament.scheduleBlocks])
-  const staffEntries = useMemo(() => Object.entries((tournament.staffAssignments || {}) as Record<string, TournamentStaffAssignmentRecord>), [tournament.staffAssignments])
-  const pendingInviteEntries = useMemo(() => Object.entries((tournament.pendingInvites || {}) as Record<string, TournamentPendingInviteRecord>), [tournament.pendingInvites])
-  const visibleStaffEntries = useMemo(
-    () => staffEntries.filter(([, assignment]) => staffRoleFilter === 'all' ? true : assignment.role === staffRoleFilter),
-    [staffEntries, staffRoleFilter],
-  )
-  const visibleInviteEntries = useMemo(
-    () => pendingInviteEntries.filter(([, invite]) => inviteRoleFilter === 'all' ? true : invite.role === inviteRoleFilter),
-    [pendingInviteEntries, inviteRoleFilter],
-  )
-  const visibleScheduleEntries = useMemo(() => scheduleEntries.filter(([, scheduleBlock]) => {
-    const eventMatches = scheduleEventFilter === 'all' ? true : scheduleBlock.eventID === scheduleEventFilter
-    const roundMatches = scheduleRoundFilter === 'all' ? true : scheduleBlock.roundID === scheduleRoundFilter
-    const typeMatches = scheduleBlockTypeFilter === 'all' ? true : scheduleBlock.blockType === scheduleBlockTypeFilter
-    return eventMatches && roundMatches && typeMatches
-  }), [scheduleBlockTypeFilter, scheduleEntries, scheduleEventFilter, scheduleRoundFilter])
-  const scheduleConflictCount = useMemo(
-    () => scheduleEntries.filter(([, scheduleBlock]) => scheduleBlock.hasConflicts).length,
-    [scheduleEntries],
-  )
-
-  const toggleRoundDraftTable = (tableID: string) => {
-    setEditingRoundDraft((current) => ({
-      ...current,
-      assignedTableIDs: current.assignedTableIDs.includes(tableID)
-        ? current.assignedTableIDs.filter((currentTableID) => currentTableID !== tableID)
-        : [...current.assignedTableIDs, tableID],
-    }))
   }
 
   return (
