@@ -58,7 +58,7 @@ import {
   type TournamentStaffAssignmentRecord,
   type TournamentVisibility,
 } from '@/functions/tournaments'
-import LabeledField, { FieldLabel } from '@/components/forms/LabeledField'
+import LabeledField from '@/components/forms/LabeledField'
 
 type TournamentTab = 'overview' | 'events' | 'brackets' | 'schedule' | 'staff' | 'registration' | 'public'
 
@@ -604,22 +604,34 @@ export default function TournamentDetailPage() {
           </VStack>
         ) : activeTab === 'schedule' ? (
           <VStack className="gap-4">
-            <HStack className="gap-3 flex-wrap">
-              <Input value={newRoundTitle} onChangeText={setNewRoundTitle} placeholder="Round title" className="flex-1" />
-              <Input value={newRoundShortLabel} onChangeText={setNewRoundShortLabel} placeholder="Short label" className="min-w-[9rem]" />
-              <Select value={newRoundEventID} onValueChange={setNewRoundEventID}>
-                <option value="">No event</option>
-                {eventEntries.map(([eventID, event]) => (
-                  <option key={eventID} value={eventID}>{event.name}</option>
-                ))}
-              </Select>
-              <Select value={newRoundFormat} onValueChange={(value) => setNewRoundFormat(value as TournamentRoundRecord['format'])}>
-                <option value="standard">Standard</option>
-                <option value="playoff">Playoff</option>
-                <option value="tiebreaker">Tiebreaker</option>
-              </Select>
-              <Input type="datetime-local" value={newRoundStartTime} onChangeText={setNewRoundStartTime} className="min-w-[12rem]" />
-              <Input type="datetime-local" value={newRoundEndTime} onChangeText={setNewRoundEndTime} className="min-w-[12rem]" />
+            <HStack className="gap-3 flex-wrap items-end">
+              <LabeledField label="Round Title" className="flex-1 min-w-[12rem]">
+                <Input value={newRoundTitle} onChangeText={setNewRoundTitle} placeholder="Round title" className="flex-1" />
+              </LabeledField>
+              <LabeledField label="Short Label" className="min-w-[9rem]">
+                <Input value={newRoundShortLabel} onChangeText={setNewRoundShortLabel} placeholder="Short label" className="min-w-[9rem]" />
+              </LabeledField>
+              <LabeledField label="Event" className="min-w-[12rem]">
+                <Select value={newRoundEventID} onValueChange={setNewRoundEventID}>
+                  <option value="">No event</option>
+                  {eventEntries.map(([eventID, event]) => (
+                    <option key={eventID} value={eventID}>{event.name}</option>
+                  ))}
+                </Select>
+              </LabeledField>
+              <LabeledField label="Round Format" className="min-w-[12rem]">
+                <Select value={newRoundFormat} onValueChange={(value) => setNewRoundFormat(value as TournamentRoundRecord['format'])}>
+                  <option value="standard">Standard</option>
+                  <option value="playoff">Playoff</option>
+                  <option value="tiebreaker">Tiebreaker</option>
+                </Select>
+              </LabeledField>
+              <LabeledField label="Start Time" className="min-w-[12rem]">
+                <Input type="datetime-local" value={newRoundStartTime} onChangeText={setNewRoundStartTime} className="min-w-[12rem]" />
+              </LabeledField>
+              <LabeledField label="End Time" className="min-w-[12rem]">
+                <Input type="datetime-local" value={newRoundEndTime} onChangeText={setNewRoundEndTime} className="min-w-[12rem]" />
+              </LabeledField>
               <Button
                 action="primary"
                 disabled={!canManage}
@@ -664,52 +676,74 @@ export default function TournamentDetailPage() {
                         <VStack className="flex-1 gap-2">
                           {editingRoundID === roundID ? (
                             <VStack className="gap-2">
-                              <Input value={editingRoundDraft.title} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, title: value }))} placeholder="Round title" />
-                              <HStack className="gap-2 flex-wrap">
-                                <Input value={editingRoundDraft.shortLabel} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, shortLabel: value }))} placeholder="Short label" className="min-w-[9rem]" />
-                                <Select value={editingRoundDraft.eventID} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, eventID: value }))}>
-                                  <option value="">No event</option>
-                                  {eventEntries.map(([eventID, event]) => (
-                                    <option key={eventID} value={eventID}>{event.name}</option>
-                                  ))}
-                                </Select>
-                                <Select value={editingRoundDraft.format} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, format: value as TournamentRoundRecord['format'] }))}>
-                                  <option value="standard">Standard</option>
-                                  <option value="playoff">Playoff</option>
-                                  <option value="tiebreaker">Tiebreaker</option>
-                                </Select>
-                                <Select value={editingRoundDraft.visibility} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, visibility: value as TournamentVisibility }))}>
-                                  <option value="private">private</option>
-                                  <option value="unlisted">unlisted</option>
-                                  <option value="public">public</option>
-                                </Select>
-                                <Select value={editingRoundDraft.autoAdvanceMode} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, autoAdvanceMode: value as TournamentRoundRecord['autoAdvanceMode'] }))}>
-                                  <option value="unlock-only">Unlock only</option>
-                                  <option value="winner-placeholders">Winner placeholders</option>
-                                </Select>
-                                <Select value={editingRoundDraft.nextRoundID} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, nextRoundID: value }))}>
-                                  <option value="">Next round by order</option>
-                                  {roundEntries.filter(([currentRoundID]) => currentRoundID !== roundID).map(([currentRoundID, currentRound]) => (
-                                    <option key={currentRoundID} value={currentRoundID}>{currentRound.title}</option>
-                                  ))}
-                                </Select>
+                              <LabeledField label="Round Title">
+                                <Input value={editingRoundDraft.title} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, title: value }))} placeholder="Round title" />
+                              </LabeledField>
+                              <HStack className="gap-2 flex-wrap items-end">
+                                <LabeledField label="Short Label" className="min-w-[9rem]">
+                                  <Input value={editingRoundDraft.shortLabel} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, shortLabel: value }))} placeholder="Short label" className="min-w-[9rem]" />
+                                </LabeledField>
+                                <LabeledField label="Event" className="min-w-[12rem]">
+                                  <Select value={editingRoundDraft.eventID} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, eventID: value }))}>
+                                    <option value="">No event</option>
+                                    {eventEntries.map(([eventID, event]) => (
+                                      <option key={eventID} value={eventID}>{event.name}</option>
+                                    ))}
+                                  </Select>
+                                </LabeledField>
+                                <LabeledField label="Format" className="min-w-[12rem]">
+                                  <Select value={editingRoundDraft.format} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, format: value as TournamentRoundRecord['format'] }))}>
+                                    <option value="standard">Standard</option>
+                                    <option value="playoff">Playoff</option>
+                                    <option value="tiebreaker">Tiebreaker</option>
+                                  </Select>
+                                </LabeledField>
+                                <LabeledField label="Visibility" className="min-w-[12rem]">
+                                  <Select value={editingRoundDraft.visibility} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, visibility: value as TournamentVisibility }))}>
+                                    <option value="private">private</option>
+                                    <option value="unlisted">unlisted</option>
+                                    <option value="public">public</option>
+                                  </Select>
+                                </LabeledField>
+                                <LabeledField label="Auto-Advance Mode" className="min-w-[12rem]">
+                                  <Select value={editingRoundDraft.autoAdvanceMode} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, autoAdvanceMode: value as TournamentRoundRecord['autoAdvanceMode'] }))}>
+                                    <option value="unlock-only">Unlock only</option>
+                                    <option value="winner-placeholders">Winner placeholders</option>
+                                  </Select>
+                                </LabeledField>
+                                <LabeledField label="Next Round" className="min-w-[12rem]">
+                                  <Select value={editingRoundDraft.nextRoundID} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, nextRoundID: value }))}>
+                                    <option value="">Next round by order</option>
+                                    {roundEntries.filter(([currentRoundID]) => currentRoundID !== roundID).map(([currentRoundID, currentRound]) => (
+                                      <option key={currentRoundID} value={currentRoundID}>{currentRound.title}</option>
+                                    ))}
+                                  </Select>
+                                </LabeledField>
                               </HStack>
-                              <HStack className="gap-2 flex-wrap">
-                                <Input type="datetime-local" value={editingRoundDraft.scheduledStartTime} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, scheduledStartTime: value }))} className="min-w-[12rem]" />
-                                <Input type="datetime-local" value={editingRoundDraft.scheduledEndTime} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, scheduledEndTime: value }))} className="min-w-[12rem]" />
+                              <HStack className="gap-2 flex-wrap items-end">
+                                <LabeledField label="Start Time" className="min-w-[12rem]">
+                                  <Input type="datetime-local" value={editingRoundDraft.scheduledStartTime} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, scheduledStartTime: value }))} className="min-w-[12rem]" />
+                                </LabeledField>
+                                <LabeledField label="End Time" className="min-w-[12rem]">
+                                  <Input type="datetime-local" value={editingRoundDraft.scheduledEndTime} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, scheduledEndTime: value }))} className="min-w-[12rem]" />
+                                </LabeledField>
                               </HStack>
-                              <textarea
-                                className="min-h-[5rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                value={editingRoundDraft.assignedMatchIDs}
-                                onChange={(event) => setEditingRoundDraft((current) => ({ ...current, assignedMatchIDs: event.target.value }))}
-                                placeholder="Assign match IDs (comma, space, or newline separated)"
-                              />
-                              <textarea
-                                className="min-h-[5rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                value={editingRoundDraft.notes}
-                                onChange={(event) => setEditingRoundDraft((current) => ({ ...current, notes: event.target.value }))}
-                                placeholder="Round notes, playoff repair plan, or tiebreaker instructions"
-                              />
+                              <LabeledField label="Assigned Match IDs">
+                                <textarea
+                                  className="min-h-[5rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                  value={editingRoundDraft.assignedMatchIDs}
+                                  onChange={(event) => setEditingRoundDraft((current) => ({ ...current, assignedMatchIDs: event.target.value }))}
+                                  placeholder="Assign match IDs (comma, space, or newline separated)"
+                                />
+                              </LabeledField>
+                              <LabeledField label="Round Notes">
+                                <textarea
+                                  className="min-h-[5rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                  value={editingRoundDraft.notes}
+                                  onChange={(event) => setEditingRoundDraft((current) => ({ ...current, notes: event.target.value }))}
+                                  placeholder="Round notes, playoff repair plan, or tiebreaker instructions"
+                                />
+                              </LabeledField>
                               <VStack className="gap-2">
                                 <Text className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Assigned tables</Text>
                                 <HStack className="flex-wrap gap-2">
@@ -919,31 +953,39 @@ export default function TournamentDetailPage() {
                     {scheduleConflictCount > 0 ? `${scheduleConflictCount} conflict${scheduleConflictCount === 1 ? '' : 's'}` : 'No conflicts'}
                   </Text>
                 </HStack>
-                <HStack className="gap-3 flex-wrap">
-                  <Select value={scheduleEventFilter} onValueChange={setScheduleEventFilter}>
-                    <option value="all">All events</option>
-                    {eventEntries.map(([eventID, event]) => (
-                      <option key={eventID} value={eventID}>{event.name}</option>
-                    ))}
-                  </Select>
-                  <Select value={scheduleRoundFilter} onValueChange={setScheduleRoundFilter}>
-                    <option value="all">All rounds</option>
-                    {roundEntries.map(([roundID, round]) => (
-                      <option key={roundID} value={roundID}>{round.title}</option>
-                    ))}
-                  </Select>
-                  <Select value={scheduleBlockTypeFilter} onValueChange={(value) => setScheduleBlockTypeFilter(value as 'all' | TournamentScheduleBlockType)}>
-                    <option value="all">All block types</option>
-                    {tournamentScheduleBlockTypes.map((blockType) => (
-                      <option key={blockType} value={blockType}>{blockType}</option>
-                    ))}
-                  </Select>
-                  <Select value={bulkScheduleTableID} onValueChange={setBulkScheduleTableID}>
-                    <option value="">Bulk assign table</option>
-                    {tableOptions.map((table) => (
-                      <option key={table.id} value={table.id}>{table.tableName}</option>
-                    ))}
-                  </Select>
+                <HStack className="gap-3 flex-wrap items-end">
+                  <LabeledField label="Event Filter" className="min-w-[12rem]">
+                    <Select value={scheduleEventFilter} onValueChange={setScheduleEventFilter}>
+                      <option value="all">All events</option>
+                      {eventEntries.map(([eventID, event]) => (
+                        <option key={eventID} value={eventID}>{event.name}</option>
+                      ))}
+                    </Select>
+                  </LabeledField>
+                  <LabeledField label="Round Filter" className="min-w-[12rem]">
+                    <Select value={scheduleRoundFilter} onValueChange={setScheduleRoundFilter}>
+                      <option value="all">All rounds</option>
+                      {roundEntries.map(([roundID, round]) => (
+                        <option key={roundID} value={roundID}>{round.title}</option>
+                      ))}
+                    </Select>
+                  </LabeledField>
+                  <LabeledField label="Block Type Filter" className="min-w-[12rem]">
+                    <Select value={scheduleBlockTypeFilter} onValueChange={(value) => setScheduleBlockTypeFilter(value as 'all' | TournamentScheduleBlockType)}>
+                      <option value="all">All block types</option>
+                      {tournamentScheduleBlockTypes.map((blockType) => (
+                        <option key={blockType} value={blockType}>{blockType}</option>
+                      ))}
+                    </Select>
+                  </LabeledField>
+                  <LabeledField label="Bulk Assign Table" className="min-w-[12rem]">
+                    <Select value={bulkScheduleTableID} onValueChange={setBulkScheduleTableID}>
+                      <option value="">Bulk assign table</option>
+                      {tableOptions.map((table) => (
+                        <option key={table.id} value={table.id}>{table.tableName}</option>
+                      ))}
+                    </Select>
+                  </LabeledField>
                   <Button
                     variant="outline"
                     disabled={!canManage}
@@ -993,34 +1035,50 @@ export default function TournamentDetailPage() {
                 </HStack>
                 <VStack className="gap-3 rounded-2xl border border-slate-200 bg-white p-4">
                   <Text className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Create event schedule block</Text>
-                  <HStack className="gap-3 flex-wrap">
-                    <Select value={newScheduleBlockType} onValueChange={(value) => setNewScheduleBlockType(value as TournamentScheduleBlockType)}>
-                      {tournamentScheduleBlockTypes.map((blockType) => (
-                        <option key={blockType} value={blockType}>{blockType}</option>
-                      ))}
-                    </Select>
-                    <Input value={newScheduleTitle} onChangeText={setNewScheduleTitle} placeholder="Block title" className="flex-1 min-w-[12rem]" />
-                    <Select value={newScheduleEventID} onValueChange={setNewScheduleEventID}>
-                      <option value="">No event</option>
-                      {eventEntries.map(([eventID, event]) => (
-                        <option key={eventID} value={eventID}>{event.name}</option>
-                      ))}
-                    </Select>
-                    <Select value={newScheduleRoundID} onValueChange={setNewScheduleRoundID}>
-                      <option value="">No round</option>
-                      {roundEntries.map(([roundID, round]) => (
-                        <option key={roundID} value={roundID}>{round.title}</option>
-                      ))}
-                    </Select>
-                    <Input value={newScheduleSourceMatchID} onChangeText={setNewScheduleSourceMatchID} placeholder="Source match ID" className="min-w-[12rem]" />
-                    <Select value={newScheduleTableID} onValueChange={setNewScheduleTableID}>
-                      <option value="">Unassigned table</option>
-                      {tableOptions.map((table) => (
-                        <option key={table.id} value={table.id}>{table.tableName}</option>
-                      ))}
-                    </Select>
-                    <Input type="datetime-local" value={newScheduleTime} onChangeText={setNewScheduleTime} className="min-w-[12rem]" />
-                    <Input type="datetime-local" value={newScheduleEndTime} onChangeText={setNewScheduleEndTime} className="min-w-[12rem]" />
+                  <HStack className="gap-3 flex-wrap items-end">
+                    <LabeledField label="Block Type" className="min-w-[12rem]">
+                      <Select value={newScheduleBlockType} onValueChange={(value) => setNewScheduleBlockType(value as TournamentScheduleBlockType)}>
+                        {tournamentScheduleBlockTypes.map((blockType) => (
+                          <option key={blockType} value={blockType}>{blockType}</option>
+                        ))}
+                      </Select>
+                    </LabeledField>
+                    <LabeledField label="Block Title" className="flex-1 min-w-[12rem]">
+                      <Input value={newScheduleTitle} onChangeText={setNewScheduleTitle} placeholder="Block title" className="flex-1 min-w-[12rem]" />
+                    </LabeledField>
+                    <LabeledField label="Event" className="min-w-[12rem]">
+                      <Select value={newScheduleEventID} onValueChange={setNewScheduleEventID}>
+                        <option value="">No event</option>
+                        {eventEntries.map(([eventID, event]) => (
+                          <option key={eventID} value={eventID}>{event.name}</option>
+                        ))}
+                      </Select>
+                    </LabeledField>
+                    <LabeledField label="Round" className="min-w-[12rem]">
+                      <Select value={newScheduleRoundID} onValueChange={setNewScheduleRoundID}>
+                        <option value="">No round</option>
+                        {roundEntries.map(([roundID, round]) => (
+                          <option key={roundID} value={roundID}>{round.title}</option>
+                        ))}
+                      </Select>
+                    </LabeledField>
+                    <LabeledField label="Source Match ID" className="min-w-[12rem]">
+                      <Input value={newScheduleSourceMatchID} onChangeText={setNewScheduleSourceMatchID} placeholder="Source match ID" className="min-w-[12rem]" />
+                    </LabeledField>
+                    <LabeledField label="Assigned Table" className="min-w-[12rem]">
+                      <Select value={newScheduleTableID} onValueChange={setNewScheduleTableID}>
+                        <option value="">Unassigned table</option>
+                        {tableOptions.map((table) => (
+                          <option key={table.id} value={table.id}>{table.tableName}</option>
+                        ))}
+                      </Select>
+                    </LabeledField>
+                    <LabeledField label="Start Time" className="min-w-[12rem]">
+                      <Input type="datetime-local" value={newScheduleTime} onChangeText={setNewScheduleTime} className="min-w-[12rem]" />
+                    </LabeledField>
+                    <LabeledField label="End Time" className="min-w-[12rem]">
+                      <Input type="datetime-local" value={newScheduleEndTime} onChangeText={setNewScheduleEndTime} className="min-w-[12rem]" />
+                    </LabeledField>
                     <Button
                       action="primary"
                       disabled={!canManage}
@@ -1056,18 +1114,22 @@ export default function TournamentDetailPage() {
                       <Text className="text-white">Add Schedule Block</Text>
                     </Button>
                   </HStack>
-                  <textarea
-                    className="min-h-[4rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    value={newScheduleParticipants}
-                    onChange={(event) => setNewScheduleParticipants(event.target.value)}
-                    placeholder="Participants for conflict detection (comma or newline separated)"
-                  />
-                  <textarea
-                    className="min-h-[4rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                    value={newScheduleNotes}
-                    onChange={(event) => setNewScheduleNotes(event.target.value)}
-                    placeholder="Schedule notes"
-                  />
+                  <LabeledField label="Participants">
+                    <textarea
+                      className="min-h-[4rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      value={newScheduleParticipants}
+                      onChange={(event) => setNewScheduleParticipants(event.target.value)}
+                      placeholder="Participants for conflict detection (comma or newline separated)"
+                    />
+                  </LabeledField>
+                  <LabeledField label="Schedule Notes">
+                    <textarea
+                      className="min-h-[4rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      value={newScheduleNotes}
+                      onChange={(event) => setNewScheduleNotes(event.target.value)}
+                      placeholder="Schedule notes"
+                    />
+                  </LabeledField>
                 </VStack>
                 {visibleScheduleEntries.length === 0 ? (
                   <Text className="text-sm text-slate-500">No schedule blocks yet.</Text>
@@ -1087,12 +1149,16 @@ export default function TournamentDetailPage() {
                             <VStack className="flex-1 gap-2">
                             {editingScheduleBlockID === scheduleBlockID ? (
                               <VStack className="gap-2">
-                                <Select value={editingScheduleDraft.blockType} onValueChange={(value) => setEditingScheduleDraft((current) => ({ ...current, blockType: value as TournamentScheduleBlockType }))}>
-                                  {tournamentScheduleBlockTypes.map((blockType) => (
-                                    <option key={blockType} value={blockType}>{blockType}</option>
-                                  ))}
-                                </Select>
-                                <Input value={editingScheduleDraft.title} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, title: value }))} />
+                                <LabeledField label="Block Type">
+                                  <Select value={editingScheduleDraft.blockType} onValueChange={(value) => setEditingScheduleDraft((current) => ({ ...current, blockType: value as TournamentScheduleBlockType }))}>
+                                    {tournamentScheduleBlockTypes.map((blockType) => (
+                                      <option key={blockType} value={blockType}>{blockType}</option>
+                                    ))}
+                                  </Select>
+                                </LabeledField>
+                                <LabeledField label="Block Title">
+                                  <Input value={editingScheduleDraft.title} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, title: value }))} />
+                                </LabeledField>
                               </VStack>
                             ) : (
                               <HStack className="flex-wrap gap-2">
@@ -1107,39 +1173,55 @@ export default function TournamentDetailPage() {
                             </Text>
                             {editingScheduleBlockID === scheduleBlockID ? (
                               <VStack className="gap-2">
-                                <Select value={editingScheduleDraft.eventID} onValueChange={(value) => setEditingScheduleDraft((current) => ({ ...current, eventID: value }))}>
-                                  <option value="">No event</option>
-                                  {eventEntries.map(([eventID, event]) => (
-                                    <option key={eventID} value={eventID}>{event.name}</option>
-                                  ))}
-                                </Select>
-                                <Select value={editingScheduleDraft.roundID} onValueChange={(value) => setEditingScheduleDraft((current) => ({ ...current, roundID: value }))}>
-                                  <option value="">No round</option>
-                                  {roundEntries.map(([roundID, round]) => (
-                                    <option key={roundID} value={roundID}>{round.title}</option>
-                                  ))}
-                                </Select>
-                                <Input value={editingScheduleDraft.sourceMatchID} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, sourceMatchID: value }))} placeholder="Source match ID" />
-                                <Select value={editingScheduleDraft.assignedTableID} onValueChange={(value) => setEditingScheduleDraft((current) => ({ ...current, assignedTableID: value }))}>
-                                  <option value="">Unassigned table</option>
-                                  {tableOptions.map((table) => (
-                                    <option key={table.id} value={table.id}>{table.tableName}</option>
-                                  ))}
-                                </Select>
-                                <Input type="datetime-local" value={editingScheduleDraft.scheduledStartTime} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, scheduledStartTime: value }))} />
-                                <Input type="datetime-local" value={editingScheduleDraft.scheduledEndTime} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, scheduledEndTime: value }))} />
-                                <textarea
-                                  className="min-h-[4rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                  value={editingScheduleDraft.participantLabels}
-                                  onChange={(event) => setEditingScheduleDraft((current) => ({ ...current, participantLabels: event.target.value }))}
-                                  placeholder="Participants for conflict detection"
-                                />
-                                <textarea
-                                  className="min-h-[6rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                  value={editingScheduleDraft.notes}
-                                  onChange={(event) => setEditingScheduleDraft((current) => ({ ...current, notes: event.target.value }))}
-                                  placeholder="Schedule notes"
-                                />
+                                <LabeledField label="Event">
+                                  <Select value={editingScheduleDraft.eventID} onValueChange={(value) => setEditingScheduleDraft((current) => ({ ...current, eventID: value }))}>
+                                    <option value="">No event</option>
+                                    {eventEntries.map(([eventID, event]) => (
+                                      <option key={eventID} value={eventID}>{event.name}</option>
+                                    ))}
+                                  </Select>
+                                </LabeledField>
+                                <LabeledField label="Round">
+                                  <Select value={editingScheduleDraft.roundID} onValueChange={(value) => setEditingScheduleDraft((current) => ({ ...current, roundID: value }))}>
+                                    <option value="">No round</option>
+                                    {roundEntries.map(([roundID, round]) => (
+                                      <option key={roundID} value={roundID}>{round.title}</option>
+                                    ))}
+                                  </Select>
+                                </LabeledField>
+                                <LabeledField label="Source Match ID">
+                                  <Input value={editingScheduleDraft.sourceMatchID} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, sourceMatchID: value }))} placeholder="Source match ID" />
+                                </LabeledField>
+                                <LabeledField label="Assigned Table">
+                                  <Select value={editingScheduleDraft.assignedTableID} onValueChange={(value) => setEditingScheduleDraft((current) => ({ ...current, assignedTableID: value }))}>
+                                    <option value="">Unassigned table</option>
+                                    {tableOptions.map((table) => (
+                                      <option key={table.id} value={table.id}>{table.tableName}</option>
+                                    ))}
+                                  </Select>
+                                </LabeledField>
+                                <LabeledField label="Start Time">
+                                  <Input type="datetime-local" value={editingScheduleDraft.scheduledStartTime} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, scheduledStartTime: value }))} />
+                                </LabeledField>
+                                <LabeledField label="End Time">
+                                  <Input type="datetime-local" value={editingScheduleDraft.scheduledEndTime} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, scheduledEndTime: value }))} />
+                                </LabeledField>
+                                <LabeledField label="Participants">
+                                  <textarea
+                                    className="min-h-[4rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                    value={editingScheduleDraft.participantLabels}
+                                    onChange={(event) => setEditingScheduleDraft((current) => ({ ...current, participantLabels: event.target.value }))}
+                                    placeholder="Participants for conflict detection"
+                                  />
+                                </LabeledField>
+                                <LabeledField label="Schedule Notes">
+                                  <textarea
+                                    className="min-h-[6rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                    value={editingScheduleDraft.notes}
+                                    onChange={(event) => setEditingScheduleDraft((current) => ({ ...current, notes: event.target.value }))}
+                                    placeholder="Schedule notes"
+                                  />
+                                </LabeledField>
                                 <label className="flex items-center gap-2 text-xs text-slate-500">
                                   <input
                                     type="checkbox"
@@ -1157,15 +1239,17 @@ export default function TournamentDetailPage() {
                             {scheduleBlock.notes ? <Text className="text-sm text-slate-600">{scheduleBlock.notes}</Text> : null}
                             </VStack>
                           </HStack>
-                          <HStack className="gap-2 flex-wrap">
-                            <Select value={scheduleBlock.status} onValueChange={(value) => updateTournamentScheduleBlock(tournamentID, scheduleBlockID, { status: value as TournamentScheduleBlockRecord['status'] })} disabled={!canManage}>
-                              <option value="unassigned">unassigned</option>
-                              <option value="scheduled">scheduled</option>
-                              <option value="called">called</option>
-                              <option value="active">active</option>
-                              <option value="completed">completed</option>
-                              <option value="cancelled">cancelled</option>
-                            </Select>
+                          <HStack className="gap-2 flex-wrap items-end">
+                            <LabeledField label="Status" className="min-w-[10rem]">
+                              <Select value={scheduleBlock.status} onValueChange={(value) => updateTournamentScheduleBlock(tournamentID, scheduleBlockID, { status: value as TournamentScheduleBlockRecord['status'] })} disabled={!canManage}>
+                                <option value="unassigned">unassigned</option>
+                                <option value="scheduled">scheduled</option>
+                                <option value="called">called</option>
+                                <option value="active">active</option>
+                                <option value="completed">completed</option>
+                                <option value="cancelled">cancelled</option>
+                              </Select>
+                            </LabeledField>
                             <Button variant="outline" onClick={() => queueTournamentScheduleBlock(tournamentID, scheduleBlockID)} disabled={!canManage || scheduleBlock.blockType !== 'match' || !scheduleBlock.assignedTableID || !scheduleBlock.sourceMatchID}>
                               <Text>Queue</Text>
                             </Button>
@@ -1328,14 +1412,20 @@ export default function TournamentDetailPage() {
             <Box className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <VStack className="gap-3">
                 <Heading size="sm">Direct Staff Grants</Heading>
-                <HStack className="gap-3 flex-wrap">
-                  <Input value={newStaffSubjectID} onChangeText={setNewStaffSubjectID} placeholder="User ID" className="flex-1 min-w-[12rem]" />
-                  <Select value={newStaffRole} onValueChange={(value) => setNewStaffRole(value as TournamentGrantRole)}>
-                    <option value="admin">admin</option>
-                    <option value="scorer">scorer</option>
-                    <option value="viewer">viewer</option>
-                  </Select>
-                  <Input value={newStaffNote} onChangeText={setNewStaffNote} placeholder="Optional note" className="flex-1 min-w-[12rem]" />
+                <HStack className="gap-3 flex-wrap items-end">
+                  <LabeledField label="User ID" className="flex-1 min-w-[12rem]">
+                    <Input value={newStaffSubjectID} onChangeText={setNewStaffSubjectID} placeholder="User ID" className="flex-1 min-w-[12rem]" />
+                  </LabeledField>
+                  <LabeledField label="Role" className="min-w-[12rem]">
+                    <Select value={newStaffRole} onValueChange={(value) => setNewStaffRole(value as TournamentGrantRole)}>
+                      <option value="admin">admin</option>
+                      <option value="scorer">scorer</option>
+                      <option value="viewer">viewer</option>
+                    </Select>
+                  </LabeledField>
+                  <LabeledField label="Note" className="flex-1 min-w-[12rem]">
+                    <Input value={newStaffNote} onChangeText={setNewStaffNote} placeholder="Optional note" className="flex-1 min-w-[12rem]" />
+                  </LabeledField>
                     <Button
                       action="primary"
                       disabled={!canManage}
@@ -1353,12 +1443,14 @@ export default function TournamentDetailPage() {
                     <Text className="text-white">Grant Access</Text>
                   </Button>
                 </HStack>
-                <Select value={staffRoleFilter} onValueChange={(value) => setStaffRoleFilter(value as 'all' | TournamentGrantRole)}>
-                  <option value="all">All roles</option>
-                  <option value="admin">admin</option>
-                  <option value="scorer">scorer</option>
-                  <option value="viewer">viewer</option>
-                </Select>
+                <LabeledField label="Role Filter" className="min-w-[12rem]">
+                  <Select value={staffRoleFilter} onValueChange={(value) => setStaffRoleFilter(value as 'all' | TournamentGrantRole)}>
+                    <option value="all">All roles</option>
+                    <option value="admin">admin</option>
+                    <option value="scorer">scorer</option>
+                    <option value="viewer">viewer</option>
+                  </Select>
+                </LabeledField>
                 <Text className="text-sm text-slate-500">
                   {visibleStaffEntries.length} visible grant{visibleStaffEntries.length === 1 ? '' : 's'} • {staffEntries.length} total
                 </Text>
@@ -1374,12 +1466,14 @@ export default function TournamentDetailPage() {
                             <Text className="text-xs text-slate-500">{assignment.role} • {assignment.scope}</Text>
                             {assignment.note ? <Text className="text-sm text-slate-600">{assignment.note}</Text> : null}
                           </VStack>
-                          <HStack className="flex-wrap gap-2">
-                            <Select value={assignment.role} onValueChange={(value) => updateTournamentStaffAssignment(tournamentID, assignmentID, { role: value as TournamentGrantRole })} disabled={!canManage}>
-                              <option value="admin">admin</option>
-                              <option value="scorer">scorer</option>
-                              <option value="viewer">viewer</option>
-                            </Select>
+                          <HStack className="flex-wrap gap-2 items-end">
+                            <LabeledField label="Role" className="min-w-[10rem]">
+                              <Select value={assignment.role} onValueChange={(value) => updateTournamentStaffAssignment(tournamentID, assignmentID, { role: value as TournamentGrantRole })} disabled={!canManage}>
+                                <option value="admin">admin</option>
+                                <option value="scorer">scorer</option>
+                                <option value="viewer">viewer</option>
+                              </Select>
+                            </LabeledField>
                             <Button variant="outline" onClick={() => deleteTournamentStaffAssignment(tournamentID, assignmentID)} disabled={!canManage}>
                               <Text>Revoke</Text>
                             </Button>
@@ -1395,14 +1489,20 @@ export default function TournamentDetailPage() {
             <Box className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <VStack className="gap-3">
                 <Heading size="sm">Pending Email Invites</Heading>
-                <HStack className="gap-3 flex-wrap">
-                  <Input value={newInviteEmail} onChangeText={setNewInviteEmail} placeholder="invite@example.com" className="flex-1 min-w-[12rem]" />
-                  <Select value={newInviteRole} onValueChange={(value) => setNewInviteRole(value as TournamentGrantRole)}>
-                    <option value="admin">admin</option>
-                    <option value="scorer">scorer</option>
-                    <option value="viewer">viewer</option>
-                  </Select>
-                  <Input value={newInviteNote} onChangeText={setNewInviteNote} placeholder="Optional note" className="flex-1 min-w-[12rem]" />
+                <HStack className="gap-3 flex-wrap items-end">
+                  <LabeledField label="Invite Email" className="flex-1 min-w-[12rem]">
+                    <Input value={newInviteEmail} onChangeText={setNewInviteEmail} placeholder="invite@example.com" className="flex-1 min-w-[12rem]" />
+                  </LabeledField>
+                  <LabeledField label="Role" className="min-w-[12rem]">
+                    <Select value={newInviteRole} onValueChange={(value) => setNewInviteRole(value as TournamentGrantRole)}>
+                      <option value="admin">admin</option>
+                      <option value="scorer">scorer</option>
+                      <option value="viewer">viewer</option>
+                    </Select>
+                  </LabeledField>
+                  <LabeledField label="Note" className="flex-1 min-w-[12rem]">
+                    <Input value={newInviteNote} onChangeText={setNewInviteNote} placeholder="Optional note" className="flex-1 min-w-[12rem]" />
+                  </LabeledField>
                     <Button
                       action="primary"
                       disabled={!canManage}
@@ -1420,12 +1520,14 @@ export default function TournamentDetailPage() {
                     <Text className="text-white">Invite</Text>
                   </Button>
                 </HStack>
-                <Select value={inviteRoleFilter} onValueChange={(value) => setInviteRoleFilter(value as 'all' | TournamentGrantRole)}>
-                  <option value="all">All invite roles</option>
-                  <option value="admin">admin</option>
-                  <option value="scorer">scorer</option>
-                  <option value="viewer">viewer</option>
-                </Select>
+                <LabeledField label="Invite Role Filter" className="min-w-[12rem]">
+                  <Select value={inviteRoleFilter} onValueChange={(value) => setInviteRoleFilter(value as 'all' | TournamentGrantRole)}>
+                    <option value="all">All invite roles</option>
+                    <option value="admin">admin</option>
+                    <option value="scorer">scorer</option>
+                    <option value="viewer">viewer</option>
+                  </Select>
+                </LabeledField>
                 <Text className="text-sm text-slate-500">
                   {visibleInviteEntries.length} visible invite{visibleInviteEntries.length === 1 ? '' : 's'} • {pendingInviteEntries.length} total
                 </Text>
@@ -1443,12 +1545,14 @@ export default function TournamentDetailPage() {
                             </Text>
                             {invite.note ? <Text className="text-sm text-slate-600">{invite.note}</Text> : null}
                           </VStack>
-                          <HStack className="flex-wrap gap-2">
-                            <Select value={invite.role} onValueChange={(value) => updateTournamentPendingInvite(tournamentID, inviteID, { role: value as TournamentGrantRole })} disabled={!canManage}>
-                              <option value="admin">admin</option>
-                              <option value="scorer">scorer</option>
-                              <option value="viewer">viewer</option>
-                            </Select>
+                          <HStack className="flex-wrap gap-2 items-end">
+                            <LabeledField label="Role" className="min-w-[10rem]">
+                              <Select value={invite.role} onValueChange={(value) => updateTournamentPendingInvite(tournamentID, inviteID, { role: value as TournamentGrantRole })} disabled={!canManage}>
+                                <option value="admin">admin</option>
+                                <option value="scorer">scorer</option>
+                                <option value="viewer">viewer</option>
+                              </Select>
+                            </LabeledField>
                             <Button variant="outline" onClick={() => resendTournamentPendingInvite(tournamentID, inviteID)} disabled={!canManage}>
                               <Text>Resend</Text>
                             </Button>
@@ -1471,13 +1575,15 @@ export default function TournamentDetailPage() {
                   <Text className="text-sm text-slate-600">
                     Transfer this tournament to an existing granted user. The current owner will be retained as an admin.
                   </Text>
-                  <HStack className="gap-3 flex-wrap">
-                    <Select value={transferOwnerID} onValueChange={setTransferOwnerID}>
-                      <option value="">Choose new owner</option>
-                      {staffEntries.map(([assignmentID, assignment]) => (
-                        <option key={assignmentID} value={assignment.subjectID}>{assignment.subjectID}</option>
-                      ))}
-                    </Select>
+                  <HStack className="gap-3 flex-wrap items-end">
+                    <LabeledField label="New Owner" className="min-w-[12rem]">
+                      <Select value={transferOwnerID} onValueChange={setTransferOwnerID}>
+                        <option value="">Choose new owner</option>
+                        {staffEntries.map(([assignmentID, assignment]) => (
+                          <option key={assignmentID} value={assignment.subjectID}>{assignment.subjectID}</option>
+                        ))}
+                      </Select>
+                    </LabeledField>
                     <Button
                       variant="outline"
                       onClick={async () => {
@@ -1533,22 +1639,30 @@ export default function TournamentDetailPage() {
       >
         {editingBracketNode ? (
           <VStack className="gap-3">
-            <Input value={editingBracketNode.sourceMatchID} onChangeText={(value) => setEditingBracketNode((current) => current ? { ...current, sourceMatchID: value } : current)} placeholder="Source match ID" />
-            <Select value={editingBracketNode.status} onValueChange={(value) => setEditingBracketNode((current) => current ? { ...current, status: value } : current)}>
-              <option value="unassigned">unassigned</option>
-              <option value="queued">queued</option>
-              <option value="on-table">on-table</option>
-              <option value="in-progress">in-progress</option>
-              <option value="final">final</option>
-              <option value="disputed">disputed</option>
-            </Select>
-            <Select value={bracketNodeScheduleTableID} onValueChange={setBracketNodeScheduleTableID}>
-              <option value="">Unassigned table</option>
-              {tableOptions.map((table) => (
-                <option key={table.id} value={table.id}>{table.tableName}</option>
-              ))}
-            </Select>
-            <Input type="datetime-local" value={bracketNodeScheduleTime} onChangeText={setBracketNodeScheduleTime} />
+            <LabeledField label="Source Match ID">
+              <Input value={editingBracketNode.sourceMatchID} onChangeText={(value) => setEditingBracketNode((current) => current ? { ...current, sourceMatchID: value } : current)} placeholder="Source match ID" />
+            </LabeledField>
+            <LabeledField label="Node Status">
+              <Select value={editingBracketNode.status} onValueChange={(value) => setEditingBracketNode((current) => current ? { ...current, status: value } : current)}>
+                <option value="unassigned">unassigned</option>
+                <option value="queued">queued</option>
+                <option value="on-table">on-table</option>
+                <option value="in-progress">in-progress</option>
+                <option value="final">final</option>
+                <option value="disputed">disputed</option>
+              </Select>
+            </LabeledField>
+            <LabeledField label="Assigned Table">
+              <Select value={bracketNodeScheduleTableID} onValueChange={setBracketNodeScheduleTableID}>
+                <option value="">Unassigned table</option>
+                {tableOptions.map((table) => (
+                  <option key={table.id} value={table.id}>{table.tableName}</option>
+                ))}
+              </Select>
+            </LabeledField>
+            <LabeledField label="Schedule Time">
+              <Input type="datetime-local" value={bracketNodeScheduleTime} onChangeText={setBracketNodeScheduleTime} />
+            </LabeledField>
           </VStack>
         ) : null}
       </OverlayDialog>
