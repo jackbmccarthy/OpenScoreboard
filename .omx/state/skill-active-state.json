@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "active": true,
+  "active": false,
   "skill": "ralph",
   "keyword": "keep going",
   "phase": "planning",
@@ -28,6 +28,7 @@
     "released_at": "2026-04-10T07:22:06.004Z",
     "exit_reason": "handoff"
   },
-  "iteration": 44,
-  "last_turn_at": "2026-04-10T22:03:58.471Z"
+  "iteration": 45,
+  "last_turn_at": "2026-04-11T07:49:27.422Z",
+  "completed_at": "2026-04-11T07:49:27.703Z"
 }

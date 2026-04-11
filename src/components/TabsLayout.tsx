@@ -176,11 +176,11 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
               )}
             </Box>
 
-            {/* Mobile Menu Toggle */}
+            {/* Mobile Menu Toggle — only show on lg+ where bottom bar is hidden */}
             <Button
               variant="ghost"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="rounded-2xl p-2 lg:hidden hover:bg-white"
+              className="hidden rounded-2xl p-2 hover:bg-white lg:flex"
             >
               {mobileMenuOpen ? <XIcon size={24} /> : <MenuIcon size={24} />}
             </Button>
@@ -225,6 +225,35 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
       {/* Page Content */}
       <Box className="mx-auto flex-1 w-full max-w-7xl overflow-x-hidden px-4 pb-8 pt-6 lg:px-6 lg:pt-8">
         {children ?? <Outlet />}
+      </Box>
+
+      {/* Bottom Tab Bar — mobile only (hidden on lg+) */}
+      <Box className="fixed bottom-0 left-0 right-0 z-50 lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <HStack className="app-glass items-center justify-around border-t border-white/70 bg-white/80 backdrop-blur-lg px-2 pt-2">
+          {tabs.map((tab) => {
+            const isActive = getCurrentTab() === tab.name
+            const isScoringRoute = location.pathname.startsWith('/scoring/table') || 
+                                   location.pathname.startsWith('/teamscoring/') ||
+                                   location.pathname.startsWith('/match/')
+            return (
+              <Link
+                key={tab.name}
+                to={isScoringRoute ? '#' : tab.path}
+                onClick={(e) => isScoringRoute && e.preventDefault()}
+                className={`flex flex-1 flex-col items-center gap-1 py-3 ${
+                  isScoringRoute ? 'opacity-40 cursor-not-allowed' : ''
+                }`}
+              >
+                <Box className={`${isActive ? 'text-blue-600' : 'text-slate-400'}`}>
+                  {tab.icon}
+                </Box>
+                <Text className={`text-[10px] font-medium ${isActive ? 'text-blue-600' : 'text-slate-500'}`}>
+                  {tab.label}
+                </Text>
+              </Link>
+            )
+          })}
+        </HStack>
       </Box>
 
       {/* Footer */}

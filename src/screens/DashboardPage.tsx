@@ -146,8 +146,8 @@ export default function DashboardPage() {
 
         {sections.map((section) => (
           <Box key={section.title}>
-            <Text className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{section.title}</Text>
-            <Box className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            <Text className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{section.title}</Text>
+            <Box className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-2">
               {section.items.map((item) => (
                 <DashboardItem key={item.route} item={item} />
               ))}

@@ -1,13 +1,13 @@
 {
-  "active": true,
-  "iteration": 46,
+  "active": false,
+  "iteration": 47,
   "max_iterations": 50,
   "current_phase": "executing",
   "started_at": "2026-04-10T06:07:00Z",
   "task_description": "Implement the full TASKS.md backlog in phased tranches; current tranche is queue-to-table workflow foundation",
   "context_snapshot_path": "/Users/jackmccarthy/AIProjects/OpenScoreboard/.omx/context/tasks-md-program-20260408T061817Z.md",
   "active_tranche": "Feature 3.4 bulk queue operations",
-  "last_turn_at": "2026-04-10T22:03:58.471Z",
+  "last_turn_at": "2026-04-11T07:49:27.422Z",
   "blockers": [
     "capability helper missing Firebase auth header",
     "capability issuance ownership missing",
@@ -39,5 +39,6 @@
   "completed_tranches": [
     "Feature 3 queue-to-table foundation",
     "Feature 3.5 auto-advance options"
-  ]
+  ],
+  "completed_at": "2026-04-11T07:49:27.703Z"
 }
