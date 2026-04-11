@@ -497,7 +497,7 @@ export async function unassignedCurrentMatchForTable(tableID) {
     await db.ref(`tables/${tableID}/currentMatch`).set("")
 }
 
-export async function archiveMatchForTable(tableID, matchID, matchSettings = null) {
+export async function archiveMatchForTable(tableID, matchID, matchSettings: any = null) {
     let match
     if (matchSettings) {
         match = matchSettings
@@ -531,11 +531,16 @@ export async function archiveMatchForTable(tableID, matchID, matchSettings = nul
 export async function completeCurrentTableMatch(
     tableID,
     matchID,
-    matchSettings = null,
+    matchSettings: any = null,
     shouldPromoteNext: boolean = false,
 ) {
-    await archiveMatchForTable(tableID, matchID, matchSettings)
+    const archivedMatch = matchSettings || await getMatchData(matchID)
+    await archiveMatchForTable(tableID, matchID, archivedMatch)
     await reconcileScheduledQueueItemForMatch(tableID, matchID, 'completed', true)
+    if (archivedMatch?.tournamentID && archivedMatch?.roundID) {
+        const tournamentsModule = await import('./tournaments')
+        await tournamentsModule.syncTournamentRoundAutomation(String(archivedMatch.tournamentID), String(archivedMatch.roundID))
+    }
     if (shouldPromoteNext) {
         return promoteNextScheduledMatch(tableID)
     }

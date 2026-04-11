@@ -13,6 +13,7 @@ import {
   addTournamentRound,
   addTournamentPendingInvite,
   addTournamentStaffAssignment,
+  bulkAssignTournamentRoundToTables,
   canTransferTournament,
   createTournamentScheduleMatch,
   addTournamentScheduleBlock,
@@ -30,8 +31,10 @@ import {
   reorderTournamentRound,
   resendTournamentPendingInvite,
   subscribeToTournament,
+  setTournamentRoundMatchAssignments,
   transitionTournamentRoundStatus,
   getTournamentEffectiveRole,
+  getTournamentRoundProgressStatus,
   transferTournamentOwnership,
   updateTournamentPendingInvite,
   updateTournamentStaffAssignment,
@@ -75,11 +78,31 @@ export default function TournamentDetailPage() {
   const [activeTab, setActiveTab] = useState<TournamentTab>('overview')
   const [newEventName, setNewEventName] = useState('')
   const [newRoundTitle, setNewRoundTitle] = useState('')
+  const [newRoundShortLabel, setNewRoundShortLabel] = useState('')
   const [newRoundEventID, setNewRoundEventID] = useState('')
+  const [newRoundFormat, setNewRoundFormat] = useState<TournamentRoundRecord['format']>('standard')
+  const [newRoundStartTime, setNewRoundStartTime] = useState('')
+  const [newRoundEndTime, setNewRoundEndTime] = useState('')
   const [editingEventID, setEditingEventID] = useState('')
   const [editingEventName, setEditingEventName] = useState('')
   const [editingRoundID, setEditingRoundID] = useState('')
-  const [editingRoundTitle, setEditingRoundTitle] = useState('')
+  const [editingRoundDraft, setEditingRoundDraft] = useState({
+    title: '',
+    shortLabel: '',
+    eventID: '',
+    format: 'standard' as TournamentRoundRecord['format'],
+    visibility: 'private' as TournamentVisibility,
+    scheduledStartTime: '',
+    scheduledEndTime: '',
+    notes: '',
+    nextRoundID: '',
+    autoAdvanceMode: 'unlock-only' as TournamentRoundRecord['autoAdvanceMode'],
+    assignedMatchIDs: '',
+    assignedTableIDs: [] as string[],
+    advanceWhenComplete: true,
+    allowManualOverrides: true,
+    isPublished: false,
+  })
   const [roundOverrideID, setRoundOverrideID] = useState('')
   const [newBracketName, setNewBracketName] = useState('')
   const [newBracketEventID, setNewBracketEventID] = useState('')
@@ -221,6 +244,15 @@ export default function TournamentDetailPage() {
     const roundMatches = scheduleRoundFilter === 'all' ? true : scheduleBlock.roundID === scheduleRoundFilter
     return eventMatches && roundMatches
   }), [scheduleEntries, scheduleEventFilter, scheduleRoundFilter])
+
+  const toggleRoundDraftTable = (tableID: string) => {
+    setEditingRoundDraft((current) => ({
+      ...current,
+      assignedTableIDs: current.assignedTableIDs.includes(tableID)
+        ? current.assignedTableIDs.filter((currentTableID) => currentTableID !== tableID)
+        : [...current.assignedTableIDs, tableID],
+    }))
+  }
 
   return (
     <Box className="flex-1 bg-white">
@@ -483,14 +515,22 @@ export default function TournamentDetailPage() {
           </VStack>
         ) : activeTab === 'schedule' ? (
           <VStack className="gap-4">
-            <HStack className="gap-3">
+            <HStack className="gap-3 flex-wrap">
               <Input value={newRoundTitle} onChangeText={setNewRoundTitle} placeholder="Round title" className="flex-1" />
+              <Input value={newRoundShortLabel} onChangeText={setNewRoundShortLabel} placeholder="Short label" className="min-w-[9rem]" />
               <Select value={newRoundEventID} onValueChange={setNewRoundEventID}>
                 <option value="">No event</option>
                 {eventEntries.map(([eventID, event]) => (
                   <option key={eventID} value={eventID}>{event.name}</option>
                 ))}
               </Select>
+              <Select value={newRoundFormat} onValueChange={(value) => setNewRoundFormat(value as TournamentRoundRecord['format'])}>
+                <option value="standard">Standard</option>
+                <option value="playoff">Playoff</option>
+                <option value="tiebreaker">Tiebreaker</option>
+              </Select>
+              <Input type="datetime-local" value={newRoundStartTime} onChangeText={setNewRoundStartTime} className="min-w-[12rem]" />
+              <Input type="datetime-local" value={newRoundEndTime} onChangeText={setNewRoundEndTime} className="min-w-[12rem]" />
               <Button
                 action="primary"
                 disabled={!canManage}
@@ -498,10 +538,17 @@ export default function TournamentDetailPage() {
                   if (!newRoundTitle.trim()) return
                   await addTournamentRound(tournamentID, {
                     title: newRoundTitle.trim(),
+                    shortLabel: newRoundShortLabel.trim(),
                     eventID: newRoundEventID,
                     order: roundEntries.length + 1,
+                    format: newRoundFormat,
+                    scheduledStartTime: newRoundStartTime,
+                    scheduledEndTime: newRoundEndTime,
                   })
                   setNewRoundTitle('')
+                  setNewRoundShortLabel('')
+                  setNewRoundStartTime('')
+                  setNewRoundEndTime('')
                 }}
               >
                 <Text className="text-white">Add Round</Text>
@@ -514,90 +561,251 @@ export default function TournamentDetailPage() {
                 {roundEntries.map(([roundID, round]) => (
                   <Box key={roundID} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     {(() => {
-                      const roundRequiresOverride = Boolean(round.isLocked) || round.status === 'completed'
+                      const roundRequiresOverride = Boolean(round.isLocked) || round.status === 'completed' || round.status === 'archived'
                       const canMutateRound = !roundRequiresOverride || roundOverrideID === roundID || editingRoundID === roundID
+                      const roundProgress = getTournamentRoundProgressStatus(round.status)
+                      const roundScheduleBlocks = scheduleEntries.filter(([, scheduleBlock]) => scheduleBlock.roundID === roundID)
+                      const nextRound = round.nextRoundID
+                        ? roundEntries.find(([currentRoundID]) => currentRoundID === round.nextRoundID)?.[1]
+                        : roundEntries.find(([, currentRound]) => currentRound.order === round.order + 1)?.[1]
+                      const tableLabelMap = Object.fromEntries(tableOptions.map((table) => [table.id, table.tableName]))
                       return (
-                    <HStack className="items-start justify-between gap-3">
-                      <VStack className="flex-1 gap-2">
-                        {editingRoundID === roundID ? (
-                          <Input value={editingRoundTitle} onChangeText={setEditingRoundTitle} />
-                        ) : (
-                          <Text className="font-semibold text-slate-900">{round.title}</Text>
-                        )}
-                        <Text className="text-xs text-slate-500">
-                          {[round.shortLabel, round.status, eventEntries.find(([eventID]) => eventID === round.eventID)?.[1]?.name].filter(Boolean).join(' • ')}
-                        </Text>
-                        <HStack className="gap-2 text-xs text-slate-500">
-                          <Text className="rounded-full bg-slate-100 px-2 py-1 uppercase tracking-[0.12em]">{round.visibility}</Text>
-                          {round.isLocked ? (
-                            <Text className="rounded-full bg-rose-100 px-2 py-1 uppercase tracking-[0.12em] text-rose-700">locked</Text>
+                    <VStack className="gap-3">
+                      <HStack className="items-start justify-between gap-3">
+                        <VStack className="flex-1 gap-2">
+                          {editingRoundID === roundID ? (
+                            <VStack className="gap-2">
+                              <Input value={editingRoundDraft.title} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, title: value }))} placeholder="Round title" />
+                              <HStack className="gap-2 flex-wrap">
+                                <Input value={editingRoundDraft.shortLabel} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, shortLabel: value }))} placeholder="Short label" className="min-w-[9rem]" />
+                                <Select value={editingRoundDraft.eventID} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, eventID: value }))}>
+                                  <option value="">No event</option>
+                                  {eventEntries.map(([eventID, event]) => (
+                                    <option key={eventID} value={eventID}>{event.name}</option>
+                                  ))}
+                                </Select>
+                                <Select value={editingRoundDraft.format} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, format: value as TournamentRoundRecord['format'] }))}>
+                                  <option value="standard">Standard</option>
+                                  <option value="playoff">Playoff</option>
+                                  <option value="tiebreaker">Tiebreaker</option>
+                                </Select>
+                                <Select value={editingRoundDraft.visibility} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, visibility: value as TournamentVisibility }))}>
+                                  <option value="private">private</option>
+                                  <option value="unlisted">unlisted</option>
+                                  <option value="public">public</option>
+                                </Select>
+                                <Select value={editingRoundDraft.autoAdvanceMode} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, autoAdvanceMode: value as TournamentRoundRecord['autoAdvanceMode'] }))}>
+                                  <option value="unlock-only">Unlock only</option>
+                                  <option value="winner-placeholders">Winner placeholders</option>
+                                </Select>
+                                <Select value={editingRoundDraft.nextRoundID} onValueChange={(value) => setEditingRoundDraft((current) => ({ ...current, nextRoundID: value }))}>
+                                  <option value="">Next round by order</option>
+                                  {roundEntries.filter(([currentRoundID]) => currentRoundID !== roundID).map(([currentRoundID, currentRound]) => (
+                                    <option key={currentRoundID} value={currentRoundID}>{currentRound.title}</option>
+                                  ))}
+                                </Select>
+                              </HStack>
+                              <HStack className="gap-2 flex-wrap">
+                                <Input type="datetime-local" value={editingRoundDraft.scheduledStartTime} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, scheduledStartTime: value }))} className="min-w-[12rem]" />
+                                <Input type="datetime-local" value={editingRoundDraft.scheduledEndTime} onChangeText={(value) => setEditingRoundDraft((current) => ({ ...current, scheduledEndTime: value }))} className="min-w-[12rem]" />
+                              </HStack>
+                              <textarea
+                                className="min-h-[5rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                value={editingRoundDraft.assignedMatchIDs}
+                                onChange={(event) => setEditingRoundDraft((current) => ({ ...current, assignedMatchIDs: event.target.value }))}
+                                placeholder="Assign match IDs (comma, space, or newline separated)"
+                              />
+                              <textarea
+                                className="min-h-[5rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                value={editingRoundDraft.notes}
+                                onChange={(event) => setEditingRoundDraft((current) => ({ ...current, notes: event.target.value }))}
+                                placeholder="Round notes, playoff repair plan, or tiebreaker instructions"
+                              />
+                              <VStack className="gap-2">
+                                <Text className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Assigned tables</Text>
+                                <HStack className="flex-wrap gap-2">
+                                  {tableOptions.length === 0 ? (
+                                    <Text className="text-xs text-slate-500">No tables available yet.</Text>
+                                  ) : tableOptions.map((table) => (
+                                    <label key={table.id} className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600">
+                                      <input
+                                        type="checkbox"
+                                        checked={editingRoundDraft.assignedTableIDs.includes(table.id)}
+                                        onChange={() => toggleRoundDraftTable(table.id)}
+                                      />
+                                      <span>{table.tableName}</span>
+                                    </label>
+                                  ))}
+                                </HStack>
+                              </VStack>
+                              <HStack className="gap-2 flex-wrap text-xs text-slate-500">
+                                <label className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5">
+                                  <input
+                                    type="checkbox"
+                                    checked={editingRoundDraft.advanceWhenComplete}
+                                    onChange={() => setEditingRoundDraft((current) => ({ ...current, advanceWhenComplete: !current.advanceWhenComplete }))}
+                                  />
+                                  <span>Auto-complete when linked matches finish</span>
+                                </label>
+                                <label className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5">
+                                  <input
+                                    type="checkbox"
+                                    checked={editingRoundDraft.allowManualOverrides}
+                                    onChange={() => setEditingRoundDraft((current) => ({ ...current, allowManualOverrides: !current.allowManualOverrides }))}
+                                  />
+                                  <span>Allow manual overrides / reseeding</span>
+                                </label>
+                                <label className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5">
+                                  <input
+                                    type="checkbox"
+                                    checked={editingRoundDraft.isPublished}
+                                    onChange={() => setEditingRoundDraft((current) => ({ ...current, isPublished: !current.isPublished, visibility: !current.isPublished ? 'public' : 'private' }))}
+                                  />
+                                  <span>Publish round</span>
+                                </label>
+                              </HStack>
+                            </VStack>
                           ) : (
-                            <Text className="rounded-full bg-emerald-100 px-2 py-1 uppercase tracking-[0.12em] text-emerald-700">editable</Text>
+                            <>
+                              <Text className="font-semibold text-slate-900">{round.title}</Text>
+                              <Text className="text-xs text-slate-500">
+                                {[round.shortLabel, round.format, round.status, eventEntries.find(([eventID]) => eventID === round.eventID)?.[1]?.name].filter(Boolean).join(' • ')}
+                              </Text>
+                              <HStack className="gap-2 text-xs text-slate-500 flex-wrap">
+                                <Text className="rounded-full bg-slate-100 px-2 py-1 uppercase tracking-[0.12em]">{round.visibility}</Text>
+                                <Text className={`rounded-full px-2 py-1 uppercase tracking-[0.12em] ${roundProgress === 'completed' ? 'bg-emerald-100 text-emerald-700' : roundProgress === 'in-progress' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{roundProgress}</Text>
+                                {round.isPublished ? <Text className="rounded-full bg-indigo-100 px-2 py-1 uppercase tracking-[0.12em] text-indigo-700">published</Text> : null}
+                                {round.isLocked ? (
+                                  <Text className="rounded-full bg-rose-100 px-2 py-1 uppercase tracking-[0.12em] text-rose-700">locked</Text>
+                                ) : (
+                                  <Text className="rounded-full bg-emerald-100 px-2 py-1 uppercase tracking-[0.12em] text-emerald-700">editable</Text>
+                                )}
+                                {round.allowManualOverrides ? <Text className="rounded-full bg-violet-100 px-2 py-1 uppercase tracking-[0.12em] text-violet-700">manual override</Text> : null}
+                              </HStack>
+                              <Text className="text-xs text-slate-500">
+                                {[
+                                  round.scheduledStartTime ? `Starts ${new Date(round.scheduledStartTime).toLocaleString()}` : '',
+                                  round.scheduledEndTime ? `Ends ${new Date(round.scheduledEndTime).toLocaleString()}` : '',
+                                  round.assignedTableLabels?.length ? `Tables: ${round.assignedTableLabels.join(', ')}` : round.assignedTableIDs?.length ? `Tables: ${round.assignedTableIDs.map((tableID) => tableLabelMap[tableID] || tableID).join(', ')}` : '',
+                                  round.assignedMatchIDs?.length ? `${round.assignedMatchIDs.length} direct matches` : '',
+                                  roundScheduleBlocks.length ? `${roundScheduleBlocks.length} scheduled block${roundScheduleBlocks.length === 1 ? '' : 's'}` : '',
+                                  nextRound ? `Unlocks ${nextRound.title}` : '',
+                                ].filter(Boolean).join(' • ')}
+                              </Text>
+                              {round.notes ? <Text className="text-sm text-slate-600">{round.notes}</Text> : null}
+                            </>
                           )}
-                        </HStack>
-                      </VStack>
-                      <HStack className="gap-2">
-                        <Button
-                          variant="outline"
-                          disabled={!canMutateRound}
-                          onClick={async () => {
-                            if (editingRoundID === roundID) {
-                              await updateTournamentRound(tournamentID, roundID, { title: editingRoundTitle.trim() || round.title })
-                              setEditingRoundID('')
-                              setEditingRoundTitle('')
-                              setRoundOverrideID('')
-                            } else {
-                              setEditingRoundID(roundID)
-                              setEditingRoundTitle(round.title)
-                            }
-                          }}
-                        >
-                          <Text>{editingRoundID === roundID ? 'Save' : 'Edit'}</Text>
-                        </Button>
-                        <Select value={round.status} onValueChange={(value) => updateTournamentRound(tournamentID, roundID, { status: value as TournamentRoundRecord['status'] })} disabled={!canMutateRound}>
-                          <option value="draft">draft</option>
-                          <option value="ready">ready</option>
-                          <option value="active">active</option>
-                          <option value="paused">paused</option>
-                          <option value="completed">completed</option>
-                          <option value="archived">archived</option>
-                        </Select>
-                        <Select value={round.visibility} onValueChange={(value) => updateTournamentRound(tournamentID, roundID, { visibility: value as TournamentVisibility })} disabled={!canMutateRound}>
-                          <option value="private">private</option>
-                          <option value="unlisted">unlisted</option>
-                          <option value="public">public</option>
-                        </Select>
-                        <Button variant="outline" onClick={() => updateTournamentRound(tournamentID, roundID, { isLocked: !round.isLocked })} disabled={!canManage}>
-                          <Text>{round.isLocked ? 'Unlock' : 'Lock'}</Text>
-                        </Button>
-                        {roundRequiresOverride && roundOverrideID !== roundID ? (
-                          <Button variant="outline" onClick={() => setRoundOverrideID(roundID)} disabled={!canManage}>
-                            <Text>Override</Text>
+                        </VStack>
+                        <HStack className="gap-2 flex-wrap justify-end">
+                          <Button
+                            variant="outline"
+                            disabled={!canMutateRound}
+                            onClick={async () => {
+                              if (editingRoundID === roundID) {
+                                const assignedMatchIDs = editingRoundDraft.assignedMatchIDs
+                                  .split(/[\s,]+/)
+                                  .map((value) => value.trim())
+                                  .filter(Boolean)
+                                await updateTournamentRound(tournamentID, roundID, {
+                                  title: editingRoundDraft.title.trim() || round.title,
+                                  shortLabel: editingRoundDraft.shortLabel.trim(),
+                                  eventID: editingRoundDraft.eventID,
+                                  format: editingRoundDraft.format,
+                                  scheduledStartTime: editingRoundDraft.scheduledStartTime,
+                                  scheduledEndTime: editingRoundDraft.scheduledEndTime,
+                                  notes: editingRoundDraft.notes.trim(),
+                                  nextRoundID: editingRoundDraft.nextRoundID,
+                                  autoAdvanceMode: editingRoundDraft.autoAdvanceMode,
+                                  assignedTableIDs: editingRoundDraft.assignedTableIDs,
+                                  assignedTableLabels: editingRoundDraft.assignedTableIDs.map((tableID) => tableLabelMap[tableID] || ''),
+                                  advanceWhenComplete: editingRoundDraft.advanceWhenComplete,
+                                  allowManualOverrides: editingRoundDraft.allowManualOverrides,
+                                  isPublished: editingRoundDraft.isPublished,
+                                  visibility: editingRoundDraft.isPublished ? 'public' : editingRoundDraft.visibility,
+                                })
+                                await setTournamentRoundMatchAssignments(tournamentID, roundID, assignedMatchIDs)
+                                setEditingRoundID('')
+                                setRoundOverrideID('')
+                              } else {
+                                setEditingRoundID(roundID)
+                                setEditingRoundDraft({
+                                  title: round.title,
+                                  shortLabel: round.shortLabel || '',
+                                  eventID: round.eventID || '',
+                                  format: round.format || 'standard',
+                                  visibility: round.visibility,
+                                  scheduledStartTime: round.scheduledStartTime || '',
+                                  scheduledEndTime: round.scheduledEndTime || '',
+                                  notes: round.notes || '',
+                                  nextRoundID: round.nextRoundID || '',
+                                  autoAdvanceMode: round.autoAdvanceMode || 'unlock-only',
+                                  assignedMatchIDs: (round.assignedMatchIDs || []).join('\n'),
+                                  assignedTableIDs: round.assignedTableIDs || [],
+                                  advanceWhenComplete: round.advanceWhenComplete !== false,
+                                  allowManualOverrides: round.allowManualOverrides !== false,
+                                  isPublished: Boolean(round.isPublished),
+                                })
+                              }
+                            }}
+                          >
+                            <Text>{editingRoundID === roundID ? 'Save' : 'Edit'}</Text>
                           </Button>
-                        ) : null}
-                        <Button variant="outline" onClick={() => transitionTournamentRoundStatus(tournamentID, roundID, 'ready')} disabled={!canMutateRound}>
-                          <Text>Ready</Text>
-                        </Button>
-                        <Button variant="outline" onClick={() => transitionTournamentRoundStatus(tournamentID, roundID, 'active')} disabled={!canMutateRound}>
-                          <Text>Start</Text>
-                        </Button>
-                        <Button variant="outline" onClick={() => transitionTournamentRoundStatus(tournamentID, roundID, 'paused')} disabled={!canMutateRound}>
-                          <Text>Pause</Text>
-                        </Button>
-                        <Button variant="outline" onClick={() => transitionTournamentRoundStatus(tournamentID, roundID, 'completed')} disabled={!canMutateRound}>
-                          <Text>Complete</Text>
-                        </Button>
-                        <Button variant="outline" onClick={() => reorderTournamentRound(tournamentID, roundID, 'up')} disabled={!canMutateRound}>
-                          <Text>Up</Text>
-                        </Button>
-                        <Button variant="outline" onClick={() => reorderTournamentRound(tournamentID, roundID, 'down')} disabled={!canMutateRound}>
-                          <Text>Down</Text>
-                        </Button>
-                        <Button variant="outline" onClick={() => deleteTournamentRound(tournamentID, roundID)} disabled={!canMutateRound}>
-                          <Text>Remove</Text>
-                        </Button>
+                          <Button variant="outline" onClick={() => updateTournamentRound(tournamentID, roundID, { isLocked: !round.isLocked })} disabled={!canManage}>
+                            <Text>{round.isLocked ? 'Unlock' : 'Lock'}</Text>
+                          </Button>
+                          <Button variant="outline" onClick={() => updateTournamentRound(tournamentID, roundID, { isPublished: !round.isPublished, visibility: round.isPublished ? 'private' : 'public' })} disabled={!canManage}>
+                            <Text>{round.isPublished ? 'Unpublish' : 'Publish'}</Text>
+                          </Button>
+                          {roundRequiresOverride && roundOverrideID !== roundID ? (
+                            <Button variant="outline" onClick={() => setRoundOverrideID(roundID)} disabled={!canManage}>
+                              <Text>Override</Text>
+                            </Button>
+                          ) : null}
+                          <Button variant="outline" onClick={() => transitionTournamentRoundStatus(tournamentID, roundID, 'ready', { override: roundOverrideID === roundID })} disabled={!canMutateRound}>
+                            <Text>Ready</Text>
+                          </Button>
+                          <Button variant="outline" onClick={() => transitionTournamentRoundStatus(tournamentID, roundID, 'active', { override: roundOverrideID === roundID })} disabled={!canMutateRound}>
+                            <Text>Start</Text>
+                          </Button>
+                          <Button variant="outline" onClick={() => transitionTournamentRoundStatus(tournamentID, roundID, 'paused', { override: roundOverrideID === roundID })} disabled={!canMutateRound}>
+                            <Text>Pause</Text>
+                          </Button>
+                          <Button variant="outline" onClick={() => transitionTournamentRoundStatus(tournamentID, roundID, 'completed', { override: roundOverrideID === roundID })} disabled={!canMutateRound}>
+                            <Text>Complete</Text>
+                          </Button>
+                          <Button variant="outline" onClick={() => transitionTournamentRoundStatus(tournamentID, roundID, 'archived', { override: true })} disabled={!canMutateRound}>
+                            <Text>Archive</Text>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => bulkAssignTournamentRoundToTables(tournamentID, roundID, round.assignedTableIDs || [], tableLabelMap)}
+                            disabled={!canMutateRound || !(round.assignedTableIDs || []).length || roundScheduleBlocks.length === 0}
+                          >
+                            <Text>Assign Tables</Text>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={async () => {
+                              for (const [scheduleBlockID] of roundScheduleBlocks) {
+                                await syncTournamentScheduleBlockToQueue(tournamentID, scheduleBlockID)
+                              }
+                            }}
+                            disabled={!canMutateRound || roundScheduleBlocks.length === 0}
+                          >
+                            <Text>Queue Round</Text>
+                          </Button>
+                          <Button variant="outline" onClick={() => reorderTournamentRound(tournamentID, roundID, 'up')} disabled={!canMutateRound}>
+                            <Text>Up</Text>
+                          </Button>
+                          <Button variant="outline" onClick={() => reorderTournamentRound(tournamentID, roundID, 'down')} disabled={!canMutateRound}>
+                            <Text>Down</Text>
+                          </Button>
+                          <Button variant="outline" onClick={() => deleteTournamentRound(tournamentID, roundID)} disabled={!canMutateRound}>
+                            <Text>Remove</Text>
+                          </Button>
+                        </HStack>
                       </HStack>
-                    </HStack>
+                    </VStack>
                       )
                     })()}
                   </Box>
@@ -677,17 +885,19 @@ export default function TournamentDetailPage() {
                     disabled={!canManage}
                     onClick={async () => {
                       if (!newScheduleTitle.trim()) return
-                      const assignedTable = tableOptions.find((table) => table.id === newScheduleTableID)
+                      const selectedRound = roundEntries.find(([roundID]) => roundID === newScheduleRoundID)?.[1]
+                      const selectedTableID = newScheduleTableID || selectedRound?.assignedTableIDs?.[0] || ''
+                      const assignedTable = tableOptions.find((table) => table.id === selectedTableID)
                       await addTournamentScheduleBlock(tournamentID, {
                         title: newScheduleTitle.trim(),
                         eventID: newScheduleEventID,
                         roundID: newScheduleRoundID,
                         sourceMatchID: newScheduleSourceMatchID.trim(),
                         eventName: eventEntries.find(([eventID]) => eventID === newScheduleEventID)?.[1]?.name || '',
-                        roundTitle: roundEntries.find(([roundID]) => roundID === newScheduleRoundID)?.[1]?.title || '',
-                        assignedTableID: newScheduleTableID,
+                        roundTitle: selectedRound?.title || '',
+                        assignedTableID: selectedTableID,
                         assignedTableLabel: assignedTable?.tableName || '',
-                        scheduledStartTime: newScheduleTime,
+                        scheduledStartTime: newScheduleTime || selectedRound?.scheduledStartTime || '',
                         notes: newScheduleNotes.trim(),
                       })
                       setNewScheduleTitle('')
