@@ -73,36 +73,55 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
     <Box className="app-shell-bg flex min-h-screen flex-col overflow-x-hidden">
       <Box className="sticky top-0 z-40 px-3 pt-3 sm:px-4 lg:px-6">
         <HStack className="app-glass mx-auto max-w-7xl flex-wrap items-center justify-between gap-3 rounded-[1.75rem] border border-white/70 px-4 py-3 lg:flex-nowrap lg:px-5">
-          {/* Logo */}
-          <Link to="/dashboard" className="group flex items-center gap-3">
-            <Box className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-lg shadow-blue-500/20 transition-transform group-hover:scale-[1.03]">
-              <ScoreboardIcon size={22} color="white" />
-            </Box>
-            <VStack className="hidden gap-0 sm:block">
-              <Text className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600">Open Scoreboard</Text>
-              <Text className="text-xs text-slate-500">Built for stream desks and tournament ops</Text>
-            </VStack>
-          </Link>
+          
+          {/* Mobile: Hamburger + Logo (left) */}
+          <HStack className="items-center gap-2 lg:hidden">
+            <Button
+              variant="ghost"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="rounded-2xl p-2 hover:bg-white"
+            >
+              {mobileMenuOpen ? <XIcon size={22} /> : <MenuIcon size={22} />}
+            </Button>
+            <Link to="/dashboard" className="group flex items-center gap-2">
+              <Box className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
+                <ScoreboardIcon size={20} color="white" />
+              </Box>
+            </Link>
+          </HStack>
 
-          {/* Desktop Navigation */}
-          <HStack className="hidden items-center gap-2 lg:flex">
-            {tabs.map((tab) => {
-              const isActive = getCurrentTab() === tab.name
-              return (
-                <Link 
-                  key={tab.name} 
-                  to={tab.path}
-                  className={`nav-pill flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-slate-950 text-white shadow-lg shadow-slate-900/15'
-                      : 'text-slate-600 hover:bg-white hover:text-slate-950'
-                  }`}
-                >
-                  <span className={isActive ? 'text-white' : 'text-slate-400'}>{tab.icon}</span>
-                  {tab.label}
-                </Link>
-              )
-            })}
+          {/* Desktop: Logo + Nav */}
+          <HStack className="hidden items-center gap-4 lg:flex">
+            <Link to="/dashboard" className="group flex items-center gap-3">
+              <Box className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-lg shadow-blue-500/20 transition-transform group-hover:scale-[1.03]">
+                <ScoreboardIcon size={22} color="white" />
+              </Box>
+              <VStack className="gap-0">
+                <Text className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600">Open Scoreboard</Text>
+                <Text className="text-xs text-slate-500">Built for stream desks and tournament ops</Text>
+              </VStack>
+            </Link>
+
+            {/* Desktop Navigation */}
+            <HStack className="items-center gap-2">
+              {tabs.map((tab) => {
+                const isActive = getCurrentTab() === tab.name
+                return (
+                  <Link 
+                    key={tab.name} 
+                    to={tab.path}
+                    className={`nav-pill flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition-all ${
+                      isActive
+                        ? 'bg-slate-950 text-white shadow-lg shadow-slate-900/15'
+                        : 'text-slate-600 hover:bg-white hover:text-slate-950'
+                    }`}
+                  >
+                    <span className={isActive ? 'text-white' : 'text-slate-400'}>{tab.icon}</span>
+                    {tab.label}
+                  </Link>
+                )
+              })}
+            </HStack>
           </HStack>
 
           {/* User Section */}
@@ -175,15 +194,6 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
                 </Box>
               )}
             </Box>
-
-            {/* Mobile Menu Toggle — only show on lg+ where bottom bar is hidden */}
-            <Button
-              variant="ghost"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="hidden rounded-2xl p-2 hover:bg-white lg:flex"
-            >
-              {mobileMenuOpen ? <XIcon size={24} /> : <MenuIcon size={24} />}
-            </Button>
           </HStack>
         </HStack>
 

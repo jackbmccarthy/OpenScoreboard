@@ -92,17 +92,19 @@ function DashboardItem({ item }: DashboardItemProps) {
       className="premium-card group min-h-[11rem] rounded-[1.75rem] border border-white/70 p-5 transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-xl"
       onPress={() => navigate(item.route)}
     >
-      <HStack className="flex-col items-start justify-between gap-4 sm:flex-row">
+      <HStack className="items-center justify-between gap-3">
         <HStack className="flex-1 items-start gap-3">
-          <Box className="mt-0.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600/10 to-cyan-400/10 text-blue-600">
+          <Box className="mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600/10 to-cyan-400/10 text-blue-600">
             <Icon size={22} className="text-blue-600" />
           </Box>
-          <VStack className="gap-1 flex-1">
-            <Text className="text-base font-semibold text-slate-900">{item.title}</Text>
-            <Text className="text-sm leading-6 text-slate-600">{item.description}</Text>
+          <VStack className="gap-1 flex-1 min-w-0">
+            <Text className="text-base font-semibold text-slate-900 truncate">{item.title}</Text>
+            <Text className="text-sm leading-relaxed text-slate-600 line-clamp-2">{item.description}</Text>
           </VStack>
         </HStack>
-        <ChevronRightIcon size={18} className="mt-1 text-slate-300 transition-colors group-hover:text-blue-500" />
+        <Box className="shrink-0">
+          <ChevronRightIcon size={20} className="text-slate-300 transition-colors group-hover:text-blue-500" />
+        </Box>
       </HStack>
     </Pressable>
   )
