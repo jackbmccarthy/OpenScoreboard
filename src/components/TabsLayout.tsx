@@ -80,13 +80,13 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
               <Button
                 variant="ghost"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="flex h-9 w-9 items-center justify-center rounded-2xl p-2 hover:bg-white"
+                className="flex h-12 w-12 items-center justify-center rounded-2xl p-3 hover:bg-white"
               >
-                {mobileMenuOpen ? <XIcon size={18} /> : <MenuIcon size={18} />}
+                {mobileMenuOpen ? <XIcon size={22} /> : <MenuIcon size={22} />}
               </Button>
               <Link to="/dashboard" className="group flex items-center gap-2">
-                <Box className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
-                  <ScoreboardIcon size={18} color="white" />
+                <Box className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
+                  <ScoreboardIcon size={20} color="white" />
                 </Box>
               </Link>
             </HStack>

@@ -89,7 +89,7 @@ function DashboardItem({ item }: DashboardItemProps) {
 
   return (
     <Pressable
-      className="premium-card group min-h-[11rem] rounded-[1.75rem] border border-white/70 p-5 transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-xl"
+      className="premium-card group rounded-[1.75rem] border border-white/70 p-5 transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-xl"
       onPress={() => navigate(item.route)}
     >
       <HStack className="items-center justify-between gap-3">

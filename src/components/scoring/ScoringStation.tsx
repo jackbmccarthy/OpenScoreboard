@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react'
 import { Avatar, Badge, Box, Button, Heading, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
 import { CopyIcon, UserIcon } from '@/components/icons'
 import OverlayDialog from '@/components/crud/OverlayDialog'
-import ConfirmDialog from '@/components/crud/ConfirmDialog'
-import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import {
   AddPoint,
   AWonRally_PB,
@@ -101,6 +99,12 @@ function getSideBackground(player: any, fallback: string) {
   return player?.jerseyColor?.trim() || fallback
 }
 
+function getPlayerName(player: any, fallback: string) {
+  return player?.firstName || player?.lastName
+    ? `${player.firstName || ''} ${player.lastName || ''}`.trim()
+    : fallback
+}
+
 function TeamPlayerPreview({ player, fallback, textColor }: { player: any; fallback: string; textColor: string }) {
   const hasImage = Boolean(player?.imageURL?.trim())
 
@@ -115,29 +119,23 @@ function TeamPlayerPreview({ player, fallback, textColor }: { player: any; fallb
       )}
       <VStack className="min-w-0 flex-1 gap-0">
         <Text className="truncate text-sm font-semibold sm:text-base" style={{ color: textColor }}>
-          {player?.firstName || player?.lastName ? `${player.firstName || ''} ${player.lastName || ''}`.trim() : fallback}
+          {getPlayerName(player, fallback)}
         </Text>
       </VStack>
     </HStack>
   )
 }
 
-function ScoreSide({
+function SideSummaryCard({
   side,
-  isLeft,
   match,
   disabled,
-  onAddPoint,
-  onMinusPoint,
   onEditPlayer,
   onToggleServer,
 }: {
   side: 'A' | 'B'
-  isLeft: boolean
   match: any
   disabled?: boolean
-  onAddPoint: () => void | Promise<void>
-  onMinusPoint: () => void | Promise<void>
   onEditPlayer: (playerKey: string) => void
   onToggleServer: () => void | Promise<void>
 }) {
@@ -164,40 +162,46 @@ function ScoreSide({
   }
 
   return (
-    <Box className="relative min-w-0 basis-auto flex-1 px-2 py-2 sm:basis-1/2 sm:px-3 sm:py-3 lg:px-4 lg:py-4" style={cardStyle}>
+    <Box className="relative min-h-0 rounded-[2rem] p-3 sm:p-4" style={cardStyle}>
       <VStack className="h-full min-h-0 gap-3">
-        <Box className="flex items-center justify-center">
-          <Box className="rounded-[1rem] px-3 py-1.5 sm:px-4 sm:py-2" style={overlayStyle}>
-            <Text className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.08em] sm:text-xs sm:tracking-[0.12em]" style={{ color: mutedTextColor }}>
-              Games Won
+        <HStack className="items-start justify-between gap-3">
+          <VStack className="min-w-0 flex-1 gap-1">
+            <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] sm:text-xs" style={{ color: mutedTextColor }}>
+              {`Side ${side}`}
             </Text>
-            <Text className="text-center text-xl font-black sm:text-2xl" style={{ color: textColor }}>
+            <Text className="text-lg font-black sm:text-xl" style={{ color: textColor }}>
               {matchScore}
             </Text>
-          </Box>
-        </Box>
+            <Text className="text-[11px] font-medium uppercase tracking-[0.14em]" style={{ color: mutedTextColor }}>
+              Match Score
+            </Text>
+          </VStack>
+          <VStack className="items-end gap-1">
+            <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] sm:text-xs" style={{ color: mutedTextColor }}>
+              Current Game
+            </Text>
+            <Text className="text-5xl font-black leading-none sm:text-6xl" style={{ color: textColor }}>
+              {gameScore}
+            </Text>
+          </VStack>
+        </HStack>
 
-        <VStack className="min-h-0 flex-[0_0_30%] gap-2 overflow-hidden">
-          <Button variant="outline" className="min-h-[3rem] rounded-2xl px-2 py-2 sm:min-h-[3.5rem] sm:px-3" style={overlayStyle} onClick={() => onEditPlayer(primaryPlayerKey)}>
-          <TeamPlayerPreview player={sidePlayer} fallback={isSideA ? 'Player A' : 'Player B'} textColor={textColor} />
+        <VStack className="min-h-0 gap-2">
+          <Button variant="outline" className="min-h-[3.5rem] justify-start rounded-2xl px-3 py-2 text-left sm:min-h-[4rem]" style={overlayStyle} onClick={() => onEditPlayer(primaryPlayerKey)}>
+            <TeamPlayerPreview player={sidePlayer} fallback={isSideA ? 'Player A' : 'Player B'} textColor={textColor} />
           </Button>
           {match?.isDoubles ? (
-            <Button variant="outline" className="min-h-[3rem] rounded-2xl px-2 py-2 sm:min-h-[3.5rem] sm:px-3" style={overlayStyle} onClick={() => onEditPlayer(secondaryPlayerKey)}>
+            <Button variant="outline" className="min-h-[3.5rem] justify-start rounded-2xl px-3 py-2 text-left sm:min-h-[4rem]" style={overlayStyle} onClick={() => onEditPlayer(secondaryPlayerKey)}>
               <TeamPlayerPreview player={sidePlayer2} fallback={isSideA ? 'Player A2' : 'Player B2'} textColor={textColor} />
             </Button>
           ) : null}
         </VStack>
 
-        <VStack className="flex-[0_0_20%] items-center justify-center gap-1 pt-2 sm:gap-2 sm:pt-3">
-          <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] sm:text-xs" style={{ color: mutedTextColor }}>
-            Game Score
-          </Text>
-          <Text className="text-center font-black leading-none tracking-[-0.05em] sm:tracking-[-0.06em]" style={{ color: textColor, fontSize: 'clamp(3rem, 16vw, 6rem)' }}>{gameScore}</Text>
-          <HStack className="flex-wrap items-center justify-center gap-1 sm:gap-2">
+        <HStack className="flex-wrap items-center gap-2">
           {match?.isManualServiceMode ? (
             <Button
               variant="outline"
-              className="rounded-full px-2.5 py-1 text-[10px] sm:px-3 sm:text-xs"
+              className="rounded-full px-3 py-1 text-[10px] sm:text-xs"
               style={servingThisSide ? { backgroundColor: textColor, color: backgroundColor } : overlayStyle}
               onClick={onToggleServer}
               disabled={disabled}
@@ -207,23 +211,12 @@ function ScoreSide({
               </Text>
             </Button>
           ) : (
-            servingThisSide ? <Badge className="rounded-full px-2.5 py-1 text-[10px] sm:px-3 sm:text-xs" style={{ backgroundColor: textColor, color: backgroundColor }}>Serving</Badge> : null
+            servingThisSide ? <Badge className="rounded-full px-3 py-1 text-[10px] sm:text-xs" style={{ backgroundColor: textColor, color: backgroundColor }}>Serving</Badge> : null
           )}
-          {match?.isGamePoint && isGamePoint(match) ? <Badge className="rounded-full bg-amber-300 px-2.5 py-1 text-[10px] text-slate-950 sm:px-3 sm:text-xs">Game Point</Badge> : null}
-          {match?.isMatchPoint && isGamePoint(match) && isFinalGame(match) ? <Badge className="rounded-full bg-rose-300 px-2.5 py-1 text-[10px] text-slate-950 sm:px-3 sm:text-xs">Match Point</Badge> : null}
+          {match?.isGamePoint && isGamePoint(match) ? <Badge className="rounded-full bg-amber-300 px-3 py-1 text-[10px] text-slate-950 sm:text-xs">Game Point</Badge> : null}
+          {match?.isMatchPoint && isGamePoint(match) && isFinalGame(match) ? <Badge className="rounded-full bg-rose-300 px-3 py-1 text-[10px] text-slate-950 sm:text-xs">Match Point</Badge> : null}
         </HStack>
-        </VStack>
-
-        <VStack className="flex-[0_0_38%] justify-end gap-2 sm:gap-3">
-          <Button action="primary" className="min-h-[7rem] flex-1 rounded-[1.75rem] px-4 hover:opacity-95 sm:min-h-[8rem] sm:rounded-[1.9rem]" style={{ backgroundColor: textColor, color: backgroundColor }} onClick={onAddPoint} disabled={disabled}>
-            <Text className="text-5xl font-black sm:text-6xl" style={{ color: backgroundColor }}>+</Text>
-          </Button>
-          <Button variant="outline" className="min-h-[4.5rem] rounded-2xl px-3 sm:h-24 sm:px-2" style={overlayStyle} onClick={onMinusPoint} disabled={disabled}>
-            <Text className="text-3xl font-black" style={{ color: textColor }}>-</Text>
-          </Button>
-        </VStack>
       </VStack>
-
     </Box>
   )
 }
@@ -254,7 +247,6 @@ export default function ScoringStation({
   const [match, setMatch] = useState<any>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showTimeoutDialog, setShowTimeoutDialog] = useState(false)
-  const [showJudgeDialog, setShowJudgeDialog] = useState(false)
   const [showPlayerEditor, setShowPlayerEditor] = useState(false)
   const [showGameEndDialog, setShowGameEndDialog] = useState(false)
   const [showMatchEndDialog, setShowMatchEndDialog] = useState(false)
@@ -641,7 +633,7 @@ export default function ScoringStation({
     ? getNextPromotableScheduledMatch(Object.entries(tableInfo.scheduledMatches as Record<string, Record<string, any>>))
     : null
   const latestUndoablePointEvent = getLatestUndoablePointEvent(match)
-  const recentPointHistory = getRecentPointHistory(match, 4)
+  const recentPointHistory = getRecentPointHistory(match, 3)
   const canUndoCurrentMatch = Boolean(matchID && latestUndoablePointEvent && match?.sportName !== 'pickleball')
   const autoAdvanceMode = mode === 'table' ? (tableInfo?.autoAdvanceMode || 'manual') : 'manual'
   const autoAdvanceDelaySeconds = mode === 'table' ? Number(tableInfo?.autoAdvanceDelaySeconds || 0) : 0
@@ -703,7 +695,54 @@ export default function ScoringStation({
   const rightSide = match?.isSwitched ? 'A' : 'B'
   const teamMatchTables = teamMatch?.currentMatches ? Object.keys(teamMatch.currentMatches) : ['1']
   const scoreActionsDisabled = !matchID || showGameEndDialog || showMatchEndDialog || !!match?.isInBetweenGames || (match ? isMatchFinished(match) : false)
+  const currentGameNumber = getCurrentGameNumber(match) || 1
+  const currentGameFinished = Boolean(match?.[`isGame${currentGameNumber}Finished`])
+  const completedGames = Array.from({ length: 9 }, (_, index) => index + 1)
+    .filter((gameNumber) => Boolean(match?.[`isGame${gameNumber}Finished`]))
+    .map((gameNumber) => ({
+      gameNumber,
+      aScore: match?.[`game${gameNumber}AScore`] ?? 0,
+      bScore: match?.[`game${gameNumber}BScore`] ?? 0,
+    }))
+  const sideButtonLabels = {
+    left: {
+      add: `${leftSide} +1`,
+      remove: `${leftSide} -1`,
+      player: getPlayerName(match?.[leftSide === 'A' ? 'playerA' : 'playerB'], `Side ${leftSide}`),
+    },
+    right: {
+      add: `${rightSide} +1`,
+      remove: `${rightSide} -1`,
+      player: getPlayerName(match?.[rightSide === 'A' ? 'playerA' : 'playerB'], `Side ${rightSide}`),
+    },
+  }
   const scoringContextLabel = [match?.matchRound || match?.context?.matchRound || '', match?.eventName || match?.context?.eventName || ''].filter(Boolean).join(' • ')
+
+  const handleUndo = async () => {
+    if (!matchID) return
+    setActiveAction('undo')
+    await undoLastPointAction(matchID)
+    await refreshMatch()
+    setActiveAction('')
+  }
+
+  const handlePauseToggle = async () => {
+    if (!matchID) return
+    setActiveAction('pause')
+    await setJudgePauseState(matchID, !Boolean(match?.isJudgePaused), '')
+    await refreshMatch()
+    setActiveAction('')
+  }
+
+  const handleCompleteAction = () => {
+    if (match && isMatchFinished(match)) {
+      setShowMatchEndDialog(true)
+      return
+    }
+    if (currentGameFinished) {
+      setShowGameEndDialog(true)
+    }
+  }
 
   if (authLoading || loading) {
     return (
@@ -743,118 +782,38 @@ export default function ScoringStation({
   }
 
   return (
-    <Box className="min-h-[100dvh] overflow-x-hidden bg-slate-950 sm:h-[100dvh] sm:overflow-hidden">
-      {user ? (
-        <HStack className="flex-col items-start justify-between gap-3 border-b border-white/10 bg-slate-950/90 px-4 py-3 text-white backdrop-blur sm:flex-row sm:items-center">
-          <VStack className="gap-0">
-            <Text className="text-xs uppercase tracking-[0.18em] text-slate-400">
-              {mode === 'table' ? 'Table Scoring' : 'Team Match Scoring'}
-            </Text>
-            <Heading size="lg" className="text-white">
-              {mode === 'table' ? tableInfo?.tableName || 'Scoring Station' : `${teamMatch?.sportDisplayName || 'Team Match'} • Table ${activeTableNumber}`}
-            </Heading>
-            {scoringContextLabel ? (
-              <Text className="text-xs text-slate-300">{scoringContextLabel}</Text>
-            ) : null}
-          </VStack>
-          <HStack className="w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-            <LiveStatusBadge status={syncStatus} prefix="Live" />
+    <Box className="flex h-[100dvh] flex-col overflow-hidden bg-slate-950 text-white">
+      <HStack className="items-center justify-between gap-3 border-b border-white/10 bg-slate-950/90 px-4 py-3 backdrop-blur">
+        <VStack className="min-w-0 gap-0">
+          <Text className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
+            {mode === 'table' ? 'Table Scoring' : 'Team Match Scoring'}
+          </Text>
+          <Heading size="lg" className="truncate text-white">
+            {mode === 'table' ? tableInfo?.tableName || 'Scoring Station' : `${teamMatch?.sportDisplayName || 'Team Match'} • Table ${activeTableNumber}`}
+          </Heading>
+          {scoringContextLabel ? (
+            <Text className="truncate text-xs text-slate-300">{scoringContextLabel}</Text>
+          ) : null}
+        </VStack>
+        {user ? (
+          <HStack className="shrink-0 items-center gap-2">
             <Button
               variant="solid"
               className={copiedLink ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-500/20 hover:bg-cyan-300'}
               onClick={handleCopyScoringLink}
             >
               <CopyIcon size={14} />
-              <Text className={`ml-1 ${copiedLink ? 'text-emerald-700' : 'text-slate-950'}`}>{copiedLink ? 'Copied' : 'Copy Link'}</Text>
+              <Text className={copiedLink ? 'text-emerald-700' : 'text-slate-950'}>{copiedLink ? 'Copied' : 'Copy'}</Text>
             </Button>
             <Button variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10" onClick={() => navigate(mode === 'table' ? '/tables' : '/teammatches')}>
               <Text className="text-white/90">Back</Text>
             </Button>
           </HStack>
-        </HStack>
-      ) : null}
-
-      <Box className="border-b border-white/10 bg-slate-950 px-3 py-2 text-white">
-        <VStack className="gap-2">
-          <Box className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={() => setShowTimeoutDialog(true)} disabled={!matchID}>
-              <Text className="text-slate-900">Timeout</Text>
-            </Button>
-            <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={() => setShowJudgeDialog(true)} disabled={!matchID}>
-              <Text className="text-slate-900">Judge</Text>
-            </Button>
-            <Button
-              variant="outline"
-              className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100"
-              onClick={async () => {
-                setActiveAction('undo')
-                await undoLastPointAction(matchID)
-                await refreshMatch()
-                setActiveAction('')
-              }}
-              disabled={!canUndoCurrentMatch || activeAction === 'undo'}
-            >
-              {activeAction === 'undo' ? <Spinner size="sm" /> : null}
-              <Text className="text-slate-900">Undo</Text>
-            </Button>
-            <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={handleSwitchSides} disabled={!matchID || activeAction === 'switch'}>
-              {activeAction === 'switch' ? <Spinner size="sm" /> : null}
-              <Text className="text-slate-900">Switch Sides</Text>
-            </Button>
-            <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={() => setShowSettings(true)} disabled={!matchID}>
-              <Text className="text-slate-900">Match Settings</Text>
-            </Button>
-          </Box>
-
-          {mode === 'teamMatch' ? (
-            <HStack className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-              <Text className="text-sm text-white/70">Table</Text>
-              <Select value={activeTableNumber} onValueChange={setActiveTableNumber} className="min-w-[6rem] bg-white text-slate-900">
-                {teamMatchTables.map((tableNumber) => (
-                  <option key={tableNumber} value={tableNumber}>{tableNumber}</option>
-                ))}
-              </Select>
-            </HStack>
-          ) : null}
-          {match?.isJudgePaused || match?.isDisputed ? (
-            <HStack className="flex-wrap gap-2">
-              {match?.isJudgePaused ? (
-                <Badge className="rounded-full bg-amber-200 px-3 py-1 text-xs text-slate-950">Judge Pause</Badge>
-              ) : null}
-              {match?.isDisputed ? (
-                <Badge className="rounded-full bg-rose-200 px-3 py-1 text-xs text-slate-950">Dispute Active</Badge>
-              ) : null}
-              {match?.latestJudgeNote ? (
-                <Text className="text-xs text-white/75">{match.latestJudgeNote}</Text>
-              ) : null}
-            </HStack>
-          ) : null}
-          {syncStatus === 'offline' || syncStatus === 'error' || matchSyncStatus === 'offline' || matchSyncStatus === 'error' ? (
-            <Box className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2">
-              <Text className="text-xs font-medium text-rose-700">
-                {syncStatus === 'offline' || matchSyncStatus === 'offline'
-                  ? 'Live scoring is offline. Changes may not sync until the connection returns.'
-                  : syncError || matchSyncError || 'A live sync error occurred.'}
-              </Text>
-            </Box>
-          ) : null}
-          {recentPointHistory.length > 0 ? (
-            <VStack className="gap-1">
-              <Text className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/60">Recent History</Text>
-              <HStack className="flex-wrap gap-2">
-                {recentPointHistory.map((event) => (
-                  <Badge key={event.eventID} className={`rounded-full px-2.5 py-1 text-[10px] ${event.undone ? 'bg-slate-700 text-slate-200' : 'bg-white/10 text-white'}`}>
-                    {event.action === 'point_added' ? '+' : event.action === 'point_removed' ? '-' : '*'} G{event.gameNumber} {event.side || '-'} {event.scoreA}-{event.scoreB}{event.undone ? ' undone' : ''}
-                  </Badge>
-                ))}
-              </HStack>
-            </VStack>
-          ) : null}
-        </VStack>
-      </Box>
+        ) : null}
+      </HStack>
 
       {!match ? (
-        <Box className="flex h-[calc(100dvh-7.5rem)] items-center justify-center p-6 text-white">
+        <Box className="flex min-h-0 flex-1 items-center justify-center p-6 text-white">
           <VStack className="items-center gap-4 text-center">
             <Heading size="lg" className="text-white">No active match</Heading>
             <Text className="max-w-md text-sm text-white/70">
@@ -869,36 +828,185 @@ export default function ScoringStation({
           </VStack>
         </Box>
       ) : (
-        <HStack className="min-h-0 h-auto flex-col overflow-y-auto sm:h-[calc(100dvh-7.5rem)] sm:flex-row sm:overflow-hidden">
-          <ScoreSide
-            side={leftSide}
-            isLeft={true}
-            match={match}
-            disabled={scoreActionsDisabled}
-            onAddPoint={() => applyPoint(leftSide, true)}
-            onMinusPoint={() => applyPoint(leftSide, false)}
-            onEditPlayer={(playerKey) => {
-              setEditingPlayerKey(playerKey)
-              setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
-              setShowPlayerEditor(true)
-            }}
-            onToggleServer={() => setServerManually(matchID, leftSide === 'A')}
-          />
-          <ScoreSide
-            side={rightSide}
-            isLeft={false}
-            match={match}
-            disabled={scoreActionsDisabled}
-            onAddPoint={() => applyPoint(rightSide, true)}
-            onMinusPoint={() => applyPoint(rightSide, false)}
-            onEditPlayer={(playerKey) => {
-              setEditingPlayerKey(playerKey)
-              setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
-              setShowPlayerEditor(true)
-            }}
-            onToggleServer={() => setServerManually(matchID, rightSide === 'A')}
-          />
-        </HStack>
+        <Box className="min-h-0 flex-1 overflow-hidden p-3 sm:p-4">
+          <Box className="grid h-full min-h-0 grid-cols-2 gap-3 sm:gap-4">
+            <VStack className="min-h-0 gap-3 rounded-[2rem] border border-white/10 bg-slate-900/70 p-3 shadow-xl shadow-slate-950/30 sm:p-4">
+              <HStack className="items-start justify-between gap-3">
+                <VStack className="min-w-0 gap-1">
+                  <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-xs">
+                    Current Match
+                  </Text>
+                  <Text className="text-sm font-semibold text-white sm:text-base">
+                    {match?.sportDisplayName || supportedSports[match?.sportName]?.displayName || 'Scoring'}
+                  </Text>
+                </VStack>
+                {mode === 'teamMatch' ? (
+                  <Select value={activeTableNumber} onValueChange={setActiveTableNumber} className="min-h-[2.5rem] min-w-[5rem] rounded-2xl border border-white/15 bg-white/95 text-sm text-slate-900">
+                    {teamMatchTables.map((tableNumber) => (
+                      <option key={tableNumber} value={tableNumber}>{`Table ${tableNumber}`}</option>
+                    ))}
+                  </Select>
+                ) : null}
+              </HStack>
+
+              <VStack className="min-h-0 flex-1 justify-between gap-3">
+                <SideSummaryCard
+                  side={leftSide}
+                  match={match}
+                  disabled={scoreActionsDisabled}
+                  onEditPlayer={(playerKey) => {
+                    setEditingPlayerKey(playerKey)
+                    setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
+                    setShowPlayerEditor(true)
+                  }}
+                  onToggleServer={() => setServerManually(matchID, leftSide === 'A')}
+                />
+                <SideSummaryCard
+                  side={rightSide}
+                  match={match}
+                  disabled={scoreActionsDisabled}
+                  onEditPlayer={(playerKey) => {
+                    setEditingPlayerKey(playerKey)
+                    setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
+                    setShowPlayerEditor(true)
+                  }}
+                  onToggleServer={() => setServerManually(matchID, rightSide === 'A')}
+                />
+              </VStack>
+            </VStack>
+
+            <VStack className="min-h-0 gap-3 rounded-[2rem] border border-white/10 bg-slate-900/70 p-3 shadow-xl shadow-slate-950/30 sm:p-4">
+              <Box className="grid grid-cols-5 gap-2">
+                <Button
+                  variant="outline"
+                  className="min-h-14 min-w-0 rounded-2xl border-white/15 bg-white text-[11px] font-semibold text-slate-900 hover:bg-slate-100 sm:text-xs"
+                  onClick={handleCompleteAction}
+                  disabled={!matchID || (!currentGameFinished && !isMatchFinished(match))}
+                >
+                  <Text className="text-center text-[11px] font-semibold text-slate-900 sm:text-xs">Complete</Text>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-14 min-w-0 rounded-2xl border-white/15 bg-white text-[11px] font-semibold text-slate-900 hover:bg-slate-100 sm:text-xs"
+                  onClick={handleUndo}
+                  disabled={!canUndoCurrentMatch || activeAction === 'undo'}
+                >
+                  {activeAction === 'undo' ? <Spinner size="sm" /> : null}
+                  <Text className="text-center text-[11px] font-semibold text-slate-900 sm:text-xs">Undo</Text>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-14 min-w-0 rounded-2xl border-white/15 bg-white text-[11px] font-semibold text-slate-900 hover:bg-slate-100 sm:text-xs"
+                  onClick={() => setShowTimeoutDialog(true)}
+                  disabled={!matchID}
+                >
+                  <Text className="text-center text-[11px] font-semibold text-slate-900 sm:text-xs">Timeout</Text>
+                </Button>
+                <Button
+                  variant={match?.isJudgePaused ? 'solid' : 'outline'}
+                  className={match?.isJudgePaused
+                    ? 'min-h-14 min-w-0 rounded-2xl bg-amber-300 text-[11px] font-semibold text-slate-950 hover:bg-amber-200 sm:text-xs'
+                    : 'min-h-14 min-w-0 rounded-2xl border-white/15 bg-white text-[11px] font-semibold text-slate-900 hover:bg-slate-100 sm:text-xs'}
+                  onClick={handlePauseToggle}
+                  disabled={!matchID || activeAction === 'pause'}
+                >
+                  {activeAction === 'pause' ? <Spinner size="sm" /> : null}
+                  <Text className={`text-center text-[11px] font-semibold sm:text-xs ${match?.isJudgePaused ? 'text-slate-950' : 'text-slate-900'}`}>
+                    {match?.isJudgePaused ? 'Resume' : 'Pause'}
+                  </Text>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-14 min-w-0 rounded-2xl border-white/15 bg-white text-[11px] font-semibold text-slate-900 hover:bg-slate-100 sm:text-xs"
+                  onClick={() => setShowSettings(true)}
+                  disabled={!matchID}
+                >
+                  <Text className="text-center text-[11px] font-semibold text-slate-900 sm:text-xs">Settings</Text>
+                </Button>
+              </Box>
+
+              <Box className="grid grid-cols-2 gap-2 sm:gap-3">
+                <Button
+                  action="primary"
+                  className="min-h-16 rounded-[1.5rem] px-3 py-3"
+                  onClick={() => applyPoint(leftSide, true)}
+                  disabled={scoreActionsDisabled}
+                >
+                  <VStack className="gap-1">
+                    <Text className="max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80 sm:text-xs">{sideButtonLabels.left.player}</Text>
+                    <Text className="text-2xl font-black text-white sm:text-3xl">{sideButtonLabels.left.add}</Text>
+                  </VStack>
+                </Button>
+                <Button
+                  action="primary"
+                  className="min-h-16 rounded-[1.5rem] px-3 py-3"
+                  onClick={() => applyPoint(rightSide, true)}
+                  disabled={scoreActionsDisabled}
+                >
+                  <VStack className="gap-1">
+                    <Text className="max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80 sm:text-xs">{sideButtonLabels.right.player}</Text>
+                    <Text className="text-2xl font-black text-white sm:text-3xl">{sideButtonLabels.right.add}</Text>
+                  </VStack>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-16 rounded-[1.5rem] border-white/15 bg-white/10 px-3 py-3 text-white hover:bg-white/15"
+                  onClick={() => applyPoint(leftSide, false)}
+                  disabled={scoreActionsDisabled}
+                >
+                  <VStack className="gap-1">
+                    <Text className="max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70 sm:text-xs">{sideButtonLabels.left.player}</Text>
+                    <Text className="text-2xl font-black text-white sm:text-3xl">{sideButtonLabels.left.remove}</Text>
+                  </VStack>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-16 rounded-[1.5rem] border-white/15 bg-white/10 px-3 py-3 text-white hover:bg-white/15"
+                  onClick={() => applyPoint(rightSide, false)}
+                  disabled={scoreActionsDisabled}
+                >
+                  <VStack className="gap-1">
+                    <Text className="max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70 sm:text-xs">{sideButtonLabels.right.player}</Text>
+                    <Text className="text-2xl font-black text-white sm:text-3xl">{sideButtonLabels.right.remove}</Text>
+                  </VStack>
+                </Button>
+              </Box>
+
+              <Box className="grid min-h-0 flex-1 grid-cols-2 gap-2 sm:gap-3">
+                <VStack className="min-h-0 rounded-[1.5rem] border border-white/10 bg-white/5 p-3">
+                  <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-xs">Game History</Text>
+                  <Box className="mt-2 flex flex-wrap gap-2">
+                    {completedGames.length > 0 ? completedGames.map((game) => (
+                      <Badge key={game.gameNumber} className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white">
+                        {`G${game.gameNumber} ${game.aScore}-${game.bScore}`}
+                      </Badge>
+                    )) : (
+                      <Text className="pt-2 text-xs text-slate-400">No completed games yet.</Text>
+                    )}
+                  </Box>
+                </VStack>
+
+                <VStack className="min-h-0 rounded-[1.5rem] border border-white/10 bg-white/5 p-3">
+                  <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-xs">Point History</Text>
+                  <VStack className="mt-2 gap-2">
+                    {recentPointHistory.length > 0 ? recentPointHistory.map((event) => (
+                      <Box key={event.eventID} className={`rounded-2xl px-3 py-2 ${event.undone ? 'bg-slate-700/80' : 'bg-white/5'}`}>
+                        <Text className="text-[11px] font-semibold text-white">
+                          {event.action === 'point_added' ? 'Point Added' : event.action === 'point_removed' ? 'Point Removed' : 'Update'}
+                        </Text>
+                        <Text className="text-[11px] text-slate-300">
+                          {`G${event.gameNumber} • ${event.side || '-'} • ${event.scoreA}-${event.scoreB}${event.undone ? ' • Undone' : ''}`}
+                        </Text>
+                      </Box>
+                    )) : (
+                      <Text className="pt-2 text-xs text-slate-400">No recent points yet.</Text>
+                    )}
+                  </VStack>
+                </VStack>
+              </Box>
+            </VStack>
+          </Box>
+        </Box>
       )}
 
       <OverlayDialog
@@ -1000,83 +1108,9 @@ export default function ScoringStation({
       </OverlayDialog>
 
       <OverlayDialog
-        isOpen={showJudgeDialog}
-        onClose={() => setShowJudgeDialog(false)}
-        title="Judge Mode"
-        footer={(
-          <Button variant="outline" onClick={() => setShowJudgeDialog(false)}>
-            <Text>Close</Text>
-          </Button>
-        )}
-      >
-        <VStack className="gap-3">
-          <Button
-            variant="outline"
-            onClick={async () => {
-              setActiveAction('judge-pause')
-              await setJudgePauseState(matchID, !Boolean(match?.isJudgePaused), judgeNote)
-              await refreshMatch()
-              setActiveAction('')
-            }}
-            disabled={!matchID}
-          >
-            {activeAction === 'judge-pause' ? <Spinner size="sm" /> : null}
-            <Text>{match?.isJudgePaused ? 'Resume Match' : 'Pause Match'}</Text>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={async () => {
-              setActiveAction('judge-dispute')
-              await setMatchDisputeState(matchID, !Boolean(match?.isDisputed), judgeNote)
-              await refreshMatch()
-              setActiveAction('')
-            }}
-            disabled={!matchID}
-          >
-            {activeAction === 'judge-dispute' ? <Spinner size="sm" /> : null}
-            <Text>{match?.isDisputed ? 'Clear Dispute' : 'Mark Dispute'}</Text>
-          </Button>
-          <HStack className="flex-wrap gap-2">
-            <Button variant="outline" onClick={async () => { setActiveAction('judge-yellow-a'); await setYellowFlag(matchID, 'A', !Boolean(match?.isAYellowCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
-              <Text>{match?.isAYellowCarded ? 'Clear A Yellow' : 'A Yellow'}</Text>
-            </Button>
-            <Button variant="outline" onClick={async () => { setActiveAction('judge-yellow-b'); await setYellowFlag(matchID, 'B', !Boolean(match?.isBYellowCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
-              <Text>{match?.isBYellowCarded ? 'Clear B Yellow' : 'B Yellow'}</Text>
-            </Button>
-            <Button variant="outline" onClick={async () => { setActiveAction('judge-red-a'); await setRedFlag(matchID, 'A', !Boolean(match?.isARedCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
-              <Text>{match?.isARedCarded ? 'Clear A Red' : 'A Red'}</Text>
-            </Button>
-            <Button variant="outline" onClick={async () => { setActiveAction('judge-red-b'); await setRedFlag(matchID, 'B', !Boolean(match?.isBRedCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
-              <Text>{match?.isBRedCarded ? 'Clear B Red' : 'B Red'}</Text>
-            </Button>
-          </HStack>
-          <textarea
-            className="min-h-[6rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            value={judgeNote}
-            onChange={(event) => setJudgeNote(event.target.value)}
-            placeholder="Judge note, ruling, or interruption details"
-          />
-          <Button
-            variant="outline"
-            onClick={async () => {
-              setActiveAction('judge-note')
-              await addJudgeNote(matchID, judgeNote)
-              setJudgeNote('')
-              await refreshMatch()
-              setActiveAction('')
-            }}
-            disabled={!matchID || !judgeNote.trim()}
-          >
-            {activeAction === 'judge-note' ? <Spinner size="sm" /> : null}
-            <Text>Save Judge Note</Text>
-          </Button>
-        </VStack>
-      </OverlayDialog>
-
-      <OverlayDialog
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
-        title="Scoring Settings"
+        title="Match Settings"
         footer={(
           <>
             <Button variant="outline" onClick={() => setShowSettings(false)}>
@@ -1089,7 +1123,15 @@ export default function ScoringStation({
           </>
         )}
       >
-        <VStack className="gap-3">
+        <VStack className="gap-4">
+          <VStack className="gap-2">
+            <Text className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Scoring Format</Text>
+            <Button variant="outline" onClick={handleSwitchSides} disabled={!matchID || activeAction === 'switch'}>
+              {activeAction === 'switch' ? <Spinner size="sm" /> : null}
+              <Text>Switch Sides</Text>
+            </Button>
+          </VStack>
+
           <Select value={String(settingsDraft.bestOf)} onValueChange={(value) => setSettingsDraft((current) => ({ ...current, bestOf: Number(value) }))}>
             {[1, 3, 5, 7, 9].map((value) => <option key={value} value={value}>{`Best of ${value}`}</option>)}
           </Select>
@@ -1135,6 +1177,57 @@ export default function ScoringStation({
                 )
               })
             )}
+          </VStack>
+
+          <VStack className="gap-2">
+            <Text className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Judge Controls</Text>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                setActiveAction('judge-dispute')
+                await setMatchDisputeState(matchID, !Boolean(match?.isDisputed), judgeNote)
+                await refreshMatch()
+                setActiveAction('')
+              }}
+              disabled={!matchID}
+            >
+              {activeAction === 'judge-dispute' ? <Spinner size="sm" /> : null}
+              <Text>{match?.isDisputed ? 'Clear Dispute' : 'Mark Dispute'}</Text>
+            </Button>
+            <HStack className="flex-wrap gap-2">
+              <Button variant="outline" onClick={async () => { setActiveAction('judge-yellow-a'); await setYellowFlag(matchID, 'A', !Boolean(match?.isAYellowCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
+                <Text>{match?.isAYellowCarded ? 'Clear A Yellow' : 'A Yellow'}</Text>
+              </Button>
+              <Button variant="outline" onClick={async () => { setActiveAction('judge-yellow-b'); await setYellowFlag(matchID, 'B', !Boolean(match?.isBYellowCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
+                <Text>{match?.isBYellowCarded ? 'Clear B Yellow' : 'B Yellow'}</Text>
+              </Button>
+              <Button variant="outline" onClick={async () => { setActiveAction('judge-red-a'); await setRedFlag(matchID, 'A', !Boolean(match?.isARedCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
+                <Text>{match?.isARedCarded ? 'Clear A Red' : 'A Red'}</Text>
+              </Button>
+              <Button variant="outline" onClick={async () => { setActiveAction('judge-red-b'); await setRedFlag(matchID, 'B', !Boolean(match?.isBRedCarded)); await refreshMatch(); setActiveAction('') }} disabled={!matchID}>
+                <Text>{match?.isBRedCarded ? 'Clear B Red' : 'B Red'}</Text>
+              </Button>
+            </HStack>
+            <textarea
+              className="min-h-[6rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              value={judgeNote}
+              onChange={(event) => setJudgeNote(event.target.value)}
+              placeholder="Judge note, ruling, or interruption details"
+            />
+            <Button
+              variant="outline"
+              onClick={async () => {
+                setActiveAction('judge-note')
+                await addJudgeNote(matchID, judgeNote)
+                setJudgeNote('')
+                await refreshMatch()
+                setActiveAction('')
+              }}
+              disabled={!matchID || !judgeNote.trim()}
+            >
+              {activeAction === 'judge-note' ? <Spinner size="sm" /> : null}
+              <Text>Save Judge Note</Text>
+            </Button>
           </VStack>
         </VStack>
       </OverlayDialog>
