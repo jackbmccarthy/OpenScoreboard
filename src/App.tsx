@@ -25,6 +25,7 @@ import TeamMatchesPage from './screens/TeamMatchesPage'
 import TournamentsPage from './screens/TournamentsPage'
 import TournamentBracketPage from './screens/TournamentBracketPage'
 import TournamentDetailPage from './screens/TournamentDetailPage'
+import TournamentSchedulePage from './screens/TournamentSchedulePage'
 import PlayerListsPage from './screens/PlayerListsPage'
 import PlayerRegistrationPage from './screens/PlayerRegistrationPage'
 import BulkPlayerPage from './screens/BulkPlayerPage'
@@ -57,6 +58,7 @@ function App() {
         {/* Public marketing home */}
         <Route path="/" element={<HomePage />} />
         <Route path="/tournaments/:id/brackets" element={<TournamentBracketPage />} />
+        <Route path="/tournaments/:id/schedule" element={<TournamentSchedulePage />} />
 
         {/* Main app with tab navigation */}
         <Route element={<TabsLayout />}>

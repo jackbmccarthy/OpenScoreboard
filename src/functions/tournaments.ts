@@ -1,13 +1,27 @@
 import db, { getUserPath } from '@/lib/database'
 import { canManageTournament, canTransferTournament, canViewTournament } from '@/lib/tournamentPermissions'
 import { subscribeToPathValue } from '@/lib/realtime'
-import { newTournament } from '@/classes/Tournament'
+import { newTournament, type TournamentScheduleBlockType } from '@/classes/Tournament'
 import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteTournamentChildren } from './deletion'
 import { addScheduledMatch, deleteScheduledTableMatch, getMatchScore, moveScheduledTableMatchToTable, updateScheduledMatch } from './scoring'
+import { getCombinedPlayerNames, getPlayerFormatted } from './players'
 import Match from '@/classes/Match'
 
 export type TournamentVisibility = 'private' | 'unlisted' | 'public'
 export type TournamentStatus = 'draft' | 'published' | 'in-progress' | 'completed' | 'archived'
+export type TournamentScheduleGenerationSummary = {
+  createdBlockIDs: string[]
+  updatedBlockIDs: string[]
+  skippedCount: number
+}
+
+export type TournamentPublicVisibilityRecord = {
+  registration?: boolean
+  brackets?: boolean
+  liveScores?: boolean
+  schedule?: boolean
+  [key: string]: unknown
+}
 
 export type TournamentRecord = {
   ownerID: string
@@ -27,7 +41,7 @@ export type TournamentRecord = {
   scheduleBlocks: Record<string, unknown>
   staffAssignments: Record<string, unknown>
   pendingInvites?: Record<string, unknown>
-  publicVisibility: Record<string, unknown>
+  publicVisibility: TournamentPublicVisibilityRecord
   createdAt: string
   updatedAt: string
   [key: string]: unknown
@@ -88,6 +102,7 @@ export type TournamentRoundRecord = {
 }
 
 export type TournamentScheduleBlockRecord = {
+  blockType: TournamentScheduleBlockType
   title: string
   eventID: string
   roundID: string
@@ -95,6 +110,14 @@ export type TournamentScheduleBlockRecord = {
   eventName: string
   roundTitle: string
   scheduledStartTime: string
+  scheduledEndTime: string
+  participantKeys: string[]
+  participantLabels: string[]
+  hasConflicts: boolean
+  conflictingBlockIDs: string[]
+  conflictingParticipantLabels: string[]
+  isPublished: boolean
+  publishedAt: string
   assignedTableID: string
   assignedTableLabel: string
   assignedQueueItemID: string
@@ -200,6 +223,7 @@ function normalizeTournamentScheduleBlockRecord(
 ): TournamentScheduleBlockRecord {
   const now = new Date().toISOString()
   return {
+    blockType: (scheduleBlock?.blockType || 'match') as TournamentScheduleBlockType,
     title: String(scheduleBlock?.title || ''),
     eventID: String(scheduleBlock?.eventID || ''),
     roundID: String(scheduleBlock?.roundID || ''),
@@ -207,6 +231,14 @@ function normalizeTournamentScheduleBlockRecord(
     eventName: String(scheduleBlock?.eventName || ''),
     roundTitle: String(scheduleBlock?.roundTitle || ''),
     scheduledStartTime: String(scheduleBlock?.scheduledStartTime || ''),
+    scheduledEndTime: String(scheduleBlock?.scheduledEndTime || ''),
+    participantKeys: Array.isArray(scheduleBlock?.participantKeys) ? scheduleBlock?.participantKeys.filter(Boolean).map((value) => String(value)) : [],
+    participantLabels: Array.isArray(scheduleBlock?.participantLabels) ? scheduleBlock?.participantLabels.filter(Boolean).map((value) => String(value)) : [],
+    hasConflicts: Boolean(scheduleBlock?.hasConflicts),
+    conflictingBlockIDs: Array.isArray(scheduleBlock?.conflictingBlockIDs) ? scheduleBlock?.conflictingBlockIDs.filter(Boolean).map((value) => String(value)) : [],
+    conflictingParticipantLabels: Array.isArray(scheduleBlock?.conflictingParticipantLabels) ? scheduleBlock?.conflictingParticipantLabels.filter(Boolean).map((value) => String(value)) : [],
+    isPublished: scheduleBlock?.isPublished !== false,
+    publishedAt: String(scheduleBlock?.publishedAt || (scheduleBlock?.isPublished === false ? '' : now)),
     assignedTableID: String(scheduleBlock?.assignedTableID || ''),
     assignedTableLabel: String(scheduleBlock?.assignedTableLabel || ''),
     assignedQueueItemID: String(scheduleBlock?.assignedQueueItemID || ''),
@@ -218,6 +250,156 @@ function normalizeTournamentScheduleBlockRecord(
     createdAt: String(scheduleBlock?.createdAt || now),
     updatedAt: String(scheduleBlock?.updatedAt || now),
   }
+}
+
+const tournamentScheduleDefaultDurationMinutes: Record<TournamentScheduleBlockType, number> = {
+  warmup: 15,
+  match: 45,
+  break: 15,
+}
+
+function addMinutesToIsoString(value: string, minutes: number) {
+  const timestamp = new Date(value).getTime()
+  if (!Number.isFinite(timestamp)) {
+    return ''
+  }
+  return new Date(timestamp + minutes * 60_000).toISOString()
+}
+
+function normalizeScheduleParticipantLabel(label: string) {
+  return label.trim().replace(/\s+/g, ' ')
+}
+
+function buildScheduleParticipantKey(prefix: 'player' | 'team' | 'entry', value: string) {
+  const normalized = normalizeScheduleParticipantLabel(value).toLowerCase()
+  return normalized ? `${prefix}:${normalized}` : ''
+}
+
+function getTournamentScheduleBlockEndTime(scheduleBlock: Pick<TournamentScheduleBlockRecord, 'blockType' | 'scheduledStartTime' | 'scheduledEndTime'>) {
+  if (scheduleBlock.scheduledEndTime) {
+    return scheduleBlock.scheduledEndTime
+  }
+  if (!scheduleBlock.scheduledStartTime) {
+    return ''
+  }
+  return addMinutesToIsoString(
+    scheduleBlock.scheduledStartTime,
+    tournamentScheduleDefaultDurationMinutes[scheduleBlock.blockType || 'match'] || tournamentScheduleDefaultDurationMinutes.match,
+  )
+}
+
+function getScheduleBlockTimeRange(scheduleBlock: Pick<TournamentScheduleBlockRecord, 'blockType' | 'scheduledStartTime' | 'scheduledEndTime'>) {
+  const start = scheduleBlock.scheduledStartTime ? new Date(scheduleBlock.scheduledStartTime).getTime() : Number.NaN
+  const endValue = getTournamentScheduleBlockEndTime(scheduleBlock)
+  const end = endValue ? new Date(endValue).getTime() : Number.NaN
+  return { start, end }
+}
+
+function scheduleBlocksOverlap(
+  left: Pick<TournamentScheduleBlockRecord, 'blockType' | 'scheduledStartTime' | 'scheduledEndTime'>,
+  right: Pick<TournamentScheduleBlockRecord, 'blockType' | 'scheduledStartTime' | 'scheduledEndTime'>,
+) {
+  const leftRange = getScheduleBlockTimeRange(left)
+  const rightRange = getScheduleBlockTimeRange(right)
+  if (!Number.isFinite(leftRange.start) || !Number.isFinite(leftRange.end) || !Number.isFinite(rightRange.start) || !Number.isFinite(rightRange.end)) {
+    return false
+  }
+  return leftRange.start < rightRange.end && rightRange.start < leftRange.end
+}
+
+function inferScheduleParticipantDetailsFromMatch(match: Record<string, any> | null) {
+  const labels = new Set<string>()
+  const keys = new Set<string>()
+  const pushParticipant = (label: string, keyPrefix: 'player' | 'team' | 'entry' = 'entry') => {
+    const normalizedLabel = normalizeScheduleParticipantLabel(label)
+    if (!normalizedLabel) {
+      return
+    }
+    labels.add(normalizedLabel)
+    const participantKey = buildScheduleParticipantKey(keyPrefix, normalizedLabel)
+    if (participantKey) {
+      keys.add(participantKey)
+    }
+  }
+
+  if (!match || typeof match !== 'object') {
+    return {
+      participantLabels: [] as string[],
+      participantKeys: [] as string[],
+    }
+  }
+
+  const teamFields = [
+    String(match.teamAName || match.teamNameA || ''),
+    String(match.teamBName || match.teamNameB || ''),
+  ]
+  teamFields.forEach((teamName) => pushParticipant(teamName, 'team'))
+
+  const playerFields = [
+    getPlayerFormatted(match.playerA),
+    getPlayerFormatted(match.playerA2),
+    getPlayerFormatted(match.playerB),
+    getPlayerFormatted(match.playerB2),
+  ]
+  playerFields.forEach((playerName) => pushParticipant(playerName, 'player'))
+
+  if (labels.size === 0) {
+    const combinedPlayers = getCombinedPlayerNames(match.playerA, match.playerB, match.playerA2, match.playerB2)
+    pushParticipant(combinedPlayers.a, 'entry')
+    pushParticipant(combinedPlayers.b, 'entry')
+  }
+
+  return {
+    participantLabels: Array.from(labels),
+    participantKeys: Array.from(keys),
+  }
+}
+
+function inferScheduleParticipantDetailsFromBlock(
+  scheduleBlock: TournamentScheduleBlockRecord,
+  match: Record<string, any> | null,
+) {
+  const labels = new Set<string>((scheduleBlock.participantLabels || []).map((label) => normalizeScheduleParticipantLabel(String(label))).filter(Boolean))
+  const keys = new Set<string>((scheduleBlock.participantKeys || []).map((key) => String(key)).filter(Boolean))
+  const inferredFromMatch = inferScheduleParticipantDetailsFromMatch(match)
+
+  inferredFromMatch.participantLabels.forEach((label) => labels.add(label))
+  inferredFromMatch.participantKeys.forEach((key) => keys.add(key))
+
+  if (labels.size === 0 && scheduleBlock.blockType === 'match' && scheduleBlock.title.toLowerCase().includes(' vs ')) {
+    scheduleBlock.title.split(/\s+vs\.?\s+/i).forEach((entry) => {
+      const normalizedLabel = normalizeScheduleParticipantLabel(entry)
+      if (!normalizedLabel) {
+        return
+      }
+      labels.add(normalizedLabel)
+      const participantKey = buildScheduleParticipantKey('entry', normalizedLabel)
+      if (participantKey) {
+        keys.add(participantKey)
+      }
+    })
+  }
+
+  return {
+    participantLabels: Array.from(labels),
+    participantKeys: Array.from(keys),
+  }
+}
+
+function buildMatchScheduleTitle(matchID: string, match: Record<string, any> | null, fallbackTitle = '') {
+  if (!match || typeof match !== 'object') {
+    return fallbackTitle || `Match ${matchID}`
+  }
+  const teams = [String(match.teamAName || match.teamNameA || ''), String(match.teamBName || match.teamNameB || '')].filter(Boolean)
+  if (teams.length === 2) {
+    return `${teams[0]} vs ${teams[1]}`
+  }
+  const players = getCombinedPlayerNames(match.playerA, match.playerB, match.playerA2, match.playerB2)
+  const playerSides = [players.a, players.b].map((value) => normalizeScheduleParticipantLabel(String(value))).filter(Boolean)
+  if (playerSides.length === 2) {
+    return `${playerSides[0]} vs ${playerSides[1]}`
+  }
+  return fallbackTitle || `Match ${matchID}`
 }
 
 export function getTournamentRoundProgressStatus(
@@ -269,6 +451,267 @@ async function getNormalizedTournamentScheduleBlocks(tournamentID: string) {
     .map(([scheduleBlockID, scheduleBlock]) => [scheduleBlockID, normalizeTournamentScheduleBlockRecord(scheduleBlock)] as [string, TournamentScheduleBlockRecord])
 }
 
+async function getNormalizedTournamentBrackets(tournamentID: string) {
+  const snapshot = await db.ref(`tournaments/${tournamentID}/brackets`).get()
+  const bracketsValue = snapshot.val()
+  if (!bracketsValue || typeof bracketsValue !== 'object') {
+    return [] as Array<[string, TournamentBracketRecord]>
+  }
+
+  return Object.entries(bracketsValue as Record<string, TournamentBracketRecord>)
+    .map(([bracketID, bracket]) => [bracketID, bracket as TournamentBracketRecord] as [string, TournamentBracketRecord])
+}
+
+export async function detectTournamentScheduleConflicts(tournamentID: string) {
+  const scheduleBlocks = await getNormalizedTournamentScheduleBlocks(tournamentID)
+  if (scheduleBlocks.length === 0) {
+    return []
+  }
+
+  const matchIDs = Array.from(new Set(scheduleBlocks.map(([, scheduleBlock]) => scheduleBlock.sourceMatchID).filter(Boolean)))
+  const matchEntries = await Promise.all(matchIDs.map(async (matchID) => [matchID, (await db.ref(`matches/${matchID}`).get()).val()] as const))
+  const matchesByID = Object.fromEntries(matchEntries) as Record<string, Record<string, any> | null>
+
+  const detailsByBlockID = Object.fromEntries(scheduleBlocks.map(([scheduleBlockID, scheduleBlock]) => {
+    const participantDetails = inferScheduleParticipantDetailsFromBlock(scheduleBlock, matchesByID[scheduleBlock.sourceMatchID] || null)
+    return [scheduleBlockID, {
+      ...scheduleBlock,
+      scheduledEndTime: getTournamentScheduleBlockEndTime(scheduleBlock),
+      participantLabels: participantDetails.participantLabels,
+      participantKeys: participantDetails.participantKeys,
+      conflictingBlockIDs: [] as string[],
+      conflictingParticipantLabels: [] as string[],
+      hasConflicts: false,
+    }]
+  })) as Record<string, TournamentScheduleBlockRecord>
+
+  for (let leftIndex = 0; leftIndex < scheduleBlocks.length; leftIndex += 1) {
+    const [leftBlockID] = scheduleBlocks[leftIndex]
+    const leftBlock = detailsByBlockID[leftBlockID]
+    if (!leftBlock || leftBlock.participantKeys.length === 0) {
+      continue
+    }
+    const leftParticipantKeys = new Set(leftBlock.participantKeys)
+
+    for (let rightIndex = leftIndex + 1; rightIndex < scheduleBlocks.length; rightIndex += 1) {
+      const [rightBlockID] = scheduleBlocks[rightIndex]
+      const rightBlock = detailsByBlockID[rightBlockID]
+      if (!rightBlock || rightBlock.participantKeys.length === 0 || !scheduleBlocksOverlap(leftBlock, rightBlock)) {
+        continue
+      }
+
+      const sharedParticipants = rightBlock.participantKeys.filter((participantKey) => leftParticipantKeys.has(participantKey))
+      if (sharedParticipants.length === 0) {
+        continue
+      }
+
+      const sharedParticipantLabels = Array.from(new Set([
+        ...leftBlock.participantLabels.filter((label) => sharedParticipants.includes(buildScheduleParticipantKey('entry', label)) || sharedParticipants.includes(buildScheduleParticipantKey('player', label)) || sharedParticipants.includes(buildScheduleParticipantKey('team', label))),
+        ...rightBlock.participantLabels.filter((label) => sharedParticipants.includes(buildScheduleParticipantKey('entry', label)) || sharedParticipants.includes(buildScheduleParticipantKey('player', label)) || sharedParticipants.includes(buildScheduleParticipantKey('team', label))),
+      ]))
+
+      leftBlock.hasConflicts = true
+      rightBlock.hasConflicts = true
+      leftBlock.conflictingBlockIDs = Array.from(new Set([...leftBlock.conflictingBlockIDs, rightBlockID]))
+      rightBlock.conflictingBlockIDs = Array.from(new Set([...rightBlock.conflictingBlockIDs, leftBlockID]))
+      leftBlock.conflictingParticipantLabels = Array.from(new Set([...leftBlock.conflictingParticipantLabels, ...sharedParticipantLabels]))
+      rightBlock.conflictingParticipantLabels = Array.from(new Set([...rightBlock.conflictingParticipantLabels, ...sharedParticipantLabels]))
+    }
+  }
+
+  await Promise.all(Object.entries(detailsByBlockID).map(async ([scheduleBlockID, scheduleBlock]) => {
+    const currentScheduleBlock = scheduleBlocks.find(([currentScheduleBlockID]) => currentScheduleBlockID === scheduleBlockID)?.[1]
+    if (!currentScheduleBlock) {
+      return
+    }
+    const nextPatch = {
+      participantLabels: scheduleBlock.participantLabels,
+      participantKeys: scheduleBlock.participantKeys,
+      scheduledEndTime: scheduleBlock.scheduledEndTime,
+      hasConflicts: scheduleBlock.hasConflicts,
+      conflictingBlockIDs: scheduleBlock.conflictingBlockIDs,
+      conflictingParticipantLabels: scheduleBlock.conflictingParticipantLabels,
+      updatedAt: new Date().toISOString(),
+    }
+    await db.ref(`tournaments/${tournamentID}/scheduleBlocks/${scheduleBlockID}`).update(nextPatch)
+  }))
+
+  return Object.entries(detailsByBlockID)
+    .filter(([, scheduleBlock]) => scheduleBlock.hasConflicts)
+    .map(([scheduleBlockID, scheduleBlock]) => [scheduleBlockID, scheduleBlock] as [string, TournamentScheduleBlockRecord])
+}
+
+export async function generateTournamentScheduleFromFormat(
+  tournamentID: string,
+  options: { includeWarmups?: boolean; includeBreaks?: boolean } = {},
+): Promise<TournamentScheduleGenerationSummary> {
+  const includeWarmups = options.includeWarmups !== false
+  const includeBreaks = options.includeBreaks !== false
+  const [rounds, scheduleBlocks, brackets] = await Promise.all([
+    getNormalizedTournamentRounds(tournamentID),
+    getNormalizedTournamentScheduleBlocks(tournamentID),
+    getNormalizedTournamentBrackets(tournamentID),
+  ])
+
+  const eventSnapshot = await db.ref(`tournaments/${tournamentID}/events`).get()
+  const eventMap = eventSnapshot.val() && typeof eventSnapshot.val() === 'object'
+    ? eventSnapshot.val() as Record<string, TournamentEventRecord>
+    : {}
+  const existingSourceMatchIDs = new Set(scheduleBlocks.map(([, scheduleBlock]) => scheduleBlock.sourceMatchID).filter(Boolean))
+  const createdBlockIDs: string[] = []
+  const updatedBlockIDs: string[] = []
+  let skippedCount = 0
+
+  for (let roundIndex = 0; roundIndex < rounds.length; roundIndex += 1) {
+    const [roundID, round] = rounds[roundIndex]
+    const eventName = eventMap[round.eventID]?.name || ''
+    const roundBlocks = scheduleBlocks.filter(([, scheduleBlock]) => scheduleBlock.roundID === roundID)
+    const roundMatchBlocks = roundBlocks.filter(([, scheduleBlock]) => scheduleBlock.blockType === 'match')
+    const roundTableIDs = round.assignedTableIDs || []
+    const roundTableLabels = round.assignedTableLabels || []
+
+    if (includeWarmups && round.scheduledStartTime && !roundBlocks.some(([, scheduleBlock]) => scheduleBlock.blockType === 'warmup')) {
+      const warmupBlockID = await addTournamentScheduleBlock(tournamentID, {
+        title: `${round.title} Warm-Up`,
+        blockType: 'warmup',
+        eventID: round.eventID || '',
+        roundID,
+        eventName,
+        roundTitle: round.title,
+        scheduledStartTime: addMinutesToIsoString(round.scheduledStartTime, -15),
+        scheduledEndTime: round.scheduledStartTime,
+        assignedTableID: roundTableIDs[0] || '',
+        assignedTableLabel: roundTableLabels[0] || '',
+        notes: `Auto-generated warm-up block for ${round.title}`,
+        isAutoGenerated: true,
+      })
+      if (warmupBlockID) {
+        createdBlockIDs.push(warmupBlockID)
+      }
+    }
+
+    const directMatchIDs = Array.from(new Set(round.assignedMatchIDs.filter(Boolean)))
+    if (directMatchIDs.length > 0) {
+      for (const [matchIndex, matchID] of directMatchIDs.entries()) {
+        if (existingSourceMatchIDs.has(matchID)) {
+          skippedCount += 1
+          continue
+        }
+        const matchRecord = (await db.ref(`matches/${matchID}`).get()).val() as Record<string, any> | null
+        const participantDetails = inferScheduleParticipantDetailsFromMatch(matchRecord)
+        const blockID = await addTournamentScheduleBlock(tournamentID, {
+          title: buildMatchScheduleTitle(matchID, matchRecord, `${round.title} Match ${matchIndex + 1}`),
+          blockType: 'match',
+          eventID: round.eventID || '',
+          roundID,
+          sourceMatchID: matchID,
+          eventName,
+          roundTitle: round.title,
+          scheduledStartTime: round.scheduledStartTime ? addMinutesToIsoString(round.scheduledStartTime, matchIndex * tournamentScheduleDefaultDurationMinutes.match) : '',
+          scheduledEndTime: round.scheduledStartTime ? addMinutesToIsoString(round.scheduledStartTime, (matchIndex + 1) * tournamentScheduleDefaultDurationMinutes.match) : round.scheduledEndTime || '',
+          assignedTableID: roundTableIDs.length > 0 ? roundTableIDs[matchIndex % roundTableIDs.length] : '',
+          assignedTableLabel: roundTableLabels.length > 0 ? roundTableLabels[matchIndex % roundTableLabels.length] : '',
+          participantLabels: participantDetails.participantLabels,
+          participantKeys: participantDetails.participantKeys,
+          notes: `Auto-generated from ${round.title}`,
+          isAutoGenerated: true,
+          generatedFromRoundID: roundID,
+          generatedOrder: matchIndex + 1,
+        })
+        if (blockID) {
+          createdBlockIDs.push(blockID)
+          existingSourceMatchIDs.add(matchID)
+        }
+      }
+    } else {
+      const bracketCandidates = brackets.flatMap(([bracketID, bracket]) => (
+        Object.values((bracket.nodes || {}) as Record<string, TournamentBracketNode>)
+          .filter((node) => node.roundNumber === round.order && (!round.eventID || bracket.eventID === round.eventID))
+          .map((node) => ({ bracketID, bracket, node }))
+      ))
+
+      if (bracketCandidates.length > 0) {
+        for (const [matchIndex, candidate] of bracketCandidates.entries()) {
+          if (candidate.node.scheduleBlockID) {
+            skippedCount += 1
+            continue
+          }
+          const blockID = await createScheduleBlockFromBracketNode(tournamentID, candidate.bracketID, candidate.node.id, {
+            roundID,
+            assignedTableID: roundTableIDs.length > 0 ? roundTableIDs[matchIndex % roundTableIDs.length] : '',
+            assignedTableLabel: roundTableLabels.length > 0 ? roundTableLabels[matchIndex % roundTableLabels.length] : '',
+            scheduledStartTime: round.scheduledStartTime ? addMinutesToIsoString(round.scheduledStartTime, matchIndex * tournamentScheduleDefaultDurationMinutes.match) : '',
+            scheduledEndTime: round.scheduledStartTime ? addMinutesToIsoString(round.scheduledStartTime, (matchIndex + 1) * tournamentScheduleDefaultDurationMinutes.match) : round.scheduledEndTime || '',
+            notes: `Auto-generated from ${candidate.bracket.name}`,
+          })
+          if (blockID) {
+            createdBlockIDs.push(blockID)
+            updatedBlockIDs.push(candidate.node.id)
+          }
+        }
+      } else if (roundBlocks.length === 0) {
+        const blockID = await addTournamentScheduleBlock(tournamentID, {
+          title: round.title,
+          blockType: 'match',
+          eventID: round.eventID || '',
+          roundID,
+          eventName,
+          roundTitle: round.title,
+          scheduledStartTime: round.scheduledStartTime || '',
+          scheduledEndTime: round.scheduledEndTime || getTournamentScheduleBlockEndTime({
+            blockType: 'match',
+            scheduledStartTime: round.scheduledStartTime || '',
+            scheduledEndTime: round.scheduledEndTime || '',
+          }),
+          assignedTableID: roundTableIDs[0] || '',
+          assignedTableLabel: roundTableLabels[0] || '',
+          notes: `Auto-generated placeholder block for ${round.title}`,
+          isAutoGenerated: true,
+          generatedFromRoundID: roundID,
+          generatedOrder: roundMatchBlocks.length + 1,
+        })
+        if (blockID) {
+          createdBlockIDs.push(blockID)
+        }
+      }
+    }
+
+    const nextRound = rounds[roundIndex + 1]?.[1]
+    if (
+      includeBreaks
+      && round.scheduledEndTime
+      && nextRound?.scheduledStartTime
+      && new Date(nextRound.scheduledStartTime).getTime() > new Date(round.scheduledEndTime).getTime()
+      && !scheduleBlocks.some(([, scheduleBlock]) => scheduleBlock.blockType === 'break'
+        && scheduleBlock.scheduledStartTime === round.scheduledEndTime
+        && scheduleBlock.scheduledEndTime === nextRound.scheduledStartTime)
+    ) {
+      const breakBlockID = await addTournamentScheduleBlock(tournamentID, {
+        title: `${round.title} Break`,
+        blockType: 'break',
+        eventID: round.eventID || nextRound.eventID || '',
+        roundID: '',
+        eventName: eventName || eventMap[nextRound?.eventID || '']?.name || '',
+        scheduledStartTime: round.scheduledEndTime,
+        scheduledEndTime: nextRound.scheduledStartTime,
+        notes: `Auto-generated break between ${round.title} and ${nextRound?.title || 'next round'}`,
+        isAutoGenerated: true,
+        generatedFromRoundID: roundID,
+      })
+      if (breakBlockID) {
+        createdBlockIDs.push(breakBlockID)
+      }
+    }
+  }
+
+  await detectTournamentScheduleConflicts(tournamentID)
+  return {
+    createdBlockIDs,
+    updatedBlockIDs,
+    skippedCount,
+  }
+}
+
 async function getRoundCompletionState(tournamentID: string, roundID: string) {
   const [rounds, scheduleBlocks] = await Promise.all([
     getNormalizedTournamentRounds(tournamentID),
@@ -285,16 +728,17 @@ async function getRoundCompletionState(tournamentID: string, roundID: string) {
   }
 
   const roundScheduleBlocks = scheduleBlocks.filter(([, scheduleBlock]) => scheduleBlock.roundID === roundID)
+  const roundMatchScheduleBlocks = roundScheduleBlocks.filter(([, scheduleBlock]) => scheduleBlock.blockType === 'match')
   const linkedMatchIDs = Array.from(new Set([
     ...round.assignedMatchIDs,
-    ...roundScheduleBlocks.map(([, scheduleBlock]) => scheduleBlock.sourceMatchID).filter(Boolean),
+    ...roundMatchScheduleBlocks.map(([, scheduleBlock]) => scheduleBlock.sourceMatchID).filter(Boolean),
   ]))
   const matchSnapshots = linkedMatchIDs.length > 0
     ? await Promise.all(linkedMatchIDs.map(async (matchID) => [matchID, (await db.ref(`matches/${matchID}`).get()).val()] as const))
     : []
   const matchesByID = Object.fromEntries(matchSnapshots) as Record<string, Record<string, unknown> | null>
 
-  const scheduleBlocksReady = roundScheduleBlocks.every(([, scheduleBlock]) => {
+  const scheduleBlocksReady = roundMatchScheduleBlocks.every(([, scheduleBlock]) => {
     if (scheduleBlock.sourceMatchID) {
       const match = matchesByID[scheduleBlock.sourceMatchID]
       return Boolean(match?.isMatchFinished) || scheduleBlock.status === 'completed' || scheduleBlock.status === 'cancelled'
@@ -504,12 +948,22 @@ async function autoAdvanceRoundWinners(
       ? getRoundWinnerLabel(bottomMatchID, (completionState.matchesByID?.[bottomMatchID] || null) as Record<string, any> | null)
       : 'BYE'
     const blockPatch = {
+      blockType: 'match' as TournamentScheduleBlockType,
       title: `${topWinner} vs ${bottomWinner}`,
       eventID: nextRound.eventID || round.eventID || '',
       roundID: nextRoundID,
       eventName: '',
       roundTitle: nextRound.title,
       scheduledStartTime: nextRound.scheduledStartTime || '',
+      scheduledEndTime: nextRound.scheduledEndTime || getTournamentScheduleBlockEndTime({
+        blockType: 'match',
+        scheduledStartTime: nextRound.scheduledStartTime || '',
+        scheduledEndTime: nextRound.scheduledEndTime || '',
+      }),
+      participantLabels: [topWinner, bottomWinner].filter(Boolean),
+      participantKeys: [topWinner, bottomWinner]
+        .map((label) => buildScheduleParticipantKey('entry', label))
+        .filter(Boolean),
       assignedTableID: nextRound.assignedTableIDs[0] || '',
       assignedTableLabel: nextRound.assignedTableLabels[0] || '',
       notes: `Auto-advanced from ${round.title}`,
@@ -1166,9 +1620,11 @@ export async function createScheduleBlockFromBracketNode(
   bracketID: string,
   nodeID: string,
   input: {
+    roundID?: string
     assignedTableID?: string
     assignedTableLabel?: string
     scheduledStartTime?: string
+    scheduledEndTime?: string
     notes?: string
   } = {},
 ) {
@@ -1186,13 +1642,24 @@ export async function createScheduleBlockFromBracketNode(
 
   const scheduleBlockID = await addTournamentScheduleBlock(tournamentID, {
     title: `${node.topLabel} vs ${node.bottomLabel}`,
+    blockType: 'match',
     eventID: bracket.eventID || '',
+    roundID: input.roundID || '',
     sourceMatchID: node.sourceMatchID || '',
     eventName: '',
     roundTitle: `Bracket Round ${node.roundNumber}`,
     assignedTableID: input.assignedTableID || '',
     assignedTableLabel: input.assignedTableLabel || '',
     scheduledStartTime: input.scheduledStartTime || '',
+    scheduledEndTime: input.scheduledEndTime || getTournamentScheduleBlockEndTime({
+      blockType: 'match',
+      scheduledStartTime: input.scheduledStartTime || '',
+      scheduledEndTime: '',
+    }),
+    participantLabels: [node.topLabel, node.bottomLabel].filter(Boolean),
+    participantKeys: [node.topLabel, node.bottomLabel]
+      .map((label) => buildScheduleParticipantKey('entry', label))
+      .filter(Boolean),
     notes: input.notes || '',
   })
 
@@ -1450,9 +1917,9 @@ export async function bulkAssignTournamentRoundToTables(
       assignedTableID,
       assignedTableLabel: tableLabelMap[assignedTableID] || '',
       scheduledStartTime: scheduleBlock.scheduledStartTime || nextRound.scheduledStartTime || '',
-      status: scheduleBlock.sourceMatchID ? 'scheduled' : scheduleBlock.status,
+      status: scheduleBlock.blockType === 'match' && scheduleBlock.sourceMatchID ? 'scheduled' : scheduleBlock.status,
     })
-    if (scheduleBlock.sourceMatchID || scheduleBlock.assignedQueueItemID) {
+    if (scheduleBlock.blockType === 'match' && (scheduleBlock.sourceMatchID || scheduleBlock.assignedQueueItemID)) {
       await syncTournamentScheduleBlockToQueue(tournamentID, scheduleBlockID)
     }
   }
@@ -1486,12 +1953,17 @@ export async function syncTournamentRoundAutomation(
 
 export async function addTournamentScheduleBlock(tournamentID: string, input: {
   title: string
+  blockType?: TournamentScheduleBlockType
   eventID?: string
   roundID?: string
   sourceMatchID?: string
   eventName?: string
   roundTitle?: string
   scheduledStartTime?: string
+  scheduledEndTime?: string
+  participantKeys?: string[]
+  participantLabels?: string[]
+  isPublished?: boolean
   assignedTableID?: string
   assignedTableLabel?: string
   notes?: string
@@ -1499,18 +1971,34 @@ export async function addTournamentScheduleBlock(tournamentID: string, input: {
   generatedFromRoundID?: string
   generatedOrder?: number
 }) {
+  const blockType = input.blockType || 'match'
+  const scheduledStartTime = input.scheduledStartTime || ''
+  const scheduledEndTime = input.scheduledEndTime || getTournamentScheduleBlockEndTime({
+    blockType,
+    scheduledStartTime,
+    scheduledEndTime: '',
+  })
   const scheduleBlock = normalizeTournamentScheduleBlockRecord({
+    blockType,
     title: input.title,
     eventID: input.eventID || '',
     roundID: input.roundID || '',
     sourceMatchID: input.sourceMatchID || '',
     eventName: input.eventName || '',
     roundTitle: input.roundTitle || '',
-    scheduledStartTime: input.scheduledStartTime || '',
+    scheduledStartTime,
+    scheduledEndTime,
+    participantKeys: input.participantKeys || [],
+    participantLabels: input.participantLabels || [],
+    hasConflicts: false,
+    conflictingBlockIDs: [],
+    conflictingParticipantLabels: [],
+    isPublished: input.isPublished !== false,
+    publishedAt: input.isPublished === false ? '' : new Date().toISOString(),
     assignedTableID: input.assignedTableID || '',
     assignedTableLabel: input.assignedTableLabel || '',
     assignedQueueItemID: '',
-    status: input.assignedTableID ? 'scheduled' : 'unassigned',
+    status: blockType === 'match' && input.assignedTableID ? 'scheduled' : 'unassigned',
     notes: input.notes || '',
     isAutoGenerated: Boolean(input.isAutoGenerated),
     generatedFromRoundID: input.generatedFromRoundID || '',
@@ -1520,6 +2008,7 @@ export async function addTournamentScheduleBlock(tournamentID: string, input: {
   })
   const pushedScheduleBlock = await db.ref(`tournaments/${tournamentID}/scheduleBlocks`).push(scheduleBlock)
   await updateTournament(tournamentID, {})
+  await detectTournamentScheduleConflicts(tournamentID)
   return pushedScheduleBlock.key
 }
 
@@ -1531,6 +2020,9 @@ export async function createTournamentScheduleMatch(tournamentID: string, schedu
   }
 
   const scheduleBlock = currentScheduleBlock as TournamentScheduleBlockRecord
+  if (scheduleBlock.blockType !== 'match') {
+    throw new Error('Only match schedule blocks can create tournament matches')
+  }
   if (scheduleBlock.sourceMatchID) {
     return scheduleBlock.sourceMatchID
   }
@@ -1571,11 +2063,34 @@ export async function updateTournamentScheduleBlock(
   if (!currentScheduleBlock || typeof currentScheduleBlock !== 'object') {
     throw new Error('Tournament schedule block not found')
   }
+  const previousScheduleBlock = normalizeTournamentScheduleBlockRecord(currentScheduleBlock as TournamentScheduleBlockRecord)
   const nextScheduleBlock = normalizeTournamentScheduleBlockRecord({
-    ...(currentScheduleBlock as TournamentScheduleBlockRecord),
+    ...previousScheduleBlock,
     ...patch,
+    publishedAt: patch.isPublished === false
+      ? ''
+      : patch.isPublished === true
+          ? String(previousScheduleBlock.publishedAt || new Date().toISOString())
+          : previousScheduleBlock.publishedAt,
     updatedAt: new Date().toISOString(),
   })
+  nextScheduleBlock.scheduledEndTime = getTournamentScheduleBlockEndTime(nextScheduleBlock)
+  if (
+    previousScheduleBlock.assignedQueueItemID
+    && previousScheduleBlock.assignedTableID
+    && (
+      nextScheduleBlock.blockType !== 'match'
+      || !nextScheduleBlock.assignedTableID
+      || !nextScheduleBlock.sourceMatchID
+    )
+  ) {
+    await deleteScheduledTableMatch(previousScheduleBlock.assignedTableID, previousScheduleBlock.assignedQueueItemID)
+    nextScheduleBlock.assignedQueueItemID = ''
+  }
+  if (nextScheduleBlock.blockType !== 'match') {
+    nextScheduleBlock.status = ['completed', 'cancelled'].includes(nextScheduleBlock.status) ? nextScheduleBlock.status : 'unassigned'
+    nextScheduleBlock.assignedQueueItemID = ''
+  }
   await db.ref(`tournaments/${tournamentID}/scheduleBlocks/${scheduleBlockID}`).set(nextScheduleBlock)
   if (nextScheduleBlock.sourceMatchID) {
     const [matchSnapshot, roundSnapshot] = await Promise.all([
@@ -1613,11 +2128,21 @@ export async function updateTournamentScheduleBlock(
   if (nextScheduleBlock.roundID && ['completed', 'cancelled'].includes(nextScheduleBlock.status)) {
     await syncTournamentRoundAutomation(tournamentID, nextScheduleBlock.roundID)
   }
+  await detectTournamentScheduleConflicts(tournamentID)
   return nextScheduleBlock
 }
 
 export async function deleteTournamentScheduleBlock(tournamentID: string, scheduleBlockID: string) {
+  const snapshot = await db.ref(`tournaments/${tournamentID}/scheduleBlocks/${scheduleBlockID}`).get()
+  const currentScheduleBlock = snapshot.val()
+  if (currentScheduleBlock && typeof currentScheduleBlock === 'object') {
+    const scheduleBlock = normalizeTournamentScheduleBlockRecord(currentScheduleBlock as TournamentScheduleBlockRecord)
+    if (scheduleBlock.assignedTableID && scheduleBlock.assignedQueueItemID) {
+      await deleteScheduledTableMatch(scheduleBlock.assignedTableID, scheduleBlock.assignedQueueItemID)
+    }
+  }
   await db.ref(`tournaments/${tournamentID}/scheduleBlocks/${scheduleBlockID}`).remove()
+  await detectTournamentScheduleConflicts(tournamentID)
 }
 
 export async function queueTournamentScheduleBlock(tournamentID: string, scheduleBlockID: string) {
@@ -1629,6 +2154,9 @@ export async function queueTournamentScheduleBlock(tournamentID: string, schedul
   }
 
   const scheduleBlock = currentScheduleBlock as TournamentScheduleBlockRecord
+  if (scheduleBlock.blockType !== 'match') {
+    throw new Error('Only match schedule blocks can be queued to tables')
+  }
   if (!scheduleBlock.assignedTableID || !scheduleBlock.sourceMatchID) {
     throw new Error('Schedule block needs both a source match and assigned table')
   }
@@ -1686,6 +2214,9 @@ export async function syncTournamentScheduleBlockToQueue(tournamentID: string, s
   }
 
   const scheduleBlock = currentScheduleBlock as TournamentScheduleBlockRecord
+  if (scheduleBlock.blockType !== 'match') {
+    throw new Error('Only match schedule blocks can sync to a table queue')
+  }
   if (!scheduleBlock.assignedTableID || !scheduleBlock.sourceMatchID) {
     throw new Error('Schedule block needs both a source match and assigned table')
   }

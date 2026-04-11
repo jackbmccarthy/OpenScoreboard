@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Box, Button, Heading, HStack, Input, Select, Text, VStack } from '@/components/ui'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import { tournamentScheduleBlockTypes, type TournamentScheduleBlockType } from '@/classes/Tournament'
 import { useAuth } from '@/lib/auth'
 import { getMyTables } from '@/functions/tables'
 import {
@@ -25,6 +26,8 @@ import {
   deleteTournamentScheduleBlock,
   deleteTournamentPendingInvite,
   deleteTournamentStaffAssignment,
+  detectTournamentScheduleConflicts,
+  generateTournamentScheduleFromFormat,
   generateTournamentBracketNodes,
   syncTournamentScheduleBlockToQueue,
   queueTournamentScheduleBlock,
@@ -67,6 +70,26 @@ const tabs: Array<{ id: TournamentTab; label: string }> = [
   { id: 'registration', label: 'Registration' },
   { id: 'public', label: 'Public' },
 ]
+
+function parseScheduleParticipants(value: string) {
+  return Array.from(new Set(
+    value
+      .split(/[\n,]+/)
+      .map((entry) => entry.trim())
+      .filter(Boolean),
+  ))
+}
+
+function formatScheduleDateTime(value: string) {
+  if (!value) {
+    return ''
+  }
+  const timestamp = new Date(value).getTime()
+  if (!Number.isFinite(timestamp)) {
+    return value
+  }
+  return new Date(timestamp).toLocaleString()
+}
 
 export default function TournamentDetailPage() {
   const navigate = useNavigate()
@@ -114,23 +137,31 @@ export default function TournamentDetailPage() {
   const [newScheduleTitle, setNewScheduleTitle] = useState('')
   const [newScheduleEventID, setNewScheduleEventID] = useState('')
   const [newScheduleRoundID, setNewScheduleRoundID] = useState('')
+  const [newScheduleBlockType, setNewScheduleBlockType] = useState<TournamentScheduleBlockType>('match')
   const [newScheduleSourceMatchID, setNewScheduleSourceMatchID] = useState('')
   const [newScheduleTableID, setNewScheduleTableID] = useState('')
   const [newScheduleTime, setNewScheduleTime] = useState('')
+  const [newScheduleEndTime, setNewScheduleEndTime] = useState('')
+  const [newScheduleParticipants, setNewScheduleParticipants] = useState('')
   const [newScheduleNotes, setNewScheduleNotes] = useState('')
   const [editingScheduleBlockID, setEditingScheduleBlockID] = useState('')
   const [selectedScheduleBlockIDs, setSelectedScheduleBlockIDs] = useState<string[]>([])
   const [scheduleEventFilter, setScheduleEventFilter] = useState('all')
   const [scheduleRoundFilter, setScheduleRoundFilter] = useState('all')
   const [bulkScheduleTableID, setBulkScheduleTableID] = useState('')
+  const [scheduleBlockTypeFilter, setScheduleBlockTypeFilter] = useState<'all' | TournamentScheduleBlockType>('all')
   const [editingScheduleDraft, setEditingScheduleDraft] = useState({
+    blockType: 'match' as TournamentScheduleBlockType,
     title: '',
     eventID: '',
     roundID: '',
     sourceMatchID: '',
     assignedTableID: '',
     scheduledStartTime: '',
+    scheduledEndTime: '',
+    participantLabels: '',
     notes: '',
+    isPublished: true,
   })
   const [editingBracketSeeds, setEditingBracketSeeds] = useState('')
   const [editingBracketNode, setEditingBracketNode] = useState<{ bracketID: string; nodeID: string; sourceMatchID: string; status: string } | null>(null)
@@ -242,8 +273,13 @@ export default function TournamentDetailPage() {
   const visibleScheduleEntries = useMemo(() => scheduleEntries.filter(([, scheduleBlock]) => {
     const eventMatches = scheduleEventFilter === 'all' ? true : scheduleBlock.eventID === scheduleEventFilter
     const roundMatches = scheduleRoundFilter === 'all' ? true : scheduleBlock.roundID === scheduleRoundFilter
-    return eventMatches && roundMatches
-  }), [scheduleEntries, scheduleEventFilter, scheduleRoundFilter])
+    const typeMatches = scheduleBlockTypeFilter === 'all' ? true : scheduleBlock.blockType === scheduleBlockTypeFilter
+    return eventMatches && roundMatches && typeMatches
+  }), [scheduleBlockTypeFilter, scheduleEntries, scheduleEventFilter, scheduleRoundFilter])
+  const scheduleConflictCount = useMemo(
+    () => scheduleEntries.filter(([, scheduleBlock]) => scheduleBlock.hasConflicts).length,
+    [scheduleEntries],
+  )
 
   const toggleRoundDraftTable = (tableID: string) => {
     setEditingRoundDraft((current) => ({
@@ -787,7 +823,10 @@ export default function TournamentDetailPage() {
                             variant="outline"
                             onClick={async () => {
                               for (const [scheduleBlockID] of roundScheduleBlocks) {
-                                await syncTournamentScheduleBlockToQueue(tournamentID, scheduleBlockID)
+                                const roundScheduleBlock = roundScheduleBlocks.find(([currentScheduleBlockID]) => currentScheduleBlockID === scheduleBlockID)?.[1]
+                                if (roundScheduleBlock?.blockType === 'match' && roundScheduleBlock.sourceMatchID && roundScheduleBlock.assignedTableID) {
+                                  await syncTournamentScheduleBlockToQueue(tournamentID, scheduleBlockID)
+                                }
                               }
                             }}
                             disabled={!canMutateRound || roundScheduleBlocks.length === 0}
@@ -815,6 +854,18 @@ export default function TournamentDetailPage() {
             <Box className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <VStack className="gap-3">
                 <Heading size="sm">Event Schedule</Heading>
+                <Text className="text-sm text-slate-600">
+                  Event schedule blocks are the canonical timeline for warm-ups, matches, and breaks. Table queues remain a derived compatibility layer synced from match blocks only.
+                </Text>
+                <HStack className="flex-wrap gap-2 text-xs text-slate-500">
+                  <Text className="rounded-full bg-white px-3 py-1.5">{scheduleEntries.length} total blocks</Text>
+                  <Text className="rounded-full bg-white px-3 py-1.5">{scheduleEntries.filter(([, scheduleBlock]) => scheduleBlock.blockType === 'warmup').length} warm-up</Text>
+                  <Text className="rounded-full bg-white px-3 py-1.5">{scheduleEntries.filter(([, scheduleBlock]) => scheduleBlock.blockType === 'match').length} match</Text>
+                  <Text className="rounded-full bg-white px-3 py-1.5">{scheduleEntries.filter(([, scheduleBlock]) => scheduleBlock.blockType === 'break').length} break</Text>
+                  <Text className={`rounded-full px-3 py-1.5 ${scheduleConflictCount > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                    {scheduleConflictCount > 0 ? `${scheduleConflictCount} conflict${scheduleConflictCount === 1 ? '' : 's'}` : 'No conflicts'}
+                  </Text>
+                </HStack>
                 <HStack className="gap-3 flex-wrap">
                   <Select value={scheduleEventFilter} onValueChange={setScheduleEventFilter}>
                     <option value="all">All events</option>
@@ -828,6 +879,12 @@ export default function TournamentDetailPage() {
                       <option key={roundID} value={roundID}>{round.title}</option>
                     ))}
                   </Select>
+                  <Select value={scheduleBlockTypeFilter} onValueChange={(value) => setScheduleBlockTypeFilter(value as 'all' | TournamentScheduleBlockType)}>
+                    <option value="all">All block types</option>
+                    {tournamentScheduleBlockTypes.map((blockType) => (
+                      <option key={blockType} value={blockType}>{blockType}</option>
+                    ))}
+                  </Select>
                   <Select value={bulkScheduleTableID} onValueChange={setBulkScheduleTableID}>
                     <option value="">Bulk assign table</option>
                     {tableOptions.map((table) => (
@@ -836,13 +893,36 @@ export default function TournamentDetailPage() {
                   </Select>
                   <Button
                     variant="outline"
+                    disabled={!canManage}
+                    onClick={async () => {
+                      await generateTournamentScheduleFromFormat(tournamentID)
+                    }}
+                  >
+                    <Text>Generate From Format</Text>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={!canManage}
+                    onClick={async () => {
+                      await detectTournamentScheduleConflicts(tournamentID)
+                    }}
+                  >
+                    <Text>Detect Conflicts</Text>
+                  </Button>
+                  {(tournament.publicVisibility || {}).schedule ? (
+                    <Button variant="outline" onClick={() => navigate(`/tournaments/${tournamentID}/schedule`)}>
+                      <Text>Open Public Schedule</Text>
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="outline"
                     disabled={!canManage || !bulkScheduleTableID || selectedScheduleBlockIDs.length === 0}
                     onClick={async () => {
                       if (!bulkScheduleTableID || selectedScheduleBlockIDs.length === 0) return
                       const assignedTable = tableOptions.find((table) => table.id === bulkScheduleTableID)
                       for (const scheduleBlockID of selectedScheduleBlockIDs) {
                         const scheduleBlock = scheduleEntries.find(([currentScheduleBlockID]) => currentScheduleBlockID === scheduleBlockID)?.[1]
-                        if (!scheduleBlock) continue
+                        if (!scheduleBlock || scheduleBlock.blockType !== 'match') continue
                         await updateTournamentScheduleBlock(tournamentID, scheduleBlockID, {
                           assignedTableID: bulkScheduleTableID,
                           assignedTableLabel: assignedTable?.tableName || '',
@@ -858,70 +938,91 @@ export default function TournamentDetailPage() {
                     <Text>Bulk Assign Table</Text>
                   </Button>
                 </HStack>
-                <HStack className="gap-3 flex-wrap">
-                  <Input value={newScheduleTitle} onChangeText={setNewScheduleTitle} placeholder="Scheduled match label" className="flex-1 min-w-[12rem]" />
-                  <Select value={newScheduleEventID} onValueChange={setNewScheduleEventID}>
-                    <option value="">No event</option>
-                    {eventEntries.map(([eventID, event]) => (
-                      <option key={eventID} value={eventID}>{event.name}</option>
-                    ))}
-                  </Select>
-                  <Select value={newScheduleRoundID} onValueChange={setNewScheduleRoundID}>
-                    <option value="">No round</option>
-                    {roundEntries.map(([roundID, round]) => (
-                      <option key={roundID} value={roundID}>{round.title}</option>
-                    ))}
-                  </Select>
-                  <Input value={newScheduleSourceMatchID} onChangeText={setNewScheduleSourceMatchID} placeholder="Source match ID" className="min-w-[12rem]" />
-                  <Select value={newScheduleTableID} onValueChange={setNewScheduleTableID}>
-                    <option value="">Unassigned table</option>
-                    {tableOptions.map((table) => (
-                      <option key={table.id} value={table.id}>{table.tableName}</option>
-                    ))}
-                  </Select>
-                  <Input type="datetime-local" value={newScheduleTime} onChangeText={setNewScheduleTime} className="min-w-[12rem]" />
-                  <Button
-                    action="primary"
-                    disabled={!canManage}
-                    onClick={async () => {
-                      if (!newScheduleTitle.trim()) return
-                      const selectedRound = roundEntries.find(([roundID]) => roundID === newScheduleRoundID)?.[1]
-                      const selectedTableID = newScheduleTableID || selectedRound?.assignedTableIDs?.[0] || ''
-                      const assignedTable = tableOptions.find((table) => table.id === selectedTableID)
-                      await addTournamentScheduleBlock(tournamentID, {
-                        title: newScheduleTitle.trim(),
-                        eventID: newScheduleEventID,
-                        roundID: newScheduleRoundID,
-                        sourceMatchID: newScheduleSourceMatchID.trim(),
-                        eventName: eventEntries.find(([eventID]) => eventID === newScheduleEventID)?.[1]?.name || '',
-                        roundTitle: selectedRound?.title || '',
-                        assignedTableID: selectedTableID,
-                        assignedTableLabel: assignedTable?.tableName || '',
-                        scheduledStartTime: newScheduleTime || selectedRound?.scheduledStartTime || '',
-                        notes: newScheduleNotes.trim(),
-                      })
-                      setNewScheduleTitle('')
-                      setNewScheduleSourceMatchID('')
-                      setNewScheduleNotes('')
-                      setNewScheduleTime('')
-                    }}
-                  >
-                    <Text className="text-white">Add Schedule Block</Text>
-                  </Button>
-                </HStack>
-                <textarea
-                  className="min-h-[6rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  value={newScheduleNotes}
-                  onChange={(event) => setNewScheduleNotes(event.target.value)}
-                  placeholder="Schedule notes"
-                />
+                <VStack className="gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+                  <Text className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Create event schedule block</Text>
+                  <HStack className="gap-3 flex-wrap">
+                    <Select value={newScheduleBlockType} onValueChange={(value) => setNewScheduleBlockType(value as TournamentScheduleBlockType)}>
+                      {tournamentScheduleBlockTypes.map((blockType) => (
+                        <option key={blockType} value={blockType}>{blockType}</option>
+                      ))}
+                    </Select>
+                    <Input value={newScheduleTitle} onChangeText={setNewScheduleTitle} placeholder="Block title" className="flex-1 min-w-[12rem]" />
+                    <Select value={newScheduleEventID} onValueChange={setNewScheduleEventID}>
+                      <option value="">No event</option>
+                      {eventEntries.map(([eventID, event]) => (
+                        <option key={eventID} value={eventID}>{event.name}</option>
+                      ))}
+                    </Select>
+                    <Select value={newScheduleRoundID} onValueChange={setNewScheduleRoundID}>
+                      <option value="">No round</option>
+                      {roundEntries.map(([roundID, round]) => (
+                        <option key={roundID} value={roundID}>{round.title}</option>
+                      ))}
+                    </Select>
+                    <Input value={newScheduleSourceMatchID} onChangeText={setNewScheduleSourceMatchID} placeholder="Source match ID" className="min-w-[12rem]" />
+                    <Select value={newScheduleTableID} onValueChange={setNewScheduleTableID}>
+                      <option value="">Unassigned table</option>
+                      {tableOptions.map((table) => (
+                        <option key={table.id} value={table.id}>{table.tableName}</option>
+                      ))}
+                    </Select>
+                    <Input type="datetime-local" value={newScheduleTime} onChangeText={setNewScheduleTime} className="min-w-[12rem]" />
+                    <Input type="datetime-local" value={newScheduleEndTime} onChangeText={setNewScheduleEndTime} className="min-w-[12rem]" />
+                    <Button
+                      action="primary"
+                      disabled={!canManage}
+                      onClick={async () => {
+                        if (!newScheduleTitle.trim()) return
+                        const selectedRound = roundEntries.find(([roundID]) => roundID === newScheduleRoundID)?.[1]
+                        const selectedTableID = newScheduleTableID || selectedRound?.assignedTableIDs?.[0] || ''
+                        const assignedTable = tableOptions.find((table) => table.id === selectedTableID)
+                        await addTournamentScheduleBlock(tournamentID, {
+                          title: newScheduleTitle.trim(),
+                          blockType: newScheduleBlockType,
+                          eventID: newScheduleEventID,
+                          roundID: newScheduleRoundID,
+                          sourceMatchID: newScheduleBlockType === 'match' ? newScheduleSourceMatchID.trim() : '',
+                          eventName: eventEntries.find(([eventID]) => eventID === newScheduleEventID)?.[1]?.name || '',
+                          roundTitle: selectedRound?.title || '',
+                          assignedTableID: selectedTableID,
+                          assignedTableLabel: assignedTable?.tableName || '',
+                          scheduledStartTime: newScheduleTime || selectedRound?.scheduledStartTime || '',
+                          scheduledEndTime: newScheduleEndTime || selectedRound?.scheduledEndTime || '',
+                          participantLabels: parseScheduleParticipants(newScheduleParticipants),
+                          notes: newScheduleNotes.trim(),
+                        })
+                        setNewScheduleTitle('')
+                        setNewScheduleBlockType('match')
+                        setNewScheduleSourceMatchID('')
+                        setNewScheduleParticipants('')
+                        setNewScheduleNotes('')
+                        setNewScheduleTime('')
+                        setNewScheduleEndTime('')
+                      }}
+                    >
+                      <Text className="text-white">Add Schedule Block</Text>
+                    </Button>
+                  </HStack>
+                  <textarea
+                    className="min-h-[4rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={newScheduleParticipants}
+                    onChange={(event) => setNewScheduleParticipants(event.target.value)}
+                    placeholder="Participants for conflict detection (comma or newline separated)"
+                  />
+                  <textarea
+                    className="min-h-[4rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={newScheduleNotes}
+                    onChange={(event) => setNewScheduleNotes(event.target.value)}
+                    placeholder="Schedule notes"
+                  />
+                </VStack>
                 {visibleScheduleEntries.length === 0 ? (
                   <Text className="text-sm text-slate-500">No schedule blocks yet.</Text>
                 ) : (
                   <VStack className="gap-3">
                     {visibleScheduleEntries.map(([scheduleBlockID, scheduleBlock]) => (
                       <Box key={scheduleBlockID} className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <HStack className="items-start justify-between gap-3">
+                        <HStack className="items-start justify-between gap-3 flex-wrap">
                           <HStack className="flex-1 items-start gap-3">
                             <input
                               type="checkbox"
@@ -932,12 +1033,24 @@ export default function TournamentDetailPage() {
                             />
                             <VStack className="flex-1 gap-2">
                             {editingScheduleBlockID === scheduleBlockID ? (
-                              <Input value={editingScheduleDraft.title} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, title: value }))} />
+                              <VStack className="gap-2">
+                                <Select value={editingScheduleDraft.blockType} onValueChange={(value) => setEditingScheduleDraft((current) => ({ ...current, blockType: value as TournamentScheduleBlockType }))}>
+                                  {tournamentScheduleBlockTypes.map((blockType) => (
+                                    <option key={blockType} value={blockType}>{blockType}</option>
+                                  ))}
+                                </Select>
+                                <Input value={editingScheduleDraft.title} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, title: value }))} />
+                              </VStack>
                             ) : (
-                              <Text className="font-semibold text-slate-900">{scheduleBlock.title}</Text>
+                              <HStack className="flex-wrap gap-2">
+                                <Text className="font-semibold text-slate-900">{scheduleBlock.title}</Text>
+                                <Text className="rounded-full bg-slate-100 px-2 py-1 text-[11px] uppercase tracking-[0.14em] text-slate-600">{scheduleBlock.blockType}</Text>
+                                {scheduleBlock.isPublished ? <Text className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] uppercase tracking-[0.14em] text-emerald-700">published</Text> : <Text className="rounded-full bg-amber-100 px-2 py-1 text-[11px] uppercase tracking-[0.14em] text-amber-700">hidden</Text>}
+                                {scheduleBlock.hasConflicts ? <Text className="rounded-full bg-rose-100 px-2 py-1 text-[11px] uppercase tracking-[0.14em] text-rose-700">conflict</Text> : null}
+                              </HStack>
                             )}
                             <Text className="text-xs text-slate-500">
-                              {[scheduleBlock.scheduledStartTime, scheduleBlock.assignedTableLabel || 'Unassigned table', scheduleBlock.eventName, scheduleBlock.roundTitle, scheduleBlock.status].filter(Boolean).join(' • ')}
+                              {[formatScheduleDateTime(scheduleBlock.scheduledStartTime), scheduleBlock.scheduledEndTime ? `Ends ${formatScheduleDateTime(scheduleBlock.scheduledEndTime)}` : '', scheduleBlock.assignedTableLabel || 'Unassigned table', scheduleBlock.eventName, scheduleBlock.roundTitle, scheduleBlock.status].filter(Boolean).join(' • ')}
                             </Text>
                             {editingScheduleBlockID === scheduleBlockID ? (
                               <VStack className="gap-2">
@@ -961,20 +1074,37 @@ export default function TournamentDetailPage() {
                                   ))}
                                 </Select>
                                 <Input type="datetime-local" value={editingScheduleDraft.scheduledStartTime} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, scheduledStartTime: value }))} />
+                                <Input type="datetime-local" value={editingScheduleDraft.scheduledEndTime} onChangeText={(value) => setEditingScheduleDraft((current) => ({ ...current, scheduledEndTime: value }))} />
+                                <textarea
+                                  className="min-h-[4rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                                  value={editingScheduleDraft.participantLabels}
+                                  onChange={(event) => setEditingScheduleDraft((current) => ({ ...current, participantLabels: event.target.value }))}
+                                  placeholder="Participants for conflict detection"
+                                />
                                 <textarea
                                   className="min-h-[6rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
                                   value={editingScheduleDraft.notes}
                                   onChange={(event) => setEditingScheduleDraft((current) => ({ ...current, notes: event.target.value }))}
                                   placeholder="Schedule notes"
                                 />
+                                <label className="flex items-center gap-2 text-xs text-slate-500">
+                                  <input
+                                    type="checkbox"
+                                    checked={editingScheduleDraft.isPublished}
+                                    onChange={() => setEditingScheduleDraft((current) => ({ ...current, isPublished: !current.isPublished }))}
+                                  />
+                                  <span>Publish this block to the spectator schedule</span>
+                                </label>
                               </VStack>
                             ) : null}
                             {scheduleBlock.sourceMatchID ? <Text className="text-xs text-slate-500">Source match: {scheduleBlock.sourceMatchID}</Text> : null}
+                            {scheduleBlock.participantLabels?.length ? <Text className="text-xs text-slate-500">Participants: {scheduleBlock.participantLabels.join(', ')}</Text> : null}
+                            {scheduleBlock.hasConflicts && scheduleBlock.conflictingParticipantLabels?.length ? <Text className="text-xs text-rose-600">Double-booked: {scheduleBlock.conflictingParticipantLabels.join(', ')}</Text> : null}
                             {scheduleBlock.assignedQueueItemID ? <Text className="text-xs text-emerald-600">Queued as {scheduleBlock.assignedQueueItemID}</Text> : null}
                             {scheduleBlock.notes ? <Text className="text-sm text-slate-600">{scheduleBlock.notes}</Text> : null}
                             </VStack>
                           </HStack>
-                          <HStack className="gap-2">
+                          <HStack className="gap-2 flex-wrap">
                             <Select value={scheduleBlock.status} onValueChange={(value) => updateTournamentScheduleBlock(tournamentID, scheduleBlockID, { status: value as TournamentScheduleBlockRecord['status'] })} disabled={!canManage}>
                               <option value="unassigned">unassigned</option>
                               <option value="scheduled">scheduled</option>
@@ -983,10 +1113,10 @@ export default function TournamentDetailPage() {
                               <option value="completed">completed</option>
                               <option value="cancelled">cancelled</option>
                             </Select>
-                            <Button variant="outline" onClick={() => queueTournamentScheduleBlock(tournamentID, scheduleBlockID)} disabled={!canManage || !scheduleBlock.assignedTableID || !scheduleBlock.sourceMatchID}>
+                            <Button variant="outline" onClick={() => queueTournamentScheduleBlock(tournamentID, scheduleBlockID)} disabled={!canManage || scheduleBlock.blockType !== 'match' || !scheduleBlock.assignedTableID || !scheduleBlock.sourceMatchID}>
                               <Text>Queue</Text>
                             </Button>
-                            {!scheduleBlock.sourceMatchID ? (
+                            {scheduleBlock.blockType === 'match' && !scheduleBlock.sourceMatchID ? (
                               <Button variant="outline" onClick={() => createTournamentScheduleMatch(tournamentID, scheduleBlockID)} disabled={!canManage}>
                                 <Text>Create Match</Text>
                               </Button>
@@ -994,40 +1124,59 @@ export default function TournamentDetailPage() {
                             <Button
                               variant="outline"
                               disabled={!canManage}
+                              onClick={() => updateTournamentScheduleBlock(tournamentID, scheduleBlockID, {
+                                isPublished: !scheduleBlock.isPublished,
+                              })}
+                            >
+                              <Text>{scheduleBlock.isPublished ? 'Unpublish' : 'Publish'}</Text>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              disabled={!canManage}
                               onClick={async () => {
                                 if (editingScheduleBlockID === scheduleBlockID) {
                                   const assignedTable = tableOptions.find((table) => table.id === editingScheduleDraft.assignedTableID)
                                   await updateTournamentScheduleBlock(tournamentID, scheduleBlockID, {
+                                    blockType: editingScheduleDraft.blockType,
                                     title: editingScheduleDraft.title.trim() || scheduleBlock.title,
                                     eventID: editingScheduleDraft.eventID,
                                     roundID: editingScheduleDraft.roundID,
-                                    sourceMatchID: editingScheduleDraft.sourceMatchID.trim(),
+                                    sourceMatchID: editingScheduleDraft.blockType === 'match' ? editingScheduleDraft.sourceMatchID.trim() : '',
                                     eventName: eventEntries.find(([eventID]) => eventID === editingScheduleDraft.eventID)?.[1]?.name || '',
                                     roundTitle: roundEntries.find(([roundID]) => roundID === editingScheduleDraft.roundID)?.[1]?.title || '',
                                     assignedTableID: editingScheduleDraft.assignedTableID,
                                     assignedTableLabel: assignedTable?.tableName || '',
                                     scheduledStartTime: editingScheduleDraft.scheduledStartTime,
+                                    scheduledEndTime: editingScheduleDraft.scheduledEndTime,
+                                    participantLabels: parseScheduleParticipants(editingScheduleDraft.participantLabels),
+                                    isPublished: editingScheduleDraft.isPublished,
                                     notes: editingScheduleDraft.notes.trim(),
                                   })
-                                  await syncTournamentScheduleBlockToQueue(tournamentID, scheduleBlockID)
+                                  if (editingScheduleDraft.blockType === 'match' && editingScheduleDraft.assignedTableID && editingScheduleDraft.sourceMatchID.trim()) {
+                                    await syncTournamentScheduleBlockToQueue(tournamentID, scheduleBlockID)
+                                  }
                                   setEditingScheduleBlockID('')
                                 } else {
                                   setEditingScheduleBlockID(scheduleBlockID)
                                   setEditingScheduleDraft({
+                                    blockType: scheduleBlock.blockType || 'match',
                                     title: scheduleBlock.title,
                                     eventID: scheduleBlock.eventID || '',
                                     roundID: scheduleBlock.roundID || '',
                                     sourceMatchID: scheduleBlock.sourceMatchID || '',
                                     assignedTableID: scheduleBlock.assignedTableID || '',
                                     scheduledStartTime: scheduleBlock.scheduledStartTime || '',
+                                    scheduledEndTime: scheduleBlock.scheduledEndTime || '',
+                                    participantLabels: (scheduleBlock.participantLabels || []).join('\n'),
                                     notes: scheduleBlock.notes || '',
+                                    isPublished: scheduleBlock.isPublished !== false,
                                   })
                                 }
                               }}
                             >
                               <Text>{editingScheduleBlockID === scheduleBlockID ? 'Save' : 'Edit'}</Text>
                             </Button>
-                            {scheduleBlock.assignedQueueItemID ? (
+                            {scheduleBlock.blockType === 'match' && scheduleBlock.assignedQueueItemID ? (
                               <Button variant="outline" onClick={() => syncTournamentScheduleBlockToQueue(tournamentID, scheduleBlockID)} disabled={!canManage}>
                                 <Text>Sync Queue</Text>
                               </Button>
@@ -1087,17 +1236,35 @@ export default function TournamentDetailPage() {
                     >
                       <Text>{(tournament.publicVisibility || {}).liveScores ? 'Hide Live Scores' : 'Publish Live Scores'}</Text>
                     </Button>
+                    <Button
+                      variant="outline"
+                      disabled={!canManage}
+                      onClick={() => updateField({
+                        publicVisibility: {
+                          ...(tournament.publicVisibility || {}),
+                          schedule: !Boolean((tournament.publicVisibility || {}).schedule),
+                        },
+                      })}
+                    >
+                      <Text>{(tournament.publicVisibility || {}).schedule ? 'Hide Schedule' : 'Publish Schedule'}</Text>
+                    </Button>
                   </HStack>
                   <Text className="text-sm text-slate-600">
                     Current public state: {[
                       (tournament.publicVisibility || {}).registration ? 'registration' : '',
                       (tournament.publicVisibility || {}).brackets ? 'brackets' : '',
                       (tournament.publicVisibility || {}).liveScores ? 'live scores' : '',
+                      (tournament.publicVisibility || {}).schedule ? 'schedule' : '',
                     ].filter(Boolean).join(', ') || 'nothing published'}
                   </Text>
                   {(tournament.publicVisibility || {}).brackets ? (
                     <Button variant="outline" onClick={() => navigate(`/tournaments/${tournamentID}/brackets`)}>
                       <Text>Open Public Bracket View</Text>
+                    </Button>
+                  ) : null}
+                  {(tournament.publicVisibility || {}).schedule ? (
+                    <Button variant="outline" onClick={() => navigate(`/tournaments/${tournamentID}/schedule`)}>
+                      <Text>Open Public Schedule View</Text>
                     </Button>
                   ) : null}
                 </VStack>

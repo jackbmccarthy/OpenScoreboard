@@ -1,5 +1,8 @@
 import { getUserPath } from '@/lib/database'
 
+export const tournamentScheduleBlockTypes = ['warmup', 'match', 'break'] as const
+export type TournamentScheduleBlockType = (typeof tournamentScheduleBlockTypes)[number]
+
 export function newTournament({
   name,
   shortCode = '',
@@ -45,6 +48,7 @@ export function newTournament({
       registration: false,
       brackets: false,
       liveScores: false,
+      schedule: false,
     },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
