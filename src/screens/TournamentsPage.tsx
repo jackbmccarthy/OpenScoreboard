@@ -17,6 +17,7 @@ import {
   type TournamentPreview,
   type TournamentVisibility,
 } from '@/functions/tournaments'
+import LabeledField from '@/components/forms/LabeledField'
 
 type TournamentDraft = {
   name: string
@@ -105,12 +106,12 @@ export default function TournamentsPage() {
   return (
     <Box className="flex-1 bg-white">
       <VStack className="p-4 gap-4">
-        <HStack className="items-center justify-between">
+        <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <VStack className="gap-1">
             <Heading size="lg">Tournaments</Heading>
             <Text className="text-sm text-slate-500">Manage tournament shells, events, brackets, and schedules without changing existing match IDs.</Text>
           </VStack>
-          <Button action="primary" onClick={() => setShowTournamentModal(true)}>
+          <Button action="primary" onClick={() => setShowTournamentModal(true)} className="w-full sm:w-auto">
             <PlusIcon size={16} />
             <Text className="ml-1 text-white">New Tournament</Text>
           </Button>
@@ -130,36 +131,36 @@ export default function TournamentsPage() {
                   {(() => {
                     const capabilities = getTournamentCardCapabilities(tournament.accessRole || 'owner')
                     return (
-                  <HStack className="items-start justify-between gap-3">
+                  <HStack className="flex-col items-stretch justify-between gap-3 lg:flex-row lg:items-start">
                     <Pressable className="flex-1" onPress={() => navigate(`/tournaments/${tournament.id}`)}>
                       <VStack className="gap-1">
                         <Text className="font-semibold text-slate-900">{tournament.name}</Text>
                         <Text className="text-xs text-slate-500">
                           {[tournament.shortCode, tournament.venue, tournament.timezone].filter(Boolean).join(' • ') || 'Draft tournament'}
                         </Text>
-                        <HStack className="gap-2 text-xs text-slate-500">
+                        <HStack className="flex-wrap gap-2 text-xs text-slate-500">
                           <Text className="rounded-full bg-slate-100 px-2 py-1 uppercase tracking-[0.12em]">{tournament.status || 'draft'}</Text>
                           <Text className="rounded-full bg-slate-100 px-2 py-1 uppercase tracking-[0.12em]">{tournament.visibility || 'private'}</Text>
                           <Text className="rounded-full bg-blue-50 px-2 py-1 uppercase tracking-[0.12em] text-blue-700">{tournament.accessRole || 'owner'}</Text>
                         </HStack>
                       </VStack>
                     </Pressable>
-                    <HStack className="gap-2">
+                    <HStack className="flex-wrap gap-2">
                       {capabilities.canManage ? (
-                        <Button size="sm" variant="outline" onClick={() => duplicateTournament(String(tournament.id || ''))}>
+                        <Button size="sm" variant="outline" onClick={() => duplicateTournament(String(tournament.id || ''))} className="w-full sm:w-auto">
                           <Text>Duplicate</Text>
                         </Button>
                       ) : null}
                       {capabilities.canManage ? (
-                        <Button size="sm" variant="outline" onClick={() => archiveTournament(String(tournament.id || ''))}>
+                        <Button size="sm" variant="outline" onClick={() => archiveTournament(String(tournament.id || ''))} className="w-full sm:w-auto">
                           <Text>Archive</Text>
                         </Button>
                       ) : null}
-                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => navigate(`/tournaments/${tournament.id}`)}>
+                      <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2" onPress={() => navigate(`/tournaments/${tournament.id}`)}>
                         <PencilIcon size={16} className="text-slate-500" />
                       </Pressable>
                       {capabilities.canManage ? (
-                        <Pressable className="rounded-lg border border-rose-200 p-2" onPress={() => setPendingDeleteTournament({ myTournamentID, name: tournament.name })}>
+                        <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-rose-200 p-2" onPress={() => setPendingDeleteTournament({ myTournamentID, name: tournament.name })}>
                           <TrashIcon size={16} className="text-rose-500" />
                         </Pressable>
                       ) : null}
@@ -190,23 +191,39 @@ export default function TournamentsPage() {
         )}
       >
         <VStack className="gap-3">
-          <Input placeholder="Tournament name" value={tournamentDraft.name} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, name: value }))} />
-          <Input placeholder="Short code" value={tournamentDraft.shortCode} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, shortCode: value }))} />
-          <Input placeholder="Venue" value={tournamentDraft.venue} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, venue: value }))} />
-          <Input placeholder="Timezone" value={tournamentDraft.timezone} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, timezone: value }))} />
-          <Input type="date" value={tournamentDraft.startDate} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, startDate: value }))} />
-          <Input type="date" value={tournamentDraft.endDate} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, endDate: value }))} />
-          <Select value={tournamentDraft.visibility} onValueChange={(value) => setTournamentDraft((current) => ({ ...current, visibility: value as TournamentVisibility }))}>
-            <option value="private">Private</option>
-            <option value="unlisted">Unlisted</option>
-            <option value="public">Public</option>
-          </Select>
-          <textarea
-            className="min-h-[7rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            value={tournamentDraft.description}
-            onChange={(event) => setTournamentDraft((current) => ({ ...current, description: event.target.value }))}
-            placeholder="Tournament description"
-          />
+          <LabeledField label="Tournament Name">
+            <Input placeholder="Tournament name" value={tournamentDraft.name} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, name: value }))} />
+          </LabeledField>
+          <LabeledField label="Short Code">
+            <Input placeholder="Short code" value={tournamentDraft.shortCode} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, shortCode: value }))} />
+          </LabeledField>
+          <LabeledField label="Venue">
+            <Input placeholder="Venue" value={tournamentDraft.venue} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, venue: value }))} />
+          </LabeledField>
+          <LabeledField label="Timezone">
+            <Input placeholder="Timezone" value={tournamentDraft.timezone} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, timezone: value }))} />
+          </LabeledField>
+          <LabeledField label="Start Date">
+            <Input type="date" value={tournamentDraft.startDate} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, startDate: value }))} />
+          </LabeledField>
+          <LabeledField label="End Date">
+            <Input type="date" value={tournamentDraft.endDate} onChangeText={(value) => setTournamentDraft((current) => ({ ...current, endDate: value }))} />
+          </LabeledField>
+          <LabeledField label="Visibility">
+            <Select value={tournamentDraft.visibility} onValueChange={(value) => setTournamentDraft((current) => ({ ...current, visibility: value as TournamentVisibility }))}>
+              <option value="private">Private</option>
+              <option value="unlisted">Unlisted</option>
+              <option value="public">Public</option>
+            </Select>
+          </LabeledField>
+          <LabeledField label="Description">
+            <textarea
+              className="min-h-[7rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              value={tournamentDraft.description}
+              onChange={(event) => setTournamentDraft((current) => ({ ...current, description: event.target.value }))}
+              placeholder="Tournament description"
+            />
+          </LabeledField>
         </VStack>
       </OverlayDialog>
 

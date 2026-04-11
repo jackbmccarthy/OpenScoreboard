@@ -89,11 +89,11 @@ function DashboardItem({ item }: DashboardItemProps) {
 
   return (
     <Pressable
-      className="premium-card group rounded-[1.75rem] border border-white/70 p-5 transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-xl"
+      className="premium-card group min-h-[11rem] rounded-[1.75rem] border border-white/70 p-5 transition-all hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-xl"
       onPress={() => navigate(item.route)}
     >
-      <HStack className="items-start justify-between gap-4">
-        <HStack className="items-start gap-3 flex-1">
+      <HStack className="flex-col items-start justify-between gap-4 sm:flex-row">
+        <HStack className="flex-1 items-start gap-3">
           <Box className="mt-0.5 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600/10 to-cyan-400/10 text-blue-600">
             <Icon size={22} className="text-blue-600" />
           </Box>
@@ -147,11 +147,11 @@ export default function DashboardPage() {
         {sections.map((section) => (
           <Box key={section.title}>
             <Text className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{section.title}</Text>
-            <VStack className="gap-3">
+            <Box className="grid grid-cols-1 gap-3 xl:grid-cols-2">
               {section.items.map((item) => (
                 <DashboardItem key={item.route} item={item} />
               ))}
-            </VStack>
+            </Box>
           </Box>
         ))}
       </VStack>

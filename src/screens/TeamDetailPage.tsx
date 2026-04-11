@@ -9,6 +9,7 @@ import { getMyTeamEntryByTeamID, getTeam, updateMyTeam, updateTeam } from '@/fun
 import countries from '@/flags/countries.json'
 import { getNewPlayer } from '@/classes/Player'
 import { v4 as uuidv4 } from 'uuid'
+import LabeledField from '@/components/forms/LabeledField'
 
 type TeamPlayer = {
   firstName?: string
@@ -385,17 +386,29 @@ export default function TeamDetailPage() {
         )}
       >
         <VStack className="gap-3">
-          <Input placeholder="First name" value={playerDraft.firstName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, firstName: value }))} />
-          <Input placeholder="Last name" value={playerDraft.lastName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, lastName: value }))} />
-          <Input placeholder="Image URL" value={playerDraft.imageURL} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, imageURL: value }))} />
-          <Select value={playerDraft.country || ''} onValueChange={(value) => setPlayerDraft((current) => ({ ...current, country: value }))}>
-            <option value="">Select country</option>
-            {countryOptions.map((country) => (
-              <option key={country.code} value={country.code}>{country.name}</option>
-            ))}
-          </Select>
-          <Input placeholder="Club name" value={playerDraft.clubName || ''} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, clubName: value }))} />
-          <Input placeholder="Jersey color" value={playerDraft.jerseyColor || ''} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, jerseyColor: value }))} />
+          <LabeledField label="First Name">
+            <Input placeholder="First name" value={playerDraft.firstName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, firstName: value }))} />
+          </LabeledField>
+          <LabeledField label="Last Name">
+            <Input placeholder="Last name" value={playerDraft.lastName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, lastName: value }))} />
+          </LabeledField>
+          <LabeledField label="Image URL">
+            <Input placeholder="Image URL" value={playerDraft.imageURL} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, imageURL: value }))} />
+          </LabeledField>
+          <LabeledField label="Country">
+            <Select value={playerDraft.country || ''} onValueChange={(value) => setPlayerDraft((current) => ({ ...current, country: value }))}>
+              <option value="">Select country</option>
+              {countryOptions.map((country) => (
+                <option key={country.code} value={country.code}>{country.name}</option>
+              ))}
+            </Select>
+          </LabeledField>
+          <LabeledField label="Club Name">
+            <Input placeholder="Club name" value={playerDraft.clubName || ''} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, clubName: value }))} />
+          </LabeledField>
+          <LabeledField label="Jersey Color">
+            <Input placeholder="Jersey color" value={playerDraft.jerseyColor || ''} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, jerseyColor: value }))} />
+          </LabeledField>
         </VStack>
       </OverlayDialog>
 
@@ -416,12 +429,14 @@ export default function TeamDetailPage() {
           </>
         )}
       >
-        <textarea
-          className="min-h-[320px] w-full rounded-xl border border-slate-200 px-3 py-3 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-          value={bulkValue}
-          onChange={(event) => setBulkValue(event.target.value)}
-          placeholder={`First Name\tLast Name\tImage URL\tCountry Code\tClub Name\tJersey Color\nJane\tDoe\thttps://example.com/avatar.jpg\tUS\tOpen Scoreboard\tBlue`}
-        />
+        <LabeledField label="Spreadsheet Rows">
+          <textarea
+            className="min-h-[320px] w-full rounded-xl border border-slate-200 px-3 py-3 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            value={bulkValue}
+            onChange={(event) => setBulkValue(event.target.value)}
+            placeholder={`First Name\tLast Name\tImage URL\tCountry Code\tClub Name\tJersey Color\nJane\tDoe\thttps://example.com/avatar.jpg\tUS\tOpen Scoreboard\tBlue`}
+          />
+        </LabeledField>
       </OverlayDialog>
 
       <ConfirmDialog

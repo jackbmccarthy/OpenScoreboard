@@ -11,6 +11,7 @@ import { getMyTeams } from '@/functions/teams'
 import { supportedSports } from '@/functions/sports'
 import { newTeamMatch } from '@/classes/TeamMatch'
 import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import LabeledField from '@/components/forms/LabeledField'
 
 type TeamMatchDraft = {
   teamAID: string
@@ -174,12 +175,12 @@ export default function TeamMatchesPage() {
   return (
     <Box className="p-4">
       <VStack space="md">
-        <HStack className="justify-between items-center">
+        <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <VStack className="gap-1">
             <Heading size="lg">Team Matches</Heading>
             <LiveStatusBadge status={syncStatus} />
           </VStack>
-          <Button onClick={openNewMatchModal}>
+          <Button onClick={openNewMatchModal} className="w-full sm:w-auto">
             <PlusIcon size={16} />
             <Text className="ml-1 text-white">New Match</Text>
           </Button>
@@ -191,7 +192,7 @@ export default function TeamMatchesPage() {
               <Card key={myTeamMatchID} variant="elevated">
                 <CardBody>
                   <VStack className="gap-3">
-                    <HStack className="justify-between items-start gap-3">
+                    <HStack className="flex-col items-stretch justify-between gap-3 lg:flex-row lg:items-start">
                       <VStack className="flex-1 gap-1">
                         <Text className="font-bold text-slate-900">{match.teamAName || 'Team A'} vs {match.teamBName || 'Team B'}</Text>
                         <Text className="text-sm text-gray-500">
@@ -222,20 +223,20 @@ export default function TeamMatchesPage() {
                           </VStack>
                         ) : null}
                       </VStack>
-                      <HStack className="items-center gap-2">
-                        <Button size="sm" variant="outline" onClick={() => setSelectedMatchDetail(match)}>
+                      <HStack className="flex-wrap items-center gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setSelectedMatchDetail(match)} className="w-full sm:w-auto">
                           <Text>Details</Text>
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/teamscoring/teammatch/${match.id}`)}>
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/teamscoring/teammatch/${match.id}`)} className="w-full sm:w-auto">
                           <Text>Score</Text>
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?teamMatchID=${match.id}&table=1&matchID=${match.currentTableSummaries?.[0]?.matchID || ''}&label=${encodeURIComponent(`${match.teamAName || 'Team A'} vs ${match.teamBName || 'Team B'}`)}`)}>
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?teamMatchID=${match.id}&table=1&matchID=${match.currentTableSummaries?.[0]?.matchID || ''}&label=${encodeURIComponent(`${match.teamAName || 'Team A'} vs ${match.teamBName || 'Team B'}`)}`)} className="w-full sm:w-auto">
                           <Text>Secure Link</Text>
                         </Button>
-                        <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openEditMatchModal(myTeamMatchID, match)}>
+                        <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2" onPress={() => openEditMatchModal(myTeamMatchID, match)}>
                           <PencilIcon size={16} className="text-slate-500" />
                         </Pressable>
-                        <Pressable className="rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteMatch({ myTeamMatchID, name: `${match.teamAName || 'Team A'} vs ${match.teamBName || 'Team B'}` })}>
+                        <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteMatch({ myTeamMatchID, name: `${match.teamAName || 'Team A'} vs ${match.teamBName || 'Team B'}` })}>
                           <TrashIcon size={16} className="text-red-500" />
                         </Pressable>
                       </HStack>
@@ -250,7 +251,7 @@ export default function TeamMatchesPage() {
             <VStack space="md" className="items-center">
               <TeamsIcon size={48} className="text-slate-300" />
               <Text className="text-xl text-gray-500">No team matches</Text>
-              <Button onClick={openNewMatchModal}>
+              <Button onClick={openNewMatchModal} className="w-full sm:w-auto">
                 <Text className="text-white">Create First Match</Text>
               </Button>
             </VStack>
@@ -274,31 +275,41 @@ export default function TeamMatchesPage() {
         )}
       >
         <VStack className="gap-3">
-          <Select value={matchDraft.teamAID} onValueChange={(value) => setMatchDraft((current) => ({ ...current, teamAID: value }))}>
-            <option value="">Select Team A</option>
-            {teams.map(([myTeamID, team]) => (
-              <option key={myTeamID} value={team.id}>{team.name}</option>
-            ))}
-          </Select>
-          <Select value={matchDraft.teamBID} onValueChange={(value) => setMatchDraft((current) => ({ ...current, teamBID: value }))}>
-            <option value="">Select Team B</option>
-            {teams.map(([myTeamID, team]) => (
-              <option key={myTeamID} value={team.id}>{team.name}</option>
-            ))}
-          </Select>
-          <Input type="datetime-local" value={matchDraft.startTime} onChangeText={(value) => setMatchDraft((current) => ({ ...current, startTime: value }))} />
-          <Select value={matchDraft.sportName} onValueChange={(value) => setMatchDraft((current) => ({ ...current, sportName: value, scoringType: '' }))}>
-            {Object.entries(supportedSports).map(([key, sport]) => (
-              <option key={key} value={key}>{sport.displayName}</option>
-            ))}
-          </Select>
-          {scoringTypeOptions.length > 0 ? (
-            <Select value={matchDraft.scoringType} onValueChange={(value) => setMatchDraft((current) => ({ ...current, scoringType: value }))}>
-              <option value="">Default scoring</option>
-              {scoringTypeOptions.map(([key, value]) => (
-                <option key={key} value={key}>{value.displayName}</option>
+          <LabeledField label="Team A">
+            <Select value={matchDraft.teamAID} onValueChange={(value) => setMatchDraft((current) => ({ ...current, teamAID: value }))}>
+              <option value="">Select Team A</option>
+              {teams.map(([myTeamID, team]) => (
+                <option key={myTeamID} value={team.id}>{team.name}</option>
               ))}
             </Select>
+          </LabeledField>
+          <LabeledField label="Team B">
+            <Select value={matchDraft.teamBID} onValueChange={(value) => setMatchDraft((current) => ({ ...current, teamBID: value }))}>
+              <option value="">Select Team B</option>
+              {teams.map(([myTeamID, team]) => (
+                <option key={myTeamID} value={team.id}>{team.name}</option>
+              ))}
+            </Select>
+          </LabeledField>
+          <LabeledField label="Start Time">
+            <Input type="datetime-local" value={matchDraft.startTime} onChangeText={(value) => setMatchDraft((current) => ({ ...current, startTime: value }))} />
+          </LabeledField>
+          <LabeledField label="Sport">
+            <Select value={matchDraft.sportName} onValueChange={(value) => setMatchDraft((current) => ({ ...current, sportName: value, scoringType: '' }))}>
+              {Object.entries(supportedSports).map(([key, sport]) => (
+                <option key={key} value={key}>{sport.displayName}</option>
+              ))}
+            </Select>
+          </LabeledField>
+          {scoringTypeOptions.length > 0 ? (
+            <LabeledField label="Scoring Type">
+              <Select value={matchDraft.scoringType} onValueChange={(value) => setMatchDraft((current) => ({ ...current, scoringType: value }))}>
+                <option value="">Default scoring</option>
+                {scoringTypeOptions.map(([key, value]) => (
+                  <option key={key} value={key}>{value.displayName}</option>
+                ))}
+              </Select>
+            </LabeledField>
           ) : null}
         </VStack>
       </OverlayDialog>

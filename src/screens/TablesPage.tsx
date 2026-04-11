@@ -13,6 +13,7 @@ import { getMyScoreboards, subscribeToMyScoreboards } from '@/functions/scoreboa
 import { addDynamicURL, getMyDynamicURLs, subscribeToMyDynamicURLs } from '@/functions/dynamicurls'
 import { promoteNextScheduledMatch } from '@/functions/scoring'
 import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import LabeledField from '@/components/forms/LabeledField'
 
 type TableDraft = {
   tableName: string
@@ -307,20 +308,22 @@ export default function TablesPage() {
   return (
     <Box className="flex-1 bg-white">
       <VStack space="md" className="p-4">
-        <HStack className="justify-between items-center">
+        <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <VStack className="gap-1">
             <Heading size="lg">Tables</Heading>
             <Text className="text-gray-600">Manage tables and jump straight into scoring</Text>
             <LiveStatusBadge status={syncStatus} />
           </VStack>
-          <HStack className="gap-2">
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)} className="min-w-[11rem]">
-              <option value="all">All statuses</option>
-              {tableStatusOptions.map((status) => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </Select>
-            <Button size="sm" action="primary" onClick={openNewTableModal}>
+          <HStack className="gap-2 items-end">
+            <LabeledField label="Status Filter" className="min-w-[11rem]">
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value)} className="w-full min-w-0 sm:min-w-[11rem]">
+                <option value="all">All statuses</option>
+                {tableStatusOptions.map((status) => (
+                  <option key={status} value={status}>{status}</option>
+                ))}
+              </Select>
+            </LabeledField>
+            <Button size="sm" action="primary" onClick={openNewTableModal} className="w-full sm:w-auto">
               <PlusIcon size={16} />
               <Text className="ml-1 text-white">Add Table</Text>
             </Button>
@@ -338,7 +341,7 @@ export default function TablesPage() {
             visibleTables.map((table) => (
               <Card key={table.myTableID} variant="elevated">
                 <CardBody>
-                  <HStack className="items-center justify-between gap-4">
+                  <HStack className="flex-col items-stretch justify-between gap-4 lg:flex-row lg:items-center">
                     <VStack className="flex-1 gap-1">
                       <Text className="font-semibold text-slate-900">{table.tableName}</Text>
                       <Text className="text-xs text-slate-500">
@@ -371,11 +374,11 @@ export default function TablesPage() {
                         </VStack>
                       ) : null}
                     </VStack>
-                    <HStack className="items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/scoring/table/${table.tableID}`)}>
+                    <HStack className="flex-wrap items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/scoring/table/${table.tableID}`)} className="w-full sm:w-auto">
                         <Text>Score</Text>
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/scheduledtablematches?tableID=${table.tableID}`)}>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/scheduledtablematches?tableID=${table.tableID}`)} className="w-full sm:w-auto">
                         <Text>Queue</Text>
                       </Button>
                       <Button
@@ -383,19 +386,20 @@ export default function TablesPage() {
                         variant="outline"
                         onClick={() => handlePromoteNext(table.tableID)}
                         disabled={promotingTableID === table.tableID || Boolean(table.currentMatchID) || !table.queueCount}
+                        className="w-full sm:w-auto"
                       >
                         <Text>{promotingTableID === table.tableID ? 'Promoting...' : 'Promote Next'}</Text>
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?tableID=${table.tableID}&matchID=${table.currentMatchID || ''}&label=${encodeURIComponent(table.tableName)}`)}>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?tableID=${table.tableID}&matchID=${table.currentMatchID || ''}&label=${encodeURIComponent(table.tableName)}`)} className="w-full sm:w-auto">
                         <Text>Secure Link</Text>
                       </Button>
-                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openTableLinksModal(table)}>
+                      <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2" onPress={() => openTableLinksModal(table)}>
                         <LinkIcon size={16} className="text-slate-500" />
                       </Pressable>
-                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openEditTableModal(table)}>
+                      <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2" onPress={() => openEditTableModal(table)}>
                         <PencilIcon size={16} className="text-slate-500" />
                       </Pressable>
-                      <Pressable className="rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteTable(table)}>
+                      <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteTable(table)}>
                         <TrashIcon size={16} className="text-red-500" />
                       </Pressable>
                     </HStack>
@@ -423,38 +427,50 @@ export default function TablesPage() {
         )}
       >
         <VStack className="gap-3">
-          <Input placeholder="Table name" value={tableDraft.tableName} onChangeText={(value) => setTableDraft((current) => ({ ...current, tableName: value }))} />
-          <Select value={tableDraft.sportName} onValueChange={(value) => setTableDraft((current) => ({ ...current, sportName: value, scoringType: '' }))}>
-            {Object.entries(supportedSports).map(([key, sport]) => (
-              <option key={key} value={key}>{sport.displayName}</option>
-            ))}
-          </Select>
-          {scoringTypeOptions.length > 0 ? (
-            <Select value={tableDraft.scoringType} onValueChange={(value) => setTableDraft((current) => ({ ...current, scoringType: value }))}>
-              <option value="">Default scoring</option>
-              {scoringTypeOptions.map(([key, value]) => (
-                <option key={key} value={key}>{value.displayName}</option>
+          <LabeledField label="Table Name">
+            <Input placeholder="Table name" value={tableDraft.tableName} onChangeText={(value) => setTableDraft((current) => ({ ...current, tableName: value }))} />
+          </LabeledField>
+          <LabeledField label="Sport">
+            <Select value={tableDraft.sportName} onValueChange={(value) => setTableDraft((current) => ({ ...current, sportName: value, scoringType: '' }))}>
+              {Object.entries(supportedSports).map(([key, sport]) => (
+                <option key={key} value={key}>{sport.displayName}</option>
               ))}
             </Select>
+          </LabeledField>
+          {scoringTypeOptions.length > 0 ? (
+            <LabeledField label="Scoring Type">
+              <Select value={tableDraft.scoringType} onValueChange={(value) => setTableDraft((current) => ({ ...current, scoringType: value }))}>
+                <option value="">Default scoring</option>
+                {scoringTypeOptions.map(([key, value]) => (
+                  <option key={key} value={key}>{value.displayName}</option>
+                ))}
+              </Select>
+            </LabeledField>
           ) : null}
-          <Select value={tableDraft.playerListID} onValueChange={(value) => setTableDraft((current) => ({ ...current, playerListID: value }))}>
-            <option value="">No player list</option>
-            {playerLists.map(([myPlayerListID, list]) => (
-              <option key={myPlayerListID} value={list.id}>{list.playerListName}</option>
-            ))}
-          </Select>
-          <Select value={tableDraft.autoAdvanceMode} onValueChange={(value) => setTableDraft((current) => ({ ...current, autoAdvanceMode: value as TableDraft['autoAdvanceMode'] }))}>
-            {autoAdvanceOptions.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </Select>
-          <Input
-            type="number"
-            min="0"
-            placeholder="Auto-advance delay in seconds"
-            value={tableDraft.autoAdvanceDelaySeconds}
-            onChangeText={(value) => setTableDraft((current) => ({ ...current, autoAdvanceDelaySeconds: value }))}
-          />
+          <LabeledField label="Player List">
+            <Select value={tableDraft.playerListID} onValueChange={(value) => setTableDraft((current) => ({ ...current, playerListID: value }))}>
+              <option value="">No player list</option>
+              {playerLists.map(([myPlayerListID, list]) => (
+                <option key={myPlayerListID} value={list.id}>{list.playerListName}</option>
+              ))}
+            </Select>
+          </LabeledField>
+          <LabeledField label="Auto-Advance Mode">
+            <Select value={tableDraft.autoAdvanceMode} onValueChange={(value) => setTableDraft((current) => ({ ...current, autoAdvanceMode: value as TableDraft['autoAdvanceMode'] }))}>
+              {autoAdvanceOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </Select>
+          </LabeledField>
+          <LabeledField label="Auto-Advance Delay (Seconds)">
+            <Input
+              type="number"
+              min="0"
+              placeholder="Auto-advance delay in seconds"
+              value={tableDraft.autoAdvanceDelaySeconds}
+              onChangeText={(value) => setTableDraft((current) => ({ ...current, autoAdvanceDelaySeconds: value }))}
+            />
+          </LabeledField>
         </VStack>
       </OverlayDialog>
 
@@ -483,7 +499,7 @@ export default function TablesPage() {
             <Card key={combo.scoreboardID} variant="elevated">
               <CardBody>
                 <VStack className="gap-3">
-                  <HStack className="items-start justify-between gap-3">
+                  <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-start">
                     <HStack className="items-start gap-3">
                       <Box className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600/10 to-cyan-400/10">
                         <ScoreboardIcon size={18} className="text-blue-600" />
@@ -551,7 +567,9 @@ export default function TablesPage() {
           </>
         )}
       >
-        <Input value={dynamicURLName} onChangeText={setDynamicURLName} placeholder="Dynamic URL name" />
+        <LabeledField label="Dynamic URL Name">
+          <Input value={dynamicURLName} onChangeText={setDynamicURLName} placeholder="Dynamic URL name" />
+        </LabeledField>
       </OverlayDialog>
     </Box>
   )

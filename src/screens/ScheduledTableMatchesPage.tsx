@@ -20,6 +20,7 @@ import {
 } from '@/functions/scoring'
 import { getMyTables, subscribeToTable } from '@/functions/tables'
 import type { ScheduledMatch, ScheduledMatchStatus } from '@/types/matches'
+import LabeledField from '@/components/forms/LabeledField'
 
 const statusLabelMap: Record<ScheduledMatchStatus, string> = {
   scheduled: 'Scheduled',
@@ -374,12 +375,12 @@ export default function ScheduledTableMatchesPage() {
   return (
     <Box className="p-4">
       <VStack space="md">
-        <HStack className="justify-between items-center">
+        <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <VStack className="gap-1">
             <Text className="text-2xl font-bold">Table Queue</Text>
             <Text className="text-sm text-slate-500">{promotableMatches.length} promotable matches</Text>
           </VStack>
-          <HStack className="gap-2">
+          <HStack className="flex-col gap-2 sm:flex-row sm:items-center">
             <Button variant="outline" onClick={handlePromoteNext} disabled={isSubmitting || promotableMatches.length === 0}>
               <Text>Promote Next</Text>
             </Button>
@@ -389,14 +390,18 @@ export default function ScheduledTableMatchesPage() {
           </HStack>
         </HStack>
 
-        <HStack className="gap-3">
-          <Input value={searchTerm} onChangeText={setSearchTerm} placeholder="Search competitors or notes" className="flex-1" />
-          <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | ScheduledMatchStatus)} className="min-w-[12rem]">
-            <option value="all">All statuses</option>
-            {scheduledMatchStatusOptions.map((status) => (
-              <option key={status} value={status}>{statusLabelMap[status]}</option>
-            ))}
-          </Select>
+        <HStack className="gap-3 items-end flex-wrap">
+          <LabeledField label="Search Queue" className="flex-1 min-w-[16rem]">
+            <Input value={searchTerm} onChangeText={setSearchTerm} placeholder="Search competitors or notes" className="flex-1" />
+          </LabeledField>
+          <LabeledField label="Status Filter" className="min-w-[12rem]">
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as 'all' | ScheduledMatchStatus)} className="w-full min-w-0 sm:min-w-[12rem]">
+              <option value="all">All statuses</option>
+              {scheduledMatchStatusOptions.map((status) => (
+                <option key={status} value={status}>{statusLabelMap[status]}</option>
+              ))}
+            </Select>
+          </LabeledField>
         </HStack>
 
         <Card variant="elevated">
@@ -411,25 +416,31 @@ export default function ScheduledTableMatchesPage() {
                 </HStack>
                 {bulkFeedback ? <Text className="text-sm text-slate-500">{bulkFeedback}</Text> : null}
               </HStack>
-              <HStack className="flex-wrap gap-3">
-                <Select value={bulkStatus} onValueChange={(value) => setBulkStatus(value as ScheduledMatchStatus)} className="min-w-[12rem]">
-                  {editableScheduledMatchStatuses.map((status) => (
-                    <option key={status} value={status}>{statusLabelMap[status]}</option>
-                  ))}
-                </Select>
+              <HStack className="flex-wrap gap-3 items-end">
+                <LabeledField label="Bulk Status" className="min-w-[12rem]">
+                  <Select value={bulkStatus} onValueChange={(value) => setBulkStatus(value as ScheduledMatchStatus)} className="min-w-[12rem]">
+                    {editableScheduledMatchStatuses.map((status) => (
+                      <option key={status} value={status}>{statusLabelMap[status]}</option>
+                    ))}
+                  </Select>
+                </LabeledField>
                 <Button variant="outline" onClick={handleBulkStatusChange} disabled={isSubmitting || selectedScheduledMatchIDs.length === 0}>
                   <Text>Bulk Status</Text>
                 </Button>
-                <Input type="datetime-local" value={bulkStartTime} onChangeText={setBulkStartTime} className="min-w-[14rem]" />
+                <LabeledField label="Bulk Start Time" className="min-w-[14rem]">
+                  <Input type="datetime-local" value={bulkStartTime} onChangeText={setBulkStartTime} className="min-w-[14rem]" />
+                </LabeledField>
                 <Button variant="outline" onClick={handleBulkStartTime} disabled={isSubmitting || selectedScheduledMatchIDs.length === 0 || !bulkStartTime}>
                   <Text>Bulk Time</Text>
                 </Button>
-                <Select value={bulkTargetTableID} onValueChange={setBulkTargetTableID} className="min-w-[14rem]">
-                  <option value="">Choose target table</option>
-                  {tableOptions.map((table) => (
-                    <option key={table.id} value={table.id}>{table.tableName}</option>
-                  ))}
-                </Select>
+                <LabeledField label="Bulk Target Table" className="min-w-[14rem]">
+                  <Select value={bulkTargetTableID} onValueChange={setBulkTargetTableID} className="min-w-[14rem]">
+                    <option value="">Choose target table</option>
+                    {tableOptions.map((table) => (
+                      <option key={table.id} value={table.id}>{table.tableName}</option>
+                    ))}
+                  </Select>
+                </LabeledField>
                 <Button variant="outline" onClick={() => handleBulkCopyOrMove(false)} disabled={isSubmitting || selectedScheduledMatchIDs.length === 0 || !bulkTargetTableID}>
                   <Text>Bulk Copy</Text>
                 </Button>

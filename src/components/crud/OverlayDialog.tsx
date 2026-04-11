@@ -12,9 +12,9 @@ interface OverlayDialogProps {
 }
 
 const sizeClasses = {
-  md: 'max-w-md',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl',
+  md: 'max-w-full sm:max-w-md',
+  lg: 'max-w-full sm:max-w-2xl',
+  xl: 'max-w-full sm:max-w-4xl',
 }
 
 export default function OverlayDialog({
@@ -27,9 +27,9 @@ export default function OverlayDialog({
   size = 'md',
 }: OverlayDialogProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} className={`${sizeClasses[size]} max-h-[90vh] overflow-y-auto rounded-2xl`}>
+    <Modal isOpen={isOpen} onClose={onClose} className={`${sizeClasses[size]} max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[1.5rem] sm:rounded-2xl`}>
       <ModalCloseButton
-        className="right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm hover:border-slate-300 hover:text-slate-800"
+        className="right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm hover:border-slate-300 hover:text-slate-800"
         onClick={onClose}
         aria-label="Close dialog"
       >

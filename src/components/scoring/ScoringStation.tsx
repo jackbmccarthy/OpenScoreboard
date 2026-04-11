@@ -164,8 +164,8 @@ function ScoreSide({
   }
 
   return (
-    <Box className="relative min-w-0 basis-1/2 flex-1 px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4" style={cardStyle}>
-      <VStack className="h-full min-h-0 gap-2">
+    <Box className="relative min-w-0 basis-auto flex-1 px-2 py-2 sm:basis-1/2 sm:px-3 sm:py-3 lg:px-4 lg:py-4" style={cardStyle}>
+      <VStack className="h-full min-h-0 gap-3">
         <Box className="flex items-center justify-center">
           <Box className="rounded-[1rem] px-3 py-1.5 sm:px-4 sm:py-2" style={overlayStyle}>
             <Text className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.08em] sm:text-xs sm:tracking-[0.12em]" style={{ color: mutedTextColor }}>
@@ -215,10 +215,10 @@ function ScoreSide({
         </VStack>
 
         <VStack className="flex-[0_0_38%] justify-end gap-2 sm:gap-3">
-          <Button action="primary" className="min-h-[6.5rem] flex-1 rounded-[1.75rem] hover:opacity-95 sm:min-h-[8rem] sm:rounded-[1.9rem]" style={{ backgroundColor: textColor, color: backgroundColor }} onClick={onAddPoint} disabled={disabled}>
+          <Button action="primary" className="min-h-[7rem] flex-1 rounded-[1.75rem] px-4 hover:opacity-95 sm:min-h-[8rem] sm:rounded-[1.9rem]" style={{ backgroundColor: textColor, color: backgroundColor }} onClick={onAddPoint} disabled={disabled}>
             <Text className="text-5xl font-black sm:text-6xl" style={{ color: backgroundColor }}>+</Text>
           </Button>
-          <Button variant="outline" className="h-20 rounded-2xl px-1.5 sm:h-24 sm:px-2" style={overlayStyle} onClick={onMinusPoint} disabled={disabled}>
+          <Button variant="outline" className="min-h-[4.5rem] rounded-2xl px-3 sm:h-24 sm:px-2" style={overlayStyle} onClick={onMinusPoint} disabled={disabled}>
             <Text className="text-3xl font-black" style={{ color: textColor }}>-</Text>
           </Button>
         </VStack>
@@ -743,9 +743,9 @@ export default function ScoringStation({
   }
 
   return (
-    <Box className="h-[100dvh] overflow-hidden bg-slate-950">
+    <Box className="min-h-[100dvh] overflow-x-hidden bg-slate-950 sm:h-[100dvh] sm:overflow-hidden">
       {user ? (
-        <HStack className="items-center justify-between border-b border-white/10 bg-slate-950/90 px-4 py-3 text-white backdrop-blur">
+        <HStack className="flex-col items-start justify-between gap-3 border-b border-white/10 bg-slate-950/90 px-4 py-3 text-white backdrop-blur sm:flex-row sm:items-center">
           <VStack className="gap-0">
             <Text className="text-xs uppercase tracking-[0.18em] text-slate-400">
               {mode === 'table' ? 'Table Scoring' : 'Team Match Scoring'}
@@ -757,7 +757,7 @@ export default function ScoringStation({
               <Text className="text-xs text-slate-300">{scoringContextLabel}</Text>
             ) : null}
           </VStack>
-          <HStack className="gap-2 items-center">
+          <HStack className="w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <LiveStatusBadge status={syncStatus} prefix="Live" />
             <Button
               variant="solid"
@@ -776,7 +776,7 @@ export default function ScoringStation({
 
       <Box className="border-b border-white/10 bg-slate-950 px-3 py-2 text-white">
         <VStack className="gap-2">
-          <HStack className="gap-2">
+          <Box className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={() => setShowTimeoutDialog(true)} disabled={!matchID}>
               <Text className="text-slate-900">Timeout</Text>
             </Button>
@@ -804,10 +804,10 @@ export default function ScoringStation({
             <Button variant="outline" className="min-w-0 flex-1 border-slate-200 bg-white px-2 text-slate-900 hover:bg-slate-100" onClick={() => setShowSettings(true)} disabled={!matchID}>
               <Text className="text-slate-900">Match Settings</Text>
             </Button>
-          </HStack>
+          </Box>
 
           {mode === 'teamMatch' ? (
-            <HStack className="items-center gap-2">
+            <HStack className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
               <Text className="text-sm text-white/70">Table</Text>
               <Select value={activeTableNumber} onValueChange={setActiveTableNumber} className="min-w-[6rem] bg-white text-slate-900">
                 {teamMatchTables.map((tableNumber) => (
@@ -869,7 +869,7 @@ export default function ScoringStation({
           </VStack>
         </Box>
       ) : (
-        <HStack className="h-[calc(100dvh-7.5rem)] min-h-0 flex-row overflow-hidden">
+        <HStack className="min-h-0 h-auto flex-col overflow-y-auto sm:h-[calc(100dvh-7.5rem)] sm:flex-row sm:overflow-hidden">
           <ScoreSide
             side={leftSide}
             isLeft={true}
@@ -1126,7 +1126,7 @@ export default function ScoringStation({
               Object.entries(manualGameScores).map(([gameNumber, scores]) => {
                 const isValid = isValidGameScore(true, Number(scores.a || 0), Number(scores.b || 0), Number(settingsDraft.pointsToWinGame))
                 return (
-                  <HStack key={gameNumber} className="items-center gap-2">
+                  <HStack key={gameNumber} className="flex-col items-stretch gap-2 sm:flex-row sm:items-center">
                     <Text className="w-16 text-sm font-semibold text-slate-700">{`Game ${gameNumber}`}</Text>
                     <Input value={scores.a} onChangeText={(value) => setManualGameScores((current) => ({ ...current, [Number(gameNumber)]: { ...current[Number(gameNumber)], a: value } }))} />
                     <Input value={scores.b} onChangeText={(value) => setManualGameScores((current) => ({ ...current, [Number(gameNumber)]: { ...current[Number(gameNumber)], b: value } }))} />

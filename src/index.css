@@ -12,10 +12,13 @@
 
 html {
   min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
   min-height: 100vh;
+  overflow-x: hidden;
+  font-size: 14px;
   font-family: "Avenir Next", "Sora", "Segoe UI", sans-serif;
   color: rgb(var(--foreground-rgb));
   background: linear-gradient(
@@ -27,6 +30,10 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+#__next {
+  min-height: 100%;
 }
 
 h1,

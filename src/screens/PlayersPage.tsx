@@ -21,6 +21,7 @@ import SyncIndicator from '@/components/realtime/SyncIndicator'
 import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
 import { newImportedPlayer } from '@/classes/Player'
 import countries from '@/flags/countries.json'
+import LabeledField from '@/components/forms/LabeledField'
 
 interface PlayerList {
   id: string
@@ -184,7 +185,7 @@ export default function PlayersPage() {
   return (
     <Box className="flex-1 bg-white">
       <VStack space="md" className="p-4">
-        <HStack className="justify-between items-center">
+        <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <VStack className="gap-1">
             <HStack className="items-center gap-2">
               <Heading size="lg">Players</Heading>
@@ -192,7 +193,7 @@ export default function PlayersPage() {
             </HStack>
             <Text className="text-gray-500 text-sm">Manage player lists and players</Text>
           </VStack>
-          <Button size="sm" variant="solid" action="primary" onClick={() => setShowNewListModal(true)}>
+          <Button size="sm" variant="solid" action="primary" onClick={() => setShowNewListModal(true)} className="w-full sm:w-auto">
             <PlusIcon size={16} />
             <Text className="ml-1 text-white">New List</Text>
           </Button>
@@ -209,7 +210,7 @@ export default function PlayersPage() {
             playerLists.map(([myPlayerListID, list]) => (
               <Card key={myPlayerListID} variant="elevated" className="mb-2">
                 <CardBody>
-                  <HStack className="justify-between items-center gap-3">
+                  <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                     <Pressable
                       className="flex-1"
                       onPress={() => handleSelectList(myPlayerListID, list.id, list.playerListName)}
@@ -219,12 +220,12 @@ export default function PlayersPage() {
                         <Text className="text-gray-500 text-sm">Player list</Text>
                       </VStack>
                     </Pressable>
-                    <HStack className="items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?playerListID=${list.id}&label=${encodeURIComponent(list.playerListName)}`)}>
+                    <HStack className="flex-wrap items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?playerListID=${list.id}&label=${encodeURIComponent(list.playerListName)}`)} className="w-full sm:w-auto">
                         <Text>Secure Link</Text>
                       </Button>
                       <Pressable
-                        className="rounded-lg border border-slate-200 p-2"
+                        className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2"
                         onPress={() => {
                           setSelectedList({ myPlayerListID, id: list.id, name: list.playerListName })
                           setRenamedListName(list.playerListName)
@@ -234,7 +235,7 @@ export default function PlayersPage() {
                         <PencilIcon size={16} className="text-slate-500" />
                       </Pressable>
                       <Pressable
-                        className="rounded-lg border border-red-200 p-2"
+                        className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-red-200 p-2"
                         onPress={() => setPendingDeleteList({ myPlayerListID, id: list.id, name: list.playerListName })}
                       >
                         <TrashIcon size={16} className="text-red-500" />
@@ -264,7 +265,9 @@ export default function PlayersPage() {
           </>
         )}
       >
-        <Input placeholder="List name" value={newListName} onChangeText={setNewListName} />
+        <LabeledField label="Player List Name">
+          <Input placeholder="List name" value={newListName} onChangeText={setNewListName} />
+        </LabeledField>
       </OverlayDialog>
 
       <OverlayDialog
@@ -282,7 +285,9 @@ export default function PlayersPage() {
           </>
         )}
       >
-        <Input placeholder="List name" value={renamedListName} onChangeText={setRenamedListName} />
+        <LabeledField label="Player List Name">
+          <Input placeholder="List name" value={renamedListName} onChangeText={setRenamedListName} />
+        </LabeledField>
       </OverlayDialog>
 
       <OverlayDialog
@@ -324,14 +329,14 @@ export default function PlayersPage() {
             {players.map(([playerId, player]) => (
               <Card key={playerId} variant="outline">
                 <CardBody>
-                  <HStack className="items-center justify-between gap-3">
+                  <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                     <VStack className="flex-1">
                       <Text className="font-medium text-slate-900">{getPlayerFormatted(player)}</Text>
                       <Text className="text-xs text-slate-500">{player.country || 'No country set'}</Text>
                     </VStack>
-                    <HStack className="items-center gap-2">
+                    <HStack className="flex-wrap items-center gap-2">
                       <Pressable
-                        className="rounded-lg border border-slate-200 p-2"
+                        className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2"
                         onPress={() => {
                           setEditingPlayer({ id: playerId, player })
                           setPlayerDraft({
@@ -346,7 +351,7 @@ export default function PlayersPage() {
                         <PencilIcon size={16} className="text-slate-500" />
                       </Pressable>
                       <Pressable
-                        className="rounded-lg border border-red-200 p-2"
+                        className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-red-200 p-2"
                         onPress={() => setPendingDeletePlayer({ id: playerId, name: getPlayerFormatted(player) })}
                       >
                         <TrashIcon size={16} className="text-red-500" />
@@ -376,17 +381,25 @@ export default function PlayersPage() {
         )}
       >
         <VStack className="gap-3">
-          <Input placeholder="First name" value={playerDraft.firstName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, firstName: value }))} />
-          <Input placeholder="Last name" value={playerDraft.lastName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, lastName: value }))} />
-          <Input placeholder="Image URL" value={playerDraft.imageURL} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, imageURL: value }))} />
-          <Select value={playerDraft.country || ''} onValueChange={(value) => setPlayerDraft((current) => ({ ...current, country: value.toUpperCase() }))}>
-            <option value="">Select country</option>
-            {countryOptions.map((country) => (
-              <option key={country.code} value={country.code}>
-                {country.name}
-              </option>
-            ))}
-          </Select>
+          <LabeledField label="First Name">
+            <Input placeholder="First name" value={playerDraft.firstName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, firstName: value }))} />
+          </LabeledField>
+          <LabeledField label="Last Name">
+            <Input placeholder="Last name" value={playerDraft.lastName} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, lastName: value }))} />
+          </LabeledField>
+          <LabeledField label="Image URL">
+            <Input placeholder="Image URL" value={playerDraft.imageURL} onChangeText={(value) => setPlayerDraft((current) => ({ ...current, imageURL: value }))} />
+          </LabeledField>
+          <LabeledField label="Country">
+            <Select value={playerDraft.country || ''} onValueChange={(value) => setPlayerDraft((current) => ({ ...current, country: value.toUpperCase() }))}>
+              <option value="">Select country</option>
+              {countryOptions.map((country) => (
+                <option key={country.code} value={country.code}>
+                  {country.name}
+                </option>
+              ))}
+            </Select>
+          </LabeledField>
         </VStack>
       </OverlayDialog>
 

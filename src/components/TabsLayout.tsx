@@ -70,9 +70,9 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
   }
 
   return (
-    <Box className="app-shell-bg flex min-h-screen flex-col">
+    <Box className="app-shell-bg flex min-h-screen flex-col overflow-x-hidden">
       <Box className="sticky top-0 z-40 px-3 pt-3 sm:px-4 lg:px-6">
-        <HStack className="app-glass mx-auto max-w-7xl items-center justify-between rounded-[1.75rem] border border-white/70 px-4 py-3 lg:px-5">
+        <HStack className="app-glass mx-auto max-w-7xl flex-wrap items-center justify-between gap-3 rounded-[1.75rem] border border-white/70 px-4 py-3 lg:flex-nowrap lg:px-5">
           {/* Logo */}
           <Link to="/dashboard" className="group flex items-center gap-3">
             <Box className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-lg shadow-blue-500/20 transition-transform group-hover:scale-[1.03]">
@@ -106,12 +106,12 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
           </HStack>
 
           {/* User Section */}
-          <HStack className="items-center gap-2">
+          <HStack className="w-full items-center justify-end gap-2 sm:w-auto">
             <Box className="relative">
               <Button
                 variant="ghost"
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="rounded-2xl px-2 py-1.5 hover:bg-white"
+                className="rounded-2xl px-2 py-1.5 hover:bg-white sm:px-3"
               >
                 <Box className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
                   {user?.photoURL ? (
@@ -223,15 +223,15 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
       </Box>
       
       {/* Page Content */}
-      <Box className="flex-1 mx-auto w-full max-w-7xl px-4 pb-8 pt-6 lg:px-6 lg:pt-8">
+      <Box className="mx-auto flex-1 w-full max-w-7xl overflow-x-hidden px-4 pb-8 pt-6 lg:px-6 lg:pt-8">
         {children ?? <Outlet />}
       </Box>
 
       {/* Footer */}
       <Box className="px-3 pb-3 sm:px-4 lg:px-6">
-        <HStack className="app-glass mx-auto max-w-7xl items-center justify-between rounded-[1.5rem] border border-white/70 px-4 py-4 text-sm text-slate-500">
+        <HStack className="app-glass mx-auto max-w-7xl flex-col items-start justify-between gap-3 rounded-[1.5rem] border border-white/70 px-4 py-4 text-sm text-slate-500 sm:flex-row sm:items-center">
           <Text>Open Scoreboard v3.0</Text>
-          <HStack className="gap-4">
+          <HStack className="flex-wrap gap-4">
             <Link to="/settings" className="transition-colors hover:text-slate-900">Settings</Link>
             <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="transition-colors hover:text-slate-900">GitHub</a>
           </HStack>

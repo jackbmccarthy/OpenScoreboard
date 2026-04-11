@@ -10,6 +10,7 @@ import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
 import { createScoreboardFromTemplate, subscribeToScoreboardTemplates } from '@/functions/scoreboardTemplates'
 import SyncIndicator from '@/components/realtime/SyncIndicator'
 import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import LabeledField from '@/components/forms/LabeledField'
 
 type ScoreboardDraft = {
   name: string
@@ -185,7 +186,7 @@ export default function ScoreboardsPage() {
   return (
     <Box className="flex-1 bg-white">
       <VStack space="md" className="p-4">
-        <HStack className="justify-between items-center">
+        <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <VStack className="gap-1">
             <HStack className="items-center gap-2">
               <Heading size="lg">My Scoreboards</Heading>
@@ -193,7 +194,7 @@ export default function ScoreboardsPage() {
             </HStack>
             <Text className="text-sm text-slate-500">Manage your scoreboards, previews, templates, and editor entrypoints from one page.</Text>
           </VStack>
-          <Button size="sm" variant="solid" action="primary" onClick={openNewScoreboardModal}>
+          <Button size="sm" variant="solid" action="primary" onClick={openNewScoreboardModal} className="w-full sm:w-auto">
             <PlusIcon size={16} />
             <Text className="ml-1 text-white">New</Text>
           </Button>
@@ -210,7 +211,7 @@ export default function ScoreboardsPage() {
             scoreboards.map(([myScoreboardID, scoreboard]) => (
               <Card key={myScoreboardID} variant="elevated">
                 <CardBody>
-                  <HStack className="justify-between items-start gap-4">
+                  <HStack className="flex-col items-stretch justify-between gap-4 xl:flex-row xl:items-start">
                     <HStack className="flex-1 items-start gap-4">
                       <ScoreboardPreview web={scoreboard.web} className="h-28 w-48 flex-shrink-0" emptyLabel="Open in editor to generate preview" />
                       <VStack className="flex-1 gap-1">
@@ -219,17 +220,17 @@ export default function ScoreboardsPage() {
                         <Text className="text-xs text-slate-400">Open in the editor to refine layout, then use table or team-match links to pair display with data.</Text>
                       </VStack>
                     </HStack>
-                    <HStack className="items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/editor?sid=${scoreboard.id}`)}>
+                    <HStack className="flex-wrap items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/editor?sid=${scoreboard.id}`)} className="w-full sm:w-auto">
                         <Text>Editor</Text>
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => setPreviewScoreboard(scoreboard)}>
+                      <Button size="sm" variant="outline" onClick={() => setPreviewScoreboard(scoreboard)} className="w-full sm:w-auto">
                         <Text>Preview</Text>
                       </Button>
-                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openEditScoreboardModal(myScoreboardID, scoreboard)}>
+                      <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2" onPress={() => openEditScoreboardModal(myScoreboardID, scoreboard)}>
                         <PencilIcon size={16} className="text-slate-500" />
                       </Pressable>
-                      <Pressable className="rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteScoreboard({ myScoreboardID, name: scoreboard.name })}>
+                      <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteScoreboard({ myScoreboardID, name: scoreboard.name })}>
                         <TrashIcon size={16} className="text-red-500" />
                       </Pressable>
                     </HStack>
@@ -297,27 +298,35 @@ export default function ScoreboardsPage() {
         )}
       >
         <VStack className="gap-3">
-          <Input placeholder="Scoreboard name" value={scoreboardDraft.name} onChangeText={(value) => setScoreboardDraft((current) => ({ ...current, name: value }))} />
-          <Select value={scoreboardDraft.type} onValueChange={(value) => setScoreboardDraft((current) => ({ ...current, type: value }))}>
-            {scoreboardTypes.map((type) => (
-              <option key={type.id} value={type.id}>{type.name}</option>
-            ))}
-          </Select>
-          {!editingScoreboard && creationMode === 'duplicate' ? (
-            <Select value={selectedDuplicateID} onValueChange={setSelectedDuplicateID}>
-              <option value="">Select existing scoreboard</option>
-              {scoreboards.map(([myScoreboardID, scoreboard]) => (
-                <option key={myScoreboardID} value={scoreboard.id}>{scoreboard.name}</option>
+          <LabeledField label="Scoreboard Name">
+            <Input placeholder="Scoreboard name" value={scoreboardDraft.name} onChangeText={(value) => setScoreboardDraft((current) => ({ ...current, name: value }))} />
+          </LabeledField>
+          <LabeledField label="Scoreboard Type">
+            <Select value={scoreboardDraft.type} onValueChange={(value) => setScoreboardDraft((current) => ({ ...current, type: value }))}>
+              {scoreboardTypes.map((type) => (
+                <option key={type.id} value={type.id}>{type.name}</option>
               ))}
             </Select>
+          </LabeledField>
+          {!editingScoreboard && creationMode === 'duplicate' ? (
+            <LabeledField label="Source Scoreboard">
+              <Select value={selectedDuplicateID} onValueChange={setSelectedDuplicateID}>
+                <option value="">Select existing scoreboard</option>
+                {scoreboards.map(([myScoreboardID, scoreboard]) => (
+                  <option key={myScoreboardID} value={scoreboard.id}>{scoreboard.name}</option>
+                ))}
+              </Select>
+            </LabeledField>
           ) : null}
           {!editingScoreboard && creationMode === 'template' ? (
-            <Select value={selectedTemplateID} onValueChange={setSelectedTemplateID}>
-              <option value="">Select template</option>
-              {templates.map((template) => (
-                <option key={template.id} value={template.id}>{template.name}</option>
-              ))}
-            </Select>
+            <LabeledField label="Template">
+              <Select value={selectedTemplateID} onValueChange={setSelectedTemplateID}>
+                <option value="">Select template</option>
+                {templates.map((template) => (
+                  <option key={template.id} value={template.id}>{template.name}</option>
+                ))}
+              </Select>
+            </LabeledField>
           ) : null}
         </VStack>
       </OverlayDialog>

@@ -58,6 +58,7 @@ import {
   type TournamentStaffAssignmentRecord,
   type TournamentVisibility,
 } from '@/functions/tournaments'
+import LabeledField, { FieldLabel } from '@/components/forms/LabeledField'
 
 type TournamentTab = 'overview' | 'events' | 'brackets' | 'schedule' | 'staff' | 'registration' | 'public'
 
@@ -333,28 +334,46 @@ export default function TournamentDetailPage() {
 
         {activeTab === 'overview' ? (
           <VStack className="gap-3">
-            <Input value={tournament.name || ''} onChangeText={(value) => updateField({ name: value })} placeholder="Tournament name" />
-            <Input value={String(tournament.shortCode || '')} onChangeText={(value) => updateField({ shortCode: value })} placeholder="Short code" />
-            <Input value={String(tournament.venue || '')} onChangeText={(value) => updateField({ venue: value })} placeholder="Venue" />
-            <Input value={String(tournament.timezone || '')} onChangeText={(value) => updateField({ timezone: value })} placeholder="Timezone" />
-            <Input type="date" value={String(tournament.startDate || '')} onChangeText={(value) => updateField({ startDate: value })} />
-            <Input type="date" value={String(tournament.endDate || '')} onChangeText={(value) => updateField({ endDate: value })} />
-            <Select value={visibility} onValueChange={(value) => updateField({ visibility: value as TournamentVisibility })}>
-              <option value="private">Private</option>
-              <option value="unlisted">Unlisted</option>
-              <option value="public">Public</option>
-            </Select>
-            <textarea
-              className="min-h-[8rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-              value={String(tournament.description || '')}
-              onChange={(event) => updateField({ description: event.target.value })}
-              placeholder="Tournament description"
-            />
+            <LabeledField label="Tournament Name">
+              <Input value={tournament.name || ''} onChangeText={(value) => updateField({ name: value })} placeholder="Tournament name" />
+            </LabeledField>
+            <LabeledField label="Short Code">
+              <Input value={String(tournament.shortCode || '')} onChangeText={(value) => updateField({ shortCode: value })} placeholder="Short code" />
+            </LabeledField>
+            <LabeledField label="Venue">
+              <Input value={String(tournament.venue || '')} onChangeText={(value) => updateField({ venue: value })} placeholder="Venue" />
+            </LabeledField>
+            <LabeledField label="Timezone">
+              <Input value={String(tournament.timezone || '')} onChangeText={(value) => updateField({ timezone: value })} placeholder="Timezone" />
+            </LabeledField>
+            <LabeledField label="Start Date">
+              <Input type="date" value={String(tournament.startDate || '')} onChangeText={(value) => updateField({ startDate: value })} />
+            </LabeledField>
+            <LabeledField label="End Date">
+              <Input type="date" value={String(tournament.endDate || '')} onChangeText={(value) => updateField({ endDate: value })} />
+            </LabeledField>
+            <LabeledField label="Visibility">
+              <Select value={visibility} onValueChange={(value) => updateField({ visibility: value as TournamentVisibility })}>
+                <option value="private">Private</option>
+                <option value="unlisted">Unlisted</option>
+                <option value="public">Public</option>
+              </Select>
+            </LabeledField>
+            <LabeledField label="Description">
+              <textarea
+                className="min-h-[8rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                value={String(tournament.description || '')}
+                onChange={(event) => updateField({ description: event.target.value })}
+                placeholder="Tournament description"
+              />
+            </LabeledField>
           </VStack>
         ) : activeTab === 'events' ? (
           <VStack className="gap-4">
-            <HStack className="gap-3">
-              <Input value={newEventName} onChangeText={setNewEventName} placeholder="Event name" className="flex-1" />
+            <HStack className="flex-col gap-3 sm:flex-row sm:items-end">
+              <LabeledField label="Event Name" className="flex-1">
+                <Input value={newEventName} onChangeText={setNewEventName} placeholder="Event name" className="flex-1" />
+              </LabeledField>
               <Button
                 action="primary"
                 disabled={!canManage}
@@ -373,16 +392,18 @@ export default function TournamentDetailPage() {
               <VStack className="gap-3">
                 {eventEntries.map(([eventID, event]) => (
                   <Box key={eventID} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <HStack className="items-start justify-between gap-3">
+                    <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-start">
                       <VStack className="flex-1 gap-2">
                         {editingEventID === eventID ? (
-                          <Input value={editingEventName} onChangeText={setEditingEventName} />
+                          <LabeledField label="Event Name">
+                            <Input value={editingEventName} onChangeText={setEditingEventName} />
+                          </LabeledField>
                         ) : (
                           <Text className="font-semibold text-slate-900">{event.name}</Text>
                         )}
                         <Text className="text-xs text-slate-500">{[event.shortCode, event.format, event.status].filter(Boolean).join(' • ')}</Text>
                       </VStack>
-                      <HStack className="gap-2">
+                      <HStack className="flex-wrap gap-2">
                         <Button
                           variant="outline"
                           disabled={!canManage}
@@ -411,20 +432,28 @@ export default function TournamentDetailPage() {
           </VStack>
         ) : activeTab === 'brackets' ? (
           <VStack className="gap-4">
-            <HStack className="gap-3 flex-wrap">
-              <Input value={newBracketName} onChangeText={setNewBracketName} placeholder="Bracket name" className="flex-1 min-w-[12rem]" />
-              <Select value={newBracketEventID} onValueChange={setNewBracketEventID}>
-                <option value="">No event</option>
-                {eventEntries.map(([eventID, event]) => (
-                  <option key={eventID} value={eventID}>{event.name}</option>
-                ))}
-              </Select>
-              <Select value={newBracketFormat} onValueChange={(value) => setNewBracketFormat(value as TournamentBracketRecord['format'])}>
-                <option value="single-elimination">Single Elimination</option>
-                <option value="double-elimination">Double Elimination</option>
-                <option value="round-robin">Round Robin</option>
-              </Select>
-              <Input type="number" min="2" value={newBracketSeedCount} onChangeText={setNewBracketSeedCount} className="w-24" />
+            <HStack className="gap-3 flex-wrap items-end">
+              <LabeledField label="Bracket Name" className="flex-1 min-w-[12rem]">
+                <Input value={newBracketName} onChangeText={setNewBracketName} placeholder="Bracket name" className="flex-1 min-w-[12rem]" />
+              </LabeledField>
+              <LabeledField label="Event" className="min-w-[12rem]">
+                <Select value={newBracketEventID} onValueChange={setNewBracketEventID}>
+                  <option value="">No event</option>
+                  {eventEntries.map(([eventID, event]) => (
+                    <option key={eventID} value={eventID}>{event.name}</option>
+                  ))}
+                </Select>
+              </LabeledField>
+              <LabeledField label="Bracket Format" className="min-w-[12rem]">
+                <Select value={newBracketFormat} onValueChange={(value) => setNewBracketFormat(value as TournamentBracketRecord['format'])}>
+                  <option value="single-elimination">Single Elimination</option>
+                  <option value="double-elimination">Double Elimination</option>
+                  <option value="round-robin">Round Robin</option>
+                </Select>
+              </LabeledField>
+              <LabeledField label="Seed Count" className="w-24">
+                <Input type="number" min="2" value={newBracketSeedCount} onChangeText={setNewBracketSeedCount} className="w-24" />
+              </LabeledField>
               <Button
                 action="primary"
                 disabled={!canManage}
@@ -449,10 +478,12 @@ export default function TournamentDetailPage() {
               <VStack className="gap-3">
                 {bracketEntries.map(([bracketID, bracket]) => (
                   <Box key={bracketID} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <HStack className="items-start justify-between gap-3">
+                    <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-start">
                       <VStack className="flex-1 gap-2">
                         {editingBracketID === bracketID ? (
-                          <Input value={editingBracketName} onChangeText={setEditingBracketName} />
+                          <LabeledField label="Bracket Name">
+                            <Input value={editingBracketName} onChangeText={setEditingBracketName} />
+                          </LabeledField>
                         ) : (
                           <Text className="font-semibold text-slate-900">{bracket.name}</Text>
                         )}
@@ -460,7 +491,7 @@ export default function TournamentDetailPage() {
                           {[bracket.format, `${bracket.seedCount} seeds`, bracket.status, eventEntries.find(([eventID]) => eventID === bracket.eventID)?.[1]?.name].filter(Boolean).join(' • ')}
                         </Text>
                       </VStack>
-                      <HStack className="gap-2">
+                      <HStack className="flex-wrap gap-2">
                         <Button
                           variant="outline"
                           disabled={!canManage}
@@ -489,13 +520,15 @@ export default function TournamentDetailPage() {
                         >
                           <Text>{editingBracketID === bracketID ? 'Save' : 'Edit'}</Text>
                         </Button>
-                        <Select value={bracket.status} onValueChange={(value) => updateTournamentBracket(tournamentID, bracketID, { status: value as TournamentBracketRecord['status'] })} disabled={!canManage}>
-                          <option value="draft">draft</option>
-                          <option value="published">published</option>
-                          <option value="active">active</option>
-                          <option value="completed">completed</option>
-                          <option value="archived">archived</option>
-                        </Select>
+                        <LabeledField label="Bracket Status" className="min-w-[11rem]">
+                          <Select value={bracket.status} onValueChange={(value) => updateTournamentBracket(tournamentID, bracketID, { status: value as TournamentBracketRecord['status'] })} disabled={!canManage}>
+                            <option value="draft">draft</option>
+                            <option value="published">published</option>
+                            <option value="active">active</option>
+                            <option value="completed">completed</option>
+                            <option value="archived">archived</option>
+                          </Select>
+                        </LabeledField>
                         <Button variant="outline" onClick={() => generateTournamentBracketNodes(tournamentID, bracketID, bracket.seedCount)} disabled={!canManage}>
                           <Text>Generate</Text>
                         </Button>
@@ -510,12 +543,14 @@ export default function TournamentDetailPage() {
                     {bracket.nodes && Object.keys(bracket.nodes).length > 0 ? (
                       <VStack className="mt-3 gap-2">
                         {editingBracketID === bracketID ? (
-                          <textarea
-                            className="min-h-[8rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            value={editingBracketSeeds}
-                            onChange={(event) => setEditingBracketSeeds(event.target.value)}
-                            placeholder="One seed label per line"
-                          />
+                          <LabeledField label="Seed List">
+                            <textarea
+                              className="min-h-[8rem] w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                              value={editingBracketSeeds}
+                              onChange={(event) => setEditingBracketSeeds(event.target.value)}
+                              placeholder="One seed label per line"
+                            />
+                          </LabeledField>
                         ) : null}
                         {Object.values(bracket.nodes as Record<string, { id: string; roundNumber: number; topLabel: string; bottomLabel: string; status: string }>).map((node) => (
                           <Box key={node.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
@@ -625,7 +660,7 @@ export default function TournamentDetailPage() {
                       const tableLabelMap = Object.fromEntries(tableOptions.map((table) => [table.id, table.tableName]))
                       return (
                     <VStack className="gap-3">
-                      <HStack className="items-start justify-between gap-3">
+                      <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-start">
                         <VStack className="flex-1 gap-2">
                           {editingRoundID === roundID ? (
                             <VStack className="gap-2">
@@ -1333,13 +1368,13 @@ export default function TournamentDetailPage() {
                   <VStack className="gap-3">
                     {visibleStaffEntries.map(([assignmentID, assignment]) => (
                       <Box key={assignmentID} className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <HStack className="items-start justify-between gap-3">
+                        <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-start">
                           <VStack className="gap-1">
                             <Text className="font-semibold text-slate-900">{assignment.subjectID}</Text>
                             <Text className="text-xs text-slate-500">{assignment.role} • {assignment.scope}</Text>
                             {assignment.note ? <Text className="text-sm text-slate-600">{assignment.note}</Text> : null}
                           </VStack>
-                          <HStack className="gap-2">
+                          <HStack className="flex-wrap gap-2">
                             <Select value={assignment.role} onValueChange={(value) => updateTournamentStaffAssignment(tournamentID, assignmentID, { role: value as TournamentGrantRole })} disabled={!canManage}>
                               <option value="admin">admin</option>
                               <option value="scorer">scorer</option>
@@ -1400,7 +1435,7 @@ export default function TournamentDetailPage() {
                   <VStack className="gap-3">
                     {visibleInviteEntries.map(([inviteID, invite]) => (
                       <Box key={inviteID} className="rounded-2xl border border-slate-200 bg-white p-4">
-                        <HStack className="items-start justify-between gap-3">
+                        <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-start">
                           <VStack className="gap-1">
                             <Text className="font-semibold text-slate-900">{invite.email}</Text>
                             <Text className="text-xs text-slate-500">
@@ -1408,7 +1443,7 @@ export default function TournamentDetailPage() {
                             </Text>
                             {invite.note ? <Text className="text-sm text-slate-600">{invite.note}</Text> : null}
                           </VStack>
-                          <HStack className="gap-2">
+                          <HStack className="flex-wrap gap-2">
                             <Select value={invite.role} onValueChange={(value) => updateTournamentPendingInvite(tournamentID, inviteID, { role: value as TournamentGrantRole })} disabled={!canManage}>
                               <option value="admin">admin</option>
                               <option value="scorer">scorer</option>

@@ -267,12 +267,15 @@ export default function BulkTeamsPage() {
                 <br />
                 `Team Name`, `Team Logo URL`
               </Text>
-              <textarea
-                className="min-h-[320px] w-full rounded-xl border border-slate-200 px-3 py-3 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                value={spreadsheetValue}
-                onChange={(event) => setSpreadsheetValue(event.target.value)}
-                placeholder={`Team Name\tTeam Logo URL\nFalcons\thttps://example.com/falcons.png`}
-              />
+              <Box>
+                <FieldLabel>Spreadsheet Rows</FieldLabel>
+                <textarea
+                  className="min-h-[320px] w-full rounded-xl border border-slate-200 px-3 py-3 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  value={spreadsheetValue}
+                  onChange={(event) => setSpreadsheetValue(event.target.value)}
+                  placeholder={`Team Name\tTeam Logo URL\nFalcons\thttps://example.com/falcons.png`}
+                />
+              </Box>
               <HStack className="gap-3">
                 <Button variant="outline" onClick={handleApplySpreadsheet}>
                   <Text>Apply Spreadsheet Changes</Text>

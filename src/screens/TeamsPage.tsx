@@ -8,6 +8,7 @@ import OverlayDialog from '@/components/crud/OverlayDialog'
 import { addNewTeam, deleteMyTeam, getTeam, subscribeToMyTeams, updateMyTeam, updateTeam } from '@/functions/teams'
 import SyncIndicator from '@/components/realtime/SyncIndicator'
 import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import LabeledField from '@/components/forms/LabeledField'
 
 interface TeamRow {
   id: string
@@ -117,7 +118,7 @@ export default function TeamsPage() {
   return (
     <Box className="flex-1 bg-white">
       <VStack space="md" className="p-4">
-        <HStack className="justify-between items-center">
+        <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <VStack className="gap-1">
             <HStack className="items-center gap-2">
               <Heading size="lg">Teams</Heading>
@@ -125,11 +126,11 @@ export default function TeamsPage() {
             </HStack>
             <Text className="text-gray-500 text-sm">Manage your teams for matches</Text>
           </VStack>
-          <HStack className="gap-2">
-            <Button size="sm" variant="outline" onClick={() => navigate('/bulkteams')}>
+          <HStack className="flex-col gap-2 sm:flex-row sm:items-center">
+            <Button size="sm" variant="outline" onClick={() => navigate('/bulkteams')} className="w-full sm:w-auto">
               <Text>Bulk Manage</Text>
             </Button>
-            <Button size="sm" variant="solid" action="primary" onClick={openNewTeamModal}>
+            <Button size="sm" variant="solid" action="primary" onClick={openNewTeamModal} className="w-full sm:w-auto">
               <PlusIcon size={16} />
               <Text className="ml-1 text-white">Add Team</Text>
             </Button>
@@ -147,7 +148,7 @@ export default function TeamsPage() {
             teams.map(([myTeamId, team]) => (
               <Card key={myTeamId} variant="elevated" className="mb-2">
                 <CardBody>
-                  <HStack className="justify-between items-center gap-3">
+                  <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                     <Pressable className="flex-1" onPress={() => navigate(`/teams/${team.id}`)}>
                       <VStack className="flex-1">
                         <Text fontWeight="bold">{team.name}</Text>
@@ -156,11 +157,11 @@ export default function TeamsPage() {
                         ) : null}
                       </VStack>
                     </Pressable>
-                    <HStack className="items-center gap-2">
-                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => navigate(`/teams/${team.id}`)}>
+                    <HStack className="flex-wrap items-center gap-2">
+                      <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2" onPress={() => navigate(`/teams/${team.id}`)}>
                         <PencilIcon size={16} className="text-slate-500" />
                       </Pressable>
-                      <Pressable className="rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteTeam({ myTeamID: myTeamId, name: team.name })}>
+                      <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteTeam({ myTeamID: myTeamId, name: team.name })}>
                         <TrashIcon size={16} className="text-red-500" />
                       </Pressable>
                     </HStack>
@@ -188,8 +189,12 @@ export default function TeamsPage() {
         )}
       >
         <VStack className="gap-3">
-          <Input placeholder="Team name" value={teamDraft.teamName} onChangeText={(value) => setTeamDraft((current) => ({ ...current, teamName: value }))} />
-          <Input placeholder="Team logo URL" value={teamDraft.teamLogoURL} onChangeText={(value) => setTeamDraft((current) => ({ ...current, teamLogoURL: value }))} />
+          <LabeledField label="Team Name">
+            <Input placeholder="Team name" value={teamDraft.teamName} onChangeText={(value) => setTeamDraft((current) => ({ ...current, teamName: value }))} />
+          </LabeledField>
+          <LabeledField label="Team Logo URL">
+            <Input placeholder="Team logo URL" value={teamDraft.teamLogoURL} onChangeText={(value) => setTeamDraft((current) => ({ ...current, teamLogoURL: value }))} />
+          </LabeledField>
         </VStack>
       </OverlayDialog>
 

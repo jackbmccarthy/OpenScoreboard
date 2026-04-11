@@ -10,6 +10,7 @@ import { subscribeToMyTeamMatches } from '@/functions/teammatches'
 import { useAuth } from '@/lib/auth'
 import SyncIndicator from '@/components/realtime/SyncIndicator'
 import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import LabeledField from '@/components/forms/LabeledField'
 
 type DynamicURLDraft = {
   dynamicURLName: string
@@ -166,7 +167,7 @@ export default function DynamicURLsPage() {
   return (
     <Box className="p-4">
       <VStack space="md">
-        <HStack className="items-center justify-between">
+        <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
           <VStack className="gap-1">
             <HStack className="items-center gap-2">
               <Heading size="lg">Dynamic URLs</Heading>
@@ -174,7 +175,7 @@ export default function DynamicURLsPage() {
             </HStack>
             <Text className="text-gray-500 text-sm">Shareable scoreboard links for tables and team matches</Text>
           </VStack>
-          <Button onClick={openNewDynamicURLModal}>
+          <Button onClick={openNewDynamicURLModal} className="w-full sm:w-auto">
             <PlusIcon size={16} />
             <Text className="ml-1 text-white">New Dynamic URL</Text>
           </Button>
@@ -191,18 +192,18 @@ export default function DynamicURLsPage() {
             dynamicURLs.map(([myDynamicURLID, dynamicURL]) => (
               <Card key={myDynamicURLID} variant="elevated">
                 <CardBody>
-                  <HStack className="items-center justify-between gap-3">
+                  <HStack className="flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
                     <VStack className="flex-1">
                       <Text className="font-semibold text-slate-900">{dynamicURL.dynamicURLName}</Text>
                       <Text className="text-xs text-slate-500">
                         {dynamicURL.tableID ? `Table ${dynamicURL.tableID}` : `Team match ${dynamicURL.teammatchID || dynamicURL.teamMatchID}`}
                       </Text>
                     </VStack>
-                    <HStack className="items-center gap-2">
-                      <Pressable className="rounded-lg border border-slate-200 p-2" onPress={() => openEditDynamicURLModal(myDynamicURLID, dynamicURL)}>
+                    <HStack className="flex-wrap items-center gap-2">
+                      <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2" onPress={() => openEditDynamicURLModal(myDynamicURLID, dynamicURL)}>
                         <PencilIcon size={16} className="text-slate-500" />
                       </Pressable>
-                      <Pressable className="rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteDynamicURL({ myDynamicURLID, dynamicURLID: dynamicURL.id, name: dynamicURL.dynamicURLName })}>
+                      <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-red-200 p-2" onPress={() => setPendingDeleteDynamicURL({ myDynamicURLID, dynamicURLID: dynamicURL.id, name: dynamicURL.dynamicURLName })}>
                         <TrashIcon size={16} className="text-red-500" />
                       </Pressable>
                     </HStack>
@@ -230,33 +231,45 @@ export default function DynamicURLsPage() {
         )}
       >
         <VStack className="gap-3">
-          <Input placeholder="Dynamic URL name" value={dynamicURLDraft.dynamicURLName} onChangeText={(value) => setDynamicURLDraft((current) => ({ ...current, dynamicURLName: value }))} />
-          <Select value={dynamicURLDraft.scoreboardID} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, scoreboardID: value }))}>
-            <option value="">Select scoreboard</option>
-            {scoreboardOptions.map((scoreboard) => (
-              <option key={scoreboard.id} value={scoreboard.id}>{scoreboard.label}</option>
-            ))}
-          </Select>
-          <Select value={dynamicURLDraft.targetType} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, targetType: value as DynamicURLDraft['targetType'] }))}>
-            <option value="table">Table</option>
-            <option value="teamMatch">Team Match</option>
-          </Select>
-          {dynamicURLDraft.targetType === 'table' ? (
-            <Select value={dynamicURLDraft.tableID} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, tableID: value }))}>
-              <option value="">Select table</option>
-              {tables.map(([myTableID, table]) => (
-                <option key={myTableID} value={table.tableID}>{table.tableName}</option>
+          <LabeledField label="Dynamic URL Name">
+            <Input placeholder="Dynamic URL name" value={dynamicURLDraft.dynamicURLName} onChangeText={(value) => setDynamicURLDraft((current) => ({ ...current, dynamicURLName: value }))} />
+          </LabeledField>
+          <LabeledField label="Scoreboard">
+            <Select value={dynamicURLDraft.scoreboardID} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, scoreboardID: value }))}>
+              <option value="">Select scoreboard</option>
+              {scoreboardOptions.map((scoreboard) => (
+                <option key={scoreboard.id} value={scoreboard.id}>{scoreboard.label}</option>
               ))}
             </Select>
-          ) : (
-            <>
-              <Select value={dynamicURLDraft.teammatchID} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, teammatchID: value }))}>
-                <option value="">Select team match</option>
-                {teamMatches.map(([myTeamMatchID, match]) => (
-                  <option key={myTeamMatchID} value={match.id}>{match.teamAName} vs {match.teamBName}</option>
+          </LabeledField>
+          <LabeledField label="Target Type">
+            <Select value={dynamicURLDraft.targetType} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, targetType: value as DynamicURLDraft['targetType'] }))}>
+              <option value="table">Table</option>
+              <option value="teamMatch">Team Match</option>
+            </Select>
+          </LabeledField>
+          {dynamicURLDraft.targetType === 'table' ? (
+            <LabeledField label="Table">
+              <Select value={dynamicURLDraft.tableID} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, tableID: value }))}>
+                <option value="">Select table</option>
+                {tables.map(([myTableID, table]) => (
+                  <option key={myTableID} value={table.tableID}>{table.tableName}</option>
                 ))}
               </Select>
-              <Input placeholder="Table number" value={dynamicURLDraft.tableNumber} onChangeText={(value) => setDynamicURLDraft((current) => ({ ...current, tableNumber: value }))} />
+            </LabeledField>
+          ) : (
+            <>
+              <LabeledField label="Team Match">
+                <Select value={dynamicURLDraft.teammatchID} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, teammatchID: value }))}>
+                  <option value="">Select team match</option>
+                  {teamMatches.map(([myTeamMatchID, match]) => (
+                    <option key={myTeamMatchID} value={match.id}>{match.teamAName} vs {match.teamBName}</option>
+                  ))}
+                </Select>
+              </LabeledField>
+              <LabeledField label="Table Number">
+                <Input placeholder="Table number" value={dynamicURLDraft.tableNumber} onChangeText={(value) => setDynamicURLDraft((current) => ({ ...current, tableNumber: value }))} />
+              </LabeledField>
             </>
           )}
         </VStack>

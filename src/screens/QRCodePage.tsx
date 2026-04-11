@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Box, Button, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
 import { issueCapabilityLink, listCapabilityLinks, revokeCapabilityLink, type CapabilityRecord, type CapabilityType } from '@/functions/accessTokens'
+import LabeledField from '@/components/forms/LabeledField'
 
 function getQrImageURL(url: string) {
   return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(url)}`
@@ -85,14 +86,18 @@ export default function QRCodePage() {
         <Text className="text-3xl font-bold">{label}</Text>
         <Text className="text-sm text-slate-600">Generate secure operator and public links with expiration and revocation support.</Text>
 
-        <HStack className="gap-3">
-          <Select value={capabilityType} onValueChange={(value) => setCapabilityType(value as CapabilityType)}>
-            <option value="table_scoring">Table Scoring</option>
-            <option value="team_match_scoring">Team Match Scoring</option>
-            <option value="player_registration">Player Registration</option>
-            <option value="public_score_view">Public Score View</option>
-          </Select>
-          <Input value={expiresInHours} onChangeText={setExpiresInHours} placeholder="Expires in hours" />
+        <HStack className="gap-3 items-end flex-wrap">
+          <LabeledField label="Link Type" className="min-w-[14rem] flex-1">
+            <Select value={capabilityType} onValueChange={(value) => setCapabilityType(value as CapabilityType)}>
+              <option value="table_scoring">Table Scoring</option>
+              <option value="team_match_scoring">Team Match Scoring</option>
+              <option value="player_registration">Player Registration</option>
+              <option value="public_score_view">Public Score View</option>
+            </Select>
+          </LabeledField>
+          <LabeledField label="Expires In Hours" className="min-w-[12rem]">
+            <Input value={expiresInHours} onChangeText={setExpiresInHours} placeholder="Expires in hours" />
+          </LabeledField>
           <Button onClick={handleIssue} disabled={issuing || scoringLinkNeedsMatch || publicScoreViewNeedsScoreboard || publicScoreViewNeedsTarget}>
             <Text className="text-white">{issuing ? 'Issuing...' : 'Issue Secure Link'}</Text>
           </Button>

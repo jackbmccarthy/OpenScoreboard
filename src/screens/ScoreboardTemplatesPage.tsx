@@ -13,6 +13,7 @@ import {
 } from '@/functions/scoreboardTemplates'
 import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import LabeledField from '@/components/forms/LabeledField'
 
 type ScoreboardTemplateRecord = {
   id: string
@@ -209,7 +210,9 @@ export default function ScoreboardTemplatesPage() {
           </>
         )}
       >
-        <Input value={scoreboardName} onChangeText={setScoreboardName} placeholder="Scoreboard name" />
+        <LabeledField label="Scoreboard Name">
+          <Input value={scoreboardName} onChangeText={setScoreboardName} placeholder="Scoreboard name" />
+        </LabeledField>
       </OverlayDialog>
 
       <OverlayDialog
@@ -234,10 +237,18 @@ export default function ScoreboardTemplatesPage() {
         )}
       >
         <VStack className="gap-3">
-          <Input value={templateDraft.name} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, name: value }))} placeholder="Template name" />
-          <Input value={templateDraft.description} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, description: value }))} placeholder="Description" />
-          <Input value={templateDraft.category} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, category: value }))} placeholder="Category" />
-          <Input value={templateDraft.type} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, type: value }))} placeholder="Type" />
+          <LabeledField label="Template Name">
+            <Input value={templateDraft.name} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, name: value }))} placeholder="Template name" />
+          </LabeledField>
+          <LabeledField label="Description">
+            <Input value={templateDraft.description} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, description: value }))} placeholder="Description" />
+          </LabeledField>
+          <LabeledField label="Category">
+            <Input value={templateDraft.category} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, category: value }))} placeholder="Category" />
+          </LabeledField>
+          <LabeledField label="Template Type">
+            <Input value={templateDraft.type} onChangeText={(value) => setTemplateDraft((current) => ({ ...current, type: value }))} placeholder="Type" />
+          </LabeledField>
         </VStack>
       </OverlayDialog>
     </Box>

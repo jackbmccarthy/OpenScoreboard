@@ -168,12 +168,12 @@ export function Modal({ children, isOpen, onClose, className = '', ...props }: M
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/45 px-3 py-4 backdrop-blur-sm sm:px-4 sm:py-6"
       onClick={onClose}
       {...props}
     >
       <div
-        className={mergeClasses('premium-panel w-full max-w-md rounded-[1.75rem] border border-white/70 p-6 shadow-2xl', className)}
+        className={mergeClasses('premium-panel w-full max-w-[calc(100vw-1.5rem)] rounded-[1.5rem] border border-white/70 p-4 shadow-2xl sm:max-w-md sm:rounded-[1.75rem] sm:p-6', className)}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
@@ -192,7 +192,7 @@ export function ModalBackdrop({ children, className = '', ...props }: BoxProps) 
 
 export function ModalContent({ children, className = '', ...props }: BoxProps) {
   return (
-    <div className={mergeClasses('bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl', className)} {...props}>
+    <div className={mergeClasses('mx-2 w-full max-w-[calc(100vw-1rem)] rounded-lg bg-white p-4 shadow-xl sm:mx-4 sm:max-w-md sm:p-6', className)} {...props}>
       {children}
     </div>
   )
@@ -208,7 +208,7 @@ export function ModalCloseButton({
   return (
     <button
       type="button"
-      className={mergeClasses('absolute top-3 right-3 text-gray-500 hover:text-gray-700', className)}
+      className={mergeClasses('absolute right-3 top-3 inline-flex h-11 w-11 items-center justify-center rounded-full text-gray-500 transition-colors hover:text-gray-700', className)}
       onClick={onClick ?? onPress}
       {...props}
     >
@@ -219,7 +219,7 @@ export function ModalCloseButton({
 
 export function ModalHeader({ children, className = '', ...props }: BoxProps) {
   return (
-    <div className={mergeClasses('text-xl font-bold mb-4', className)} {...props}>
+    <div className={mergeClasses('mb-4 pr-12 text-lg font-bold sm:text-xl', className)} {...props}>
       {children}
     </div>
   )
@@ -235,7 +235,7 @@ export function ModalBody({ children, className = '', ...props }: BoxProps) {
 
 export function ModalFooter({ children, className = '', ...props }: BoxProps) {
   return (
-    <div className={mergeClasses('flex justify-end gap-2', className)} {...props}>
+    <div className={mergeClasses('flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end', className)} {...props}>
       {children}
     </div>
   )
@@ -254,7 +254,7 @@ export function Input({
   return (
     <input
       className={mergeClasses(
-        'w-full rounded-xl border border-slate-200 bg-white/90 px-3.5 py-3 text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100',
+        'min-h-[2.75rem] w-full rounded-xl border border-slate-200 bg-white/90 px-3.5 py-3 text-sm leading-6 text-slate-900 shadow-sm transition-all placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100',
         className,
       )}
       onChange={handleChange}
@@ -278,7 +278,7 @@ export function Select({
   return (
     <select
       className={mergeClasses(
-        'w-full rounded-xl border border-slate-200 bg-white/90 px-3.5 py-3 text-slate-900 shadow-sm transition-all focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100',
+        'min-h-[2.75rem] w-full rounded-xl border border-slate-200 bg-white/90 px-3.5 py-3 text-sm leading-6 text-slate-900 shadow-sm transition-all focus:border-blue-400 focus:outline-none focus:ring-4 focus:ring-blue-100',
         className,
       )}
       value={value}
@@ -352,9 +352,9 @@ export function Button({
   }
 
   const sizeClasses: Record<string, string> = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2',
-    lg: 'px-6 py-3 text-lg',
+    sm: 'min-h-[2.75rem] px-3 py-2 text-sm',
+    md: 'min-h-[2.75rem] px-4 py-2.5 text-sm',
+    lg: 'min-h-[3rem] px-6 py-3 text-base sm:text-lg',
   }
 
   const inferredTitle = title || getTextContent(children) || undefined
@@ -363,7 +363,7 @@ export function Button({
     <button
       type="button"
       className={mergeClasses(
-        'inline-flex max-w-full items-center justify-center gap-2 whitespace-nowrap rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex min-h-[2.75rem] max-w-full items-center justify-center gap-2 rounded-xl text-center font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50',
         variantClasses[resolvedVariant] ?? variantClasses.primary,
         sizeClasses[size] ?? sizeClasses.md,
         className,
@@ -454,7 +454,7 @@ export function Tabs({ children, className = '', ...props }: BoxProps) {
 }
 
 export function TabsList({ children, className = '', ...props }: BoxProps) {
-  return <div className={mergeClasses('flex border-b', className)} {...props}>{children}</div>
+  return <div className={mergeClasses('flex flex-wrap gap-2 border-b border-transparent sm:gap-0 sm:border-slate-200', className)} {...props}>{children}</div>
 }
 
 export function TabsTab({
@@ -469,7 +469,7 @@ export function TabsTab({
     <button
       type="button"
       className={mergeClasses(
-        'px-4 py-2 font-medium border-b-2 -mb-px transition-colors',
+        'min-h-[2.75rem] rounded-xl px-4 py-2 font-medium transition-colors sm:-mb-px sm:rounded-none sm:border-b-2',
         isActive
           ? 'border-blue-600 text-blue-600'
           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',

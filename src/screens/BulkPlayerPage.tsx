@@ -260,12 +260,15 @@ export default function BulkPlayerPage() {
           </Button>
         </HStack>
 
-        <Select value={selectedPlayerListID} onValueChange={setSelectedPlayerListID}>
-          <option value="">Select a player list</option>
-          {myPlayerLists.map(([id, list]) => (
-            <option key={id} value={list.id}>{list.playerListName}</option>
-          ))}
-        </Select>
+        <Box>
+          <FieldLabel>Player List</FieldLabel>
+          <Select value={selectedPlayerListID} onValueChange={setSelectedPlayerListID}>
+            <option value="">Select a player list</option>
+            {myPlayerLists.map(([id, list]) => (
+              <option key={id} value={list.id}>{list.playerListName}</option>
+            ))}
+          </Select>
+        </Box>
 
         {viewMode === 'form' ? (
           <VStack className="gap-3">
@@ -322,12 +325,15 @@ export default function BulkPlayerPage() {
                 <br />
                 `First Name`, `Last Name`, `Image URL`, `Country Code`
               </Text>
-              <textarea
-                className="min-h-[320px] w-full rounded-xl border border-slate-200 px-3 py-3 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                value={spreadsheetValue}
-                onChange={(event) => setSpreadsheetValue(event.target.value)}
-                placeholder={`First Name\tLast Name\tImage URL\tCountry Code\nJane\tDoe\thttps://example.com/avatar.jpg\tUS`}
-              />
+              <Box>
+                <FieldLabel>Spreadsheet Rows</FieldLabel>
+                <textarea
+                  className="min-h-[320px] w-full rounded-xl border border-slate-200 px-3 py-3 font-mono text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  value={spreadsheetValue}
+                  onChange={(event) => setSpreadsheetValue(event.target.value)}
+                  placeholder={`First Name\tLast Name\tImage URL\tCountry Code\nJane\tDoe\thttps://example.com/avatar.jpg\tUS`}
+                />
+              </Box>
               <HStack className="gap-3">
                 <Button variant="outline" onClick={handleApplySpreadsheet}>
                   <Text>Apply Spreadsheet Changes</Text>
