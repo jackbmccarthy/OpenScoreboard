@@ -27,6 +27,7 @@ type TeamRecord = {
   teamName?: string
   teamLogoURL?: string
   players?: Record<string, TeamPlayer>
+  tags?: string[]
 }
 
 type TeamEntry = [string, { id: string; name: string; createdOn?: string }]
@@ -186,6 +187,7 @@ export default function TeamDetailPage() {
       teamName: nextTeamDraft.teamName.trim(),
       teamLogoURL: nextTeamDraft.teamLogoURL.trim(),
       players: playerPayload,
+      tags: team?.tags || [],
     })
 
     if (myTeamEntry?.[0]) {
@@ -197,6 +199,7 @@ export default function TeamDetailPage() {
       teamName: nextTeamDraft.teamName.trim(),
       teamLogoURL: nextTeamDraft.teamLogoURL.trim(),
       players: playerPayload,
+      tags: team?.tags || [],
     })
   }
 

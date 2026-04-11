@@ -14,6 +14,7 @@ type BulkTeamRow = {
   teamName: string
   teamLogoURL: string
   players: TeamPlayers
+  tags: string[]
   isNew: boolean
 }
 
@@ -28,6 +29,7 @@ type TeamRecord = {
   teamName?: string
   teamLogoURL?: string
   players?: TeamPlayers
+  tags?: string[]
 }
 
 function createEmptyRow(): BulkTeamRow {
@@ -38,6 +40,7 @@ function createEmptyRow(): BulkTeamRow {
     teamName: '',
     teamLogoURL: '',
     players: {},
+    tags: [],
     isNew: true,
   }
 }
@@ -56,6 +59,7 @@ function parseSpreadsheetRows(value: string): BulkTeamRow[] {
         teamName: (columns[0] || '').trim(),
         teamLogoURL: (columns[1] || '').trim(),
         players: {},
+        tags: [],
         isNew: true,
       }
     })
@@ -116,6 +120,7 @@ export default function BulkTeamsPage() {
             teamName: team?.teamName || preview.name || '',
             teamLogoURL: team?.teamLogoURL || '',
             players: team?.players || {},
+            tags: team?.tags || [],
             isNew: false,
           }
         })
@@ -182,6 +187,7 @@ export default function BulkTeamsPage() {
           teamName: row.teamName.trim(),
           teamLogoURL: row.teamLogoURL.trim(),
           players: row.players || {},
+          tags: row.tags || [],
         }
 
         if (row.isNew) {

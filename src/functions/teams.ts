@@ -1,12 +1,67 @@
 import db, { getUserPath } from '../lib/database';
 import { subscribeToPathValue } from '../lib/realtime';
-import { clearPlayerListIdFromTables, getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
+import { getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
 
-function normalizeTeam(team) {
+type TeamRecord = {
+    teamName?: string
+    name?: string
+    teamLogoURL?: string
+    players?: Record<string, any>
+    teamPlayers?: Record<string, any>
+    tags?: unknown
+}
+
+type MyTeamPreview = {
+    id: string
+    name: string
+    createdOn?: Date | string
+    teamLogoURL: string
+    players: Record<string, any>
+    tags: string[]
+    [key: string]: any
+}
+
+type MyTeamEntry = [string, MyTeamPreview]
+
+function isMyTeamEntry(entry: MyTeamEntry | null): entry is MyTeamEntry {
+    return entry !== null
+}
+
+function normalizeTags(tags: unknown): string[] {
+    if (!Array.isArray(tags)) {
+        return []
+    }
+
+    const seen = new Set<string>()
+    const normalizedTags: string[] = []
+
+    tags.forEach((tag) => {
+        if (typeof tag !== 'string') {
+            return
+        }
+        const normalizedTag = tag.trim().replace(/\s+/g, ' ')
+        if (!normalizedTag) {
+            return
+        }
+        const tagKey = normalizedTag.toLowerCase()
+        if (seen.has(tagKey)) {
+            return
+        }
+        seen.add(tagKey)
+        normalizedTags.push(normalizedTag)
+    })
+
+    return normalizedTags
+}
+
+function normalizeTeam(team: unknown) {
+    const safeTeam = (team && typeof team === 'object' ? team : {}) as TeamRecord
+
     return {
-        teamName: team?.teamName || team?.name || "",
-        teamLogoURL: team?.teamLogoURL || "",
-        players: team?.players || team?.teamPlayers || {}
+        teamName: safeTeam.teamName || safeTeam.name || "",
+        teamLogoURL: safeTeam.teamLogoURL || "",
+        players: safeTeam.players || safeTeam.teamPlayers || {},
+        tags: normalizeTags(safeTeam.tags),
     }
 }
 
@@ -44,12 +99,12 @@ export async function addNewTeam(team,) {
     return pushedTeam.key
 }
 
-export async function getMyTeams(userID = getUserPath()) {
+export async function getMyTeams(userID = getUserPath()): Promise<MyTeamEntry[]> {
 
     let myTeams = await db.ref("users" + "/" + userID + "/" + "myTeams").get()
     myTeams = myTeams.val()
     if (typeof myTeams === "object" && myTeams !== null) {
-        return Promise.all(Object.entries(myTeams).map(async ([myTeamID, preview]) => {
+        return Promise.all(Object.entries(myTeams).map(async ([myTeamID, preview]): Promise<MyTeamEntry | null> => {
             const previewEntry = preview as Record<string, any>
             const teamID = previewEntry?.id
             if (typeof teamID !== 'string' || teamID.length === 0) {
@@ -59,8 +114,16 @@ export async function getMyTeams(userID = getUserPath()) {
             if (!isRecordActive(teamSnapshot.val())) {
                 return null
             }
-            return [myTeamID, previewEntry]
-        })).then((entries) => entries.filter((entry): entry is [string, Record<string, any>] => Boolean(entry)))
+            const normalizedTeam = normalizeTeam(teamSnapshot.val())
+            return [myTeamID, {
+                ...previewEntry,
+                id: teamID,
+                name: previewEntry?.name || normalizedTeam.teamName,
+                teamLogoURL: normalizedTeam.teamLogoURL,
+                players: normalizedTeam.players,
+                tags: normalizedTeam.tags,
+            }]
+        })).then((entries) => entries.filter(isMyTeamEntry))
     }
     else {
         return []
@@ -69,12 +132,12 @@ export async function getMyTeams(userID = getUserPath()) {
 }
 
 export function subscribeToMyTeams(
-    callback: (teams: Array<[string, Record<string, any>]>) => void,
+    callback: (teams: MyTeamEntry[]) => void,
     userID = getUserPath(),
 ) {
     return subscribeToPathValue(`users/${userID}/myTeams`, async (myTeamsValue) => {
         const teams = myTeamsValue && typeof myTeamsValue === "object"
-            ? await Promise.all(Object.entries(myTeamsValue as Record<string, unknown>).map(async ([myTeamID, preview]) => {
+            ? await Promise.all(Object.entries(myTeamsValue as Record<string, unknown>).map(async ([myTeamID, preview]): Promise<MyTeamEntry | null> => {
                 const previewEntry = preview as Record<string, any>
                 const teamID = previewEntry?.id
                 if (typeof teamID !== 'string' || teamID.length === 0) {
@@ -84,10 +147,18 @@ export function subscribeToMyTeams(
                 if (!isRecordActive(teamSnapshot.val())) {
                     return null
                 }
-                return [myTeamID, previewEntry] as [string, Record<string, any>]
+                const normalizedTeam = normalizeTeam(teamSnapshot.val())
+                return [myTeamID, {
+                    ...previewEntry,
+                    id: teamID,
+                    name: previewEntry?.name || normalizedTeam.teamName,
+                    teamLogoURL: normalizedTeam.teamLogoURL,
+                    players: normalizedTeam.players,
+                    tags: normalizedTeam.tags,
+                }]
             }))
             : []
-        callback(teams.filter(Boolean) as Array<[string, Record<string, any>]>)
+        callback(teams.filter(isMyTeamEntry))
     })
 }
 
@@ -96,7 +167,7 @@ export function subscribeToTeam(
     callback: (team: Record<string, any> | null) => void,
 ) {
     return subscribeToPathValue(`teams/${teamID}`, (teamValue) => {
-        callback(isRecordActive(teamValue) ? normalizeTeam(teamValue) : null)
+        callback(isRecordActive(teamValue) ? normalizeTeam(teamValue as TeamRecord) : null)
     })
 }
 
@@ -125,7 +196,7 @@ export async function getTeam(teamID) {
     let pushedTeam = await db.ref(`teams/${teamID}`).get()
     const team = pushedTeam.val()
     return isRecordActive(team)
-        ? { ...team, players: team.players || team.teamPlayers || {} }
+        ? normalizeTeam(team)
         : null
 }
 

@@ -260,6 +260,7 @@ export interface Team {
   teamName: string;
   teamLogoURL?: string;
   players?: Record<string, Player>;
+  tags?: string[];
 }
 
 // ============================================

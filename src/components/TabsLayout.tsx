@@ -72,22 +72,85 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
   return (
     <Box className="app-shell-bg flex min-h-screen flex-col overflow-x-hidden">
       <Box className="sticky top-0 z-40 px-3 pt-3 sm:px-4 lg:px-6">
-        <HStack className="app-glass mx-auto max-w-7xl flex-wrap items-center justify-between gap-3 rounded-[1.75rem] border border-white/70 px-4 py-3 lg:flex-nowrap lg:px-5">
+        <HStack className="app-glass mx-auto max-w-7xl flex-nowrap items-center justify-between gap-3 rounded-[1.75rem] border border-white/70 px-3 py-2 sm:px-4 lg:px-5 lg:py-3">
           
-          {/* Mobile: Hamburger + Logo (left) */}
-          <HStack className="items-center gap-2 lg:hidden">
-            <Button
-              variant="ghost"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="rounded-2xl p-2 hover:bg-white"
-            >
-              {mobileMenuOpen ? <XIcon size={22} /> : <MenuIcon size={22} />}
-            </Button>
-            <Link to="/dashboard" className="group flex items-center gap-2">
-              <Box className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
-                <ScoreboardIcon size={20} color="white" />
-              </Box>
-            </Link>
+          {/* Mobile: Hamburger + Logo + Avatar */}
+          <HStack className="min-w-0 flex-1 items-center justify-between gap-2 lg:hidden">
+            <HStack className="items-center gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="flex h-9 w-9 items-center justify-center rounded-2xl p-2 hover:bg-white"
+              >
+                {mobileMenuOpen ? <XIcon size={18} /> : <MenuIcon size={18} />}
+              </Button>
+              <Link to="/dashboard" className="group flex items-center gap-2">
+                <Box className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
+                  <ScoreboardIcon size={18} color="white" />
+                </Box>
+              </Link>
+            </HStack>
+
+            <Box className="relative">
+              <Button
+                variant="ghost"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="rounded-2xl p-0 hover:bg-white"
+              >
+                <Box className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="" className="h-9 w-9 rounded-2xl object-cover" />
+                  ) : (
+                    <Text className="text-sm font-semibold text-white">
+                      {user?.email?.charAt(0).toUpperCase() || 'U'}
+                    </Text>
+                  )}
+                </Box>
+              </Button>
+
+              {/* User Menu Dropdown */}
+              {showUserMenu && (
+                <Box className="premium-card absolute right-0 mt-3 w-64 rounded-[1.5rem] border border-white/80 py-2 shadow-2xl z-50">
+                  <Box className="px-4 py-3">
+                    <Text className="text-xs uppercase tracking-[0.22em] text-slate-400">Signed in as</Text>
+                    <Text className="truncate text-sm font-semibold text-slate-900">{user?.email}</Text>
+                  </Box>
+                  <Box className="premium-divider mx-4" />
+                  <Link
+                    to="/my-account"
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Box className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100">
+                      <UserIcon size={16} className="text-slate-500" />
+                    </Box>
+                    My Account
+                  </Link>
+                  <Link
+                    to="/my-scoreboards"
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <Box className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100">
+                      <ScoreboardIcon size={16} className="text-slate-500" />
+                    </Box>
+                    My Scoreboards
+                  </Link>
+                  <Box className="premium-divider mx-4 mt-2" />
+                  <Box className="pt-2">
+                    <button
+                      onClick={handleLogout}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-rose-600 transition-colors hover:bg-rose-50"
+                    >
+                      <Box className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50">
+                        <LogoutIcon size={16} className="text-rose-500" />
+                      </Box>
+                      Sign Out
+                    </button>
+                  </Box>
+                </Box>
+              )}
+            </Box>
           </HStack>
 
           {/* Desktop: Logo + Nav */}
@@ -125,7 +188,7 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
           </HStack>
 
           {/* User Section */}
-          <HStack className="w-full items-center justify-end gap-2 sm:w-auto">
+          <HStack className="hidden items-center justify-end gap-2 lg:flex">
             <Box className="relative">
               <Button
                 variant="ghost"
