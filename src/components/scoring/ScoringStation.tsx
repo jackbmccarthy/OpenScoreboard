@@ -126,16 +126,22 @@ function TeamPlayerPreview({ player, fallback, textColor }: { player: any; fallb
   )
 }
 
-function SideSummaryCard({
+function ScoreSide({
   side,
+  isLeft,
   match,
   disabled,
+  onAddPoint,
+  onMinusPoint,
   onEditPlayer,
   onToggleServer,
 }: {
   side: 'A' | 'B'
+  isLeft: boolean
   match: any
   disabled?: boolean
+  onAddPoint: () => void | Promise<void>
+  onMinusPoint: () => void | Promise<void>
   onEditPlayer: (playerKey: string) => void
   onToggleServer: () => void | Promise<void>
 }) {
@@ -162,60 +168,64 @@ function SideSummaryCard({
   }
 
   return (
-    <Box className="relative min-h-0 rounded-[2rem] p-3 sm:p-4" style={cardStyle}>
+    <Box className="relative h-full min-h-0 min-w-0 px-2 py-2 sm:px-3 sm:py-3 lg:px-4 lg:py-4" style={cardStyle}>
       <VStack className="h-full min-h-0 gap-3">
-        <HStack className="items-start justify-between gap-3">
-          <VStack className="min-w-0 flex-1 gap-1">
-            <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] sm:text-xs" style={{ color: mutedTextColor }}>
-              {`Side ${side}`}
+        <Box className="flex items-center justify-center">
+          <Box className="rounded-[1rem] px-3 py-1.5 sm:px-4 sm:py-2" style={overlayStyle}>
+            <Text className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.08em] sm:text-xs sm:tracking-[0.12em]" style={{ color: mutedTextColor }}>
+              Games Won
             </Text>
-            <Text className="text-lg font-black sm:text-xl" style={{ color: textColor }}>
+            <Text className="text-center text-xl font-black sm:text-2xl" style={{ color: textColor }}>
               {matchScore}
             </Text>
-            <Text className="text-[11px] font-medium uppercase tracking-[0.14em]" style={{ color: mutedTextColor }}>
-              Match Score
-            </Text>
-          </VStack>
-          <VStack className="items-end gap-1">
-            <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] sm:text-xs" style={{ color: mutedTextColor }}>
-              Current Game
-            </Text>
-            <Text className="text-5xl font-black leading-none sm:text-6xl" style={{ color: textColor }}>
-              {gameScore}
-            </Text>
-          </VStack>
-        </HStack>
+          </Box>
+        </Box>
 
-        <VStack className="min-h-0 gap-2">
-          <Button variant="outline" className="min-h-[3.5rem] justify-start rounded-2xl px-3 py-2 text-left sm:min-h-[4rem]" style={overlayStyle} onClick={() => onEditPlayer(primaryPlayerKey)}>
+        <VStack className="min-h-0 flex-[0_0_30%] gap-2 overflow-hidden">
+          <Button variant="outline" className="min-h-[3rem] rounded-2xl px-2 py-2 sm:min-h-[3.5rem] sm:px-3" style={overlayStyle} onClick={() => onEditPlayer(primaryPlayerKey)}>
             <TeamPlayerPreview player={sidePlayer} fallback={isSideA ? 'Player A' : 'Player B'} textColor={textColor} />
           </Button>
           {match?.isDoubles ? (
-            <Button variant="outline" className="min-h-[3.5rem] justify-start rounded-2xl px-3 py-2 text-left sm:min-h-[4rem]" style={overlayStyle} onClick={() => onEditPlayer(secondaryPlayerKey)}>
+            <Button variant="outline" className="min-h-[3rem] rounded-2xl px-2 py-2 sm:min-h-[3.5rem] sm:px-3" style={overlayStyle} onClick={() => onEditPlayer(secondaryPlayerKey)}>
               <TeamPlayerPreview player={sidePlayer2} fallback={isSideA ? 'Player A2' : 'Player B2'} textColor={textColor} />
             </Button>
           ) : null}
         </VStack>
 
-        <HStack className="flex-wrap items-center gap-2">
-          {match?.isManualServiceMode ? (
-            <Button
-              variant="outline"
-              className="rounded-full px-3 py-1 text-[10px] sm:text-xs"
-              style={servingThisSide ? { backgroundColor: textColor, color: backgroundColor } : overlayStyle}
-              onClick={onToggleServer}
-              disabled={disabled}
-            >
-              <Text className="text-[10px] sm:text-xs" style={{ color: servingThisSide ? backgroundColor : textColor }}>
-                {servingThisSide ? 'Serving' : 'Set Server'}
-              </Text>
-            </Button>
-          ) : (
-            servingThisSide ? <Badge className="rounded-full px-3 py-1 text-[10px] sm:text-xs" style={{ backgroundColor: textColor, color: backgroundColor }}>Serving</Badge> : null
-          )}
-          {match?.isGamePoint && isGamePoint(match) ? <Badge className="rounded-full bg-amber-300 px-3 py-1 text-[10px] text-slate-950 sm:text-xs">Game Point</Badge> : null}
-          {match?.isMatchPoint && isGamePoint(match) && isFinalGame(match) ? <Badge className="rounded-full bg-rose-300 px-3 py-1 text-[10px] text-slate-950 sm:text-xs">Match Point</Badge> : null}
-        </HStack>
+        <VStack className="flex-[0_0_20%] items-center justify-center gap-1 pt-2 sm:gap-2 sm:pt-3">
+          <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] sm:text-xs" style={{ color: mutedTextColor }}>
+            Game Score
+          </Text>
+          <Text className="text-center font-black leading-none tracking-[-0.05em] sm:tracking-[-0.06em]" style={{ color: textColor, fontSize: 'clamp(3rem, 16vw, 6rem)' }}>{gameScore}</Text>
+          <HStack className="flex-wrap items-center justify-center gap-1 sm:gap-2">
+            {match?.isManualServiceMode ? (
+              <Button
+                variant="outline"
+                className="rounded-full px-2.5 py-1 text-[10px] sm:px-3 sm:text-xs"
+                style={servingThisSide ? { backgroundColor: textColor, color: backgroundColor } : overlayStyle}
+                onClick={onToggleServer}
+                disabled={disabled}
+              >
+                <Text className="text-[10px] sm:text-xs" style={{ color: servingThisSide ? backgroundColor : textColor }}>
+                  {servingThisSide ? 'Serving' : 'Service'}
+                </Text>
+              </Button>
+            ) : (
+              servingThisSide ? <Badge className="rounded-full px-2.5 py-1 text-[10px] sm:px-3 sm:text-xs" style={{ backgroundColor: textColor, color: backgroundColor }}>Serving</Badge> : null
+            )}
+            {match?.isGamePoint && isGamePoint(match) ? <Badge className="rounded-full bg-amber-300 px-2.5 py-1 text-[10px] text-slate-950 sm:px-3 sm:text-xs">Game Point</Badge> : null}
+            {match?.isMatchPoint && isGamePoint(match) && isFinalGame(match) ? <Badge className="rounded-full bg-rose-300 px-2.5 py-1 text-[10px] text-slate-950 sm:px-3 sm:text-xs">Match Point</Badge> : null}
+          </HStack>
+        </VStack>
+
+        <VStack className="flex-[0_0_38%] justify-end gap-2 sm:gap-3">
+          <Button action="primary" className="min-h-[7rem] flex-1 rounded-[1.75rem] px-4 hover:opacity-95 sm:min-h-[8rem] sm:rounded-[1.9rem]" style={{ backgroundColor: textColor, color: backgroundColor }} onClick={onAddPoint} disabled={disabled}>
+            <Text className="text-5xl font-black sm:text-6xl" style={{ color: backgroundColor }}>+</Text>
+          </Button>
+          <Button variant="outline" className="min-h-[4.5rem] rounded-2xl px-3 sm:h-24 sm:px-2" style={overlayStyle} onClick={onMinusPoint} disabled={disabled}>
+            <Text className="text-3xl font-black" style={{ color: textColor }}>-</Text>
+          </Button>
+        </VStack>
       </VStack>
     </Box>
   )
@@ -691,48 +701,77 @@ export default function ScoringStation({
     }
   }
 
+  const persistInlineSettings = async (nextSettings: typeof settingsDraft) => {
+    if (!matchID || !match) return
+    setActiveAction('settings-inline')
+    await Promise.all([
+      setBestOf(matchID, Number(nextSettings.bestOf)),
+      setGamePointsToWinGame(matchID, Number(nextSettings.pointsToWinGame)),
+      setChangeServiceEveryXPoints(matchID, Number(nextSettings.changeServeEveryXPoints)),
+      setIsDoubles(matchID, nextSettings.isDoubles),
+      setInitialMatchServer(matchID, nextSettings.isAInitialServer),
+      setisManualMode(matchID, nextSettings.isManualServiceMode),
+      setScoringType(matchID, nextSettings.scoringType),
+      syncShowInBetweenGamesModal(matchID, false),
+    ])
+    if (!hasActiveGame(match)) {
+      await updateService(
+        matchID,
+        nextSettings.isAInitialServer,
+        getCurrentGameNumber(match) || 1,
+        0,
+        Number(nextSettings.changeServeEveryXPoints),
+        Number(nextSettings.pointsToWinGame),
+        match.sportName,
+        nextSettings.scoringType
+      )
+    }
+    await refreshMatch()
+    setActiveAction('')
+  }
+
+  const updateInlineSettings = async (patch: Partial<typeof settingsDraft>) => {
+    const nextSettings = { ...settingsDraft, ...patch }
+    setSettingsDraft(nextSettings)
+    await persistInlineSettings(nextSettings)
+  }
+
+  const handleStartCurrentGame = async () => {
+    if (!matchID || !match || isMatchFinished(match)) return
+    setActiveAction('start-game')
+    const gameNumber = getCurrentGameNumber(match) || 1
+    await startGame(matchID, gameNumber)
+    await updateService(
+      matchID,
+      settingsDraft.isAInitialServer,
+      gameNumber,
+      0,
+      Number(settingsDraft.changeServeEveryXPoints),
+      Number(settingsDraft.pointsToWinGame),
+      match.sportName,
+      settingsDraft.scoringType
+    )
+    await refreshMatch()
+    setActiveAction('')
+  }
+
   const leftSide = match?.isSwitched ? 'B' : 'A'
   const rightSide = match?.isSwitched ? 'A' : 'B'
   const teamMatchTables = teamMatch?.currentMatches ? Object.keys(teamMatch.currentMatches) : ['1']
   const scoreActionsDisabled = !matchID || showGameEndDialog || showMatchEndDialog || !!match?.isInBetweenGames || (match ? isMatchFinished(match) : false)
   const currentGameNumber = getCurrentGameNumber(match) || 1
+  const currentGameStarted = Boolean(match?.[`isGame${currentGameNumber}Started`])
   const currentGameFinished = Boolean(match?.[`isGame${currentGameNumber}Finished`])
-  const completedGames = Array.from({ length: 9 }, (_, index) => index + 1)
-    .filter((gameNumber) => Boolean(match?.[`isGame${gameNumber}Finished`]))
-    .map((gameNumber) => ({
-      gameNumber,
-      aScore: match?.[`game${gameNumber}AScore`] ?? 0,
-      bScore: match?.[`game${gameNumber}BScore`] ?? 0,
-    }))
-  const sideButtonLabels = {
-    left: {
-      add: `${leftSide} +1`,
-      remove: `${leftSide} -1`,
-      player: getPlayerName(match?.[leftSide === 'A' ? 'playerA' : 'playerB'], `Side ${leftSide}`),
-    },
-    right: {
-      add: `${rightSide} +1`,
-      remove: `${rightSide} -1`,
-      player: getPlayerName(match?.[rightSide === 'A' ? 'playerA' : 'playerB'], `Side ${rightSide}`),
-    },
-  }
+  const canStartCurrentGame = Boolean(
+    matchID
+      && match
+      && !showGameEndDialog
+      && !showMatchEndDialog
+      && !isMatchFinished(match)
+      && (!currentGameStarted || currentGameFinished || !hasActiveGame(match) || Boolean(match?.isInBetweenGames))
+  )
   const scoringContextLabel = [match?.matchRound || match?.context?.matchRound || '', match?.eventName || match?.context?.eventName || ''].filter(Boolean).join(' • ')
-
-  const handleUndo = async () => {
-    if (!matchID) return
-    setActiveAction('undo')
-    await undoLastPointAction(matchID)
-    await refreshMatch()
-    setActiveAction('')
-  }
-
-  const handlePauseToggle = async () => {
-    if (!matchID) return
-    setActiveAction('pause')
-    await setJudgePauseState(matchID, !Boolean(match?.isJudgePaused), '')
-    await refreshMatch()
-    setActiveAction('')
-  }
+  const scoringTypeOptions = Object.entries((supportedSports[match?.sportName]?.scoringTypes || {}) as Record<string, { displayName: string }>)
 
   const handleCompleteAction = () => {
     if (match && isMatchFinished(match)) {
@@ -828,185 +867,106 @@ export default function ScoringStation({
           </VStack>
         </Box>
       ) : (
-        <Box className="min-h-0 flex-1 overflow-hidden p-3 sm:p-4">
-          <Box className="grid h-full min-h-0 grid-cols-2 gap-3 sm:gap-4">
-            <VStack className="min-h-0 gap-3 rounded-[2rem] border border-white/10 bg-slate-900/70 p-3 shadow-xl shadow-slate-950/30 sm:p-4">
-              <HStack className="items-start justify-between gap-3">
-                <VStack className="min-w-0 gap-1">
-                  <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-xs">
-                    Current Match
-                  </Text>
-                  <Text className="text-sm font-semibold text-white sm:text-base">
-                    {match?.sportDisplayName || supportedSports[match?.sportName]?.displayName || 'Scoring'}
-                  </Text>
-                </VStack>
-                {mode === 'teamMatch' ? (
-                  <Select value={activeTableNumber} onValueChange={setActiveTableNumber} className="min-h-[2.5rem] min-w-[5rem] rounded-2xl border border-white/15 bg-white/95 text-sm text-slate-900">
+        <VStack className="min-h-0 flex-1 gap-0 overflow-hidden">
+          <Box className="border-b border-white/10 bg-slate-950 px-3 py-3 sm:px-4">
+            <HStack className="flex-wrap items-end gap-3">
+              {mode === 'teamMatch' ? (
+                <VStack className="min-w-[8rem] gap-1">
+                  <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Table</Text>
+                  <Select value={activeTableNumber} onValueChange={setActiveTableNumber} className="min-h-[2.75rem] bg-white text-slate-900">
                     {teamMatchTables.map((tableNumber) => (
                       <option key={tableNumber} value={tableNumber}>{`Table ${tableNumber}`}</option>
                     ))}
                   </Select>
-                ) : null}
-              </HStack>
+                </VStack>
+              ) : null}
 
-              <VStack className="min-h-0 flex-1 justify-between gap-3">
-                <SideSummaryCard
-                  side={leftSide}
-                  match={match}
-                  disabled={scoreActionsDisabled}
-                  onEditPlayer={(playerKey) => {
-                    setEditingPlayerKey(playerKey)
-                    setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
-                    setShowPlayerEditor(true)
-                  }}
-                  onToggleServer={() => setServerManually(matchID, leftSide === 'A')}
-                />
-                <SideSummaryCard
-                  side={rightSide}
-                  match={match}
-                  disabled={scoreActionsDisabled}
-                  onEditPlayer={(playerKey) => {
-                    setEditingPlayerKey(playerKey)
-                    setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
-                    setShowPlayerEditor(true)
-                  }}
-                  onToggleServer={() => setServerManually(matchID, rightSide === 'A')}
-                />
+              <VStack className="min-w-[8rem] gap-1">
+                <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Best of</Text>
+                <Select value={String(settingsDraft.bestOf)} onValueChange={(value) => { void updateInlineSettings({ bestOf: Number(value) }) }} className="min-h-[2.75rem] bg-white text-slate-900" disabled={!matchID || activeAction === 'settings-inline'}>
+                  {[1, 3, 5, 7, 9].map((value) => <option key={value} value={value}>{`Best of ${value}`}</option>)}
+                </Select>
               </VStack>
-            </VStack>
 
-            <VStack className="min-h-0 gap-3 rounded-[2rem] border border-white/10 bg-slate-900/70 p-3 shadow-xl shadow-slate-950/30 sm:p-4">
-              <Box className="grid grid-cols-5 gap-2">
-                <Button
-                  variant="outline"
-                  className="min-h-14 min-w-0 rounded-2xl border-white/15 bg-white text-[11px] font-semibold text-slate-900 hover:bg-slate-100 sm:text-xs"
-                  onClick={handleCompleteAction}
-                  disabled={!matchID || (!currentGameFinished && !isMatchFinished(match))}
-                >
-                  <Text className="text-center text-[11px] font-semibold text-slate-900 sm:text-xs">Complete</Text>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="min-h-14 min-w-0 rounded-2xl border-white/15 bg-white text-[11px] font-semibold text-slate-900 hover:bg-slate-100 sm:text-xs"
-                  onClick={handleUndo}
-                  disabled={!canUndoCurrentMatch || activeAction === 'undo'}
-                >
-                  {activeAction === 'undo' ? <Spinner size="sm" /> : null}
-                  <Text className="text-center text-[11px] font-semibold text-slate-900 sm:text-xs">Undo</Text>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="min-h-14 min-w-0 rounded-2xl border-white/15 bg-white text-[11px] font-semibold text-slate-900 hover:bg-slate-100 sm:text-xs"
-                  onClick={() => setShowTimeoutDialog(true)}
-                  disabled={!matchID}
-                >
-                  <Text className="text-center text-[11px] font-semibold text-slate-900 sm:text-xs">Timeout</Text>
-                </Button>
-                <Button
-                  variant={match?.isJudgePaused ? 'solid' : 'outline'}
-                  className={match?.isJudgePaused
-                    ? 'min-h-14 min-w-0 rounded-2xl bg-amber-300 text-[11px] font-semibold text-slate-950 hover:bg-amber-200 sm:text-xs'
-                    : 'min-h-14 min-w-0 rounded-2xl border-white/15 bg-white text-[11px] font-semibold text-slate-900 hover:bg-slate-100 sm:text-xs'}
-                  onClick={handlePauseToggle}
-                  disabled={!matchID || activeAction === 'pause'}
-                >
-                  {activeAction === 'pause' ? <Spinner size="sm" /> : null}
-                  <Text className={`text-center text-[11px] font-semibold sm:text-xs ${match?.isJudgePaused ? 'text-slate-950' : 'text-slate-900'}`}>
-                    {match?.isJudgePaused ? 'Resume' : 'Pause'}
-                  </Text>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="min-h-14 min-w-0 rounded-2xl border-white/15 bg-white text-[11px] font-semibold text-slate-900 hover:bg-slate-100 sm:text-xs"
-                  onClick={() => setShowSettings(true)}
-                  disabled={!matchID}
-                >
-                  <Text className="text-center text-[11px] font-semibold text-slate-900 sm:text-xs">Settings</Text>
-                </Button>
-              </Box>
+              <VStack className="min-w-[8rem] gap-1">
+                <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Points</Text>
+                <Select value={String(settingsDraft.pointsToWinGame)} onValueChange={(value) => { void updateInlineSettings({ pointsToWinGame: Number(value) }) }} className="min-h-[2.75rem] bg-white text-slate-900" disabled={!matchID || activeAction === 'settings-inline'}>
+                  {[11, 15, 21, 9999].map((value) => <option key={value} value={value}>{value === 9999 ? 'No cap' : `${value} to win`}</option>)}
+                </Select>
+              </VStack>
 
-              <Box className="grid grid-cols-2 gap-2 sm:gap-3">
-                <Button
-                  action="primary"
-                  className="min-h-16 rounded-[1.5rem] px-3 py-3"
-                  onClick={() => applyPoint(leftSide, true)}
-                  disabled={scoreActionsDisabled}
-                >
-                  <VStack className="gap-1">
-                    <Text className="max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80 sm:text-xs">{sideButtonLabels.left.player}</Text>
-                    <Text className="text-2xl font-black text-white sm:text-3xl">{sideButtonLabels.left.add}</Text>
-                  </VStack>
-                </Button>
-                <Button
-                  action="primary"
-                  className="min-h-16 rounded-[1.5rem] px-3 py-3"
-                  onClick={() => applyPoint(rightSide, true)}
-                  disabled={scoreActionsDisabled}
-                >
-                  <VStack className="gap-1">
-                    <Text className="max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80 sm:text-xs">{sideButtonLabels.right.player}</Text>
-                    <Text className="text-2xl font-black text-white sm:text-3xl">{sideButtonLabels.right.add}</Text>
-                  </VStack>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="min-h-16 rounded-[1.5rem] border-white/15 bg-white/10 px-3 py-3 text-white hover:bg-white/15"
-                  onClick={() => applyPoint(leftSide, false)}
-                  disabled={scoreActionsDisabled}
-                >
-                  <VStack className="gap-1">
-                    <Text className="max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70 sm:text-xs">{sideButtonLabels.left.player}</Text>
-                    <Text className="text-2xl font-black text-white sm:text-3xl">{sideButtonLabels.left.remove}</Text>
-                  </VStack>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="min-h-16 rounded-[1.5rem] border-white/15 bg-white/10 px-3 py-3 text-white hover:bg-white/15"
-                  onClick={() => applyPoint(rightSide, false)}
-                  disabled={scoreActionsDisabled}
-                >
-                  <VStack className="gap-1">
-                    <Text className="max-w-full truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-white/70 sm:text-xs">{sideButtonLabels.right.player}</Text>
-                    <Text className="text-2xl font-black text-white sm:text-3xl">{sideButtonLabels.right.remove}</Text>
-                  </VStack>
-                </Button>
-              </Box>
+              <VStack className="min-w-[8rem] gap-1">
+                <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Svc every</Text>
+                <Select value={String(settingsDraft.changeServeEveryXPoints)} onValueChange={(value) => { void updateInlineSettings({ changeServeEveryXPoints: Number(value) }) }} className="min-h-[2.75rem] bg-white text-slate-900" disabled={!matchID || activeAction === 'settings-inline'}>
+                  {[1, 2, 5].map((value) => <option key={value} value={value}>{`${value} point${value === 1 ? '' : 's'}`}</option>)}
+                </Select>
+              </VStack>
 
-              <Box className="grid min-h-0 flex-1 grid-cols-2 gap-2 sm:gap-3">
-                <VStack className="min-h-0 rounded-[1.5rem] border border-white/10 bg-white/5 p-3">
-                  <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-xs">Game History</Text>
-                  <Box className="mt-2 flex flex-wrap gap-2">
-                    {completedGames.length > 0 ? completedGames.map((game) => (
-                      <Badge key={game.gameNumber} className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] text-white">
-                        {`G${game.gameNumber} ${game.aScore}-${game.bScore}`}
-                      </Badge>
-                    )) : (
-                      <Text className="pt-2 text-xs text-slate-400">No completed games yet.</Text>
-                    )}
-                  </Box>
-                </VStack>
+              <VStack className="min-w-[8rem] gap-1">
+                <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Scoring type</Text>
+                <Select value={settingsDraft.scoringType} onValueChange={(value) => { void updateInlineSettings({ scoringType: value }) }} className="min-h-[2.75rem] bg-white text-slate-900" disabled={!matchID || activeAction === 'settings-inline'}>
+                  {scoringTypeOptions.length > 0 ? scoringTypeOptions.map(([key, config]) => (
+                    <option key={key} value={key}>{config.displayName}</option>
+                  )) : <option value={settingsDraft.scoringType}>{settingsDraft.scoringType}</option>}
+                </Select>
+              </VStack>
 
-                <VStack className="min-h-0 rounded-[1.5rem] border border-white/10 bg-white/5 p-3">
-                  <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-xs">Point History</Text>
-                  <VStack className="mt-2 gap-2">
-                    {recentPointHistory.length > 0 ? recentPointHistory.map((event) => (
-                      <Box key={event.eventID} className={`rounded-2xl px-3 py-2 ${event.undone ? 'bg-slate-700/80' : 'bg-white/5'}`}>
-                        <Text className="text-[11px] font-semibold text-white">
-                          {event.action === 'point_added' ? 'Point Added' : event.action === 'point_removed' ? 'Point Removed' : 'Update'}
-                        </Text>
-                        <Text className="text-[11px] text-slate-300">
-                          {`G${event.gameNumber} • ${event.side || '-'} • ${event.scoreA}-${event.scoreB}${event.undone ? ' • Undone' : ''}`}
-                        </Text>
-                      </Box>
-                    )) : (
-                      <Text className="pt-2 text-xs text-slate-400">No recent points yet.</Text>
-                    )}
-                  </VStack>
-                </VStack>
-              </Box>
-            </VStack>
+              <VStack className="min-w-[8rem] gap-1">
+                <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Manual mode</Text>
+                <Select value={settingsDraft.isManualServiceMode ? 'manual' : 'auto'} onValueChange={(value) => { void updateInlineSettings({ isManualServiceMode: value === 'manual' }) }} className="min-h-[2.75rem] bg-white text-slate-900" disabled={!matchID || activeAction === 'settings-inline'}>
+                  <option value="auto">Automatic</option>
+                  <option value="manual">Manual</option>
+                </Select>
+              </VStack>
+
+              <VStack className="min-w-[8rem] gap-1">
+                <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Start game</Text>
+                <Button action="primary" className="min-h-[2.75rem] rounded-xl px-4" onClick={handleStartCurrentGame} disabled={!canStartCurrentGame || activeAction === 'start-game'}>
+                  {activeAction === 'start-game' ? <Spinner size="sm" /> : null}
+                  <Text className="text-white">Start Game</Text>
+                </Button>
+              </VStack>
+
+              <VStack className="min-w-[8rem] gap-1">
+                <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Complete match</Text>
+                <Button variant="outline" className="min-h-[2.75rem] border-white/20 bg-white text-slate-900 hover:bg-slate-100" onClick={handleCompleteAction} disabled={!matchID || (!currentGameFinished && !isMatchFinished(match))}>
+                  <Text className="text-slate-900">Complete Match</Text>
+                </Button>
+              </VStack>
+            </HStack>
           </Box>
-        </Box>
+
+          <Box className="grid min-h-0 flex-1 grid-cols-2 overflow-hidden">
+            <ScoreSide
+              side={leftSide}
+              isLeft={true}
+              match={match}
+              disabled={scoreActionsDisabled}
+              onAddPoint={() => applyPoint(leftSide, true)}
+              onMinusPoint={() => applyPoint(leftSide, false)}
+              onEditPlayer={(playerKey) => {
+                setEditingPlayerKey(playerKey)
+                setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
+                setShowPlayerEditor(true)
+              }}
+              onToggleServer={() => setServerManually(matchID, leftSide === 'A')}
+            />
+            <ScoreSide
+              side={rightSide}
+              isLeft={false}
+              match={match}
+              disabled={scoreActionsDisabled}
+              onAddPoint={() => applyPoint(rightSide, true)}
+              onMinusPoint={() => applyPoint(rightSide, false)}
+              onEditPlayer={(playerKey) => {
+                setEditingPlayerKey(playerKey)
+                setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
+                setShowPlayerEditor(true)
+              }}
+              onToggleServer={() => setServerManually(matchID, rightSide === 'A')}
+            />
+          </Box>
+        </VStack>
       )}
 
       <OverlayDialog

@@ -39,6 +39,8 @@ type ScoreboardSummary = {
 type TableSummary = {
   tableID: string
   tableName: string
+  currentGameID?: string
+  activeGameAtTable?: boolean
 }
 
 type TeamMatchSummary = {
@@ -268,7 +270,14 @@ export default function DynamicURLsPage() {
                 </Select>
               </LabeledField>
               <LabeledField label="Table Number">
-                <Input placeholder="Table number" value={dynamicURLDraft.tableNumber} onChangeText={(value) => setDynamicURLDraft((current) => ({ ...current, tableNumber: value }))} />
+                <Select value={dynamicURLDraft.tableNumber} onValueChange={(value) => setDynamicURLDraft((current) => ({ ...current, tableNumber: value }))}>
+                  <option value="">Select available table</option>
+                  {tables
+                    .filter(([, table]) => !table.currentGameID && !table.activeGameAtTable)
+                    .map(([, table]) => (
+                      <option key={table.tableID} value={table.tableID}>{table.tableName}</option>
+                    ))}
+                </Select>
               </LabeledField>
             </>
           )}
