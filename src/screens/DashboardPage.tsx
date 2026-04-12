@@ -122,7 +122,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <Box className="flex-1">
+    <Box>
       <VStack space="lg">
         <Box className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 px-6 py-8 text-white shadow-2xl shadow-slate-900/10 lg:px-8 lg:py-10">
           <Box className="premium-orb -right-10 top-6 h-40 w-40 bg-cyan-300/20" />

@@ -71,7 +71,7 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
 
   return (
     <Box className="app-shell-bg flex min-h-screen flex-col overflow-x-hidden">
-      <Box className="sticky top-0 z-40 px-3 pt-3 sm:px-4 lg:px-6">
+      <Box className="sticky top-0 z-50 px-3 pt-3 sm:px-4 lg:px-6">
         <HStack className="app-glass mx-auto max-w-7xl flex-nowrap items-center justify-between gap-3 rounded-[1.75rem] border border-white/70 px-3 py-2 sm:px-4 lg:px-5 lg:py-3">
           
           {/* Mobile: Hamburger + Logo + Avatar */}
@@ -80,12 +80,12 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
               <Button
                 variant="ghost"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="flex h-12 w-12 items-center justify-center rounded-2xl p-3 hover:bg-white"
+                className="flex h-11 w-11 items-center justify-center rounded-2xl p-3 hover:bg-white"
               >
-                {mobileMenuOpen ? <XIcon size={22} /> : <MenuIcon size={22} />}
+                {mobileMenuOpen ? <XIcon size={24} /> : <MenuIcon size={24} />}
               </Button>
               <Link to="/dashboard" className="group flex items-center gap-2">
-                <Box className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
+                <Box className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
                   <ScoreboardIcon size={20} color="white" />
                 </Box>
               </Link>
@@ -97,9 +97,9 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="rounded-2xl p-0 hover:bg-white"
               >
-                <Box className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
+                <Box className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-cyan-400 shadow-md shadow-blue-500/20">
                   {user?.photoURL ? (
-                    <img src={user.photoURL} alt="" className="h-9 w-9 rounded-2xl object-cover" />
+                    <img src={user.photoURL} alt="" className="h-11 w-11 rounded-2xl object-cover" />
                   ) : (
                     <Text className="text-sm font-semibold text-white">
                       {user?.email?.charAt(0).toUpperCase() || 'U'}
@@ -296,7 +296,7 @@ export default function TabsLayout({ children }: { children?: React.ReactNode })
       </Box>
       
       {/* Page Content */}
-      <Box className="mx-auto flex-1 w-full max-w-7xl overflow-x-hidden px-4 pb-8 pt-6 lg:px-6 lg:pt-8">
+      <Box className="mx-auto flex-1 w-full max-w-7xl overflow-x-hidden px-4 pb-4 pt-6 lg:px-6 lg:pt-8">
         {children ?? <Outlet />}
       </Box>
 
