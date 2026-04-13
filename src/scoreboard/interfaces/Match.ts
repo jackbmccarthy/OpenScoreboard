@@ -7,6 +7,7 @@ export interface MatchSettings {
     isWarmUpStarted: boolean;
     isWarmUpFinished: boolean;
     warmUpStartTime: string;
+    warmupDurationSeconds: number;
     isMatchStarted: boolean;
     matchStartTime: string;
     isInBetweenGames: boolean;
@@ -42,6 +43,10 @@ export interface MatchSettings {
     teamNameA: string;
     teamNameB: string;
     teamMatchID: string;
+    aJerseyColor: string;
+    bJerseyColor: string;
+    aPlayerName: string;
+    bPlayerName: string;
 
     isSwitched: boolean;
     matchRound: string;
@@ -150,6 +155,8 @@ export interface MatchSettings {
         winner: string | null;
         scoreA: number;
         scoreB: number;
+        deleted?: boolean;
+        deletedAt?: string;
     }>;
     pointHistory?: Record<string, Record<string, unknown>>;
     auditTrail?: Record<string, Record<string, unknown>>;

@@ -61,6 +61,13 @@ function sortPointHistoryEntries(pointHistory: Record<string, Record<string, unk
     })
 }
 
+function isDeletedGame(match: Record<string, any> | null | undefined, gameNumber: number) {
+    return Boolean(
+        match?.games?.[gameNumber]?.deleted
+        || match?.games?.[String(gameNumber)]?.deleted
+    )
+}
+
 export function getRecentPointHistory(match: Record<string, any> | null, limit = 5) {
     if (!match?.pointHistory || typeof match.pointHistory !== 'object') {
         return []
@@ -858,6 +865,9 @@ export async function updateCurrentPlayer(currentMatchID, player, playerSettings
 export function getMatchScore(match) {
     let gameScore = { a: 0, b: 0 }
     for (let gameN = 1; gameN <= 9; gameN++) {
+        if (isDeletedGame(match, gameN)) {
+            continue
+        }
         if (match[`isGame${gameN}Finished`] === true) {
             if (match[`game${gameN}AScore`] > match[`game${gameN}BScore`]) {
                 gameScore.a++
@@ -1243,20 +1253,85 @@ export async function clearPlayer(matchID, player) {
 }
 
 export async function start2MinuteWarmUp(matchID,) {
-    await Promise.all([
-        db.ref(`matches/${matchID}/isWarmUpStarted`).set(true),
-        db.ref(`matches/${matchID}/warmUpStartTime`).set(new Date().toISOString())
-    ])
-    await syncMatchSchemaAndAudit(matchID, 'warmup_started')
-
+    await startWarmup(matchID)
 }
 
 export async function stop2MinuteWarmUp(matchID,) {
+    await endWarmup(matchID)
+}
+
+export async function setWarmupDuration(matchID, seconds) {
+    const normalizedSeconds = Math.max(0, Number(seconds) || 0)
+    await db.ref(`matches/${matchID}/warmupDurationSeconds`).set(normalizedSeconds)
+    await syncMatchSchemaAndAudit(matchID, 'warmup_duration_set', { warmupDurationSeconds: normalizedSeconds })
+}
+
+export async function startWarmup(matchID) {
+    const startedAt = new Date().toISOString()
     await Promise.all([
+        db.ref(`matches/${matchID}/isWarmUpStarted`).set(true),
+        db.ref(`matches/${matchID}/isWarmUpFinished`).set(false),
+        db.ref(`matches/${matchID}/warmUpStartTime`).set(startedAt)
+    ])
+    await syncMatchSchemaAndAudit(matchID, 'warmup_started', { warmUpStartTime: startedAt })
+}
+
+export async function endWarmup(matchID) {
+    await Promise.all([
+        db.ref(`matches/${matchID}/isWarmUpStarted`).set(true),
         db.ref(`matches/${matchID}/isWarmUpFinished`).set(true),
     ])
     await syncMatchSchemaAndAudit(matchID, 'warmup_finished')
+}
 
+export async function deleteGame(matchID, gameNumber) {
+    const deletedAt = new Date().toISOString()
+    await Promise.all([
+        db.ref(`matches/${matchID}/games/${gameNumber}/deleted`).set(true),
+        db.ref(`matches/${matchID}/games/${gameNumber}/deletedAt`).set(deletedAt),
+    ])
+    await syncMatchSchemaAndAudit(matchID, 'game_deleted', { gameNumber, deletedAt })
+}
+
+export async function setJerseyColor(matchID, side, color) {
+    const normalizedColor = typeof color === 'string' ? color : ''
+    const sideKey = side === 'B' ? 'b' : 'a'
+    const playerKey = side === 'B' ? 'playerB' : 'playerA'
+    const playerSnapshot = await db.ref(`matches/${matchID}/${playerKey}`).get()
+    const currentPlayer = playerSnapshot.val() || getNewPlayer()
+    await Promise.all([
+        db.ref(`matches/${matchID}/${sideKey}JerseyColor`).set(normalizedColor),
+        db.ref(`matches/${matchID}/${playerKey}`).set({
+            ...currentPlayer,
+            jerseyColor: normalizedColor,
+        }),
+    ])
+    await syncMatchSchemaAndAudit(matchID, 'jersey_color_set', { side, color: normalizedColor })
+}
+
+async function setSideName(matchID, side: 'A' | 'B', name: string) {
+    const normalizedName = typeof name === 'string' ? name.trim() : ''
+    const sideKey = side === 'B' ? 'b' : 'a'
+    const playerKey = side === 'B' ? 'playerB' : 'playerA'
+    const playerSnapshot = await db.ref(`matches/${matchID}/${playerKey}`).get()
+    const currentPlayer = playerSnapshot.val() || getNewPlayer()
+    await Promise.all([
+        db.ref(`matches/${matchID}/${sideKey}PlayerName`).set(normalizedName),
+        db.ref(`matches/${matchID}/${playerKey}`).set({
+            ...currentPlayer,
+            firstName: normalizedName,
+            lastName: '',
+        }),
+    ])
+    await syncMatchSchemaAndAudit(matchID, 'side_name_set', { side, name: normalizedName })
+}
+
+export async function setPlayerAName(matchID, name) {
+    await setSideName(matchID, 'A', name)
+}
+
+export async function setPlayerBName(matchID, name) {
+    await setSideName(matchID, 'B', name)
 }
 
 export async function setBestOf(matchID, maxGames) {
@@ -1295,6 +1370,7 @@ export async function manuallySetGameScore(matchID, gameNumber, AScore, BScore) 
     await Promise.all([
         db.ref(`matches/${matchID}/game${gameNumber}AScore`).set(AScore),
         db.ref(`matches/${matchID}/game${gameNumber}BScore`).set(BScore),
+        db.ref(`matches/${matchID}/games/${gameNumber}/deleted`).set(false),
     ])
     const match = await getMatchData(matchID)
     if (match) {
@@ -1328,6 +1404,11 @@ export async function syncShowGameWonConfirmationModal(matchID, show) {
 
 export async function syncShowInBetweenGamesModal(matchID, show) {
     await db.ref(`matches/${matchID}/showInBetweenGamesModal`).set(show)
+}
+
+export async function syncShowMatchSetupWizard(matchID, show) {
+    await db.ref(`matches/${matchID}/showMatchSetupWizard`).set(show)
+    await syncMatchSchemaAndAudit(matchID, 'match_setup_wizard_toggled', { show })
 }
 
 // Non table tennis related scoring functions

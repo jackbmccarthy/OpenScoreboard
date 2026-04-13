@@ -22,13 +22,14 @@ export default class Match {
             isWarmUpStarted: false,
             isWarmUpFinished: false,
             warmUpStartTime: "",
+            warmupDurationSeconds: 120,
             isMatchStarted: false,
             matchStartTime: "",
             isInBetweenGames: false,
 
             showGameWonConfirmationModal: false,
             showInBetweenGamesModal: false,
-            showMatchSetupWizard: false,
+            showMatchSetupWizard: true,
             showEndOfMatchOptions: false,
 
 
@@ -59,6 +60,10 @@ export default class Match {
             teamNameA: "",
             teamNameB: "",
             teamMatchID: "",
+            aJerseyColor: "",
+            bJerseyColor: "",
+            aPlayerName: "",
+            bPlayerName: "",
 
 
             isSwitched: false,
@@ -198,6 +203,7 @@ export default class Match {
                 changeServeEveryXPoints,
                 enforceGameScore,
                 scoringType,
+                warmupDurationSeconds,
                 tournamentID,
                 eventID,
                 roundID,
@@ -215,6 +221,7 @@ export default class Match {
                 enforceGameScore: enforceGameScore,
                 sportName: sportName,
                 scoringType: scoringType ? scoringType : (scoringTypeDefault || "normal"),
+                warmupDurationSeconds: warmupDurationSeconds || 120,
                 tournamentID: tournamentID || "",
                 eventID: eventID || "",
                 roundID: roundID || "",
