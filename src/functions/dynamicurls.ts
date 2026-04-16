@@ -1,9 +1,12 @@
 import db, { getUserPath } from '../lib/database'
 import { subscribeToPathValue } from '../lib/realtime'
+import { subscribeToOwnedCanonicalCollection } from '@/lib/liveSync'
+import type { OwnershipMutationOptions } from './deletion'
 import { isRecordActive, softDeleteCanonical } from './deletion'
 
 function getDynamicURLPayload(dynamicURL) {
   return {
+    ownerID: dynamicURL.ownerID || getUserPath(),
     dynamicURLName: dynamicURL.dynamicURLName || '',
     scoreboardID: dynamicURL.scoreboardID || '',
     tableID: dynamicURL.tableID || '',
@@ -50,24 +53,13 @@ export function subscribeToMyDynamicURLs(
   callback: (dynamicURLs: Array<[string, Record<string, any>]>) => void,
   userID = getUserPath(),
 ) {
-  return subscribeToPathValue(`users/${userID}/myDynamicURLs`, async (dynamicURLsValue) => {
-    const dynamicURLs = dynamicURLsValue && typeof dynamicURLsValue === 'object'
-      ? await Promise.all(Object.entries(dynamicURLsValue as Record<string, unknown>).map(async ([myDynamicURLID, preview]) => {
-          const previewEntry = preview as Record<string, any>
-          const dynamicURLID = previewEntry?.id
-          if (typeof dynamicURLID !== 'string' || dynamicURLID.length === 0) {
-            return null
-          }
-          const canonicalSnapshot = await db.ref(`dynamicurls/${dynamicURLID}`).get()
-          if (!isRecordActive(canonicalSnapshot.val())) {
-            return null
-          }
-          return [myDynamicURLID, previewEntry] as [string, Record<string, any>]
-        }))
-      : []
-
-    callback(dynamicURLs.filter(Boolean) as Array<[string, Record<string, any>]>)
-  })
+  return subscribeToOwnedCanonicalCollection<Record<string, any>, Record<string, any>, Record<string, any>>({
+    ownerPath: `users/${userID}/myDynamicURLs`,
+    getCanonicalID: (preview) => typeof preview?.id === 'string' ? preview.id : '',
+    getCanonicalPath: (dynamicURLID) => `dynamicurls/${dynamicURLID}`,
+    isCanonicalActive: (dynamicURL) => isRecordActive(dynamicURL),
+    buildRow: ({ canonicalID, canonical }) => getDynamicURLPreview(canonicalID, canonical || {}),
+  }, callback)
 }
 
 export async function addDynamicURL(dynamicURL) {
@@ -85,8 +77,17 @@ export async function updateDynamicURL(myDynamicURLID, dynamicURLID, dynamicURL)
   ])
 }
 
-export async function deleteDynamicURL(myDynamicURLID, dynamicURLID) {
+export async function deleteDynamicURL(myDynamicURLID, dynamicURLID, options: OwnershipMutationOptions = {}) {
   const previewPath = `users/${getUserPath()}/myDynamicURLs/${myDynamicURLID}`
+  const report = {
+    entityType: 'dynamicURL',
+    canonicalID: dynamicURLID,
+    canonicalPath: `dynamicurls/${dynamicURLID}`,
+    previewPath,
+    dryRun: Boolean(options.dryRun),
+    deleteMode: 'soft_deleted',
+    ownerID: getUserPath(),
+  }
   await softDeleteCanonical(`dynamicurls/${dynamicURLID}`, {
     deleteReason: 'delete_dynamic_url'
   }, {
@@ -94,8 +95,11 @@ export async function deleteDynamicURL(myDynamicURLID, dynamicURLID) {
     canonicalID: dynamicURLID,
     ownerID: getUserPath(),
     previewPath,
-  })
-  await Promise.all([
-    db.ref(previewPath).remove(),
-  ])
+  }, options)
+  if (!options.dryRun) {
+    await Promise.all([
+      db.ref(previewPath).remove(),
+    ])
+  }
+  return report
 }

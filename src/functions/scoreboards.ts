@@ -1,7 +1,9 @@
 import db, { getUserPath } from "../lib/database";
 import { subscribeToPathValue } from "../lib/realtime";
+import { subscribeToOwnedCanonicalCollection } from '@/lib/liveSync'
 import { newScoreboard } from "../classes/Scoreboard";
-import { clearScoreboardIdFromTables, getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
+import type { OwnershipMutationOptions } from './deletion';
+import { clearScoreboardIdFromTables, getPreviewValue, isRecordActive, revokeCapabilityLinksByReference, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
 
 
 export async function getMyScoreboards(userID,) {
@@ -32,49 +34,70 @@ export function subscribeToMyScoreboards(
     callback: (scoreboards: Array<[string, Record<string, any>]>) => void,
     userID = getUserPath(),
 ) {
-    return subscribeToPathValue(`users/${userID}/myScoreboards`, async (scoreboardsValue) => {
-        const scoreboards = scoreboardsValue && typeof scoreboardsValue === "object"
-            ? await Promise.all(Object.entries(scoreboardsValue as Record<string, unknown>).map(async ([myScoreboardID, preview]) => {
-                const previewEntry = preview as Record<string, any>
-                const scoreboardID = previewEntry?.id
-                if (typeof scoreboardID !== 'string' || scoreboardID.length === 0) {
-                    return null
-                }
-                const scoreboardSnapshot = await db.ref(`scoreboards/${scoreboardID}`).get()
-                if (!isRecordActive(scoreboardSnapshot.val())) {
-                    return null
-                }
-                return [myScoreboardID, previewEntry] as [string, Record<string, any>]
-            }))
-            : []
-
-        callback(scoreboards.filter(Boolean) as Array<[string, Record<string, any>]>)
-    })
+    return subscribeToOwnedCanonicalCollection<Record<string, any>, Record<string, any>, Record<string, any>>({
+        ownerPath: `users/${userID}/myScoreboards`,
+        getCanonicalID: (preview) => typeof preview?.id === 'string' ? preview.id : '',
+        getCanonicalPath: (scoreboardID) => `scoreboards/${scoreboardID}`,
+        isCanonicalActive: (scoreboard) => isRecordActive(scoreboard),
+        buildRow: ({ canonicalID, preview, canonical }) => ({
+            ...preview,
+            id: canonicalID,
+            name: typeof canonical?.name === 'string' ? canonical.name : preview?.name || '',
+            type: typeof canonical?.type === 'string' ? canonical.type : preview?.type || 'liveStream',
+            web: canonical?.web && typeof canonical.web === 'object' ? canonical.web : preview?.web || {},
+        }),
+    }, callback)
 }
 
-export async function deleteMyScoreboard(myScoreboardID) {
+export async function deleteMyScoreboard(myScoreboardID, options: OwnershipMutationOptions = {}) {
     const previewPath = `users/${getUserPath()}/myScoreboards/${myScoreboardID}`
     const preview = await getPreviewValue(previewPath)
     const scoreboardID = preview?.id
+    const report = {
+        entityType: 'scoreboard',
+        canonicalID: typeof scoreboardID === 'string' ? scoreboardID : '',
+        canonicalPath: typeof scoreboardID === 'string' && scoreboardID.length > 0 ? `scoreboards/${scoreboardID}` : '',
+        previewPath,
+        dryRun: Boolean(options.dryRun),
+        deleteMode: 'soft_deleted',
+        ownerID: getUserPath(),
+        dependentIDs: {
+            clearedTables: [] as string[],
+            dynamicURLs: [] as string[],
+            revokedCapabilityTokenIDs: [] as string[],
+        },
+    }
     if (typeof scoreboardID === 'string' && scoreboardID.length > 0) {
-        // Clear dangling table references before soft-deleting the scoreboard
-        const clearedTables = await clearScoreboardIdFromTables(scoreboardID)
+        const clearedTables = await clearScoreboardIdFromTables(scoreboardID, options)
         const softDeletedDependents = {
-            dynamicURLs: await softDeleteDynamicURLsByReference({ scoreboardID, reason: 'parent_scoreboard_soft_deleted' }),
+            dynamicURLs: await softDeleteDynamicURLsByReference({ scoreboardID, reason: 'parent_scoreboard_soft_deleted' }, options),
         }
+        const revokedCapabilityTokenIDs = await revokeCapabilityLinksByReference({
+            scoreboardID,
+            reason: 'parent_scoreboard_soft_deleted',
+        }, options)
         await softDeleteCanonical(`scoreboards/${scoreboardID}`, {
             deleteReason: 'delete_scoreboard',
             clearedTables,
             softDeletedDependents,
+            revokedCapabilityTokenIDs,
         }, {
             entityType: 'scoreboard',
             canonicalID: scoreboardID,
             ownerID: getUserPath(),
             previewPath,
             dependents: softDeletedDependents,
-        })
+        }, options)
+        report.dependentIDs = {
+            clearedTables,
+            dynamicURLs: softDeletedDependents.dynamicURLs,
+            revokedCapabilityTokenIDs,
+        }
     }
-    await db.ref(previewPath).remove()
+    if (!options.dryRun) {
+        await db.ref(previewPath).remove()
+    }
+    return report
 }
 
 

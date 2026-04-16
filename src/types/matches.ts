@@ -271,6 +271,8 @@ export interface TeamMatch {
   schemaVersion?: number;
   teamAID: string;
   teamBID: string;
+  teamAName?: string;
+  teamBName?: string;
   teamAScore: number;
   teamBScore: number;
   sportDisplayName?: string;

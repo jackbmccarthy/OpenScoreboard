@@ -1,229 +1,160 @@
 # Ownership And Delete Model
 
-This document captures the first `CI-2` ownership baseline for OpenScoreboard v3.
+This is the `CI-2` ownership baseline for OpenScoreboard v3. It defines where each record lives, who owns it, which paths are derived compatibility views, and what happens during delete, archive, retention, and orphan repair flows.
 
-## Canonical records vs preview/index records
+## Ownership Matrix
 
-Canonical records:
-- `tables/{tableID}`
-- `matches/{matchID}`
-- `teams/{teamID}`
-- `teamMatches/{teamMatchID}`
-- `playerLists/{playerListID}`
-- `scoreboards/{scoreboardID}`
-- `scoreboardTemplates/{templateID}`
-- `dynamicurls/{dynamicURLID}`
-- `tournaments/{tournamentID}` future
+| Entity | Canonical record path | Owner preview path | Dependent child paths | Derived summary paths | Public access paths |
+| --- | --- | --- | --- | --- | --- |
+| Table | `tables/{tableID}` | `users/{uid}/myTables/{myTableID}` -> string `tableID` | `tables/{tableID}/currentMatch`, `tables/{tableID}/scheduledMatches/*`, `tables/{tableID}/archivedMatches/*`, `matches/*` owned through `currentMatch` or scheduled queue entries | `tables/{tableID}/scheduledMatches`, `tables/{tableID}/archivedMatches`, table cards in `subscribeToMyTables` | `capabilityTokens/*` with `tableID`, `scoreboard/view?sid={scoreboardID}&tid={tableID}`, `dynamicurls/*` with `tableID` |
+| Match | `matches/{matchID}` | none; owner is derived from `matches/{matchID}/scheduling` plus live parent refs | `matches/{matchID}/games/*`, `matches/{matchID}/pointHistory/*`, `matches/{matchID}/auditTrail/*` | `tables/*/currentMatch`, `tables/*/scheduledMatches/*`, `tables/*/archivedMatches/*`, `teamMatches/*/currentMatches/*`, `teamMatches/*/archivedMatches/*` | `capabilityTokens/*` with `matchID` |
+| Team match | `teamMatches/{teamMatchID}` | `users/{uid}/myTeamMatches/{myTeamMatchID}` -> preview object with `id` | `teamMatches/{teamMatchID}/currentMatches/*`, `teamMatches/{teamMatchID}/scheduledMatches/*`, `teamMatches/{teamMatchID}/archivedMatches/*`, `matches/*` owned through `currentMatches` and team-match scheduling | `users/{uid}/myTeamMatches/*`, team-match cards, team-match scoreboard listeners | `capabilityTokens/*` with `teamMatchID`, `scoreboard/view?sid={scoreboardID}&tmid={teamMatchID}&tableNumber={tableNumber}`, `dynamicurls/*` with `teamMatchID` |
+| Team | `teams/{teamID}` | `users/{uid}/myTeams/{myTeamID}` -> preview object with `id` | referenced by `teamMatches/*` via `teamAID` and `teamBID` | `users/{uid}/myTeams/*`, team-match preview names | no direct public route |
+| Player list | `playerLists/{playerListID}` | `users/{uid}/myPlayerLists/{myPlayerListID}` -> preview object with `id` | `playerLists/{playerListID}/players/*`, `tables/*` via `playerListID` | `users/{uid}/myPlayerLists/*`, `tables/{tableID}/playerListID` | `capabilityTokens/*` with `playerListID`, `playerregistration/{playerListID}` |
+| Scoreboard | `scoreboards/{scoreboardID}` | `users/{uid}/myScoreboards/{myScoreboardID}` -> preview object with `id` | `scoreboards/{scoreboardID}/config`, `scoreboards/{scoreboardID}/web/*`, `tables/*` via `scoreboardID`, `dynamicurls/*` via `scoreboardID` | `users/{uid}/myScoreboards/*`, table/overlay selection lists | `capabilityTokens/*` with `scoreboardID`, `scoreboard/view?sid={scoreboardID}&tid={tableID}`, `scoreboard/view?sid={scoreboardID}&tmid={teamMatchID}&tableNumber={tableNumber}` |
+| Scoreboard template | `scoreboardTemplates/{templateID}` | none today | referenced by `scoreboards/*` via `templateID` or `scoreboardTemplateID` | template list in `subscribeToScoreboardTemplates` | no direct public route |
+| Dynamic URL | `dynamicurls/{dynamicURLID}` | `users/{uid}/myDynamicURLs/{myDynamicURLID}` -> preview object with `id` | none; it is itself a dependent record of table/teamMatch/scoreboard ownership | `users/{uid}/myDynamicURLs/*` | `scoreboard/view?...` resolution through dynamic URL targeting |
 
-Owner preview/index paths:
-- `users/{uid}/myTables/{myTableID}`
-- `users/{uid}/myTeams/{myTeamID}`
-- `users/{uid}/myTeamMatches/{myTeamMatchID}`
-- `users/{uid}/myPlayerLists/{myPlayerListID}`
-- `users/{uid}/myScoreboards/{myScoreboardID}`
-- `users/{uid}/myDynamicURLs/{myDynamicURLID}`
-
-Public access paths and compatibility surfaces:
-- `tables/{tableID}/password` current table scorer access compatibility field
-- `playerLists/{playerListID}/password` current player registration compatibility field
-- `scoreboard/view?sid={scoreboardID}&tid={tableID}`
-- `scoreboard/view?sid={scoreboardID}&tmid={teamMatchID}&tableNumber={tableNumber}`
-- `tables/{tableID}/scheduledMatches` derived queue compatibility view
-- `teamMatches/{teamMatchID}/currentMatches/{tableNumber}` active table assignment compatibility view
-
-## Create, update, and delete ownership map
+## Create, Update, And Delete Paths
 
 ### Tables
-- Canonical: `tables/{tableID}`
-- Owner preview: `users/{uid}/myTables/{myTableID}` -> string `tableID`
-- Create path: `createNewTable`
-- Update paths: `updateTable`, `setPlayerListToTable`, `setScheduledTableMatchToCurrentMatch`, `resetTablePassword`
-- Delete path: `deleteTable`
-- Dependents:
-  - `tables/{tableID}/currentMatch`
-  - `tables/{tableID}/scheduledMatches/*`
-  - `dynamicurls/*` where `tableID` matches
-  - public scorer access via compatibility password field
-- Current delete behavior:
-  - soft-delete canonical table
-  - soft-delete dependent dynamic URLs
-  - remove owner preview
-- Future delete behavior:
-  - archive or detach `currentMatch`, `scheduledMatches`, and QR/operator links explicitly
+- Create: `src/functions/tables.ts:createNewTable`
+- Update: `updateTable`, `setPlayerListToTable`, `setScheduledTableMatchToCurrentMatch`, `resetTablePassword`
+- Delete: `deleteTable`
+- Canonical owner field: `creatorID`
 
 ### Matches
-- Canonical: `matches/{matchID}`
-- Owner preview: none directly today; ownership is derived through table or team match containment
-- Create paths: `createNewTableMatch`, `createTeamMatchNewMatch`, queue promotion flows future
-- Update paths: scoring helpers and scoring station writes
-- Delete path: no dedicated first-class delete flow yet
-- Dependents:
-  - `tables/{tableID}/currentMatch`
-  - `tables/{tableID}/scheduledMatches/*`
-  - `teamMatches/{teamMatchID}/currentMatches/*`
-  - archived match summaries on tables and team matches
-- Future work:
-  - add explicit match ownership, archive, and retention policy
-
-### Teams
-- Canonical: `teams/{teamID}`
-- Owner preview: `users/{uid}/myTeams/{myTeamID}` -> object `{ id, name, createdOn }`
-- Create path: `addNewTeam`
-- Update paths: `updateTeam`, `updateMyTeam`
-- Delete path: `deleteMyTeam`
-- Dependents:
-  - `teamMatches/*` via `teamAID` and `teamBID`
-- Current delete behavior:
-  - soft-delete canonical team
-  - remove owner preview
-- Future delete behavior:
-  - detach or archive dependent team matches for review
+- Create: `src/functions/scoring.ts:createNewMatch`, `createNewScheduledMatch`; `src/functions/teammatches.ts:createTeamMatchNewMatch`
+- Update: scoring helpers in `src/functions/scoring.ts`, schema sync in `src/functions/matchSchema.ts`
+- Delete/archive: no standalone UI delete; records are archived through table/team-match ownership deletes and orphan repair
+- Canonical owner field: derived from `scheduling.tableID`, `scheduling.teamMatchID`, or live parent refs
 
 ### Team matches
-- Canonical: `teamMatches/{teamMatchID}`
-- Owner preview: `users/{uid}/myTeamMatches/{myTeamMatchID}` -> object with `id`
-- Create path: `addNewTeamMatch`
-- Update paths: `updateTeamMatch`, score/team assignment helpers
-- Delete path: `deleteTeamMatch`
-- Dependents:
-  - `teamMatches/{teamMatchID}/currentMatches/*`
-  - `teamMatches/{teamMatchID}/archivedMatches/*`
-  - `dynamicurls/*` where `teamMatchID` or `teammatchID` matches
-  - public score view links
-- Current delete behavior:
-  - soft-delete canonical team match
-  - soft-delete dependent dynamic URLs
-  - remove owner preview
-- Future delete behavior:
-  - archive current matches and scheduled assignments instead of leaving raw references
+- Create: `src/functions/teammatches.ts:addNewTeamMatch`
+- Update: `updateTeamMatch`, team score setters, current match setters
+- Delete: `deleteTeamMatch`
+- Canonical owner field: `ownerID`
+
+### Teams
+- Create: `src/functions/teams.ts:addNewTeam`
+- Update: `updateTeam`, `updateMyTeam`
+- Delete: `deleteMyTeam`
+- Canonical owner field: `ownerID`
 
 ### Player lists
-- Canonical: `playerLists/{playerListID}`
-- Owner preview: `users/{uid}/myPlayerLists/{myPlayerListID}` -> object with `id`
-- Create path: `addPlayerList`
-- Update paths: `updatePlayerListName`, `replacePlayersInList`, player CRUD helpers, `resetPlayerListPassword`
-- Delete path: `deletePlayerList`
-- Dependents:
-  - `tables/*` via `playerListID`
-  - public self-registration via compatibility password field
-- Current delete behavior:
-  - soft-delete canonical player list
-  - remove owner preview
-- Future delete behavior:
-  - flag attached tables and registration links for reassignment or archival
+- Create: `src/functions/players.ts:addPlayerList`
+- Update: `updatePlayerListName`, `replacePlayersInList`, player CRUD helpers, `resetPlayerListPassword`
+- Delete: `deletePlayerList`
+- Canonical owner field: `ownerID`
 
 ### Scoreboards
-- Canonical: `scoreboards/{scoreboardID}`
-- Owner preview: `users/{uid}/myScoreboards/{myScoreboardID}` -> object with `id`
-- Create paths: `addNewScoreboard`, `duplicateScoreboard`, `createScoreboardFromTemplate`
-- Update paths: `updateScoreboardDetails`, `setScoreboardSettings`
-- Delete path: `deleteMyScoreboard`
-- Dependents:
-  - `dynamicurls/*` where `scoreboardID` matches
-  - overlay links using `scoreboard/view?...`
-- Current delete behavior:
-  - soft-delete canonical scoreboard
-  - soft-delete dependent dynamic URLs
-  - remove owner preview
-- Future delete behavior:
-  - archive saved scoreboard/template pairings and link history
+- Create: `src/functions/scoreboards.ts:addNewScoreboard`, `duplicateScoreboard`; `src/functions/scoreboardTemplates.ts:createScoreboardFromTemplate`
+- Update: `updateScoreboardDetails`, `setScoreboardSettings`, editor writes under `scoreboards/{scoreboardID}/web/*`
+- Delete: `deleteMyScoreboard`
+- Canonical owner field: `ownerID`
 
 ### Scoreboard templates
-- Canonical: `scoreboardTemplates/{templateID}`
-- Owner preview: none in this repo today
-- Create path: `addScoreboardTemplate`
-- Update path: `updateScoreboardTemplate`
-- Delete path: `deleteScoreboardTemplate`
-- Dependents:
-  - `scoreboards/*` when template ids are stored in future/current compatibility fields
-- Current delete behavior:
-  - soft-delete canonical template
-- Future delete behavior:
-  - mark dependent scoreboards as using archived templates without breaking render
+- Create: `src/functions/scoreboardTemplates.ts:addScoreboardTemplate`
+- Update: `updateScoreboardTemplate`, `toggleScoreboardTemplateActive`, `duplicateScoreboardTemplate`
+- Delete: `deleteScoreboardTemplate`
+- Canonical owner field: `createdBy`
 
 ### Dynamic URLs
-- Canonical: `dynamicurls/{dynamicURLID}`
-- Owner preview: `users/{uid}/myDynamicURLs/{myDynamicURLID}` -> object with `id`
-- Create path: `addDynamicURL`
-- Update path: `updateDynamicURL`
-- Delete path: `deleteDynamicURL`
-- Dependents:
-  - points at `scoreboards`, `tables`, and `teamMatches`
-- Current delete behavior:
-  - soft-delete canonical dynamic URL
-  - remove owner preview
+- Create: `src/functions/dynamicurls.ts:addDynamicURL`
+- Update: `updateDynamicURL`
+- Delete: `deleteDynamicURL`
+- Canonical owner field: `ownerID`
 
-## Delete modes and retention behavior
+## Delete Modes, Archive Rules, And Retention
 
-- `active`: normal visible record
-- `soft_deleted`: hidden from normal list views but canonical record remains
-- `archived`: reserved for future flows where records remain visible in history but are no longer operational
-- `purged`: reserved for future irreversible cleanup after retention checks
+| Entity | Soft-delete behavior | Archive behavior | Hard-delete behavior | Retention |
+| --- | --- | --- | --- | --- |
+| Table | Canonical table is marked `soft_deleted`, owner preview is removed, dependent matches are soft-deleted, dependent dynamic URLs are soft-deleted, related capability links are revoked | Archive stays in-place on the canonical `tables/{tableID}` node; embedded `archivedMatches` stay attached | No automatic hard-delete in UI; only future purge tooling after dry-run | 30 days |
+| Match | Child match is soft-deleted when its owning table/team-match is deleted or when orphan repair finds no active owner | Archive stays in-place on `matches/{matchID}` with deletion metadata | No automatic hard-delete; future purge only after retention | 30 days |
+| Team match | Canonical team match is marked `soft_deleted`, owner preview is removed, dependent matches and dynamic URLs are soft-deleted, related capability links are revoked | Archive stays in-place on `teamMatches/{teamMatchID}` with embedded `archivedMatches` retained | No automatic hard-delete in UI; future purge only after dry-run | 30 days |
+| Team | Canonical team is marked `soft_deleted`, owner preview is removed, active team-match refs are recorded for manual review | Archive stays in-place on `teams/{teamID}` so historical references can be inspected during retention | No automatic hard-delete in UI; future purge only after dry-run | 30 days |
+| Player list | Canonical player list is marked `soft_deleted`, owner preview is removed, `tables/*/playerListID` refs are cleared, player-registration capability links are revoked | Archive stays in-place on `playerLists/{playerListID}` including player entries | No automatic hard-delete in UI; future purge only after dry-run | 30 days |
+| Scoreboard | Canonical scoreboard is marked `soft_deleted`, owner preview is removed, `tables/*/scoreboardID` refs are cleared, dependent dynamic URLs are soft-deleted, related public-view capability links are revoked | Archive stays in-place on `scoreboards/{scoreboardID}` including web/config payload | No automatic hard-delete in UI; future purge only after dry-run | 30 days |
+| Scoreboard template | Canonical template is marked `soft_deleted`, scoreboard template refs are cleared from scoreboards first | Archive stays in-place on `scoreboardTemplates/{templateID}` | No automatic hard-delete in UI; future purge only after dry-run | 60 days |
+| Dynamic URL | Canonical dynamic URL is marked `soft_deleted`, owner preview is removed | Archive stays in-place on `dynamicurls/{dynamicURLID}` | No automatic hard-delete in UI; future purge only after dry-run | 14 days |
 
-Soft delete metadata:
+Soft-delete metadata written to every canonical record:
 - `deleteMode`
 - `deletedAt`
 - `deletedBy`
 - `deleteReason`
+- `retentionDays`
 - `purgeAfter`
 
-Retention baseline for this tranche:
-- tables, team matches, scoreboards, teams, player lists, templates, and dynamic URLs are soft-deleted first
-- hard delete is deferred to a later purge job
-- preview/index nodes are removed from active list views once the canonical record is soft-deleted
-- restore and purge tooling are not implemented yet
-- every new soft delete also writes a ledger entry under `deletionLog/*` so future delete actions remain traceable even after the preview/index node is removed
+Each soft delete also appends an audit event to `deletionLog/*`.
 
-Deletion ledger fields:
-- `entityType`
-- `canonicalPath`
-- `canonicalID`
-- `ownerID`
-- `previewPath`
-- `deleteMode`
-- `deleteReason`
-- `deletedAt`
-- `deletedBy`
-- `dependents`
+## Cascade Rules
 
-## Current tranche behavior
+### Delete table
+- Soft-delete the canonical table record.
+- Soft-delete the canonical `matches/*` referenced by `currentMatch`, `scheduledMatches/*`, and legacy `previousMatches`.
+- Soft-delete `dynamicurls/*` that target the table.
+- Revoke capability links that target the table.
+- Remove the owner preview entry under `users/{uid}/myTables/*`.
 
-The first CI-2 slice changes destructive list actions so they no longer only remove owner preview nodes. The owner preview entry is still removed from normal list views, but the canonical record is soft-deleted first.
+### Delete team match
+- Soft-delete the canonical team-match record.
+- Soft-delete the canonical `matches/*` referenced by `currentMatches/*` and `scheduledMatches/*`.
+- Soft-delete `dynamicurls/*` that target the team match.
+- Revoke capability links that target the team match.
+- Remove the owner preview entry under `users/{uid}/myTeamMatches/*`.
 
-Initial dependency handling added in this tranche:
-- Deleting a table soft-deletes dynamic URLs referencing that table.
-- Deleting a scoreboard soft-deletes dynamic URLs referencing that scoreboard.
-- Deleting a team match soft-deletes dynamic URLs referencing that team match.
+### Delete player list
+- Clear `tables/*/playerListID` before soft-deleting the player list.
+- Revoke player-registration capability links that target the player list.
+- Remove the owner preview entry under `users/{uid}/myPlayerLists/*`.
 
-## Orphan scanning and dry-run reporting
+### Delete scoreboard
+- Clear `tables/*/scoreboardID` before soft-deleting the scoreboard.
+- Soft-delete `dynamicurls/*` that target the scoreboard.
+- Revoke public-score capability links that target the scoreboard.
+- Remove the owner preview entry under `users/{uid}/myScoreboards/*`.
 
-The first dry-run scanner is implemented in:
-- `scripts/ownership-audit.mjs`
-- `scripts/report-orphans.mjs`
+### Delete scoreboard template
+- Clear `scoreboards/*/templateID` and `scoreboards/*/scoreboardTemplateID` before soft-deleting the template.
+- No owner preview node exists today.
 
-Usage:
+## Dry-Run And Repair Tooling
 
-```bash
-npm run audit:ownership -- ./path/to/database-export.json
-```
+### Delete flow dry-run
+The destructive list actions now accept an optional dry-run mode and return a report instead of mutating data:
 
-Strict mode returns a failing exit code when warnings or errors are found:
+- `deleteTable(myTableID, { dryRun: true })`
+- `deleteTeamMatch(myTeamMatchID, { dryRun: true })`
+- `deleteMyTeam(myTeamID, { dryRun: true })`
+- `deletePlayerList(myPlayerListID, { dryRun: true })`
+- `deleteMyScoreboard(myScoreboardID, { dryRun: true })`
+- `deleteScoreboardTemplate(templateID, { dryRun: true })`
+- `deleteDynamicURL(myDynamicURLID, dynamicURLID, { dryRun: true })`
 
-```bash
-npm run audit:ownership -- ./path/to/database-export.json --strict
-```
+### Orphan scanner
+- Snapshot audit entrypoint: `npm run audit:ownership -- ./path/to/database-export.json`
+- Live repair entrypoint: `scanAndRepairOwnershipOrphans({ dryRun: true | false })`
 
-Current scanner checks:
-- preview entries that point to missing canonical records
-- preview entries that still point to soft-deleted canonical records
-- canonical records with no owner preview entry
-- tables pointing at missing player lists or matches
-- team matches pointing at missing teams or current matches
-- dynamic URLs pointing at missing tables, scoreboards, or team matches
-- scoreboards referencing missing templates
+The orphan scanner detects and plans fixes for:
+- preview entries with missing canonical ids
+- preview entries pointing to missing or soft-deleted canonical records
+- active canonical records missing owner previews
+- tables referencing missing player lists, scoreboards, current matches, or scheduled matches
+- team matches referencing missing current matches
+- dynamic URLs targeting deleted tables, team matches, or scoreboards
+- scoreboards referencing deleted templates
+- matches with no active owning table/team-match or missing `scheduling` backrefs
 
-Future tranches should extend this with:
-- archive vs purge rules
-- repair/backfill actions
-- explicit restore paths
-- cascade handling for scheduled/current/archived match references
+Repair actions include:
+- removing orphaned preview nodes
+- rebuilding missing preview/index nodes when owner information is available
+- backfilling missing canonical owner fields from preview/index ownership
+- clearing broken references on tables, scoreboards, and team matches
+- archiving queue items that point at missing matches
+- soft-deleting orphaned canonical `matches/*` and `dynamicurls/*`
+
+## Firebase And AceBase Notes
+
+- Firebase mode writes pass through the database proxy. `src/server/databaseDriver.ts` now explicitly allows writes to all ownership preview collections under `users/{uid}/*`: `myTables`, `myTeams`, `myTeamMatches`, `myPlayerLists`, `myScoreboards`, `myDynamicURLs`, and `archivedTeamMatches`.
+- AceBase mode uses the same delete/orphan helper logic through the shared `db.ref(...).set/remove/push` API, so the ownership cascade behavior stays aligned even though the transport differs.

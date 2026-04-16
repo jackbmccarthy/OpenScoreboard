@@ -473,6 +473,12 @@ async function canWriteProtectedAction(action: DatabaseAction, callerID: string,
 
   if (pathSegments[0] === 'users' && pathSegments[1]) {
     const ownerScopedCollections = new Set([
+      'archivedTeamMatches',
+      'myDynamicURLs',
+      'myPlayerLists',
+      'myTables',
+      'myTeamMatches',
+      'myTeams',
       'myTournaments',
       'sharedTournaments',
       'myScoreboards',

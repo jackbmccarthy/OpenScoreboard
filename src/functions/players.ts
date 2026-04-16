@@ -1,9 +1,11 @@
 import db, { getUserPath } from "../lib/database"
 import { subscribeToPathValue } from '../lib/realtime';
+import { subscribeToOwnedCanonicalCollection } from '@/lib/liveSync'
 
 import { v4 as uuidv4 } from 'uuid';
 import { buildAccessSecretMetadata, hasAccessSecret, isAccessSecretValid } from './accessSecrets';
-import { clearPlayerListIdFromTables, getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
+import type { OwnershipMutationOptions } from './deletion';
+import { clearPlayerListIdFromTables, getPreviewValue, isRecordActive, revokeCapabilityLinksByReference, softDeleteCanonical } from './deletion';
 
 export async function resetPlayerListPassword(playerListID) {
     let newPassword = uuidv4()
@@ -228,20 +230,19 @@ export function subscribeToMyPlayerLists(
     callback: (playerLists: Array<[string, Record<string, any>]>) => void,
     userID = getUserPath(),
 ) {
-    return subscribeToPathValue(`users/${userID}/myPlayerLists`, async (myPlayerListsValue) => {
-        const playerLists = myPlayerListsValue && typeof myPlayerListsValue === 'object'
-            ? await Promise.all(Object.entries(myPlayerListsValue as Record<string, unknown>).map(async ([id, data]) => {
-                const playerListEntry = data as Record<string, any>
-                const playerListID = String(playerListEntry.id || '')
-                const canonicalSnapshot = await db.ref(`playerLists/${playerListID}`).get()
-                if (!isRecordActive(canonicalSnapshot.val())) {
-                    return null
-                }
-                return [id, playerListEntry] as [string, Record<string, any>]
-            }))
-            : []
-        callback(playerLists.filter(Boolean) as Array<[string, Record<string, any>]>)
-    })
+    return subscribeToOwnedCanonicalCollection<Record<string, any>, Record<string, any>, Record<string, any>>({
+        ownerPath: `users/${userID}/myPlayerLists`,
+        getCanonicalID: (preview) => String(preview?.id || ''),
+        getCanonicalPath: (playerListID) => `playerLists/${playerListID}`,
+        isCanonicalActive: (playerList) => isRecordActive(playerList),
+        buildRow: ({ canonicalID, preview, canonical }) => ({
+            ...preview,
+            id: canonicalID,
+            playerListName: typeof canonical?.playerListName === 'string'
+                ? canonical.playerListName
+                : preview?.playerListName || '',
+        }),
+    }, callback)
 }
 
 export function subscribeToPlayerListPlayers(
@@ -255,23 +256,47 @@ export function subscribeToPlayerListPlayers(
     })
 }
 
-export async function deletePlayerList(myPlayerListID) {
+export async function deletePlayerList(myPlayerListID, options: OwnershipMutationOptions = {}) {
     const previewPath = `users/${getUserPath()}/myPlayerLists/${myPlayerListID}`
     const preview = await getPreviewValue(previewPath)
     const playerListID = preview?.id
+    const report = {
+        entityType: 'playerList',
+        canonicalID: typeof playerListID === 'string' ? playerListID : '',
+        canonicalPath: typeof playerListID === 'string' && playerListID.length > 0 ? `playerLists/${playerListID}` : '',
+        previewPath,
+        dryRun: Boolean(options.dryRun),
+        deleteMode: 'soft_deleted',
+        ownerID: getUserPath(),
+        dependentIDs: {
+            clearedTables: [] as string[],
+            revokedCapabilityTokenIDs: [] as string[],
+        },
+    }
     if (typeof playerListID === 'string' && playerListID.length > 0) {
-        // Clear dangling table references before soft-deleting the player list
-        const clearedTables = await clearPlayerListIdFromTables(playerListID)
+        const clearedTables = await clearPlayerListIdFromTables(playerListID, options)
+        const revokedCapabilityTokenIDs = await revokeCapabilityLinksByReference({
+            playerListID,
+            reason: 'parent_player_list_soft_deleted',
+        }, options)
         await softDeleteCanonical(`playerLists/${playerListID}`, {
             deleteReason: 'delete_player_list',
             clearedTables,
+            revokedCapabilityTokenIDs,
         }, {
             entityType: 'playerList',
             canonicalID: playerListID,
             ownerID: getUserPath(),
             previewPath,
-        })
+        }, options)
+        report.dependentIDs = {
+            clearedTables,
+            revokedCapabilityTokenIDs,
+        }
     }
-    await db.ref(previewPath).remove()
+    if (!options.dryRun) {
+        await db.ref(previewPath).remove()
+    }
+    return report
 
 }

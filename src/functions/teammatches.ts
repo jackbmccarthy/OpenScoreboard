@@ -1,10 +1,12 @@
 import db, { getUserPath, getValue } from '../lib/database';
 import { subscribeToPathValue } from '../lib/realtime';
+import { createSubscriptionRegistry } from '@/lib/liveSync'
 import Match from '../classes/Match';
 import { getCombinedPlayerNames } from './players';
 import { appendTeamMatchAuditEvent, normalizeTeamMatchSchema } from './matchSchema';
 import { getMatchData, getMatchScore } from './scoring';
-import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
+import type { OwnershipMutationOptions } from './deletion';
+import { collectTeamMatchDependentMatchIDs, getPreviewValue, isRecordActive, revokeCapabilityLinksByReference, softDeleteCanonical, softDeleteDynamicURLsByReference, softDeleteMatches } from './deletion';
 import { supportedSports } from './sports';
 import { getTeam, getTeamName } from './teams';
 import type { Match as MatchRecord, TeamMatch, Team as TeamRecord } from '../types/matches';
@@ -68,40 +70,155 @@ function buildCurrentTableSummaries(currentMatches: Record<string, string> | nul
         .filter(Boolean)
 }
 
+function buildTeamMatchListRow(
+    preview: TeamMatchPreview,
+    teamMatch: TeamMatch,
+    matchesByID: Record<string, MatchRecord | null>,
+) {
+    const currentMatches = teamMatch?.currentMatches && typeof teamMatch.currentMatches === 'object'
+        ? teamMatch.currentMatches as Record<string, string>
+        : {}
+    const activeMatchIDs = Object.values(currentMatches).filter((matchID): matchID is string => typeof matchID === 'string' && matchID.length > 0)
+
+    return {
+        ...preview,
+        id: preview.id,
+        teamAName: preview.teamAName || teamMatch.teamAName || '',
+        teamBName: preview.teamBName || teamMatch.teamBName || '',
+        startTime: typeof teamMatch.startTime === 'string' ? teamMatch.startTime : preview.startTime,
+        sportName: teamMatch.sportName || preview.sportName || '',
+        sportDisplayName: teamMatch.sportDisplayName || preview.sportDisplayName || '',
+        scoringType: teamMatch.scoringType || preview.scoringType || '',
+        teamAScore: Number(teamMatch.teamAScore || 0),
+        teamBScore: Number(teamMatch.teamBScore || 0),
+        tableCount: Object.keys(currentMatches).length,
+        activeTableCount: activeMatchIDs.length,
+        currentTableSummaries: buildCurrentTableSummaries(currentMatches, matchesByID),
+        status: activeMatchIDs.length > 0 ? 'active' : 'not-started',
+    }
+}
+
 export function subscribeToMyTeamMatches(
     callback: (teamMatches: Array<[string, TeamMatchPreview & { teamAScore: number; teamBScore: number; tableCount: number; activeTableCount: number; currentTableSummaries: ReturnType<typeof buildCurrentTableSummaries>; status: string }]>) => void,
     userID = getUserPath(),
 ) {
-    return subscribeToPathValue(`users/${userID}/myTeamMatches`, async (myTeamMatchesValue) => {
-        const teamMatches = myTeamMatchesValue && typeof myTeamMatchesValue === 'object'
-            ? await Promise.all(Object.entries(myTeamMatchesValue as Record<string, unknown>).map(async ([id, item]) => {
-                const teamMatchEntry = item as TeamMatchPreview
-                const teamMatch = await getValue<TeamMatch>(`teamMatches/${teamMatchEntry.id}`)
-                if (!isRecordActive(teamMatch)) {
-                    return null
+    const previews = new Map<string, TeamMatchPreview>()
+    const teamMatches = new Map<string, TeamMatch>()
+    const matchIDsByTable = new Map<string, Record<string, string>>()
+    const matchesByTable = new Map<string, Record<string, MatchRecord | null>>()
+    const rows = new Map<string, [string, TeamMatchPreview & { teamAScore: number; teamBScore: number; tableCount: number; activeTableCount: number; currentTableSummaries: ReturnType<typeof buildCurrentTableSummaries>; status: string }]>()
+    const ownerOrder: string[] = []
+    const canonicalSubscriptions = createSubscriptionRegistry()
+    const matchSubscriptions = createSubscriptionRegistry()
+
+    const emitRows = () => {
+        callback(ownerOrder.map((id) => rows.get(id)).filter(Boolean) as Array<[string, TeamMatchPreview & { teamAScore: number; teamBScore: number; tableCount: number; activeTableCount: number; currentTableSummaries: ReturnType<typeof buildCurrentTableSummaries>; status: string }]>)
+    }
+
+    const syncMatchSubscriptions = (myTeamMatchID: string, teamMatch: TeamMatch) => {
+        const currentMatches = teamMatch?.currentMatches && typeof teamMatch.currentMatches === 'object'
+            ? teamMatch.currentMatches as Record<string, string>
+            : {}
+        const activeTableNumbers = new Set(Object.keys(currentMatches))
+        const previousMatchIDs = matchIDsByTable.get(myTeamMatchID) || {}
+
+        Object.keys(previousMatchIDs).forEach((tableNumber) => {
+            if (!activeTableNumbers.has(tableNumber)) {
+                matchSubscriptions.remove(`${myTeamMatchID}:${tableNumber}`)
+                const nextMatches = { ...(matchesByTable.get(myTeamMatchID) || {}) }
+                delete nextMatches[previousMatchIDs[tableNumber]]
+                matchesByTable.set(myTeamMatchID, nextMatches)
+            }
+        })
+
+        matchIDsByTable.set(myTeamMatchID, currentMatches)
+
+        Object.entries(currentMatches).forEach(([tableNumber, matchID]) => {
+            const subscriptionKey = `${myTeamMatchID}:${tableNumber}`
+            if (typeof matchID !== 'string' || matchID.length === 0) {
+                matchSubscriptions.remove(subscriptionKey)
+                return
+            }
+
+            if (previousMatchIDs[tableNumber] === matchID) {
+                return
+            }
+
+            matchSubscriptions.replace(subscriptionKey, subscribeToPathValue(`matches/${matchID}`, (matchValue) => {
+                const nextMatches = { ...(matchesByTable.get(myTeamMatchID) || {}) }
+                nextMatches[matchID] = matchValue && typeof matchValue === 'object'
+                    ? matchValue as MatchRecord
+                    : null
+                matchesByTable.set(myTeamMatchID, nextMatches)
+                const preview = previews.get(myTeamMatchID)
+                const teamMatchRecord = teamMatches.get(myTeamMatchID)
+                if (!preview || !teamMatchRecord) {
+                    return
                 }
-                const teamMatchScores = await getTeamMatchTeamScore(teamMatchEntry.id)
-                const currentMatches = teamMatch?.currentMatches && typeof teamMatch.currentMatches === 'object'
-                    ? teamMatch.currentMatches as Record<string, string>
-                    : {}
-                const matchIDs = Object.values(currentMatches).filter((matchID): matchID is string => typeof matchID === 'string' && matchID.length > 0)
-                const matches = await Promise.all(matchIDs.map(async (matchID) => [matchID, await getMatchData(matchID)] as const))
-                const matchesByID = Object.fromEntries(matches) as Record<string, MatchRecord | null>
-
-                return [id, {
-                    ...teamMatchEntry,
-                    teamAScore: teamMatchScores.a,
-                    teamBScore: teamMatchScores.b,
-                    tableCount: Object.keys(currentMatches).length,
-                    activeTableCount: matchIDs.length,
-                    currentTableSummaries: buildCurrentTableSummaries(currentMatches, matchesByID),
-                    status: matchIDs.length > 0 ? 'active' : 'not-started',
-                }] as [string, TeamMatchPreview & { teamAScore: number; teamBScore: number; tableCount: number; activeTableCount: number; currentTableSummaries: ReturnType<typeof buildCurrentTableSummaries>; status: string }]
+                rows.set(myTeamMatchID, [myTeamMatchID, buildTeamMatchListRow(preview, teamMatchRecord, nextMatches)])
+                emitRows()
             }))
-            : []
+        })
+    }
 
-        callback(teamMatches.filter(Boolean) as Array<[string, TeamMatchPreview & { teamAScore: number; teamBScore: number; tableCount: number; activeTableCount: number; currentTableSummaries: ReturnType<typeof buildCurrentTableSummaries>; status: string }]>)
+    const removeTeamMatch = (myTeamMatchID: string) => {
+        canonicalSubscriptions.remove(myTeamMatchID)
+        const previousMatchIDs = matchIDsByTable.get(myTeamMatchID) || {}
+        Object.keys(previousMatchIDs).forEach((tableNumber) => {
+            matchSubscriptions.remove(`${myTeamMatchID}:${tableNumber}`)
+        })
+        previews.delete(myTeamMatchID)
+        teamMatches.delete(myTeamMatchID)
+        matchIDsByTable.delete(myTeamMatchID)
+        matchesByTable.delete(myTeamMatchID)
+        rows.delete(myTeamMatchID)
+    }
+
+    const unsubscribeOwner = subscribeToPathValue(`users/${userID}/myTeamMatches`, (myTeamMatchesValue) => {
+        const ownerEntries = myTeamMatchesValue && typeof myTeamMatchesValue === 'object'
+            ? Object.entries(myTeamMatchesValue as Record<string, TeamMatchPreview>)
+            : []
+        const activeTeamMatchIDs = new Set(ownerEntries.map(([id]) => id))
+
+        ownerOrder.splice(0, ownerOrder.length, ...ownerEntries.map(([id]) => id))
+
+        Array.from(previews.keys()).forEach((id) => {
+            if (!activeTeamMatchIDs.has(id)) {
+                removeTeamMatch(id)
+            }
+        })
+
+        ownerEntries.forEach(([id, preview]) => {
+            previews.set(id, preview)
+            const teamMatchID = typeof preview?.id === 'string' ? preview.id : ''
+            if (!teamMatchID) {
+                rows.delete(id)
+                return
+            }
+
+            canonicalSubscriptions.replace(id, subscribeToPathValue(`teamMatches/${teamMatchID}`, (teamMatchValue) => {
+                const normalizedTeamMatch = normalizeTeamMatchSchema(teamMatchValue as Record<string, unknown> | null)
+                if (!isRecordActive(normalizedTeamMatch)) {
+                    removeTeamMatch(id)
+                    emitRows()
+                    return
+                }
+
+                teamMatches.set(id, normalizedTeamMatch as TeamMatch)
+                syncMatchSubscriptions(id, normalizedTeamMatch as TeamMatch)
+                rows.set(id, [id, buildTeamMatchListRow(preview, normalizedTeamMatch as TeamMatch, matchesByTable.get(id) || {})])
+                emitRows()
+            }))
+        })
+
+        emitRows()
     })
+
+    return () => {
+        unsubscribeOwner()
+        canonicalSubscriptions.clear()
+        matchSubscriptions.clear()
+    }
 }
 
 export async function createTeamMatchNewMatch(
@@ -234,26 +351,62 @@ export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
     return nextTeamMatch
 }
 
-export async function deleteTeamMatch(myTeamMatchID) {
+export async function deleteTeamMatch(myTeamMatchID, options: OwnershipMutationOptions = {}) {
     const previewPath = `users/${getUserPath()}/myTeamMatches/${myTeamMatchID}`
     const preview = await getPreviewValue(previewPath)
     const teamMatchID = preview?.id
+    const teamMatchRecord = typeof teamMatchID === 'string' && teamMatchID.length > 0
+        ? await getTeamMatch(teamMatchID)
+        : null
+    const dependentMatchIDs = collectTeamMatchDependentMatchIDs(teamMatchRecord as Record<string, any> | null)
+    const report = {
+        entityType: 'teamMatch',
+        canonicalID: typeof teamMatchID === 'string' ? teamMatchID : '',
+        canonicalPath: typeof teamMatchID === 'string' && teamMatchID.length > 0 ? `teamMatches/${teamMatchID}` : '',
+        previewPath,
+        dryRun: Boolean(options.dryRun),
+        deleteMode: 'soft_deleted',
+        ownerID: getUserPath(),
+        dependentIDs: {
+            matches: dependentMatchIDs,
+            dynamicURLs: [] as string[],
+            revokedCapabilityTokenIDs: [] as string[],
+        },
+    }
     if (typeof teamMatchID === 'string' && teamMatchID.length > 0) {
+        const softDeletedMatchIDs = await softDeleteMatches(dependentMatchIDs, 'parent_team_match_soft_deleted', {
+            ownerID: getUserPath(),
+            previewPath,
+        }, options)
         const softDeletedDependents = {
-            dynamicURLs: await softDeleteDynamicURLsByReference({ teamMatchID, reason: 'parent_team_match_soft_deleted' }),
+            matches: softDeletedMatchIDs,
+            dynamicURLs: await softDeleteDynamicURLsByReference({ teamMatchID, reason: 'parent_team_match_soft_deleted' }, options),
         }
+        const revokedCapabilityTokenIDs = await revokeCapabilityLinksByReference({
+            teamMatchID,
+            reason: 'parent_team_match_soft_deleted',
+        }, options)
         await softDeleteCanonical(`teamMatches/${teamMatchID}`, {
             deleteReason: 'delete_team_match',
             softDeletedDependents,
+            revokedCapabilityTokenIDs,
         }, {
             entityType: 'teamMatch',
             canonicalID: teamMatchID,
             ownerID: getUserPath(),
             previewPath,
             dependents: softDeletedDependents,
-        })
+        }, options)
+        report.dependentIDs = {
+            matches: softDeletedMatchIDs,
+            dynamicURLs: softDeletedDependents.dynamicURLs,
+            revokedCapabilityTokenIDs,
+        }
     }
-    await db.ref(previewPath).remove()
+    if (!options.dryRun) {
+        await db.ref(previewPath).remove()
+    }
+    return report
 }
 
 export async function getImportTeamMembersList(player, teamMatchID) {

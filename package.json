@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "preview": "next start",
+    "test:ownership": "node --test scripts/ownership-audit.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "check:ts-nocheck": "bash scripts/check-no-new-ts-nocheck.sh",
     "audit:ownership": "node scripts/report-orphans.mjs"

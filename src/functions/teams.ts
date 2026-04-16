@@ -1,8 +1,11 @@
 import db, { getUserPath } from '../lib/database';
 import { subscribeToPathValue } from '../lib/realtime';
+import { subscribeToOwnedCanonicalCollection } from '@/lib/liveSync'
+import type { OwnershipMutationOptions } from './deletion';
 import { getPreviewValue, isRecordActive, softDeleteCanonical } from './deletion';
 
 type TeamRecord = {
+    ownerID?: string
     teamName?: string
     name?: string
     teamLogoURL?: string
@@ -54,10 +57,11 @@ function normalizeTags(tags: unknown): string[] {
     return normalizedTags
 }
 
-function normalizeTeam(team: unknown) {
+function normalizeTeam(team: unknown, ownerID = getUserPath()) {
     const safeTeam = (team && typeof team === 'object' ? team : {}) as TeamRecord
 
     return {
+        ownerID: safeTeam.ownerID || ownerID,
         teamName: safeTeam.teamName || safeTeam.name || "",
         teamLogoURL: safeTeam.teamLogoURL || "",
         players: safeTeam.players || safeTeam.teamPlayers || {},
@@ -89,7 +93,7 @@ async function getActiveTeamMatchRefs(teamID: string): Promise<string[]> {
 }
 
 export async function addNewTeam(team,) {
-    const normalizedTeam = normalizeTeam(team)
+    const normalizedTeam = normalizeTeam(team, getUserPath())
     let pushedTeam = await db.ref(`teams`).push(normalizedTeam)
     await db.ref("users" + "/" + getUserPath() + "/" + "myTeams").push({
         id: pushedTeam.key,
@@ -135,31 +139,23 @@ export function subscribeToMyTeams(
     callback: (teams: MyTeamEntry[]) => void,
     userID = getUserPath(),
 ) {
-    return subscribeToPathValue(`users/${userID}/myTeams`, async (myTeamsValue) => {
-        const teams = myTeamsValue && typeof myTeamsValue === "object"
-            ? await Promise.all(Object.entries(myTeamsValue as Record<string, unknown>).map(async ([myTeamID, preview]): Promise<MyTeamEntry | null> => {
-                const previewEntry = preview as Record<string, any>
-                const teamID = previewEntry?.id
-                if (typeof teamID !== 'string' || teamID.length === 0) {
-                    return null
-                }
-                const teamSnapshot = await db.ref(`teams/${teamID}`).get()
-                if (!isRecordActive(teamSnapshot.val())) {
-                    return null
-                }
-                const normalizedTeam = normalizeTeam(teamSnapshot.val())
-                return [myTeamID, {
-                    ...previewEntry,
-                    id: teamID,
-                    name: previewEntry?.name || normalizedTeam.teamName,
-                    teamLogoURL: normalizedTeam.teamLogoURL,
-                    players: normalizedTeam.players,
-                    tags: normalizedTeam.tags,
-                }]
-            }))
-            : []
-        callback(teams.filter(isMyTeamEntry))
-    })
+    return subscribeToOwnedCanonicalCollection<Record<string, any>, TeamRecord, MyTeamPreview>({
+        ownerPath: `users/${userID}/myTeams`,
+        getCanonicalID: (preview) => typeof preview?.id === 'string' ? preview.id : '',
+        getCanonicalPath: (teamID) => `teams/${teamID}`,
+        isCanonicalActive: (team) => isRecordActive(team),
+        buildRow: ({ canonicalID, preview, canonical }) => {
+            const normalizedTeam = normalizeTeam(canonical)
+            return {
+                ...preview,
+                id: canonicalID,
+                name: preview?.name || normalizedTeam.teamName,
+                teamLogoURL: normalizedTeam.teamLogoURL,
+                players: normalizedTeam.players,
+                tags: normalizedTeam.tags,
+            }
+        },
+    }, (teams) => callback(teams.filter(isMyTeamEntry)))
 }
 
 export function subscribeToTeam(
@@ -167,16 +163,32 @@ export function subscribeToTeam(
     callback: (team: Record<string, any> | null) => void,
 ) {
     return subscribeToPathValue(`teams/${teamID}`, (teamValue) => {
-        callback(isRecordActive(teamValue) ? normalizeTeam(teamValue as TeamRecord) : null)
+        callback(isRecordActive(teamValue) ? normalizeTeam(teamValue as TeamRecord, String((teamValue as TeamRecord)?.ownerID || '')) : null)
     })
 }
 
-export async function deleteMyTeam(myTeamID) {
+export async function deleteMyTeam(myTeamID, options: OwnershipMutationOptions = {}) {
     const previewPath = `users/${getUserPath()}/myTeams/${myTeamID}`
     const preview = await getPreviewValue(previewPath)
     const teamID = preview?.id
+    const activeTeamMatchRefs = typeof teamID === 'string' && teamID.length > 0
+        ? await getActiveTeamMatchRefs(teamID)
+        : []
+
+    const report = {
+        entityType: 'team',
+        canonicalID: typeof teamID === 'string' ? teamID : '',
+        canonicalPath: typeof teamID === 'string' && teamID.length > 0 ? `teams/${teamID}` : '',
+        previewPath,
+        dryRun: Boolean(options.dryRun),
+        deleteMode: 'soft_deleted',
+        ownerID: getUserPath(),
+        dependentIDs: {
+            activeTeamMatchRefs,
+        },
+    }
+
     if (typeof teamID === 'string' && teamID.length > 0) {
-        const activeTeamMatchRefs = await getActiveTeamMatchRefs(teamID)
         await softDeleteCanonical(`teams/${teamID}`, {
             deleteReason: 'delete_team',
             clearedTeamMatchRefs: activeTeamMatchRefs,
@@ -185,9 +197,13 @@ export async function deleteMyTeam(myTeamID) {
             canonicalID: teamID,
             ownerID: getUserPath(),
             previewPath,
-        })
+        }, options)
     }
-    await db.ref(previewPath).remove()
+    if (!options.dryRun) {
+        await db.ref(previewPath).remove()
+    }
+
+    return report
 
 
 }
@@ -196,7 +212,7 @@ export async function getTeam(teamID) {
     let pushedTeam = await db.ref(`teams/${teamID}`).get()
     const team = pushedTeam.val()
     return isRecordActive(team)
-        ? normalizeTeam(team)
+        ? normalizeTeam(team, String(team?.ownerID || ''))
         : null
 }
 
@@ -207,7 +223,11 @@ export async function getTeamName(teamID) {
 
 
 export async function updateTeam(teamID, team) {
-    let pushedTeam = await db.ref(`teams/${teamID}`).set(normalizeTeam(team))
+    const currentTeam = await db.ref(`teams/${teamID}`).get()
+    let pushedTeam = await db.ref(`teams/${teamID}`).set(normalizeTeam({
+        ...(currentTeam.val() || {}),
+        ...(team || {}),
+    }, String(currentTeam.val()?.ownerID || getUserPath())))
     return pushedTeam
 }
 export async function updateMyTeam(myTeamID, name) {

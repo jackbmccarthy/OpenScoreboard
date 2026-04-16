@@ -2,7 +2,8 @@ import db, { getUserPath } from '@/lib/database'
 import { subscribeToPathValue } from '@/lib/realtime'
 import { newScoreboard } from '@/classes/Scoreboard'
 import { defaultScoreboard } from '@/scoreboard/templates/defaultscoreboard'
-import { isRecordActive, softDeleteCanonical } from './deletion'
+import type { OwnershipMutationOptions } from './deletion'
+import { clearScoreboardTemplateIdFromScoreboards, isRecordActive, softDeleteCanonical } from './deletion'
 
 function normalizeTemplatePayload(template) {
   return {
@@ -108,14 +109,28 @@ export async function toggleScoreboardTemplateActive(templateID, isActive) {
   })
 }
 
-export async function deleteScoreboardTemplate(templateID) {
+export async function deleteScoreboardTemplate(templateID, options: OwnershipMutationOptions = {}) {
+  const clearedScoreboards = await clearScoreboardTemplateIdFromScoreboards(templateID, options)
   await softDeleteCanonical(`scoreboardTemplates/${templateID}`, {
-    deleteReason: 'delete_scoreboard_template'
+    deleteReason: 'delete_scoreboard_template',
+    clearedScoreboards,
   }, {
     entityType: 'scoreboardTemplate',
     canonicalID: templateID,
     ownerID: getUserPath(),
-  })
+  }, options)
+
+  return {
+    entityType: 'scoreboardTemplate',
+    canonicalID: templateID,
+    canonicalPath: `scoreboardTemplates/${templateID}`,
+    dryRun: Boolean(options.dryRun),
+    deleteMode: 'soft_deleted',
+    ownerID: getUserPath(),
+    dependentIDs: {
+      clearedScoreboards,
+    },
+  }
 }
 
 export async function createScoreboardFromTemplate(name, template, ownerID = getUserPath()) {

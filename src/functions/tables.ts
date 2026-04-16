@@ -3,7 +3,8 @@ import { subscribeToPathValue } from "../lib/realtime";
 import { v4 as uuidv4 } from 'uuid';
 import Table from "../classes/Table";
 import { buildAccessSecretMetadata, hasAccessSecret, isAccessSecretValid } from './accessSecrets';
-import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
+import type { OwnershipMutationOptions } from './deletion';
+import { collectTableDependentMatchIDs, getPreviewValue, isRecordActive, revokeCapabilityLinksByReference, softDeleteCanonical, softDeleteDynamicURLsByReference, softDeleteMatches } from './deletion';
 import { getMatchData, getMatchScore, getNextPromotableScheduledMatch, isScheduledMatchPromotable, sortScheduledMatchEntries } from './scoring';
 import { getCombinedPlayerNames } from './players';
 import type { Match as MatchRecord, ScheduledMatch, Table as TableRecord } from '../types/matches';
@@ -103,25 +104,61 @@ export async function deleteAllMyTables() {
   await db.ref(`users/${getUserPath()}/myTables/`).set({})
 }
 
-export async function deleteTable(myTableID) {
+export async function deleteTable(myTableID, options: OwnershipMutationOptions = {}) {
   const previewPath = `users/${getUserPath()}/myTables/${myTableID}`
   const tableID = await getPreviewValue(previewPath)
+  const tableRecord = typeof tableID === 'string' && tableID.length > 0
+    ? await getTable(tableID)
+    : null
+  const dependentMatchIDs = collectTableDependentMatchIDs(tableRecord as Record<string, any> | null)
+  const report = {
+    entityType: 'table',
+    canonicalID: typeof tableID === 'string' ? tableID : '',
+    canonicalPath: typeof tableID === 'string' && tableID.length > 0 ? `tables/${tableID}` : '',
+    previewPath,
+    dryRun: Boolean(options.dryRun),
+    deleteMode: 'soft_deleted',
+    ownerID: getUserPath(),
+    dependentIDs: {
+      matches: dependentMatchIDs,
+      dynamicURLs: [] as string[],
+      revokedCapabilityTokenIDs: [] as string[],
+    },
+  }
   if (typeof tableID === 'string' && tableID.length > 0) {
+    const softDeletedMatchIDs = await softDeleteMatches(dependentMatchIDs, 'parent_table_soft_deleted', {
+      ownerID: getUserPath(),
+      previewPath,
+    }, options)
     const softDeletedDependents = {
-      dynamicURLs: await softDeleteDynamicURLsByReference({ tableID, reason: 'parent_table_soft_deleted' }),
+      matches: softDeletedMatchIDs,
+      dynamicURLs: await softDeleteDynamicURLsByReference({ tableID, reason: 'parent_table_soft_deleted' }, options),
     }
+    const revokedCapabilityTokenIDs = await revokeCapabilityLinksByReference({
+      tableID,
+      reason: 'parent_table_soft_deleted',
+    }, options)
     await softDeleteCanonical(`tables/${tableID}`, {
       deleteReason: 'delete_table',
       softDeletedDependents,
+      revokedCapabilityTokenIDs,
     }, {
       entityType: 'table',
       canonicalID: tableID,
       ownerID: getUserPath(),
       previewPath,
       dependents: softDeletedDependents,
-    })
+    }, options)
+    report.dependentIDs = {
+      matches: softDeletedMatchIDs,
+      dynamicURLs: softDeletedDependents.dynamicURLs,
+      revokedCapabilityTokenIDs,
+    }
   }
-  await db.ref(previewPath).remove()
+  if (!options.dryRun) {
+    await db.ref(previewPath).remove()
+  }
+  return report
 }
 
 export async function setPlayerListToTable(tableID, playerListID, myTableID) {
