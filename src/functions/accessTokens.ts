@@ -29,11 +29,24 @@ export type CapabilityRecord = {
   scoreboardID?: string
   label?: string
   tokenFingerprint: string
+  issuedFromIPHash?: string
+  issuedUserAgentHash?: string
+  lastAccessIPHash?: string
+  lastAccessUserAgentHash?: string
   lastAccessedAt?: string
   accessCount?: number
   lastInvalidAttemptAt?: string
   invalidAttemptCount?: number
   suspiciousAttemptCount?: number
+  auditTrail?: Record<string, {
+    type: string
+    at: string
+    actorID?: string
+    ipHash?: string
+    userAgentHash?: string
+    origin?: string
+    details?: Record<string, unknown>
+  }>
 }
 
 type IssueCapabilityInput = {

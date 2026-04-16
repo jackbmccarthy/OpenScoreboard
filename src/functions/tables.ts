@@ -2,7 +2,7 @@ import db, { getStringValue, getTableValue, getUserPath, getValue } from "../lib
 import { subscribeToPathValue } from "../lib/realtime";
 import { v4 as uuidv4 } from 'uuid';
 import Table from "../classes/Table";
-import { buildAccessSecretMetadata, hasAccessSecret, isAccessSecretValid } from './accessSecrets';
+import { buildAccessSecretMetadata, hasAccessSecret, isAccessSecretValid, sanitizeClientAccessRecord } from './accessSecrets';
 import type { OwnershipMutationOptions } from './deletion';
 import { getPreviewValue, isRecordActive, revokeCapabilityLinksByReference, softDeleteCanonical, softDeleteDynamicURLsByReference, softDeleteMatches } from './deletion';
 import { collectTableDependentMatchIDs } from '@/ownership/dependents.js';
@@ -55,7 +55,7 @@ export async function createNewTable(tableName, playerListID, sportName, scoring
 
 export async function getTable(tableID: string): Promise<TableRecord | null> {
   const table = await getTableValue(tableID)
-  return isRecordActive(table) ? table : null
+  return isRecordActive(table) ? sanitizeClientAccessRecord(table as TableRecord) : null
 }
 
 export function subscribeToTable(
@@ -63,7 +63,7 @@ export function subscribeToTable(
   callback: (table: TableRecord | null) => void,
 ) {
   return subscribeToPathValue(`tables/${tableID}`, (tableValue) => {
-    callback(isRecordActive(tableValue) ? (tableValue as TableRecord) : null)
+    callback(isRecordActive(tableValue) ? sanitizeClientAccessRecord(tableValue as TableRecord) : null)
   })
 }
 

@@ -9,6 +9,7 @@ import 'firebase/auth'
 import { isLocalDatabase, firebaseConfig, hasValidConfig } from './firebase'
 import { getCurrentCapabilityToken } from './capabilitySession'
 import { runServerDatabaseActions } from './serverDatabaseClient'
+import { shouldUseCapabilityProxy } from '@/security/accessControl.js'
 import type {
   ArchivedMatchSummary,
   Match as MatchRecord,
@@ -90,17 +91,25 @@ function createReadSnapshot<T>(value: T) {
 }
 
 function shouldUseServerReadProxy() {
+  const capabilityToken = getCurrentCapabilityToken()
   if (isLocalDatabase) {
-    return false
+    return shouldUseCapabilityProxy({ capabilityToken })
   }
 
-  const capabilityToken = getCurrentCapabilityToken()
   if (!capabilityToken) {
     return false
   }
 
   const currentUser = firebase.apps.length ? firebase.auth().currentUser : null
   return !currentUser
+}
+
+function shouldUseServerWriteProxy() {
+  if (!isLocalDatabase) {
+    return true
+  }
+
+  return shouldUseCapabilityProxy({ capabilityToken: getCurrentCapabilityToken() })
 }
 
 function createRef<T = any>(path: string): DatabaseRef<T> {
@@ -150,7 +159,7 @@ function createRef<T = any>(path: string): DatabaseRef<T> {
     },
     child: <TChild = unknown>(childPath: string) => createRef<TChild>(`${path}/${childPath}`),
     set: async (value: T) => {
-      if (isLocalDatabase) {
+      if (isLocalDatabase && !shouldUseServerWriteProxy()) {
         const result = await clientRef().set(value)
         return createWriteReceipt<T>(undefined, typeof result?.val === 'function' ? result.val() as T : value)
       }
@@ -162,7 +171,7 @@ function createRef<T = any>(path: string): DatabaseRef<T> {
       return createWriteReceipt<T>(undefined, result?.value ?? null)
     },
     update: async (value: Partial<T> & Record<string, unknown>) => {
-      if (isLocalDatabase) {
+      if (isLocalDatabase && !shouldUseServerWriteProxy()) {
         const result = await clientRef().update(value)
         return createWriteReceipt<Partial<T>>(undefined, typeof result?.val === 'function' ? result.val() as Partial<T> : value)
       }
@@ -170,7 +179,7 @@ function createRef<T = any>(path: string): DatabaseRef<T> {
       return createWriteReceipt<Partial<T>>(undefined, result?.value ?? null)
     },
     remove: async () => {
-      if (isLocalDatabase) {
+      if (isLocalDatabase && !shouldUseServerWriteProxy()) {
         const result = await clientRef().remove()
         return createWriteReceipt<null>(undefined, typeof result?.val === 'function' ? result.val() as null : null)
       }
@@ -178,7 +187,7 @@ function createRef<T = any>(path: string): DatabaseRef<T> {
       return createWriteReceipt<null>(undefined, result?.value ?? null)
     },
     push: async (value: T) => {
-      if (isLocalDatabase) {
+      if (isLocalDatabase && !shouldUseServerWriteProxy()) {
         return clientRef().push(value) as unknown as Promise<DatabaseWriteReceipt<T>>
       }
       const [result] = await runServerDatabaseActions<T>([{ type: 'push', path, value }])

@@ -43,6 +43,14 @@ function describeCapability(record: CapabilityRecord) {
   return 'Public score view link'
 }
 
+function getRecentAuditEvents(record: CapabilityRecord) {
+  const auditEntries = record.auditTrail ? Object.entries(record.auditTrail) : []
+  return auditEntries
+    .map(([id, event]) => ({ id, ...event }))
+    .sort((left, right) => new Date(right.at).getTime() - new Date(left.at).getTime())
+    .slice(0, 4)
+}
+
 export default function QRCodePage() {
   const [searchParams] = useSearchParams()
   const [records, setRecords] = useState<CapabilityRecord[]>([])
@@ -258,9 +266,27 @@ export default function QRCodePage() {
                     <Text>Access Count {record.accessCount || 0}</Text>
                     <Text>Last Used {record.lastAccessedAt ? new Date(record.lastAccessedAt).toLocaleString() : 'never'}</Text>
                     <Text>Fingerprint {record.tokenFingerprint}</Text>
+                    <Text>Invalid Attempts {record.invalidAttemptCount || 0}</Text>
+                    <Text>Suspicious Events {record.suspiciousAttemptCount || 0}</Text>
                   </HStack>
                   {record.replacedByTokenId ? (
                     <Text className="text-xs text-slate-500">Rotated into {record.replacedByTokenId}</Text>
+                  ) : null}
+                  {record.revocationReason ? (
+                    <Text className="text-xs text-slate-500">Revocation reason: {record.revocationReason}</Text>
+                  ) : null}
+                  {record.lastInvalidAttemptAt ? (
+                    <Text className="text-xs text-amber-700">Last blocked access {new Date(record.lastInvalidAttemptAt).toLocaleString()}</Text>
+                  ) : null}
+                  {getRecentAuditEvents(record).length > 0 ? (
+                    <VStack className="gap-1 rounded-xl bg-slate-50 p-3">
+                      <Text className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Recent Audit</Text>
+                      {getRecentAuditEvents(record).map((event) => (
+                        <Text key={event.id} className="text-xs text-slate-600">
+                          {new Date(event.at).toLocaleString()} • {event.type.replace(/_/g, ' ')}
+                        </Text>
+                      ))}
+                    </VStack>
                   ) : null}
                   <HStack className="flex-wrap gap-2">
                     {record.status === 'active' ? (

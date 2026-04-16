@@ -365,6 +365,28 @@ async function markCapabilityExpired(record: CapabilityRecord, context?: Capabil
   }
 }
 
+async function recordCapabilityAccessFailure(
+  record: CapabilityRecord,
+  type: string,
+  context?: CapabilityRequestContext,
+  details?: Record<string, unknown>,
+) {
+  const attemptedAt = new Date().toISOString()
+  const nextRecord = await updateCapabilityRecord(record.tokenId, (currentRecord) => ({
+    ...currentRecord,
+    status: getRecordStatus(currentRecord),
+    lastInvalidAttemptAt: attemptedAt,
+    invalidAttemptCount: Number(currentRecord.invalidAttemptCount || 0) + 1,
+    suspiciousAttemptCount: Number(currentRecord.suspiciousAttemptCount || 0) + 1,
+    lastAccessIPHash: context?.ipAddress ? hashValue(context.ipAddress) : currentRecord.lastAccessIPHash || '',
+    lastAccessUserAgentHash: context?.userAgent ? hashValue(context.userAgent) : currentRecord.lastAccessUserAgentHash || '',
+  }))
+
+  if (nextRecord && !context?.skipAudit) {
+    await appendCapabilityAuditEvent(record.tokenId, type, context, details)
+  }
+}
+
 export function buildCapabilityUrl(origin: string, record: CapabilityRecord, token: string) {
   switch (record.capabilityType) {
     case 'table_scoring':
@@ -475,24 +497,34 @@ export async function resolveCapabilityToken(
     return null
   }
 
-  if (expectedType && payload.capabilityType !== expectedType) {
-    return null
-  }
-
   const record = await getCapabilityRecord(payload.jti)
   if (!record) {
     return null
   }
 
   if (record.tokenFingerprint !== fingerprintToken(token)) {
+    await recordCapabilityAccessFailure(record, 'fingerprint_mismatch', requestContext, {
+      expectedType: expectedType || '',
+      payloadType: payload.capabilityType,
+    })
+    return null
+  }
+
+  if (expectedType && payload.capabilityType !== expectedType) {
+    await recordCapabilityAccessFailure(record, 'capability_type_mismatch', requestContext, {
+      expectedType,
+      payloadType: payload.capabilityType,
+    })
     return null
   }
 
   const status = getRecordStatus(record)
   if (status === 'revoked' || status === 'rotated') {
+    await recordCapabilityAccessFailure(record, 'inactive_token_access', requestContext, { status })
     return null
   }
   if (status === 'expired') {
+    await recordCapabilityAccessFailure(record, 'expired_token_access', requestContext, { status })
     await markCapabilityExpired(record, requestContext)
     return null
   }

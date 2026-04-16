@@ -32,6 +32,7 @@ class Table {
   passwordUpdatedAt: string
   accessVersion: number
   accessSecretMode: string
+  accessRequired?: boolean
   legacyAccess: {
     enabledUntil: string
     retiredAt: string

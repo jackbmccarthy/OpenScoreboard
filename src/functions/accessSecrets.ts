@@ -1,4 +1,5 @@
 import CryptoJS from 'crypto-js'
+import { hasAccessSecretMetadata, sanitizeAccessControlledRecord } from '@/security/accessControl.js'
 
 export type LegacyAccessRecord = {
   enabledUntil?: string
@@ -57,13 +58,7 @@ export function getLegacyAccessRecord(record: Record<string, any> | null): Legac
 }
 
 export function hasAccessSecret(record: Record<string, any> | null) {
-  return Boolean(
-    record &&
-    (
-      (typeof record.passwordHash === 'string' && record.passwordHash.length > 0) ||
-      (typeof record.password === 'string' && record.password.length > 0)
-    )
-  )
+  return hasAccessSecretMetadata(record || null)
 }
 
 export function isLegacyAccessAllowed(record: Record<string, any> | null) {
@@ -95,4 +90,8 @@ export function isAccessSecretValid(input: string, record: Record<string, any> |
 
   // Legacy migration compatibility.
   return typeof record.password === 'string' && input === record.password
+}
+
+export function sanitizeClientAccessRecord<T extends Record<string, any> | null>(record: T) {
+  return sanitizeAccessControlledRecord(record) as T
 }

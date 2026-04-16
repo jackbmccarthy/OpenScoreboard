@@ -197,10 +197,11 @@ export function watchForPlayerListPasswordChange(playerListID, callback) {
         if (playerListValue && typeof playerListValue === "object") {
             const accessRecord = playerListValue as Record<string, any>
             callback([
+                accessRecord.accessRequired ? 'required' : 'open',
                 accessRecord.accessSecretMode || "",
                 accessRecord.passwordUpdatedAt || "",
-                accessRecord.passwordHash || "",
-                accessRecord.password || "",
+                accessRecord.legacyAccess?.enabledUntil || "",
+                accessRecord.legacyAccess?.retiredAt || "",
             ].join(":"))
         }
     })

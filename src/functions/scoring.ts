@@ -15,6 +15,7 @@ import { MATCH_SCHEMA_VERSION, appendMatchAuditEvent, appendMatchPointHistory, n
 import { subscribeToPathValue, unwrapRealtimeValue } from '../lib/realtime';
 import Match from '../classes/Match';
 import { getNewPlayer } from '../classes/Player';
+import { sanitizeClientAccessRecord } from './accessSecrets';
 import { getCombinedPlayerNames } from './players';
 import type {
     ArchivedMatchSummary,
@@ -886,7 +887,7 @@ export async function deleteScheduledTableMatch(tableID, scheduledMatchID) {
 
 export async function getTableInfo(tableID) {
     let currentMatchSnapShot = await db.ref(`tables/${tableID}`).get()
-    return currentMatchSnapShot.val()
+    return sanitizeClientAccessRecord(currentMatchSnapShot.val())
 
 }
 
@@ -1428,10 +1429,11 @@ export function watchForPasswordChange(tableID: string, callback: (accessMarker:
         if (tableValue && typeof tableValue === "object") {
             const accessRecord = tableValue as Partial<TableRecord>
             callback([
+                accessRecord.accessRequired ? 'required' : 'open',
                 accessRecord.accessSecretMode || "",
                 accessRecord.passwordUpdatedAt || "",
-                accessRecord.passwordHash || "",
-                accessRecord.password || "",
+                accessRecord.legacyAccess?.enabledUntil || "",
+                accessRecord.legacyAccess?.retiredAt || "",
             ].join(":"))
         }
     })

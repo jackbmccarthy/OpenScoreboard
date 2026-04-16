@@ -3,6 +3,7 @@ import { AceBaseClient } from 'acebase-client'
 import { acebaseConfig, firebaseClientConfig, isLocalDatabase } from '../lib/env'
 import { capabilityAllowsRead, capabilityAllowsWrite, resolveCapabilityToken } from './capabilities'
 import { RequestSecurityError } from './errors'
+import { sanitizeClientDatabaseValue } from '@/security/accessControl.js'
 
 export type DatabaseAction =
   | { type: 'get'; path: string }
@@ -537,6 +538,132 @@ async function canWriteProtectedAction(action: DatabaseAction, callerID: string,
   return false
 }
 
+async function canReadProtectedAction(action: DatabaseAction, callerID: string, authToken?: string | null) {
+  if (action.type !== 'get') {
+    return false
+  }
+
+  const normalizedPath = normalizePath(action.path)
+  const pathSegments = getPathSegments(action.path)
+
+  if (pathSegments[0] === 'capabilityTokens' || pathSegments[0] === 'securityEvents') {
+    return callerID === 'mylocalserver'
+  }
+
+  if (pathSegments[0] === 'tables') {
+    if (normalizedPath === 'tables') {
+      return callerID === 'mylocalserver'
+    }
+    return (await getOwnedParentOwnerID(action.path, authToken)) === callerID || callerID === 'mylocalserver'
+  }
+
+  if (pathSegments[0] === 'playerLists') {
+    if (normalizedPath === 'playerLists') {
+      return callerID === 'mylocalserver'
+    }
+    return (await getOwnedParentOwnerID(action.path, authToken)) === callerID || callerID === 'mylocalserver'
+  }
+
+  if (pathSegments[0] === 'teamMatches') {
+    if (normalizedPath === 'teamMatches') {
+      return callerID === 'mylocalserver'
+    }
+    return (await getOwnedParentOwnerID(action.path, authToken)) === callerID || callerID === 'mylocalserver'
+  }
+
+  if (pathSegments[0] === 'matches') {
+    if (normalizedPath === 'matches') {
+      return callerID === 'mylocalserver'
+    }
+    return (await getOwnedParentOwnerID(action.path, authToken)) === callerID || callerID === 'mylocalserver'
+  }
+
+  if (pathSegments[0] === 'scoreboards') {
+    if (normalizedPath === 'scoreboards') {
+      return callerID === 'mylocalserver'
+    }
+    const scoreboardID = pathSegments[1]
+    if (!scoreboardID) {
+      return false
+    }
+    const scoreboardValue = await getPathValue(`scoreboards/${scoreboardID}`, authToken)
+    const scoreboard = scoreboardValue && typeof scoreboardValue === 'object'
+      ? scoreboardValue as Record<string, unknown>
+      : null
+    return Boolean(scoreboard && (scoreboard.ownerID === callerID || callerID === 'mylocalserver'))
+  }
+
+  if (pathSegments[0] === 'dynamicurls') {
+    if (normalizedPath === 'dynamicurls') {
+      return callerID === 'mylocalserver'
+    }
+    return (await getOwnedParentOwnerID(action.path, authToken)) === callerID || callerID === 'mylocalserver'
+  }
+
+  if (pathSegments[0] === 'scoreboardTemplates') {
+    return true
+  }
+
+  if (pathSegments[0] === 'users' && pathSegments[1]) {
+    const ownerScopedCollections = new Set([
+      'archivedTeamMatches',
+      'myDynamicURLs',
+      'myPlayerLists',
+      'myTables',
+      'myTeamMatches',
+      'myTeams',
+      'myTournaments',
+      'sharedTournaments',
+      'myScoreboards',
+    ])
+    if (ownerScopedCollections.has(pathSegments[2] || '')) {
+      return pathSegments[1] === callerID
+    }
+  }
+
+  if (pathSegments[0] === 'tournaments') {
+    if (normalizedPath === 'tournaments') {
+      return callerID === 'mylocalserver'
+    }
+
+    const tournamentID = pathSegments[1]
+    if (!tournamentID) {
+      return false
+    }
+
+    const tournamentValue = await getPathValue(`tournaments/${tournamentID}`, authToken)
+    const tournament = tournamentValue && typeof tournamentValue === 'object'
+      ? tournamentValue as Record<string, unknown>
+      : null
+    if (!tournament) {
+      return false
+    }
+
+    if (tournament.ownerID === callerID || callerID === 'mylocalserver') {
+      return true
+    }
+
+    const staffAssignments = tournament.staffAssignments && typeof tournament.staffAssignments === 'object'
+      ? tournament.staffAssignments as Record<string, { subjectType?: string; subjectID?: string; role?: string }>
+      : {}
+    const assignment = Object.values(staffAssignments).find((candidate) => candidate.subjectType === 'user' && candidate.subjectID === callerID)
+    return assignment?.role === 'admin'
+  }
+
+  return true
+}
+
+function sanitizeDatabaseActionResult<T = unknown>(action: DatabaseAction, result: DatabaseActionResult<T>) {
+  if (action.type !== 'get' || typeof result.value === 'undefined') {
+    return result
+  }
+
+  return {
+    ...result,
+    value: sanitizeClientDatabaseValue(action.path, result.value) as T,
+  }
+}
+
 export async function executeDatabaseActions<T = unknown>(
   actions: DatabaseAction[],
   authToken?: string | null,
@@ -550,20 +677,18 @@ export async function executeDatabaseActions<T = unknown>(
   const callerID = authToken ? await resolveFirebaseCallerID(authToken) : null
 
   for (const action of actions) {
-    if (isLocalDatabase) {
-      results.push(await runAcebaseAction(action))
-      continue
-    }
-
     if (authToken && !callerID) {
       throw new RequestSecurityError('Invalid authentication token', 401, 'invalid_auth_token')
     }
+
+    const runner = isLocalDatabase ? runAcebaseAction : (actionRunner: DatabaseAction) => runFirebaseAction(actionRunner, authToken)
+    const privilegedRunner = isLocalDatabase ? runAcebaseAction : runServerFirebaseAction
 
     if (action.type === 'get' && !authToken) {
       if (!capabilityRecord || !await capabilityAllowsRead(capabilityRecord, action)) {
         throw new RequestSecurityError(`Unauthorized database action for ${action.path}`, 401, 'unauthorized_database_action')
       }
-      results.push(await runServerFirebaseAction(action))
+      results.push(sanitizeDatabaseActionResult(action, await privilegedRunner(action)))
       continue
     }
 
@@ -571,8 +696,15 @@ export async function executeDatabaseActions<T = unknown>(
       if (!capabilityRecord || !await capabilityAllowsWrite(capabilityRecord, action)) {
         throw new RequestSecurityError(`Unauthorized database action for ${action.path}`, 401, 'unauthorized_database_action')
       }
-      results.push(await runServerFirebaseAction(action))
+      results.push(await privilegedRunner(action))
       continue
+    }
+
+    if (action.type === 'get' && callerID) {
+      const allowed = await canReadProtectedAction(action, callerID, authToken)
+      if (!allowed) {
+        throw new RequestSecurityError(`Forbidden database action for ${action.path}`, 403, 'forbidden_database_action')
+      }
     }
 
     if (action.type !== 'get' && callerID) {
@@ -582,7 +714,7 @@ export async function executeDatabaseActions<T = unknown>(
       }
     }
 
-    results.push(await runFirebaseAction(action, authToken))
+    results.push(sanitizeDatabaseActionResult(action, await runner(action)))
   }
 
   return results as DatabaseActionResult<T>[]
