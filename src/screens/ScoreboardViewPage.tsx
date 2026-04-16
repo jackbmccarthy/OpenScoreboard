@@ -32,7 +32,7 @@ function buildPublicMatchSummary(match: Record<string, any> | null): PublicMatch
   const liveScoreA = Number(match[`game${liveGameNumber}AScore`] || 0)
   const liveScoreB = Number(match[`game${liveGameNumber}BScore`] || 0)
   const servingName = match.isACurrentlyServing ? (playerNames.a || 'Side A') : (playerNames.b || 'Side B')
-  const roundLabel = match.matchRound || match.eventName || match.context?.matchRound || ''
+  const roundLabel = match.matchRound || match.context?.matchRound || ''
   const eventLabel = match.eventName || match.context?.eventName || ''
 
   return {

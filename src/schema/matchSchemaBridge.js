@@ -224,6 +224,191 @@ function buildTournamentContext(match) {
   }
 }
 
+function hasOwn(source, key) {
+  return Boolean(source) && Object.prototype.hasOwnProperty.call(source, key)
+}
+
+function resolveCompatField(key, sources, overrides = {}) {
+  if (hasOwn(overrides, key)) {
+    return asString(overrides[key])
+  }
+
+  for (const source of sources) {
+    const value = asString(source?.[key])
+    if (value) {
+      return value
+    }
+  }
+
+  return ''
+}
+
+export function resolveTournamentCompatibilityFields(record, overrides = {}) {
+  const currentRecord = asRecord(record)
+  const tournamentContext = asRecord(currentRecord.tournamentContext)
+  const compatContext = Object.keys(tournamentContext).length > 0
+    ? tournamentContext
+    : asRecord(currentRecord.context)
+  const refs = asRecord(compatContext.refs)
+  const labels = asRecord(compatContext.labels)
+  const scheduling = asRecord(currentRecord.scheduling)
+  const schedulingRefs = asRecord(scheduling.refs)
+  const sources = [labels, refs, compatContext, schedulingRefs, scheduling, currentRecord]
+
+  return {
+    tournamentID: resolveCompatField('tournamentID', sources, overrides),
+    eventID: resolveCompatField('eventID', sources, overrides),
+    roundID: resolveCompatField('roundID', sources, overrides),
+    bracketNodeID: resolveCompatField('bracketNodeID', sources, overrides),
+    teamMatchID: resolveCompatField('teamMatchID', sources, overrides),
+    scheduleBlockID: resolveCompatField('scheduleBlockID', sources, overrides),
+    matchRound: resolveCompatField('matchRound', sources, overrides),
+    eventName: resolveCompatField('eventName', sources, overrides),
+  }
+}
+
+export function buildMatchTournamentCompatibilityPatch(match, overrides = {}) {
+  const currentMatch = asRecord(match)
+  const currentContext = Object.keys(asRecord(currentMatch.tournamentContext)).length > 0
+    ? asRecord(currentMatch.tournamentContext)
+    : asRecord(currentMatch.context)
+  const currentRefs = asRecord(currentContext.refs)
+  const currentLabels = asRecord(currentContext.labels)
+  const currentScheduling = asRecord(currentMatch.scheduling)
+  const currentSchedulingRefs = asRecord(currentScheduling.refs)
+  const resolved = resolveTournamentCompatibilityFields(currentMatch, overrides)
+
+  const nextContext = {
+    ...currentContext,
+    tournamentID: resolved.tournamentID,
+    eventID: resolved.eventID,
+    roundID: resolved.roundID,
+    bracketNodeID: resolved.bracketNodeID,
+    teamMatchID: resolved.teamMatchID,
+    scheduleBlockID: resolved.scheduleBlockID,
+    matchRound: resolved.matchRound,
+    eventName: resolved.eventName,
+    refs: {
+      ...currentRefs,
+      tournamentID: resolved.tournamentID,
+      eventID: resolved.eventID,
+      roundID: resolved.roundID,
+      bracketNodeID: resolved.bracketNodeID,
+      teamMatchID: resolved.teamMatchID,
+      scheduleBlockID: resolved.scheduleBlockID,
+    },
+    labels: {
+      ...currentLabels,
+      matchRound: resolved.matchRound,
+      eventName: resolved.eventName,
+    },
+    metadata: asRecord(currentContext.metadata),
+  }
+
+  const nextMatch = {
+    ...currentMatch,
+    tournamentID: resolved.tournamentID,
+    eventID: resolved.eventID,
+    roundID: resolved.roundID,
+    bracketNodeID: resolved.bracketNodeID,
+    teamMatchID: resolved.teamMatchID,
+    matchRound: resolved.matchRound,
+    eventName: resolved.eventName,
+    tournamentContext: nextContext,
+    context: nextContext,
+    scheduling: {
+      ...currentScheduling,
+      refs: {
+        ...currentSchedulingRefs,
+        scheduleBlockID: resolved.scheduleBlockID,
+      },
+      scheduleBlockID: resolved.scheduleBlockID || asString(currentScheduling.scheduleBlockID),
+    },
+  }
+  const schemaPatch = buildMatchSchemaPatch(nextMatch)
+
+  return {
+    tournamentID: resolved.tournamentID,
+    eventID: resolved.eventID,
+    roundID: resolved.roundID,
+    bracketNodeID: resolved.bracketNodeID,
+    teamMatchID: resolved.teamMatchID,
+    scheduleBlockID: resolved.scheduleBlockID,
+    matchRound: resolved.matchRound,
+    eventName: resolved.eventName,
+    tournamentContext: schemaPatch.tournamentContext,
+    context: schemaPatch.context,
+  }
+}
+
+export function buildTeamMatchTournamentCompatibilityPatch(teamMatch, overrides = {}) {
+  const currentTeamMatch = asRecord(teamMatch)
+  const currentContext = Object.keys(asRecord(currentTeamMatch.tournamentContext)).length > 0
+    ? asRecord(currentTeamMatch.tournamentContext)
+    : asRecord(currentTeamMatch.context)
+  const currentRefs = asRecord(currentContext.refs)
+  const currentLabels = asRecord(currentContext.labels)
+  const resolved = resolveTournamentCompatibilityFields(currentTeamMatch, overrides)
+
+  const nextContext = {
+    ...currentContext,
+    tournamentID: resolved.tournamentID,
+    eventID: resolved.eventID,
+    roundID: resolved.roundID,
+    teamMatchID: resolved.teamMatchID || asString(currentTeamMatch.teamMatchID),
+    matchRound: resolved.matchRound,
+    eventName: resolved.eventName,
+    refs: {
+      ...currentRefs,
+      tournamentID: resolved.tournamentID,
+      eventID: resolved.eventID,
+      roundID: resolved.roundID,
+      teamMatchID: resolved.teamMatchID || asString(currentTeamMatch.teamMatchID),
+    },
+    labels: {
+      ...currentLabels,
+      matchRound: resolved.matchRound,
+      eventName: resolved.eventName,
+    },
+    metadata: asRecord(currentContext.metadata),
+  }
+  const schemaPatch = buildTeamMatchSchemaPatch({
+    ...currentTeamMatch,
+    tournamentID: resolved.tournamentID,
+    eventID: resolved.eventID,
+    roundID: resolved.roundID,
+    teamMatchID: resolved.teamMatchID || asString(currentTeamMatch.teamMatchID),
+    matchRound: resolved.matchRound,
+    eventName: resolved.eventName,
+    tournamentContext: nextContext,
+    context: nextContext,
+  })
+
+  return {
+    tournamentID: resolved.tournamentID,
+    eventID: resolved.eventID,
+    roundID: resolved.roundID,
+    teamMatchID: resolved.teamMatchID || asString(currentTeamMatch.teamMatchID),
+    matchRound: resolved.matchRound,
+    eventName: resolved.eventName,
+    tournamentContext: schemaPatch.tournamentContext,
+    context: schemaPatch.context,
+  }
+}
+
+export function buildScheduledMatchTournamentCompatibilityPatch(record, overrides = {}) {
+  const resolved = resolveTournamentCompatibilityFields(record, overrides)
+
+  return {
+    tournamentID: resolved.tournamentID,
+    eventID: resolved.eventID,
+    roundID: resolved.roundID,
+    teamMatchID: resolved.teamMatchID,
+    matchRound: resolved.matchRound,
+    eventName: resolved.eventName,
+  }
+}
+
 function buildSchedulingMetadata(match) {
   const existing = asRecord(match.scheduling)
   const assignment = {

@@ -39,6 +39,7 @@ type TeamMatchRow = {
   id: string
   teamAName?: string
   teamBName?: string
+  contextLabel?: string
   startTime?: string
   sportName: string
   scoringType?: string
@@ -205,6 +206,9 @@ export default function TeamMatchesPage() {
                           {supportedSports[match.sportName]?.displayName || match.sportName || 'Table Tennis'}
                           {match.scoringType ? ` • ${match.scoringType}` : ''}
                         </Text>
+                        {match.contextLabel ? (
+                          <Text className="text-xs text-slate-500">{match.contextLabel}</Text>
+                        ) : null}
                         <Text className="text-xs font-medium text-slate-700">
                           Team score: {match.teamAScore || 0} - {match.teamBScore || 0}
                         </Text>
@@ -349,6 +353,7 @@ export default function TeamMatchesPage() {
         {selectedMatchDetail ? (
           <VStack className="gap-3">
             <Text className="font-semibold text-slate-900">{selectedMatchDetail.teamAName || 'Team A'} vs {selectedMatchDetail.teamBName || 'Team B'}</Text>
+            {selectedMatchDetail.contextLabel ? <Text className="text-sm text-slate-500">{selectedMatchDetail.contextLabel}</Text> : null}
             <Text className="text-sm text-slate-600">Status: {selectedMatchDetail.status || 'not-started'}</Text>
             <Text className="text-sm text-slate-600">Team score: {selectedMatchDetail.teamAScore || 0} - {selectedMatchDetail.teamBScore || 0}</Text>
             <Text className="text-sm text-slate-600">Active tables: {selectedMatchDetail.activeTableCount || 0} / {selectedMatchDetail.tableCount || 0}</Text>

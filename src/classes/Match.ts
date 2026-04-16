@@ -1,5 +1,5 @@
 import { supportedSports } from "../functions/sports"
-import { MATCH_SCHEMA_VERSION, buildMatchSchemaPatch, normalizeMatchSchema } from "../functions/matchSchema"
+import { MATCH_SCHEMA_VERSION, buildMatchSchemaPatch, buildMatchTournamentCompatibilityPatch, normalizeMatchSchema } from "../functions/matchSchema"
 import { getNewPlayer } from "./Player"
 import type { Match as MatchRecord } from "../types/matches"
 
@@ -246,9 +246,8 @@ export default class Match {
                 eventID,
                 roundID,
                 bracketNodeID,
-                matchRound,
-                eventName,
             } = previousMatchObj
+            const tournamentCompatibilityPatch = buildMatchTournamentCompatibilityPatch(previousMatchObj)
             matchSettings = {
                 ...matchSettings,
                 bestOf: bestOf ?? matchSettings.bestOf,
@@ -264,8 +263,11 @@ export default class Match {
                 eventID: eventID || "",
                 roundID: roundID || "",
                 bracketNodeID: bracketNodeID || "",
-                matchRound: matchRound || "",
-                eventName: eventName || "",
+                teamMatchID: tournamentCompatibilityPatch.teamMatchID || matchSettings.teamMatchID,
+                matchRound: tournamentCompatibilityPatch.matchRound || "",
+                eventName: tournamentCompatibilityPatch.eventName || "",
+                context: tournamentCompatibilityPatch.context,
+                tournamentContext: tournamentCompatibilityPatch.tournamentContext,
             }
         }
         else {

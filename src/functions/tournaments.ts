@@ -4,7 +4,7 @@ import { subscribeToPathValue } from '@/lib/realtime'
 import { newTournament, type TournamentScheduleBlockType } from '@/classes/Tournament'
 import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteTournamentChildren } from './deletion'
 import { addScheduledMatch, deleteScheduledTableMatch, getMatchScore, moveScheduledTableMatchToTable, updateScheduledMatch } from './scoring'
-import { syncMatchSchemaFromFlat } from './matchSchema'
+import { buildScheduledMatchTournamentCompatibilityPatch, syncMatchTournamentCompatibility } from './matchSchema'
 import { getCombinedPlayerNames, getPlayerFormatted } from './players'
 import Match from '@/classes/Match'
 
@@ -1015,6 +1015,8 @@ async function syncRoundMetadataAcrossMatchesAndSchedule(
   round: TournamentRoundRecord,
 ) {
   const scheduleBlocks = await getNormalizedTournamentScheduleBlocks(tournamentID)
+  const eventSnapshot = round.eventID ? await db.ref(`tournaments/${tournamentID}/events/${round.eventID}`).get() : null
+  const eventName = typeof eventSnapshot?.val()?.name === 'string' ? eventSnapshot.val().name : ''
 
   const linkedMatchIDs = new Set<string>(round.assignedMatchIDs)
   const roundScheduleBlocks = scheduleBlocks.filter(([, scheduleBlock]) => scheduleBlock.roundID === roundID)
@@ -1031,31 +1033,19 @@ async function syncRoundMetadataAcrossMatchesAndSchedule(
     if (!match || typeof match !== 'object') {
       return
     }
-    await db.ref(`matches/${matchID}`).update({
+    await syncMatchTournamentCompatibility(matchID, {
       tournamentID,
-      eventID: round.eventID || String(match.eventID || ''),
+      eventID: round.eventID || '',
       roundID,
       matchRound: round.title,
-      tournamentContext: {
-        ...((match.tournamentContext && typeof match.tournamentContext === 'object') ? match.tournamentContext : (match.context && typeof match.context === 'object') ? match.context : {}),
-        tournamentID,
-        eventID: round.eventID || String(match.eventID || ''),
-        roundID,
-        matchRound: round.title,
-      },
-      context: {
-        ...((match.context && typeof match.context === 'object') ? match.context : (match.tournamentContext && typeof match.tournamentContext === 'object') ? match.tournamentContext : {}),
-        tournamentID,
-        eventID: round.eventID || String(match.eventID || ''),
-        roundID,
-        matchRound: round.title,
-      },
+      eventName,
     })
   }))
 
   await Promise.all(roundScheduleBlocks.map(async ([scheduleBlockID, scheduleBlock]) => {
     const nextPatch: Partial<TournamentScheduleBlockRecord> = {
       eventID: round.eventID || scheduleBlock.eventID || '',
+      eventName: eventName || scheduleBlock.eventName || '',
       roundTitle: round.title,
     }
     if (!scheduleBlock.assignedTableID && round.assignedTableIDs[0]) {
@@ -1922,24 +1912,9 @@ export async function deleteTournamentRound(tournamentID: string, roundID: strin
       })
     }),
     ...linkedMatchIDs.map(async (matchID) => {
-      const snapshot = await db.ref(`matches/${matchID}`).get()
-      const match = snapshot.val()
-      if (!match || typeof match !== 'object') {
-        return
-      }
-      await db.ref(`matches/${matchID}`).update({
+      await syncMatchTournamentCompatibility(matchID, {
         roundID: '',
         matchRound: '',
-        tournamentContext: {
-          ...((match.tournamentContext && typeof match.tournamentContext === 'object') ? match.tournamentContext : (match.context && typeof match.context === 'object') ? match.context : {}),
-          roundID: '',
-          matchRound: '',
-        },
-        context: {
-          ...((match.context && typeof match.context === 'object') ? match.context : (match.tournamentContext && typeof match.tournamentContext === 'object') ? match.tournamentContext : {}),
-          roundID: '',
-          matchRound: '',
-        },
       })
     }),
     ...rounds.filter(([, round]) => round.nextRoundID === roundID).map(async ([currentRoundID]) => {
@@ -2026,58 +2001,27 @@ export async function setTournamentRoundMatchAssignments(
   const nextRound = await updateTournamentRound(tournamentID, roundID, {
     assignedMatchIDs: normalizedMatchIDs,
   })
+  const eventSnapshot = nextRound.eventID ? await db.ref(`tournaments/${tournamentID}/events/${nextRound.eventID}`).get() : null
+  const eventName = typeof eventSnapshot?.val()?.name === 'string' ? eventSnapshot.val().name : ''
 
   await Promise.all(removedMatchIDs.map(async (matchID) => {
     const stillLinkedByScheduleBlock = scheduleBlocks.some(([, scheduleBlock]) => scheduleBlock.roundID === roundID && scheduleBlock.sourceMatchID === matchID)
     if (stillLinkedByScheduleBlock) {
       return
     }
-    const matchSnapshot = await db.ref(`matches/${matchID}`).get()
-    const match = matchSnapshot.val()
-    if (!match || typeof match !== 'object') {
-      return
-    }
-    await db.ref(`matches/${matchID}`).update({
+    await syncMatchTournamentCompatibility(matchID, {
       roundID: '',
       matchRound: '',
-      tournamentContext: {
-        ...((match.tournamentContext && typeof match.tournamentContext === 'object') ? match.tournamentContext : (match.context && typeof match.context === 'object') ? match.context : {}),
-        roundID: '',
-        matchRound: '',
-      },
-      context: {
-        ...((match.context && typeof match.context === 'object') ? match.context : (match.tournamentContext && typeof match.tournamentContext === 'object') ? match.tournamentContext : {}),
-        roundID: '',
-        matchRound: '',
-      },
     })
   }))
 
   await Promise.all(normalizedMatchIDs.map(async (matchID) => {
-    const matchSnapshot = await db.ref(`matches/${matchID}`).get()
-    const match = matchSnapshot.val()
-    if (!match || typeof match !== 'object') {
-      return
-    }
-    await db.ref(`matches/${matchID}`).update({
+    await syncMatchTournamentCompatibility(matchID, {
       tournamentID,
-      eventID: nextRound.eventID || String(match.eventID || ''),
+      eventID: nextRound.eventID || '',
       roundID,
       matchRound: nextRound.title,
-      tournamentContext: {
-        ...((match.tournamentContext && typeof match.tournamentContext === 'object') ? match.tournamentContext : (match.context && typeof match.context === 'object') ? match.context : {}),
-        tournamentID,
-        eventID: nextRound.eventID || String(match.eventID || ''),
-        roundID,
-        matchRound: nextRound.title,
-      },
-      context: {
-        ...((match.context && typeof match.context === 'object') ? match.context : (match.tournamentContext && typeof match.tournamentContext === 'object') ? match.tournamentContext : {}),
-        tournamentID,
-        eventID: nextRound.eventID || String(match.eventID || ''),
-        roundID,
-        matchRound: nextRound.title,
-      },
+      eventName,
     })
   }))
 
@@ -2244,7 +2188,14 @@ export async function createTournamentScheduleMatch(tournamentID: string, schedu
 
   const pushedMatch = await db.ref('matches').push(newMatch)
   if (pushedMatch.key) {
-    await syncMatchSchemaFromFlat(pushedMatch.key, newMatch)
+    await syncMatchTournamentCompatibility(pushedMatch.key, {
+      tournamentID,
+      eventID: scheduleBlock.eventID || '',
+      roundID: scheduleBlock.roundID || '',
+      matchRound: scheduleBlock.roundTitle || roundRecord?.title || '',
+      eventName: scheduleBlock.eventName || eventRecord?.name || '',
+      scheduleBlockID,
+    }, newMatch)
   }
   await updateTournamentScheduleBlock(tournamentID, scheduleBlockID, {
     sourceMatchID: pushedMatch.key || '',
@@ -2294,38 +2245,18 @@ export async function updateTournamentScheduleBlock(
   }
   await db.ref(`tournaments/${tournamentID}/scheduleBlocks/${scheduleBlockID}`).set(nextScheduleBlock)
   if (nextScheduleBlock.sourceMatchID) {
-    const [matchSnapshot, roundSnapshot] = await Promise.all([
-      db.ref(`matches/${nextScheduleBlock.sourceMatchID}`).get(),
-      nextScheduleBlock.roundID ? db.ref(`tournaments/${tournamentID}/rounds/${nextScheduleBlock.roundID}`).get() : Promise.resolve({ val: () => null } as { val: () => null }),
-    ])
-    const match = matchSnapshot.val()
+    const roundSnapshot = nextScheduleBlock.roundID
+      ? await db.ref(`tournaments/${tournamentID}/rounds/${nextScheduleBlock.roundID}`).get()
+      : { val: () => null }
     const round = normalizeTournamentRoundRecord(roundSnapshot.val() as TournamentRoundRecord | null)
-    if (match && typeof match === 'object') {
-      await db.ref(`matches/${nextScheduleBlock.sourceMatchID}`).update({
-        tournamentID,
-        eventID: nextScheduleBlock.eventID || String(match.eventID || ''),
-        roundID: nextScheduleBlock.roundID || '',
-        matchRound: nextScheduleBlock.roundTitle || round.title || '',
-        eventName: nextScheduleBlock.eventName || String(match.eventName || ''),
-        tournamentContext: {
-          ...((match.tournamentContext && typeof match.tournamentContext === 'object') ? match.tournamentContext : (match.context && typeof match.context === 'object') ? match.context : {}),
-          tournamentID,
-          eventID: nextScheduleBlock.eventID || String(match.eventID || ''),
-          roundID: nextScheduleBlock.roundID || '',
-          matchRound: nextScheduleBlock.roundTitle || round.title || '',
-          eventName: nextScheduleBlock.eventName || String(match.eventName || ''),
-        },
-        context: {
-          ...((match.context && typeof match.context === 'object') ? match.context : (match.tournamentContext && typeof match.tournamentContext === 'object') ? match.tournamentContext : {}),
-          tournamentID,
-          eventID: nextScheduleBlock.eventID || String(match.eventID || ''),
-          roundID: nextScheduleBlock.roundID || '',
-          matchRound: nextScheduleBlock.roundTitle || round.title || '',
-          eventName: nextScheduleBlock.eventName || String(match.eventName || ''),
-        },
-      })
-      await syncMatchSchemaFromFlat(nextScheduleBlock.sourceMatchID)
-    }
+    await syncMatchTournamentCompatibility(nextScheduleBlock.sourceMatchID, {
+      tournamentID,
+      eventID: nextScheduleBlock.eventID || '',
+      roundID: nextScheduleBlock.roundID || '',
+      matchRound: nextScheduleBlock.roundTitle || round.title || '',
+      eventName: nextScheduleBlock.eventName || '',
+      scheduleBlockID,
+    })
   }
   if (nextScheduleBlock.roundID && ['completed', 'cancelled'].includes(nextScheduleBlock.status)) {
     await syncTournamentRoundAutomation(tournamentID, nextScheduleBlock.roundID)
@@ -2373,27 +2304,30 @@ export async function queueTournamentScheduleBlock(tournamentID: string, schedul
   const eventName = scheduleBlock.eventName || eventRecord?.name || ''
   const roundTitle = scheduleBlock.roundTitle || roundRecord?.title || ''
 
-  await db.ref(`matches/${scheduleBlock.sourceMatchID}`).update({
-    tournamentID,
-    eventID: scheduleBlock.eventID || '',
-    roundID: scheduleBlock.roundID || '',
-    eventName,
-    matchRound: roundTitle,
-  })
   await db.ref(`matches/${scheduleBlock.sourceMatchID}/scheduling`).update({
     tableID: scheduleBlock.assignedTableID,
     scheduledStartTime: scheduleBlock.scheduledStartTime || '',
     sourceType: 'tournament-schedule',
     sourceID: scheduleBlockID,
   })
-  await syncMatchSchemaFromFlat(scheduleBlock.sourceMatchID)
-
-  const queueItemID = await addScheduledMatch(scheduleBlock.assignedTableID, scheduleBlock.sourceMatchID, scheduleBlock.scheduledStartTime || '', {
+  await syncMatchTournamentCompatibility(scheduleBlock.sourceMatchID, {
     tournamentID,
     eventID: scheduleBlock.eventID || '',
     roundID: scheduleBlock.roundID || '',
     eventName,
     matchRound: roundTitle,
+    scheduleBlockID,
+  })
+
+  const queueCompatibilityPatch = buildScheduledMatchTournamentCompatibilityPatch({
+    tournamentID,
+    eventID: scheduleBlock.eventID || '',
+    roundID: scheduleBlock.roundID || '',
+    eventName,
+    matchRound: roundTitle,
+  })
+  const queueItemID = await addScheduledMatch(scheduleBlock.assignedTableID, scheduleBlock.sourceMatchID, scheduleBlock.scheduledStartTime || '', {
+    ...queueCompatibilityPatch,
     sourceType: 'tournament-schedule',
     sourceID: scheduleBlockID,
     operatorNotes: scheduleBlock.notes || '',
@@ -2433,6 +2367,14 @@ export async function syncTournamentScheduleBlockToQueue(tournamentID: string, s
 
   const eventName = scheduleBlock.eventName || eventRecord?.name || ''
   const roundTitle = scheduleBlock.roundTitle || roundRecord?.title || ''
+  await syncMatchTournamentCompatibility(scheduleBlock.sourceMatchID, {
+    tournamentID,
+    eventID: scheduleBlock.eventID || '',
+    roundID: scheduleBlock.roundID || '',
+    eventName,
+    matchRound: roundTitle,
+    scheduleBlockID,
+  })
   const queuePatch = {
     tournamentID,
     eventID: scheduleBlock.eventID || '',

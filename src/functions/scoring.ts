@@ -11,7 +11,16 @@ import db, {
     scheduledTableMatchesRef,
     tableCurrentMatchRef,
 } from '../lib/database';
-import { MATCH_SCHEMA_VERSION, appendMatchAuditEvent, appendMatchPointHistory, normalizeMatchSchema, syncMatchSchemaFromFlat } from './matchSchema';
+import {
+    MATCH_SCHEMA_VERSION,
+    appendMatchAuditEvent,
+    appendMatchPointHistory,
+    buildScheduledMatchTournamentCompatibilityPatch,
+    normalizeMatchSchema,
+    resolveTournamentCompatibilityFields,
+    syncMatchSchemaFromFlat,
+    syncMatchTournamentCompatibility,
+} from './matchSchema';
 import { subscribeToPathValue, unwrapRealtimeValue } from '../lib/realtime';
 import Match from '../classes/Match';
 import { getNewPlayer } from '../classes/Player';
@@ -560,6 +569,7 @@ export async function archiveMatchForTable(tableID: string, matchID: string, mat
     if (!match) {
         return null
     }
+    const compatibility = resolveTournamentCompatibilityFields(match)
 
     let matchScores = getMatchScore(match)
 
@@ -569,11 +579,11 @@ export async function archiveMatchForTable(tableID: string, matchID: string, mat
         playerB: getCombinedPlayerNames(match["playerA"], match["playerB"], match["playerA2"], match["playerB2"]).b,
         AScore: matchScores.a,
         BScore: matchScores.b,
-        tournamentID: match["tournamentID"] || "",
-        eventID: match["eventID"] || "",
-        roundID: match["roundID"] || "",
-        eventName: match["eventName"] || "",
-        matchRound: match["matchRound"] || "",
+        tournamentID: compatibility.tournamentID || "",
+        eventID: compatibility.eventID || "",
+        roundID: compatibility.roundID || "",
+        eventName: compatibility.eventName || "",
+        matchRound: compatibility.matchRound || "",
         archivedOn: new Date().toISOString(),
         startTime: match["matchStartTime"]
     }
@@ -635,6 +645,7 @@ export async function addScheduledMatch(tableID, matchID, startTime, patch: Part
     if (!match) {
         return null
     }
+    const compatibilityPatch = buildScheduledMatchTournamentCompatibilityPatch(match, patch)
     let matchScores = getMatchScore(match)
 
     let matchSummary = {
@@ -652,6 +663,7 @@ export async function addScheduledMatch(tableID, matchID, startTime, patch: Part
         sourceID: matchID,
         operatorNotes: '',
         assignedScorerID: '',
+        ...compatibilityPatch,
         ...patch,
     }
     let currentMatchSnapShot = await db.ref(`tables/${tableID}/scheduledMatches`).push(matchSummary)
@@ -671,10 +683,15 @@ export async function updateScheduledMatch(tableID, scheduledMatchID, matchID, s
         throw new Error('Use promoteScheduledTableMatch to activate a queue row')
     }
     const [, existing] = normalizeScheduledMatchEntry(scheduledMatchID, existingScheduledMatches[scheduledMatchID])
+    const compatibilityPatch = buildScheduledMatchTournamentCompatibilityPatch({
+        ...existing,
+        ...match,
+    }, patch)
     let matchScores = getMatchScore(match)
     let matchSummary = {
         ...existing,
         ...patch,
+        ...compatibilityPatch,
         matchID: matchID,
         playerA: getCombinedPlayerNames(match["playerA"], match["playerB"], match["playerA2"], match["playerB2"]).a,
         playerB: getCombinedPlayerNames(match["playerA"], match["playerB"], match["playerA2"], match["playerB2"]).b,
@@ -847,6 +864,7 @@ export async function promoteScheduledTableMatch(tableID, scheduledMatchID, prom
     if (!scheduledMatch.matchID || !isScheduledMatchPromotable(scheduledMatch)) {
         throw new Error('Scheduled match is not promotable')
     }
+    const tournamentCompatibilityPatch = buildScheduledMatchTournamentCompatibilityPatch(scheduledMatch)
 
     const now = new Date().toISOString()
     const nextScheduledMatch: ScheduledMatch = {
@@ -868,7 +886,7 @@ export async function promoteScheduledTableMatch(tableID, scheduledMatchID, prom
             [`matches/${scheduledMatch.matchID}/scheduling/queueItemID`]: scheduledMatchID,
             [`matches/${scheduledMatch.matchID}/scheduling/sourceType`]: 'scheduled-table-queue',
         })
-        await syncMatchSchemaFromFlat(scheduledMatch.matchID)
+        await syncMatchTournamentCompatibility(scheduledMatch.matchID, tournamentCompatibilityPatch)
         await appendMatchAuditEvent(scheduledMatch.matchID, 'scheduled_match_promoted', {
             tableID,
             queueItemID: scheduledMatchID,
@@ -1164,16 +1182,8 @@ export async function setIsMatchPoint(matchID, isGamePoint) {
 }
 
 export async function setRoundName(matchID, roundName) {
-    await Promise.all([
-        db.ref(`matches/${matchID}/matchRound`).set(roundName),
-        db.ref(`matches/${matchID}/schemaVersion`).set(MATCH_SCHEMA_VERSION),
-        db.ref(`matches/${matchID}/tournamentContext/matchRound`).set(roundName),
-    ])
-    const match = await getMatchData(matchID)
-    if (match) {
-        await syncMatchSchemaFromFlat(matchID, match)
-        await appendMatchAuditEvent(matchID, 'round_name_set', { roundName })
-    }
+    await syncMatchTournamentCompatibility(matchID, { matchRound: roundName })
+    await appendMatchAuditEvent(matchID, 'round_name_set', { roundName })
 }
 
 export async function addSignificantPoint(matchID, gameNumber, playerAScore, playerBScore) {

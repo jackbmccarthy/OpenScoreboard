@@ -4,8 +4,12 @@ import assert from 'node:assert/strict'
 import {
   MATCH_SCHEMA_VERSION,
   buildMatchSchemaPatch,
+  buildMatchTournamentCompatibilityPatch,
+  buildScheduledMatchTournamentCompatibilityPatch,
   buildTeamMatchSchemaPatch,
+  buildTeamMatchTournamentCompatibilityPatch,
   normalizeMatchSchema,
+  resolveTournamentCompatibilityFields,
   summarizeMatchSchemaBackfill,
   summarizeTeamMatchSchemaBackfill,
 } from '../src/schema/matchSchemaBridge.js'
@@ -164,4 +168,130 @@ test('preserves existing normalized fields when rebuilding a patch', () => {
   assert.equal(patch.pointHistory.evt1.source, 'manual-correction')
   assert.equal(patch.tournamentContext.metadata.courtZone, 'center')
   assert.equal(patch.scheduling.metadata.assignedBy, 'operator-1')
+})
+
+test('derives compatibility fields from normalized tournament context for legacy readers', () => {
+  const patch = buildMatchTournamentCompatibilityPatch({
+    tournamentContext: {
+      tournamentID: 'tournament-7',
+      eventID: 'event-2',
+      roundID: 'round-9',
+      matchRound: 'Final',
+      eventName: 'Open Doubles',
+      refs: {
+        tournamentID: 'tournament-7',
+        eventID: 'event-2',
+        roundID: 'round-9',
+      },
+      labels: {
+        matchRound: 'Final',
+        eventName: 'Open Doubles',
+      },
+      metadata: {},
+    },
+  })
+
+  assert.equal(patch.tournamentID, 'tournament-7')
+  assert.equal(patch.eventID, 'event-2')
+  assert.equal(patch.roundID, 'round-9')
+  assert.equal(patch.matchRound, 'Final')
+  assert.equal(patch.eventName, 'Open Doubles')
+  assert.equal(patch.tournamentContext.labels.matchRound, 'Final')
+})
+
+test('explicit round moves update refs and compatibility labels together', () => {
+  const patch = buildMatchTournamentCompatibilityPatch({
+    tournamentID: 'tournament-1',
+    eventID: 'event-1',
+    roundID: 'round-1',
+    matchRound: 'Quarter Final',
+    eventName: 'Open Singles',
+    tournamentContext: {
+      tournamentID: 'tournament-1',
+      eventID: 'event-1',
+      roundID: 'round-1',
+      matchRound: 'Quarter Final',
+      eventName: 'Open Singles',
+      refs: {
+        tournamentID: 'tournament-1',
+        eventID: 'event-1',
+        roundID: 'round-1',
+      },
+      labels: {
+        matchRound: 'Quarter Final',
+        eventName: 'Open Singles',
+      },
+      metadata: {},
+    },
+  }, {
+    eventID: 'event-3',
+    roundID: 'round-2',
+    matchRound: 'Semi Final',
+    eventName: 'Mixed Doubles',
+  })
+
+  assert.equal(patch.eventID, 'event-3')
+  assert.equal(patch.roundID, 'round-2')
+  assert.equal(patch.matchRound, 'Semi Final')
+  assert.equal(patch.eventName, 'Mixed Doubles')
+  assert.equal(patch.tournamentContext.refs.roundID, 'round-2')
+  assert.equal(patch.tournamentContext.labels.eventName, 'Mixed Doubles')
+})
+
+test('scheduled rows keep round and event labels available to queue and overlay readers', () => {
+  const scheduledPatch = buildScheduledMatchTournamentCompatibilityPatch({
+    context: {
+      tournamentID: 'tournament-4',
+      eventID: 'event-8',
+      roundID: 'round-3',
+      matchRound: 'Round Robin',
+      eventName: 'U21 Singles',
+      refs: {
+        tournamentID: 'tournament-4',
+        eventID: 'event-8',
+        roundID: 'round-3',
+      },
+      labels: {
+        matchRound: 'Round Robin',
+        eventName: 'U21 Singles',
+      },
+      metadata: {},
+    },
+  })
+  const teamMatchPatch = buildTeamMatchTournamentCompatibilityPatch({
+    teamMatchID: 'team-match-2',
+    context: {
+      tournamentID: 'tournament-4',
+      eventID: 'event-8',
+      roundID: 'round-3',
+      teamMatchID: 'team-match-2',
+      matchRound: 'Round Robin',
+      eventName: 'U21 Singles',
+      refs: {
+        tournamentID: 'tournament-4',
+        eventID: 'event-8',
+        roundID: 'round-3',
+        teamMatchID: 'team-match-2',
+      },
+      labels: {
+        matchRound: 'Round Robin',
+        eventName: 'U21 Singles',
+      },
+      metadata: {},
+    },
+  })
+
+  assert.deepEqual(resolveTournamentCompatibilityFields(scheduledPatch), {
+    tournamentID: 'tournament-4',
+    eventID: 'event-8',
+    roundID: 'round-3',
+    bracketNodeID: '',
+    teamMatchID: '',
+    scheduleBlockID: '',
+    matchRound: 'Round Robin',
+    eventName: 'U21 Singles',
+  })
+  assert.equal(teamMatchPatch.teamMatchID, 'team-match-2')
+  assert.equal(teamMatchPatch.matchRound, 'Round Robin')
+  assert.equal(teamMatchPatch.eventName, 'U21 Singles')
 })

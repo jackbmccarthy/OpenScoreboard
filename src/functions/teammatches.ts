@@ -3,7 +3,16 @@ import { subscribeToPathValue } from '../lib/realtime';
 import { createSubscriptionRegistry } from '@/lib/liveSync'
 import Match from '../classes/Match';
 import { getCombinedPlayerNames } from './players';
-import { appendTeamMatchAuditEvent, normalizeTeamMatchSchema, syncTeamMatchSchema, syncMatchSchemaFromFlat } from './matchSchema';
+import {
+    appendTeamMatchAuditEvent,
+    buildTeamMatchTournamentCompatibilityPatch,
+    normalizeTeamMatchSchema,
+    resolveTournamentCompatibilityFields,
+    syncTeamMatchSchema,
+    syncMatchSchemaFromFlat,
+    syncMatchTournamentCompatibility,
+    syncTeamMatchTournamentCompatibility,
+} from './matchSchema';
 import { getMatchData, getMatchScore } from './scoring';
 import type { OwnershipMutationOptions } from './deletion';
 import { getPreviewValue, isRecordActive, revokeCapabilityLinksByReference, softDeleteCanonical, softDeleteDynamicURLsByReference, softDeleteMatches } from './deletion';
@@ -94,6 +103,7 @@ function buildTeamMatchListRow(
         teamBScore: Number(teamMatch.teamBScore || 0),
         tableCount: Object.keys(currentMatches).length,
         activeTableCount: activeMatchIDs.length,
+        contextLabel: [teamMatch.matchRound || teamMatch.context?.matchRound || '', teamMatch.eventName || teamMatch.context?.eventName || ''].filter(Boolean).join(' • '),
         currentTableSummaries: buildCurrentTableSummaries(currentMatches, matchesByID),
         status: activeMatchIDs.length > 0 ? 'active' : 'not-started',
     }
@@ -232,6 +242,7 @@ export async function createTeamMatchNewMatch(
     let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, true, scoringType))
     await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).set(newMatch.key)
     if (newMatch.key) {
+        const teamMatch = await getTeamMatch(teamMatchID)
         await Promise.all([
             db.ref(`matches/${newMatch.key}/teamMatchID`).set(teamMatchID),
             db.ref(`matches/${newMatch.key}/scheduling`).update({
@@ -240,6 +251,12 @@ export async function createTeamMatchNewMatch(
                 sourceType: 'team-match',
             }),
         ])
+        if (teamMatch) {
+            await syncMatchTournamentCompatibility(newMatch.key, {
+                ...buildTeamMatchTournamentCompatibilityPatch(teamMatch, { teamMatchID }),
+                teamMatchID,
+            })
+        }
         await syncMatchSchemaFromFlat(newMatch.key)
         await appendTeamMatchAuditEvent(teamMatchID, 'team_match_table_created', {
             tableNumber,
@@ -323,14 +340,12 @@ export async function addNewTeamMatch(teamMatch) {
 export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
     const currentTeamMatchSnapshot = await db.ref(`teamMatches/${teamMatchID}`).get()
     const currentTeamMatch = currentTeamMatchSnapshot.val() || {}
-    const nextTeamMatch = normalizeTeamMatchSchema({
+    const mergedTeamMatch = {
         ...currentTeamMatch,
         ...teamMatch,
         teamMatchID: currentTeamMatch.teamMatchID || teamMatch.teamMatchID || teamMatchID,
         teamAScore: currentTeamMatch.teamAScore || teamMatch.teamAScore || 0,
         teamBScore: currentTeamMatch.teamBScore || teamMatch.teamBScore || 0,
-        matchRound: currentTeamMatch.matchRound || teamMatch.matchRound || '',
-        eventName: currentTeamMatch.eventName || teamMatch.eventName || '',
         currentMatches: currentTeamMatch.currentMatches || teamMatch.currentMatches || { 1: "" },
         archivedMatches: currentTeamMatch.archivedMatches || teamMatch.archivedMatches || {},
         scheduledMatches: currentTeamMatch.scheduledMatches || teamMatch.scheduledMatches || {},
@@ -342,6 +357,13 @@ export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
             ...(currentTeamMatch.scheduling || {}),
             ...(teamMatch.scheduling || {}),
         },
+    }
+    const tournamentCompatibilityPatch = buildTeamMatchTournamentCompatibilityPatch(mergedTeamMatch, {
+        teamMatchID: mergedTeamMatch.teamMatchID || teamMatchID,
+    })
+    const nextTeamMatch = normalizeTeamMatchSchema({
+        ...mergedTeamMatch,
+        ...tournamentCompatibilityPatch,
     }) || teamMatch
     await db.ref(`teamMatches/${teamMatchID}`).set(nextTeamMatch)
     await appendTeamMatchAuditEvent(teamMatchID, 'team_match_updated', {
@@ -350,7 +372,10 @@ export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
         sportName: nextTeamMatch.sportName,
         scoringType: nextTeamMatch.scoringType,
     })
-    await syncTeamMatchSchema(teamMatchID, nextTeamMatch)
+    await syncTeamMatchTournamentCompatibility(teamMatchID, {
+        ...tournamentCompatibilityPatch,
+        teamMatchID: nextTeamMatch.teamMatchID || teamMatchID,
+    }, nextTeamMatch)
     await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches/" + myTeamMatchID).set({
         id: teamMatchID,
         teamAName: await getTeamName(nextTeamMatch.teamAID),
@@ -460,6 +485,7 @@ export async function archiveMatchForTeamMatch(teamMatchID, tableNumber, matchID
         match = await getMatchData(matchID)
     }
 
+    const compatibility = resolveTournamentCompatibilityFields(match)
     let matchScores = getMatchScore(match)
 
     let archivedMatch = {
@@ -469,11 +495,11 @@ export async function archiveMatchForTeamMatch(teamMatchID, tableNumber, matchID
         playerB: getCombinedPlayerNames(match["playerA"], match["playerB"], match["playerA2"], match["playerB2"]).b,
         AScore: matchScores.a,
         BScore: matchScores.b,
-        tournamentID: match["tournamentID"] || "",
-        eventID: match["eventID"] || "",
-        roundID: match["roundID"] || "",
-        eventName: match["eventName"] || "",
-        matchRound: match["matchRound"] || "",
+        tournamentID: compatibility.tournamentID || "",
+        eventID: compatibility.eventID || "",
+        roundID: compatibility.roundID || "",
+        eventName: compatibility.eventName || "",
+        matchRound: compatibility.matchRound || "",
         archivedOn: new Date().toISOString()
     }
 
