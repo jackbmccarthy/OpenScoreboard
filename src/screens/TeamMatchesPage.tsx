@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack } from '@/components/ui'
 import { PencilIcon, PlusIcon, TeamsIcon, TrashIcon } from '@/components/icons'
@@ -7,15 +7,16 @@ import OverlayDialog from '@/components/crud/OverlayDialog'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
+import LiveCollectionState from '@/components/realtime/LiveCollectionState'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import OperationToast from '@/components/realtime/OperationToast'
 import { addNewTeamMatch, deleteTeamMatch, getTeamMatch, subscribeToMyTeamMatches, updateTeamMatch } from '@/functions/teammatches'
-import { getMyTeams } from '@/functions/teams'
+import { subscribeToMyTeams } from '@/functions/teams'
 import { supportedSports } from '@/functions/sports'
 import { newTeamMatch } from '@/classes/TeamMatch'
-import { subscribeToPathState } from '@/lib/realtime'
-import type { LiveSyncStatus } from '@/lib/liveSync'
+import { combineLiveSyncStates } from '@/lib/liveSync'
+import { useRealtimeCollection } from '@/lib/useRealtimeCollection'
 import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
@@ -69,47 +70,38 @@ export default function TeamMatchesPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
 
-  const [teamMatches, setTeamMatches] = useState<TeamMatchEntry[]>([])
-  const [teams, setTeams] = useState<TeamEntry[]>([])
-  const [loading, setLoading] = useState(true)
   const [showMatchModal, setShowMatchModal] = useState(false)
   const [editingMatch, setEditingMatch] = useState<{ myTeamMatchID: string; teamMatchID: string } | null>(null)
   const [matchDraft, setMatchDraft] = useState<TeamMatchDraft>(emptyMatchDraft)
   const [pendingDeleteMatch, setPendingDeleteMatch] = useState<{ myTeamMatchID: string; name: string } | null>(null)
-  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
-  const [syncError, setSyncError] = useState('')
   const [selectedMatchDetail, setSelectedMatchDetail] = useState<TeamMatchRow | null>(null)
   const feedback = useOperationFeedback()
 
-  useEffect(() => {
-    if (authLoading) return
-
-    async function loadStaticData() {
-      try {
-        const myTeams = await getMyTeams(user?.uid || 'mylocalserver')
-        setTeams((myTeams || []) as TeamEntry[])
-      } catch (error) {
-        console.error('Error loading team matches:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadStaticData()
-
-    const unsubscribeMatchState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myTeamMatches`, (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    const unsubscribeMatches = subscribeToMyTeamMatches((matches) => {
-      setTeamMatches(matches as TeamMatchEntry[])
-    }, user?.uid || 'mylocalserver')
-
-    return () => {
-      unsubscribeMatchState()
-      unsubscribeMatches()
-    }
-  }, [authLoading, user])
+  const teamMatchesSubscription = useRealtimeCollection<TeamMatchEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myTeamMatches`,
+    subscribe: (callback) => subscribeToMyTeamMatches((matches) => {
+      callback(matches as TeamMatchEntry[])
+    }, user?.uid || 'mylocalserver'),
+  })
+  const teamsSubscription = useRealtimeCollection<TeamEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myTeams`,
+    subscribe: (callback) => subscribeToMyTeams((myTeams) => {
+      callback(myTeams as TeamEntry[])
+    }, user?.uid || 'mylocalserver'),
+  })
+  const teamMatches = teamMatchesSubscription.value
+  const teams = teamsSubscription.value
+  const pageSyncState = combineLiveSyncStates([
+    teamMatchesSubscription.liveState,
+    teamsSubscription.liveState,
+  ], 'loading')
+  const syncStatus = pageSyncState.status
+  const syncError = pageSyncState.error
+  const loading = teamMatchesSubscription.loading
 
   const scoringTypeOptions = useMemo(() => {
     const sport = supportedSports[matchDraft.sportName]
@@ -258,15 +250,16 @@ export default function TeamMatchesPage() {
             ))}
           </VStack>
         ) : (
-          <Box className="flex items-center justify-center py-12">
-            <VStack space="md" className="items-center">
-              <TeamsIcon size={48} className="text-slate-300" />
-              <Text className="text-xl text-gray-500">No team matches</Text>
-              <Button onClick={openNewMatchModal} className="w-full sm:w-auto">
-                <Text className="text-white">Create First Match</Text>
-              </Button>
-            </VStack>
-          </Box>
+          <VStack className="gap-4">
+            <LiveCollectionState
+              icon={<TeamsIcon size={48} className="text-slate-300" />}
+              title="No team matches yet"
+              description="Create a team match to start tracking multi-table scoring live."
+            />
+            <Button onClick={openNewMatchModal} className="w-full sm:w-auto self-center">
+              <Text className="text-white">Create First Match</Text>
+            </Button>
+          </VStack>
         )}
       </VStack>
       <OperationToast tone={feedback.tone} message={feedback.message} />

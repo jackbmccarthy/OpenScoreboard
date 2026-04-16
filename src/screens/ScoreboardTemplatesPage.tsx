@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Text, VStack, Badge } from '@/components/ui'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
+import LiveCollectionState from '@/components/realtime/LiveCollectionState'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import OperationToast from '@/components/realtime/OperationToast'
 import {
   addScoreboardTemplate,
@@ -18,8 +20,8 @@ import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
-import { subscribeToPathState } from '@/lib/realtime'
-import type { LiveSyncStatus } from '@/lib/liveSync'
+import { ScoreboardIcon } from '@/components/icons'
+import { useRealtimeCollection } from '@/lib/useRealtimeCollection'
 import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
@@ -43,10 +45,6 @@ type ScoreboardTemplateRecord = {
 export default function ScoreboardTemplatesPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [templates, setTemplates] = useState<ScoreboardTemplateRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
-  const [syncError, setSyncError] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState<ScoreboardTemplateRecord | null>(null)
   const [editingTemplate, setEditingTemplate] = useState<ScoreboardTemplateRecord | null>(null)
   const [pendingDeleteTemplate, setPendingDeleteTemplate] = useState<ScoreboardTemplateRecord | null>(null)
@@ -63,13 +61,11 @@ export default function ScoreboardTemplatesPage() {
     pendingDeleteTemplate ? () => deleteScoreboardTemplate(pendingDeleteTemplate.id, { dryRun: true }) : null,
   )
 
-  useEffect(() => {
-    const unsubscribeState = subscribeToPathState('scoreboardTemplates', (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    const unsubscribeTemplates = subscribeToScoreboardTemplates((loadedTemplates) => {
-      setTemplates(
+  const templatesSubscription = useRealtimeCollection<ScoreboardTemplateRecord[]>({
+    initialValue: [],
+    statePath: 'scoreboardTemplates',
+    subscribe: (callback) => subscribeToScoreboardTemplates((loadedTemplates) => {
+      callback(
         loadedTemplates.map((template) => ({
           id: String(template.id || ''),
           name: String(template.name || 'Untitled Template'),
@@ -83,14 +79,12 @@ export default function ScoreboardTemplatesPage() {
           isActive: template.isActive !== false,
         })),
       )
-      setLoading(false)
-    })
-
-    return () => {
-      unsubscribeState()
-      unsubscribeTemplates()
-    }
-  }, [])
+    }),
+  })
+  const templates = templatesSubscription.value
+  const syncStatus = templatesSubscription.liveState.status
+  const syncError = templatesSubscription.liveState.error
+  const loading = templatesSubscription.loading
 
   const classifyTemplate = (template: ScoreboardTemplateRecord) => {
     if (template.isBuiltIn) return 'Built-in'
@@ -147,6 +141,7 @@ export default function ScoreboardTemplatesPage() {
           <VStack className="gap-1">
             <Heading size="lg">Scoreboard Templates</Heading>
             <Text className="text-sm text-slate-500">Browse reusable scoreboard layouts, preview them, and start a new scoreboard from a template.</Text>
+            <LiveStatusBadge status={syncStatus} />
           </VStack>
           <HStack className="gap-2">
             <Button variant="outline" onClick={() => navigate('/scoreboards')}>
@@ -172,7 +167,13 @@ export default function ScoreboardTemplatesPage() {
         <LiveStatusAlert status={syncStatus} error={syncError} />
 
         {loading ? (
-          <Text>Loading templates...</Text>
+          <LiveCollectionState loading loadingLabel="Loading live templates…" />
+        ) : templates.length === 0 ? (
+          <LiveCollectionState
+            icon={<ScoreboardIcon size={48} className="mx-auto" />}
+            title="No templates yet"
+            description="Create a personal template to seed reusable scoreboard layouts."
+          />
         ) : (
           <Box className="grid gap-4 lg:grid-cols-2">
             {templates.map((template) => (

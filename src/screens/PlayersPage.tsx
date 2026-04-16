@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState } from 'react'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Text, VStack } from '@/components/ui'
 import { ChevronRightIcon, PencilIcon, PlayersIcon, PlusIcon, TrashIcon } from '@/components/icons'
 import { useNavigate } from 'react-router-dom'
@@ -7,7 +7,9 @@ import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
+import LiveCollectionState from '@/components/realtime/LiveCollectionState'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import OperationToast from '@/components/realtime/OperationToast'
 import {
   addImportedPlayer,
@@ -21,9 +23,8 @@ import {
   subscribeToPlayerListPlayers,
   updatePlayerListName,
 } from '@/functions/players'
-import SyncIndicator from '@/components/realtime/SyncIndicator'
-import { subscribeToPathState } from '@/lib/realtime'
-import type { LiveSyncStatus } from '@/lib/liveSync'
+import { combineLiveSyncStates } from '@/lib/liveSync'
+import { useRealtimeCollection } from '@/lib/useRealtimeCollection'
 import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import { newImportedPlayer } from '@/classes/Player'
 import countries from '@/flags/countries.json'
@@ -61,12 +62,7 @@ export default function PlayersPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
 
-  const [playerLists, setPlayerLists] = useState<PlayerListEntry[]>([])
   const [selectedList, setSelectedList] = useState<{ myPlayerListID: string; id: string; name: string } | null>(null)
-  const [players, setPlayers] = useState<PlayerEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
-  const [syncError, setSyncError] = useState('')
   const feedback = useOperationFeedback()
 
   const [showNewListModal, setShowNewListModal] = useState(false)
@@ -81,32 +77,31 @@ export default function PlayersPage() {
   const [renamedListName, setRenamedListName] = useState('')
   const [playerDraft, setPlayerDraft] = useState<Player>(emptyPlayer)
 
-  useEffect(() => {
-    if (authLoading) return
-    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myPlayerLists`, (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    const unsubscribePlayerLists = subscribeToMyPlayerLists((lists) => {
-      setPlayerLists((lists || []) as PlayerListEntry[])
-      setLoading(false)
-    }, user?.uid || 'mylocalserver')
-    return () => {
-      unsubscribeState()
-      unsubscribePlayerLists()
-    }
-  }, [authLoading, user])
-
-  useEffect(() => {
-    if (!selectedList?.id) {
-      setPlayers([])
-      return
-    }
-
-    return subscribeToPlayerListPlayers(selectedList.id, (playerData) => {
-      setPlayers(playerData.length > 0 ? sortPlayers(playerData as PlayerEntry[]) as PlayerEntry[] : [])
-    })
-  }, [selectedList?.id])
+  const playerListsSubscription = useRealtimeCollection<PlayerListEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myPlayerLists`,
+    subscribe: (callback) => subscribeToMyPlayerLists((lists) => {
+      callback((lists || []) as PlayerListEntry[])
+    }, user?.uid || 'mylocalserver'),
+  })
+  const playersSubscription = useRealtimeCollection<PlayerEntry[]>({
+    enabled: Boolean(selectedList?.id),
+    initialValue: [],
+    statePath: `playerLists/${selectedList?.id || 'unselected'}/players`,
+    subscribe: (callback) => subscribeToPlayerListPlayers(selectedList?.id || '', (playerData) => {
+      callback(playerData.length > 0 ? sortPlayers(playerData as PlayerEntry[]) as PlayerEntry[] : [])
+    }),
+  })
+  const playerLists = playerListsSubscription.value
+  const players = playersSubscription.value
+  const pageSyncState = combineLiveSyncStates([
+    playerListsSubscription.liveState,
+    playersSubscription.liveState,
+  ], 'loading')
+  const syncStatus = pageSyncState.status
+  const syncError = pageSyncState.error
+  const loading = playerListsSubscription.loading
 
   const handleSelectList = async (myPlayerListID: string, listId: string, listName: string) => {
     setSelectedList({ myPlayerListID, id: listId, name: listName })
@@ -160,7 +155,6 @@ export default function PlayersPage() {
     await deletePlayerList(pendingDeleteList.myPlayerListID)
     if (selectedList?.myPlayerListID === pendingDeleteList.myPlayerListID) {
       setSelectedList(null)
-      setPlayers([])
       setShowPlayersModal(false)
     }
     feedback.showSuccess('Player list archived.')
@@ -207,9 +201,9 @@ export default function PlayersPage() {
           <VStack className="gap-1">
             <HStack className="items-center gap-2">
               <Heading size="lg">Players</Heading>
-              <SyncIndicator status={syncStatus} />
             </HStack>
             <Text className="text-gray-500 text-sm">Manage player lists and players</Text>
+            <LiveStatusBadge status={syncStatus} />
           </VStack>
           <Button size="sm" variant="solid" action="primary" onClick={() => setShowNewListModal(true)} className="w-full sm:w-auto">
             <PlusIcon size={16} />
@@ -221,11 +215,11 @@ export default function PlayersPage() {
 
         <VStack space="sm">
           {playerLists.length === 0 ? (
-            <Box className="p-8 text-center">
-              <PlayersIcon size={48} className="mx-auto text-gray-300 mb-4" />
-              <Text className="text-gray-500">No player lists yet</Text>
-              <Text className="text-gray-400 text-sm">Create a list to start adding players</Text>
-            </Box>
+            <LiveCollectionState
+              icon={<PlayersIcon size={48} className="mx-auto" />}
+              title="No player lists yet"
+              description="Create a list to start adding players and sharing live registration."
+            />
           ) : (
             playerLists.map(([myPlayerListID, list]) => (
               <Card key={myPlayerListID} variant="elevated" className="mb-2">
@@ -315,7 +309,6 @@ export default function PlayersPage() {
         onClose={() => {
           setShowPlayersModal(false)
           setSelectedList(null)
-          setPlayers([])
         }}
         title={selectedList?.name || 'Player List'}
         size="lg"

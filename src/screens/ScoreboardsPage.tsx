@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Text, VStack } from '@/components/ui'
 import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/icons'
@@ -7,14 +7,15 @@ import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
+import LiveCollectionState from '@/components/realtime/LiveCollectionState'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import OperationToast from '@/components/realtime/OperationToast'
 import { addNewScoreboard, deleteMyScoreboard, duplicateScoreboard, getScoreboardTypesList, subscribeToMyScoreboards, updateScoreboardDetails } from '@/functions/scoreboards'
 import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
 import { createScoreboardFromTemplate, subscribeToScoreboardTemplates } from '@/functions/scoreboardTemplates'
-import SyncIndicator from '@/components/realtime/SyncIndicator'
-import { subscribeToPathState } from '@/lib/realtime'
-import type { LiveSyncStatus } from '@/lib/liveSync'
+import { combineLiveSyncStates } from '@/lib/liveSync'
+import { useRealtimeCollection } from '@/lib/useRealtimeCollection'
 import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
@@ -64,12 +65,6 @@ export default function ScoreboardsPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
 
-  const [scoreboards, setScoreboards] = useState<ScoreboardEntry[]>([])
-  const [scoreboardTypes, setScoreboardTypes] = useState<ScoreboardTypeOption[]>([])
-  const [templates, setTemplates] = useState<ScoreboardTemplateRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
-  const [syncError, setSyncError] = useState('')
   const [showScoreboardModal, setShowScoreboardModal] = useState(false)
   const [showCreateOptionsModal, setShowCreateOptionsModal] = useState(false)
   const [editingScoreboard, setEditingScoreboard] = useState<{ myScoreboardID: string; scoreboardID: string } | null>(null)
@@ -80,21 +75,20 @@ export default function ScoreboardsPage() {
   const [selectedTemplateID, setSelectedTemplateID] = useState('')
   const [selectedDuplicateID, setSelectedDuplicateID] = useState('')
   const feedback = useOperationFeedback()
-
-  useEffect(() => {
-    if (authLoading) return
-
-    setScoreboardTypes(getScoreboardTypesList() as ScoreboardTypeOption[])
-    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myScoreboards`, (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    const unsubscribeScoreboards = subscribeToMyScoreboards((myScoreboards) => {
-      setScoreboards(myScoreboards as ScoreboardEntry[])
-      setLoading(false)
-    }, user?.uid || 'mylocalserver')
-    const unsubscribeTemplates = subscribeToScoreboardTemplates((loadedTemplates) => {
-      setTemplates(
+  const scoreboardsSubscription = useRealtimeCollection<ScoreboardEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myScoreboards`,
+    subscribe: (callback) => subscribeToMyScoreboards((myScoreboards) => {
+      callback(myScoreboards as ScoreboardEntry[])
+    }, user?.uid || 'mylocalserver'),
+  })
+  const templatesSubscription = useRealtimeCollection<ScoreboardTemplateRecord[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: 'scoreboardTemplates',
+    subscribe: (callback) => subscribeToScoreboardTemplates((loadedTemplates) => {
+      callback(
         loadedTemplates.map((template) => ({
           id: String(template.id || ''),
           name: String(template.name || 'Untitled Template'),
@@ -105,14 +99,18 @@ export default function ScoreboardsPage() {
           config: template.config || {},
         })),
       )
-    })
-
-    return () => {
-      unsubscribeState()
-      unsubscribeScoreboards()
-      unsubscribeTemplates()
-    }
-  }, [authLoading, user])
+    }),
+  })
+  const scoreboards = scoreboardsSubscription.value
+  const templates = templatesSubscription.value
+  const scoreboardTypes = getScoreboardTypesList() as ScoreboardTypeOption[]
+  const pageSyncState = combineLiveSyncStates([
+    scoreboardsSubscription.liveState,
+    templatesSubscription.liveState,
+  ], 'loading')
+  const syncStatus = pageSyncState.status
+  const syncError = pageSyncState.error
+  const loading = scoreboardsSubscription.loading
 
   const openNewScoreboardModal = () => {
     setEditingScoreboard(null)
@@ -205,9 +203,9 @@ export default function ScoreboardsPage() {
           <VStack className="gap-1">
             <HStack className="items-center gap-2">
               <Heading size="lg">My Scoreboards</Heading>
-              <SyncIndicator status={syncStatus} />
             </HStack>
             <Text className="text-sm text-slate-500">Manage your scoreboards, previews, templates, and editor entrypoints from one page.</Text>
+            <LiveStatusBadge status={syncStatus} />
           </VStack>
           <Button size="sm" variant="solid" action="primary" onClick={openNewScoreboardModal} className="w-full sm:w-auto">
             <PlusIcon size={16} />
@@ -219,11 +217,11 @@ export default function ScoreboardsPage() {
 
         <VStack className="gap-3">
           {scoreboards.length === 0 ? (
-            <Box className="p-8 text-center">
-              <ScoreboardIcon size={48} className="mx-auto text-gray-300 mb-4" />
-              <Text className="text-gray-500">No scoreboards yet</Text>
-              <Text className="text-gray-400 text-sm">Create your first scoreboard</Text>
-            </Box>
+            <LiveCollectionState
+              icon={<ScoreboardIcon size={48} className="mx-auto" />}
+              title="No scoreboards yet"
+              description="Create your first scoreboard to start pairing displays with live match data."
+            />
           ) : (
             scoreboards.map(([myScoreboardID, scoreboard]) => (
               <Card key={myScoreboardID} variant="elevated">

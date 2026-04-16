@@ -24,6 +24,16 @@ type MatchPointEvent = {
 type RefFactory = typeof db.ref
 
 function getGameStatus(match: MatchLike, gameNumber: number) {
+  const existingGames = match.games && typeof match.games === 'object' ? match.games : {}
+  const existingGame = existingGames[gameNumber] && typeof existingGames[gameNumber] === 'object'
+    ? existingGames[gameNumber]
+    : existingGames[String(gameNumber)] && typeof existingGames[String(gameNumber)] === 'object'
+      ? existingGames[String(gameNumber)]
+      : null
+
+  if (existingGame?.deleted) {
+    return 'deleted'
+  }
   if (match[`isGame${gameNumber}Finished`]) {
     return 'completed'
   }
@@ -65,6 +75,8 @@ function buildMatchGameEntry(match: MatchLike, gameNumber: number) {
     scoreB: Number(match[`game${gameNumber}BScore`] || 0),
     startedAt: match[`game${gameNumber}StartTime`] || '',
     endedAt: match[`game${gameNumber}EndTime`] || '',
+    deleted: Boolean(existingGame.deleted),
+    deletedAt: existingGame.deletedAt || '',
     rules: {
       ...existingRules,
       sportName: match.sportName || '',

@@ -159,8 +159,8 @@ export default function ScoreboardViewPage() {
           setLoading(false)
           return
         }
-        setSyncStatus(runtimeState.table.status)
-        setSyncError(runtimeState.table.error || runtimeState.accessToken.error)
+        setSyncStatus(runtimeState.connection.status)
+        setSyncError(runtimeState.connection.error)
         setTableLabel(typeof runtimeState.table.value?.tableName === 'string' ? runtimeState.table.value.tableName : '')
         const nextScheduledMatch = runtimeState.queue.value?.find(([, scheduledMatch]) => !['active', 'completed', 'archived', 'cancelled'].includes(scheduledMatch.status || 'scheduled'))?.[1]
         setNextScheduledLabel(nextScheduledMatch ? `${nextScheduledMatch.playerA || 'TBD'} vs ${nextScheduledMatch.playerB || 'TBD'}` : '')
@@ -181,8 +181,8 @@ export default function ScoreboardViewPage() {
         setLoading(false)
         return
       }
-      setSyncStatus(runtimeState.teamMatch.status)
-      setSyncError(runtimeState.teamMatch.error || runtimeState.accessToken.error)
+      setSyncStatus(runtimeState.connection.status)
+      setSyncError(runtimeState.connection.error)
       const tableNumberLabel = resolvedContext.tableNumber ? `Table ${resolvedContext.tableNumber}` : ''
       const teamSummary = [runtimeState.teamMatch.value?.sportDisplayName || runtimeState.teamMatch.value?.sportName || 'Team Match', tableNumberLabel].filter(Boolean).join(' • ')
       setTeamMatchLabel(teamSummary)

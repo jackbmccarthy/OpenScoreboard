@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Box, Button, HStack, Input, Spinner, Text, VStack } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import OperationToast from '@/components/realtime/OperationToast'
 import { addNewTeam, deleteMyTeam, getMyTeams, subscribeToMyTeams, updateMyTeam, updateTeam } from '@/functions/teams'
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import { UserIcon } from '@/components/icons'
-import { subscribeToPathState } from '@/lib/realtime'
-import type { LiveSyncStatus } from '@/lib/liveSync'
+import { combineLiveSyncStates } from '@/lib/liveSync'
+import { useRealtimeCollection } from '@/lib/useRealtimeCollection'
 import { useOperationFeedback } from '@/lib/useOperationFeedback'
 
 type TeamPlayers = Record<string, unknown>
@@ -106,24 +107,31 @@ function ImagePreview({
 export default function BulkTeamsPage() {
   const { user, loading: authLoading } = useAuth()
   const [rows, setRows] = useState<BulkTeamRow[]>([])
-  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
-  const [syncError, setSyncError] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<{ id: string; label: string } | null>(null)
   const [pendingBulkArchive, setPendingBulkArchive] = useState<PendingBulkArchive | null>(null)
   const [viewMode, setViewMode] = useState<'form' | 'spreadsheet'>('form')
   const [spreadsheetValue, setSpreadsheetValue] = useState('')
   const feedback = useOperationFeedback()
 
+  const teamsSubscription = useRealtimeCollection<TeamEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myTeams`,
+    subscribe: (callback) => subscribeToMyTeams((myTeams) => {
+      callback(myTeams as TeamEntry[])
+    }),
+  })
+  const pageSyncState = combineLiveSyncStates([teamsSubscription.liveState], 'loading')
+  const syncStatus = pageSyncState.status
+  const syncError = pageSyncState.error
+
   useEffect(() => {
-    if (authLoading) return
-    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myTeams`, (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    const unsubscribeTeams = subscribeToMyTeams((myTeams) => {
+    const myTeams = teamsSubscription.value
+    if (!myTeams) {
+      return
+    }
       setRows((myTeams as TeamEntry[]).map(([myTeamID, preview]) => ({
         id: preview.id,
         myTeamID,
@@ -134,13 +142,7 @@ export default function BulkTeamsPage() {
         tags: ((preview as Record<string, unknown>).tags || []) as string[],
         isNew: false,
       })))
-      setLoading(false)
-    })
-    return () => {
-      unsubscribeState()
-      unsubscribeTeams()
-    }
-  }, [authLoading, user])
+  }, [teamsSubscription.value])
 
   useEffect(() => {
     setSpreadsheetValue(
@@ -228,7 +230,7 @@ export default function BulkTeamsPage() {
     }
   }
 
-  if (authLoading || loading) {
+  if (authLoading || teamsSubscription.loading) {
     return (
       <Box className="flex items-center justify-center p-8">
         <Spinner size="lg" />
@@ -239,10 +241,13 @@ export default function BulkTeamsPage() {
   return (
     <Box className="p-4">
       <VStack space="md">
-        <Text className="text-2xl font-bold">Bulk Manage Teams</Text>
-        <Text className="text-sm text-gray-600">
-          Add, rename, and remove teams in one pass. Removing a row hides that team from your visible team list.
-        </Text>
+        <VStack className="gap-1">
+          <Text className="text-2xl font-bold">Bulk Manage Teams</Text>
+          <Text className="text-sm text-gray-600">
+            Add, rename, and remove teams in one pass. Removing a row hides that team from your visible team list.
+          </Text>
+          <LiveStatusBadge status={syncStatus} />
+        </VStack>
         <LiveStatusAlert status={syncStatus} error={syncError} />
 
         <HStack className="gap-2">

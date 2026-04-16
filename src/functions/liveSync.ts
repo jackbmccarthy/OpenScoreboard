@@ -1,5 +1,6 @@
 import type { Match, ScheduledMatch, Table, TeamMatch } from '@/types/matches'
 import {
+  combineLiveSyncStates,
   createInitialLiveSyncState,
   createLiveSyncState,
   createSubscriptionRegistry,
@@ -15,8 +16,22 @@ import { subscribeToTeamMatch, subscribeToTeamMatchCurrentMatch } from './teamma
 
 type MatchHistoryEntry = ReturnType<typeof getRecentPointHistory>
 
-export type TableRuntimeState = {
+export type RuntimeConnectionState = LiveSyncState<null>
+
+export type RuntimeSyncChannels = {
   table: LiveSyncState<Table | null>
+  teamMatch: LiveSyncState<TeamMatch | null>
+  currentMatch: LiveSyncState<Match | null>
+  queue: LiveSyncState<Array<[string, ScheduledMatch]>>
+  history: LiveSyncState<MatchHistoryEntry>
+  accessToken: LiveSyncState<CapabilityRecord | null>
+}
+
+export type TableRuntimeState = {
+  connection: RuntimeConnectionState
+  channels: RuntimeSyncChannels
+  table: LiveSyncState<Table | null>
+  teamMatch: LiveSyncState<TeamMatch | null>
   currentMatch: LiveSyncState<Match | null>
   queue: LiveSyncState<Array<[string, ScheduledMatch]>>
   history: LiveSyncState<MatchHistoryEntry>
@@ -25,6 +40,9 @@ export type TableRuntimeState = {
 }
 
 export type TeamMatchRuntimeState = {
+  connection: RuntimeConnectionState
+  channels: RuntimeSyncChannels
+  table: LiveSyncState<Table | null>
   teamMatch: LiveSyncState<TeamMatch | null>
   currentMatch: LiveSyncState<Match | null>
   queue: LiveSyncState<Array<[string, ScheduledMatch]>>
@@ -53,8 +71,27 @@ function createIdleMatchState() {
   return createInitialLiveSyncState<Match | null>('idle', null)
 }
 
+function createIdleTableState() {
+  return createInitialLiveSyncState<Table | null>('idle', null)
+}
+
+function createIdleTeamMatchState() {
+  return createInitialLiveSyncState<TeamMatch | null>('idle', null)
+}
+
 function createIdleHistoryState() {
   return createInitialLiveSyncState<MatchHistoryEntry>('idle', [])
+}
+
+function buildRuntimeConnectionState(channels: RuntimeSyncChannels) {
+  return combineLiveSyncStates([
+    channels.table,
+    channels.teamMatch,
+    channels.currentMatch,
+    channels.queue,
+    channels.history,
+    channels.accessToken,
+  ], 'idle')
 }
 
 export function watchCapabilityState(
@@ -172,7 +209,17 @@ export function subscribeToTableRuntime(
   const subscriptions = createSubscriptionRegistry()
   let currentMatchID = ''
   let currentState: TableRuntimeState = {
+    connection: createInitialLiveSyncState<null>('loading', null),
+    channels: {
+      table: createInitialLiveSyncState<Table | null>('loading', null),
+      teamMatch: createIdleTeamMatchState(),
+      currentMatch: createIdleMatchState(),
+      queue: createInitialLiveSyncState<Array<[string, ScheduledMatch]>>('loading', []),
+      history: createIdleHistoryState(),
+      accessToken: createInitialLiveSyncState<CapabilityRecord | null>(token ? 'loading' : 'idle', null),
+    },
     table: createInitialLiveSyncState<Table | null>('loading', null),
+    teamMatch: createIdleTeamMatchState(),
     currentMatch: createIdleMatchState(),
     queue: createInitialLiveSyncState<Array<[string, ScheduledMatch]>>('loading', []),
     history: createIdleHistoryState(),
@@ -181,8 +228,18 @@ export function subscribeToTableRuntime(
   }
 
   const emit = () => {
+    const channels: RuntimeSyncChannels = {
+      table: currentState.table,
+      teamMatch: currentState.teamMatch,
+      currentMatch: currentState.currentMatch,
+      queue: currentState.queue,
+      history: currentState.history,
+      accessToken: currentState.accessToken,
+    }
     callback({
       ...currentState,
+      connection: buildRuntimeConnectionState(channels),
+      channels,
       currentMatchID,
     })
   }
@@ -315,6 +372,16 @@ export function subscribeToTeamMatchRuntime(
   const subscriptions = createSubscriptionRegistry()
   let currentMatchID = ''
   let currentState: TeamMatchRuntimeState = {
+    connection: createInitialLiveSyncState<null>('loading', null),
+    channels: {
+      table: createIdleTableState(),
+      teamMatch: createInitialLiveSyncState<TeamMatch | null>('loading', null),
+      currentMatch: createIdleMatchState(),
+      queue: createInitialLiveSyncState<Array<[string, ScheduledMatch]>>('loading', []),
+      history: createIdleHistoryState(),
+      accessToken: createInitialLiveSyncState<CapabilityRecord | null>(token ? 'loading' : 'idle', null),
+    },
+    table: createIdleTableState(),
     teamMatch: createInitialLiveSyncState<TeamMatch | null>('loading', null),
     currentMatch: createIdleMatchState(),
     queue: createInitialLiveSyncState<Array<[string, ScheduledMatch]>>('loading', []),
@@ -324,8 +391,18 @@ export function subscribeToTeamMatchRuntime(
   }
 
   const emit = () => {
+    const channels: RuntimeSyncChannels = {
+      table: currentState.table,
+      teamMatch: currentState.teamMatch,
+      currentMatch: currentState.currentMatch,
+      queue: currentState.queue,
+      history: currentState.history,
+      accessToken: currentState.accessToken,
+    }
     callback({
       ...currentState,
+      connection: buildRuntimeConnectionState(channels),
+      channels,
       currentMatchID,
     })
   }

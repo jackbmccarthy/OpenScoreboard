@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Box, Button, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack, Card, CardBody } from '@/components/ui'
 import { CheckIcon, CopyIcon, ExternalLinkIcon, LinkIcon, PencilIcon, PlusIcon, ScoreboardIcon, TablesIcon, TrashIcon } from '@/components/icons'
 import { useNavigate } from 'react-router-dom'
@@ -7,17 +7,18 @@ import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
+import LiveCollectionState from '@/components/realtime/LiveCollectionState'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import OperationToast from '@/components/realtime/OperationToast'
 import { createNewTable, deleteTable, subscribeToMyTables, updateTable } from '@/functions/tables'
-import { getMyPlayerLists } from '@/functions/players'
+import { subscribeToMyPlayerLists } from '@/functions/players'
 import { supportedSports } from '@/functions/sports'
 import { subscribeToMyScoreboards } from '@/functions/scoreboards'
 import { addDynamicURL, subscribeToMyDynamicURLs } from '@/functions/dynamicurls'
 import { promoteNextScheduledMatch } from '@/functions/scoring'
-import { subscribeToPathState } from '@/lib/realtime'
-import type { LiveSyncStatus } from '@/lib/liveSync'
+import { combineLiveSyncStates } from '@/lib/liveSync'
+import { useRealtimeCollection } from '@/lib/useRealtimeCollection'
 import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
@@ -99,11 +100,6 @@ export default function TablesPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
 
-  const [tables, setTables] = useState<TableRow[]>([])
-  const [playerLists, setPlayerLists] = useState<PlayerListEntry[]>([])
-  const [scoreboards, setScoreboards] = useState<ScoreboardEntry[]>([])
-  const [dynamicURLs, setDynamicURLs] = useState<DynamicURLEntry[]>([])
-  const [loading, setLoading] = useState(true)
   const [showTableModal, setShowTableModal] = useState(false)
   const [showTableLinksModal, setShowTableLinksModal] = useState(false)
   const [showDynamicURLSaveModal, setShowDynamicURLSaveModal] = useState(false)
@@ -114,49 +110,55 @@ export default function TablesPage() {
   const [dynamicURLName, setDynamicURLName] = useState('')
   const [pendingDeleteTable, setPendingDeleteTable] = useState<TableRow | null>(null)
   const [copiedHref, setCopiedHref] = useState('')
-  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
-  const [syncError, setSyncError] = useState('')
   const [promotingTableID, setPromotingTableID] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all')
   const feedback = useOperationFeedback()
 
-  useEffect(() => {
-    if (authLoading) return
-
-    async function fetchStaticData() {
-      try {
-        const myPlayerLists = await getMyPlayerLists()
-        setPlayerLists((myPlayerLists || []) as PlayerListEntry[])
-      } catch (error) {
-        console.error('Error fetching tables:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchStaticData()
-
-    const unsubscribeTableState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myTables`, (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    const unsubscribeTables = subscribeToMyTables((nextTables) => {
-      setTables(nextTables.map(([myTableID, data]) => ({ myTableID, ...(data as Omit<TableRow, 'myTableID'>) })))
-    })
-    const unsubscribeScoreboards = subscribeToMyScoreboards((nextScoreboards) => {
-      setScoreboards(nextScoreboards as ScoreboardEntry[])
-    }, user?.uid || 'mylocalserver')
-    const unsubscribeDynamicURLs = subscribeToMyDynamicURLs((nextDynamicURLs) => {
-      setDynamicURLs(nextDynamicURLs as DynamicURLEntry[])
-    })
-
-    return () => {
-      unsubscribeTableState()
-      unsubscribeTables()
-      unsubscribeScoreboards()
-      unsubscribeDynamicURLs()
-    }
-  }, [authLoading, user])
+  const tablesSubscription = useRealtimeCollection<TableRow[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myTables`,
+    subscribe: (callback) => subscribeToMyTables((nextTables) => {
+      callback(nextTables.map(([myTableID, data]) => ({ myTableID, ...(data as Omit<TableRow, 'myTableID'>) })))
+    }),
+  })
+  const playerListsSubscription = useRealtimeCollection<PlayerListEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myPlayerLists`,
+    subscribe: (callback) => subscribeToMyPlayerLists((lists) => {
+      callback((lists || []) as PlayerListEntry[])
+    }, user?.uid || 'mylocalserver'),
+  })
+  const scoreboardsSubscription = useRealtimeCollection<ScoreboardEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myScoreboards`,
+    subscribe: (callback) => subscribeToMyScoreboards((nextScoreboards) => {
+      callback(nextScoreboards as ScoreboardEntry[])
+    }, user?.uid || 'mylocalserver'),
+  })
+  const dynamicURLsSubscription = useRealtimeCollection<DynamicURLEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myDynamicURLs`,
+    subscribe: (callback) => subscribeToMyDynamicURLs((nextDynamicURLs) => {
+      callback(nextDynamicURLs as DynamicURLEntry[])
+    }),
+  })
+  const tables = tablesSubscription.value
+  const playerLists = playerListsSubscription.value
+  const scoreboards = scoreboardsSubscription.value
+  const dynamicURLs = dynamicURLsSubscription.value
+  const pageSyncState = combineLiveSyncStates([
+    tablesSubscription.liveState,
+    playerListsSubscription.liveState,
+    scoreboardsSubscription.liveState,
+    dynamicURLsSubscription.liveState,
+  ], 'loading')
+  const syncStatus = pageSyncState.status
+  const syncError = pageSyncState.error
+  const loading = tablesSubscription.loading
 
   const scoringTypeOptions = useMemo(() => {
     const sport = supportedSports[tableDraft.sportName]
@@ -347,11 +349,11 @@ export default function TablesPage() {
 
         <VStack className="gap-3">
           {visibleTables.length === 0 ? (
-            <Box className="p-8 text-center">
-              <TablesIcon size={48} className="mx-auto text-gray-300 mb-4" />
-              <Text className="text-gray-500 mb-2">{tables.length === 0 ? 'No tables yet' : 'No tables match this status'}</Text>
-              <Text className="text-gray-400 text-sm">{tables.length === 0 ? 'Create your first table to get started' : 'Try a different filter to see more tables'}</Text>
-            </Box>
+            <LiveCollectionState
+              icon={<TablesIcon size={48} className="mx-auto" />}
+              title={tables.length === 0 ? 'No tables yet' : 'No tables match this status'}
+              description={tables.length === 0 ? 'Create your first table to get started.' : 'Try a different filter to see more tables.'}
+            />
           ) : (
             visibleTables.map((table) => (
               <Card key={table.myTableID} variant="elevated">

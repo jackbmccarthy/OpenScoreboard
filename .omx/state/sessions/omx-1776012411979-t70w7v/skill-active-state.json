@@ -1,25 +1,25 @@
 {
   "version": 1,
-  "active": true,
+  "active": false,
   "skill": "build-fix",
   "keyword": "type errors",
   "phase": "planning",
-  "activated_at": "2026-04-16T19:17:35.994Z",
-  "updated_at": "2026-04-16T19:53:15.577Z",
+  "activated_at": "2026-04-12T16:59:08.709Z",
+  "updated_at": "2026-04-12T16:59:08.709Z",
   "source": "keyword-detector",
-  "session_id": "",
-  "thread_id": "019d97cf-0e23-74e0-82f7-af068c11e8b3",
-  "turn_id": "019d97cf-0e33-7641-ac4a-ba42253d58b9",
+  "session_id": "omx-1776012411979-t70w7v",
+  "thread_id": "019d8296-cc80-71c0-b1f5-cb951877ffc0",
+  "turn_id": "019d8296-cc92-70a1-bedb-531ff89f48a9",
   "active_skills": [
     {
       "skill": "build-fix",
       "phase": "planning",
       "active": true,
-      "activated_at": "2026-04-16T19:17:35.994Z",
-      "updated_at": "2026-04-16T19:53:15.577Z",
-      "session_id": "",
-      "thread_id": "019d97cf-0e23-74e0-82f7-af068c11e8b3",
-      "turn_id": "019d97cf-0e33-7641-ac4a-ba42253d58b9"
+      "activated_at": "2026-04-12T16:59:08.709Z",
+      "updated_at": "2026-04-12T16:59:08.709Z",
+      "session_id": "omx-1776012411979-t70w7v",
+      "thread_id": "019d8296-cc80-71c0-b1f5-cb951877ffc0",
+      "turn_id": "019d8296-cc92-70a1-bedb-531ff89f48a9"
     }
   ],
   "input_lock": {
@@ -37,9 +37,8 @@
       "next i should"
     ],
     "message": "Deep interview is active; auto-approval shortcuts are blocked until the interview finishes.",
-    "released_at": "2026-04-16T19:53:15.577Z",
+    "released_at": "2026-04-12T16:59:08.709Z",
     "exit_reason": "handoff"
   },
-  "iteration": 2,
-  "last_turn_at": "2026-04-16T20:16:06.041Z"
+  "completed_at": "2026-04-12T16:59:08.920Z"
 }

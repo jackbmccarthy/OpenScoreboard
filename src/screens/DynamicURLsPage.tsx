@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack } from '@/components/ui'
 import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/icons'
@@ -6,16 +6,17 @@ import OverlayDialog from '@/components/crud/OverlayDialog'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
+import LiveCollectionState from '@/components/realtime/LiveCollectionState'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import OperationToast from '@/components/realtime/OperationToast'
 import { addDynamicURL, deleteDynamicURL, subscribeToMyDynamicURLs, updateDynamicURL } from '@/functions/dynamicurls'
 import { subscribeToMyScoreboards } from '@/functions/scoreboards'
 import { subscribeToMyTables } from '@/functions/tables'
 import { subscribeToMyTeamMatches } from '@/functions/teammatches'
 import { useAuth } from '@/lib/auth'
-import SyncIndicator from '@/components/realtime/SyncIndicator'
-import { subscribeToPathState } from '@/lib/realtime'
-import type { LiveSyncStatus } from '@/lib/liveSync'
+import { combineLiveSyncStates } from '@/lib/liveSync'
+import { useRealtimeCollection } from '@/lib/useRealtimeCollection'
 import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
@@ -73,42 +74,57 @@ const emptyDynamicURLDraft = {
 export default function DynamicURLsPage() {
   const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
-  const [dynamicURLs, setDynamicURLs] = useState<DynamicURLEntry[]>([])
-  const [scoreboards, setScoreboards] = useState<ScoreboardEntry[]>([])
-  const [tables, setTables] = useState<TableEntry[]>([])
-  const [teamMatches, setTeamMatches] = useState<TeamMatchEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
-  const [syncError, setSyncError] = useState('')
   const [showDynamicURLModal, setShowDynamicURLModal] = useState(false)
   const [editingDynamicURL, setEditingDynamicURL] = useState<{ myDynamicURLID: string; dynamicURLID: string } | null>(null)
   const [dynamicURLDraft, setDynamicURLDraft] = useState<DynamicURLDraft>(emptyDynamicURLDraft)
   const [pendingDeleteDynamicURL, setPendingDeleteDynamicURL] = useState<{ myDynamicURLID: string; dynamicURLID: string; name: string } | null>(null)
   const feedback = useOperationFeedback()
 
-  useEffect(() => {
-    if (authLoading) return
-
-    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myDynamicURLs`, (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    const unsubscribeURLs = subscribeToMyDynamicURLs((urls) => {
-      setDynamicURLs(urls as DynamicURLEntry[])
-      setLoading(false)
-    })
-    const unsubscribeScoreboards = subscribeToMyScoreboards((scoreboardRows) => setScoreboards(scoreboardRows as ScoreboardEntry[]), user?.uid || 'mylocalserver')
-    const unsubscribeTables = subscribeToMyTables((tableRows) => setTables(tableRows.map(([myTableID, table]) => [myTableID, table as TableSummary] as TableEntry)))
-    const unsubscribeTeamMatches = subscribeToMyTeamMatches((teamMatchRows) => setTeamMatches(teamMatchRows as TeamMatchEntry[]), user?.uid || 'mylocalserver')
-
-    return () => {
-      unsubscribeState()
-      unsubscribeURLs()
-      unsubscribeScoreboards()
-      unsubscribeTables()
-      unsubscribeTeamMatches()
-    }
-  }, [authLoading, user])
+  const dynamicURLsSubscription = useRealtimeCollection<DynamicURLEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myDynamicURLs`,
+    subscribe: (callback) => subscribeToMyDynamicURLs((urls) => {
+      callback(urls as DynamicURLEntry[])
+    }),
+  })
+  const scoreboardsSubscription = useRealtimeCollection<ScoreboardEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myScoreboards`,
+    subscribe: (callback) => subscribeToMyScoreboards((scoreboardRows) => {
+      callback(scoreboardRows as ScoreboardEntry[])
+    }, user?.uid || 'mylocalserver'),
+  })
+  const tablesSubscription = useRealtimeCollection<TableEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myTables`,
+    subscribe: (callback) => subscribeToMyTables((tableRows) => {
+      callback(tableRows.map(([myTableID, table]) => [myTableID, table as TableSummary] as TableEntry))
+    }),
+  })
+  const teamMatchesSubscription = useRealtimeCollection<TeamMatchEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myTeamMatches`,
+    subscribe: (callback) => subscribeToMyTeamMatches((teamMatchRows) => {
+      callback(teamMatchRows as TeamMatchEntry[])
+    }, user?.uid || 'mylocalserver'),
+  })
+  const dynamicURLs = dynamicURLsSubscription.value
+  const scoreboards = scoreboardsSubscription.value
+  const tables = tablesSubscription.value
+  const teamMatches = teamMatchesSubscription.value
+  const pageSyncState = combineLiveSyncStates([
+    dynamicURLsSubscription.liveState,
+    scoreboardsSubscription.liveState,
+    tablesSubscription.liveState,
+    teamMatchesSubscription.liveState,
+  ], 'loading')
+  const syncStatus = pageSyncState.status
+  const syncError = pageSyncState.error
+  const loading = dynamicURLsSubscription.loading
 
   const openNewDynamicURLModal = () => {
     setEditingDynamicURL(null)
@@ -193,9 +209,9 @@ export default function DynamicURLsPage() {
           <VStack className="gap-1">
             <HStack className="items-center gap-2">
               <Heading size="lg">Dynamic URLs</Heading>
-              <SyncIndicator status={syncStatus} />
             </HStack>
             <Text className="text-gray-500 text-sm">Shareable scoreboard links for tables and team matches</Text>
+            <LiveStatusBadge status={syncStatus} />
           </VStack>
           <Button onClick={openNewDynamicURLModal} className="w-full sm:w-auto">
             <PlusIcon size={16} />
@@ -207,11 +223,11 @@ export default function DynamicURLsPage() {
 
         <VStack className="gap-3">
           {dynamicURLs.length === 0 ? (
-            <Box className="p-8 text-center">
-              <ScoreboardIcon size={48} className="mx-auto mb-4 text-gray-300" />
-              <Text className="text-gray-500">No dynamic URLs yet</Text>
-              <Text className="text-sm text-gray-400">Create one to route overlays to tables or team matches.</Text>
-            </Box>
+            <LiveCollectionState
+              icon={<ScoreboardIcon size={48} className="mx-auto" />}
+              title="No dynamic URLs yet"
+              description="Create one to route overlays to tables or team matches."
+            />
           ) : (
             dynamicURLs.map(([myDynamicURLID, dynamicURL]) => (
               <Card key={myDynamicURLID} variant="elevated">

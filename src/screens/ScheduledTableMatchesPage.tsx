@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import { Badge, Box, Input, Select, Text, VStack, HStack, Button, Spinner, Card, CardBody } from '@/components/ui'
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 import { FormDialog, SelectField, TextAreaField, TextInputField } from '@/components/crud/FormDialog'
+import LiveCollectionState from '@/components/realtime/LiveCollectionState'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import OperationToast from '@/components/realtime/OperationToast'
 import {
   addScheduledMatch,
@@ -20,10 +22,10 @@ import {
   sortScheduledMatchEntries,
   updateScheduledMatch,
 } from '@/functions/scoring'
-import { getMyTables, subscribeToTable } from '@/functions/tables'
+import { subscribeToMyTables, subscribeToTable } from '@/functions/tables'
 import type { ScheduledMatch, ScheduledMatchStatus } from '@/types/matches'
-import { subscribeToPathState } from '@/lib/realtime'
-import type { LiveSyncStatus } from '@/lib/liveSync'
+import { combineLiveSyncStates } from '@/lib/liveSync'
+import { useRealtimeCollection } from '@/lib/useRealtimeCollection'
 import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
@@ -61,12 +63,7 @@ export default function ScheduledTableMatchesPage() {
   const [searchParams] = useSearchParams()
   const tableID = params.tableID || searchParams.get('tableID') || ''
   const { user, loading: authLoading } = useAuth()
-  const [matches, setMatches] = useState<[string, ScheduledMatch][]>([])
-  const [loading, setLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
-  const [syncError, setSyncError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [sportName, setSportName] = useState('tableTennis')
   const [showModal, setShowModal] = useState(false)
   const [draft, setDraft] = useState({
     scheduledMatchID: '',
@@ -82,49 +79,47 @@ export default function ScheduledTableMatchesPage() {
   const [bulkStatus, setBulkStatus] = useState<ScheduledMatchStatus>('queued')
   const [bulkStartTime, setBulkStartTime] = useState('')
   const [bulkFeedback, setBulkFeedback] = useState('')
-  const [tableOptions, setTableOptions] = useState<TableOption[]>([])
   const [bulkTargetTableID, setBulkTargetTableID] = useState('')
   const feedback = useOperationFeedback()
 
-  useEffect(() => {
-    if (authLoading) return
-    if (!tableID) {
-      setMatches([])
-      setLoading(false)
-      return
-    }
-
-    const unsubscribeState = subscribeToPathState(`tables/${tableID}`, (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    const unsubscribeTable = subscribeToTable(tableID, (tableInfo) => {
-      const scheduledMatches = tableInfo?.scheduledMatches && typeof tableInfo.scheduledMatches === 'object'
-        ? Object.entries(tableInfo.scheduledMatches as Record<string, ScheduledMatch>)
-        : []
-      setMatches(scheduledMatches)
-      setSportName(typeof tableInfo?.sportName === 'string' ? tableInfo.sportName : 'tableTennis')
-      setLoading(false)
-    })
-    return () => {
-      unsubscribeState()
-      unsubscribeTable()
-    }
-  }, [authLoading, tableID])
-
-  useEffect(() => {
-    if (authLoading || !user) return
-
-    async function loadTableOptions() {
-      const tables = await getMyTables()
-      setTableOptions((tables || []).map(([, table]) => ({
-        id: String((table as Record<string, unknown>).tableID || ''),
-        tableName: String((table as Record<string, unknown>).tableName || 'Untitled Table'),
-      })).filter((table) => table.id && table.id !== tableID))
-    }
-
-    void loadTableOptions()
-  }, [authLoading, user, tableID])
+  const tableSubscription = useRealtimeCollection<Record<string, unknown> | null>({
+    enabled: !authLoading && Boolean(tableID),
+    initialValue: null,
+    statePath: `tables/${tableID}`,
+    subscribe: (callback) => subscribeToTable(tableID, (tableInfo) => {
+      callback((tableInfo || null) as Record<string, unknown> | null)
+    }),
+  })
+  const tableOptionsSubscription = useRealtimeCollection<TableOption[]>({
+    enabled: !authLoading && Boolean(user),
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myTables`,
+    subscribe: (callback) => subscribeToMyTables((tables) => {
+      callback(
+        (tables || [])
+          .map(([, table]) => ({
+            id: String((table as Record<string, unknown>).tableID || ''),
+            tableName: String((table as Record<string, unknown>).tableName || 'Untitled Table'),
+          }))
+          .filter((table) => table.id && table.id !== tableID),
+      )
+    }),
+  })
+  const tableInfo = tableSubscription.value
+  const matches = useMemo(() => (
+    tableInfo?.scheduledMatches && typeof tableInfo.scheduledMatches === 'object'
+      ? Object.entries(tableInfo.scheduledMatches as Record<string, ScheduledMatch>)
+      : []
+  ), [tableInfo])
+  const sportName = typeof tableInfo?.sportName === 'string' ? tableInfo.sportName : 'tableTennis'
+  const tableOptions = tableOptionsSubscription.value
+  const pageSyncState = combineLiveSyncStates([
+    tableSubscription.liveState,
+    tableOptionsSubscription.liveState,
+  ], 'loading')
+  const syncStatus = pageSyncState.status
+  const syncError = pageSyncState.error
+  const loading = Boolean(tableID) ? tableSubscription.loading : false
 
   const sortedMatches = sortScheduledMatchEntries(matches)
   const promotableMatches = sortedMatches.filter(([, match]) => ['scheduled', 'queued', 'called', 'paused'].includes(match.status || 'scheduled'))
@@ -407,6 +402,7 @@ export default function ScheduledTableMatchesPage() {
           <VStack className="gap-1">
             <Text className="text-2xl font-bold">Table Queue</Text>
             <Text className="text-sm text-slate-500">{promotableMatches.length} promotable matches</Text>
+            <LiveStatusBadge status={syncStatus} />
           </VStack>
           <HStack className="flex-col gap-2 sm:flex-row sm:items-center">
             <Button variant="outline" onClick={handlePromoteNext} disabled={isSubmitting || promotableMatches.length === 0}>
@@ -594,14 +590,15 @@ export default function ScheduledTableMatchesPage() {
             )})}
           </VStack>
         ) : (
-          <Box className="flex items-center justify-center py-12">
-            <VStack space="md" className="items-center">
-              <Text className="text-xl text-gray-500">No queue items</Text>
-              <Button onClick={openCreateModal}>
-                <Text className="text-white">Create One</Text>
-              </Button>
-            </VStack>
-          </Box>
+          <VStack className="gap-4">
+            <LiveCollectionState
+              title="No queue items yet"
+              description="Add a scheduled match to start managing table promotion and queue order live."
+            />
+            <Button onClick={openCreateModal} className="w-full sm:w-auto self-center">
+              <Text className="text-white">Create One</Text>
+            </Button>
+          </VStack>
         )}
       </VStack>
 

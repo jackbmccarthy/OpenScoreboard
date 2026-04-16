@@ -399,8 +399,8 @@ export default function ScoringStation({
       token: accessToken,
       capabilityType: 'table_scoring',
     }, (runtimeState) => {
-      setSyncStatus(runtimeState.table.status)
-      setSyncError(runtimeState.table.error)
+      setSyncStatus(runtimeState.connection.status)
+      setSyncError(runtimeState.connection.error)
       setTableInfo(runtimeState.table.value)
       setMatchID(runtimeState.currentMatchID)
       setMatch(runtimeState.currentMatch.value)
@@ -426,8 +426,8 @@ export default function ScoringStation({
       token: accessToken,
       capabilityType: 'team_match_scoring',
     }, (runtimeState) => {
-      setSyncStatus(runtimeState.teamMatch.status)
-      setSyncError(runtimeState.teamMatch.error)
+      setSyncStatus(runtimeState.connection.status)
+      setSyncError(runtimeState.connection.error)
       setTeamMatch(runtimeState.teamMatch.value)
       setMatchID(runtimeState.currentMatchID)
       setMatch(runtimeState.currentMatch.value)

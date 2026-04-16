@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Avatar, Box, Button, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { useSearchParams } from 'react-router-dom'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import OperationToast from '@/components/realtime/OperationToast'
 import { replacePlayersInList, sortPlayers, subscribeToMyPlayerLists, subscribeToPlayerListPlayers } from '@/functions/players'
@@ -9,8 +10,8 @@ import { v4 as uuidv4 } from 'uuid'
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 import countries from '@/flags/countries.json'
 import { UserIcon } from '@/components/icons'
-import { subscribeToPathState } from '@/lib/realtime'
-import type { LiveSyncStatus } from '@/lib/liveSync'
+import { combineLiveSyncStates } from '@/lib/liveSync'
+import { useRealtimeCollection } from '@/lib/useRealtimeCollection'
 import { useOperationFeedback } from '@/lib/useOperationFeedback'
 
 type PlayerListPreview = {
@@ -110,27 +111,14 @@ function ImagePreview({
 export default function BulkPlayerPage() {
   const { user, loading: authLoading } = useAuth()
   const [searchParams] = useSearchParams()
-  const [doneLoading, setDoneLoading] = useState(false)
-  const [myPlayerLists, setMyPlayerLists] = useState<PlayerListEntry[]>([])
   const [selectedPlayerListID, setSelectedPlayerListID] = useState(searchParams.get('playerListID') || '')
   const [rows, setRows] = useState<PlayerRow[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
-  const [syncError, setSyncError] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<{ id: string; label: string } | null>(null)
   const [viewMode, setViewMode] = useState<'form' | 'spreadsheet'>('form')
   const [spreadsheetValue, setSpreadsheetValue] = useState('')
   const feedback = useOperationFeedback()
-
-  function loadPlayerLists(lists: PlayerListEntry[]) {
-    setDoneLoading(false)
-    setMyPlayerLists(lists)
-    if (!selectedPlayerListID && lists.length > 0) {
-      setSelectedPlayerListID(lists[0][1].id)
-    }
-    setDoneLoading(true)
-  }
 
   function loadPlayers(players: PlayerEntry[]) {
     const sortedPlayers = players.length > 0 ? sortPlayers(players as PlayerEntry[]) : []
@@ -145,33 +133,43 @@ export default function BulkPlayerPage() {
     })))
   }
 
+  const playerListsSubscription = useRealtimeCollection<PlayerListEntry[]>({
+    enabled: !authLoading,
+    initialValue: [],
+    statePath: `users/${user?.uid || 'mylocalserver'}/myPlayerLists`,
+    subscribe: (callback) => subscribeToMyPlayerLists((lists) => {
+      callback((lists || []) as PlayerListEntry[])
+    }),
+  })
+  const playersSubscription = useRealtimeCollection<PlayerEntry[]>({
+    enabled: Boolean(selectedPlayerListID),
+    initialValue: [],
+    statePath: `playerLists/${selectedPlayerListID || 'unselected'}/players`,
+    subscribe: (callback) => subscribeToPlayerListPlayers(selectedPlayerListID, (players) => {
+      callback(players as PlayerEntry[])
+    }),
+  })
+  const myPlayerLists = playerListsSubscription.value
+  const pageSyncState = combineLiveSyncStates([
+    playerListsSubscription.liveState,
+    playersSubscription.liveState,
+  ], 'loading')
+  const syncStatus = pageSyncState.status
+  const syncError = pageSyncState.error
+
   useEffect(() => {
-    if (authLoading) return
-    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myPlayerLists`, (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    const unsubscribePlayerLists = subscribeToMyPlayerLists((lists) => {
-      loadPlayerLists((lists || []) as PlayerListEntry[])
-    })
-    return () => {
-      unsubscribeState()
-      unsubscribePlayerLists()
+    if (!selectedPlayerListID && myPlayerLists.length > 0) {
+      setSelectedPlayerListID(myPlayerLists[0][1].id)
     }
-  }, [authLoading, selectedPlayerListID, user])
+  }, [myPlayerLists, selectedPlayerListID])
 
   useEffect(() => {
     if (!selectedPlayerListID) {
       setRows([])
       return
     }
-    const unsubscribePlayers = subscribeToPlayerListPlayers(selectedPlayerListID, (players) => {
-      loadPlayers(players as PlayerEntry[])
-    })
-    return () => {
-      unsubscribePlayers()
-    }
-  }, [selectedPlayerListID])
+    loadPlayers(playersSubscription.value)
+  }, [playersSubscription.value, selectedPlayerListID])
 
   const visibleRows = useMemo(() => rows, [rows])
 
@@ -247,7 +245,7 @@ export default function BulkPlayerPage() {
     }
   }
 
-  if (authLoading || !doneLoading) {
+  if (authLoading || playerListsSubscription.loading) {
     return (
       <Box className="flex items-center justify-center p-8">
         <Spinner size="lg" />
@@ -258,10 +256,13 @@ export default function BulkPlayerPage() {
   return (
     <Box className="p-4">
       <VStack space="md">
-        <Text className="text-2xl font-bold">Bulk Manage Players</Text>
-        <Text className="text-sm text-gray-600">
-          Add rows, edit fields inline, or remove rows before saving the entire player list in one pass.
-        </Text>
+        <VStack className="gap-1">
+          <Text className="text-2xl font-bold">Bulk Manage Players</Text>
+          <Text className="text-sm text-gray-600">
+            Add rows, edit fields inline, or remove rows before saving the entire player list in one pass.
+          </Text>
+          <LiveStatusBadge status={syncStatus} />
+        </VStack>
         <LiveStatusAlert status={syncStatus} error={syncError} />
 
         <HStack className="gap-2">

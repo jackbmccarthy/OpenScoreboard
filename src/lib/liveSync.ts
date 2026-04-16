@@ -117,6 +117,64 @@ export function getLiveSyncMessage(status: LiveSyncStatus, error = '') {
   return ''
 }
 
+const liveSyncStatusPriority: Record<LiveSyncStatus, number> = {
+  unauthorized: 0,
+  error: 1,
+  offline: 2,
+  conflict: 3,
+  stale: 4,
+  loading: 5,
+  live: 6,
+  idle: 7,
+}
+
+export function compareLiveSyncStates(
+  left: Pick<LiveSyncState<unknown>, 'status'>,
+  right: Pick<LiveSyncState<unknown>, 'status'>,
+) {
+  return liveSyncStatusPriority[left.status] - liveSyncStatusPriority[right.status]
+}
+
+export function getDominantLiveSyncState<T = unknown>(
+  states: Array<LiveSyncState<T> | null | undefined>,
+  fallbackStatus: LiveSyncStatus = 'idle',
+): LiveSyncState<T | null> {
+  const activeStates = states.filter(Boolean) as LiveSyncState<T>[]
+  if (activeStates.length === 0) {
+    return createInitialLiveSyncState<T | null>(fallbackStatus, null)
+  }
+
+  const dominantState = activeStates.reduce((current, candidate) => (
+    compareLiveSyncStates(candidate, current) < 0 ? candidate : current
+  ))
+  const firstError = activeStates.find((state) => state.error)?.error || dominantState.error
+  const latestUpdatedAt = activeStates
+    .map((state) => state.updatedAt)
+    .filter(Boolean)
+    .sort()
+    .at(-1) || dominantState.updatedAt
+
+  return createLiveSyncState<T | null>({
+    status: dominantState.status,
+    value: dominantState.value ?? null,
+    error: firstError,
+    updatedAt: latestUpdatedAt,
+  })
+}
+
+export function combineLiveSyncStates(
+  states: Array<LiveSyncState<unknown> | null | undefined>,
+  fallbackStatus: LiveSyncStatus = 'idle',
+) {
+  const dominantState = getDominantLiveSyncState(states, fallbackStatus)
+  return createLiveSyncState<null>({
+    status: dominantState.status,
+    value: null,
+    error: dominantState.error,
+    updatedAt: dominantState.updatedAt,
+  })
+}
+
 export function subscribeToOwnedCanonicalCollection<Preview, Canonical, Row>(
   options: OwnedCanonicalCollectionOptions<Preview, Canonical, Row>,
   callback: (rows: Array<[string, Row]>) => void,
