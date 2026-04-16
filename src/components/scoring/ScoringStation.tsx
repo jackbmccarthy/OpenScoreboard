@@ -12,9 +12,7 @@ import {
   BWonRally_PB,
   MinusPoint,
   completeCurrentTableMatch as finalizeCurrentTableMatch,
-  getRecentPointHistory,
   endGame,
-  getLatestUndoablePointEvent,
   getNextPromotableScheduledMatch,
   getCurrentGameNumber,
   getMatchData,
@@ -25,9 +23,6 @@ import {
   isGamePoint,
   isMatchFinished,
   isValidGameScore,
-  addJudgeNote,
-  setJudgePauseState,
-  setMatchDisputeState,
   setBestOf,
   setChangeServiceEveryXPoints,
   setGamePointsToWinGame,
@@ -37,8 +32,6 @@ import {
   setIsMatchPoint,
   setScoringType,
   setServerManually,
-  setYellowFlag,
-  setRedFlag,
   setisManualMode,
   setUsedTimeOut,
   startGame,
@@ -49,28 +42,21 @@ import {
   manuallySetGameScore,
   updateCurrentPlayer,
   updateService,
-  undoLastPointAction,
-  watchForPasswordChange,
   createNewMatch,
 } from '@/functions/scoring'
 import { createTeamMatchNewMatch } from '@/functions/teammatches'
-import { subscribeToTableRuntime, subscribeToTeamMatchRuntime } from '@/functions/liveSync'
-import { isTableAccessRequired } from '@/functions/tables'
 import { supportedSports } from '@/functions/sports'
 import { getNewPlayer } from '@/classes/Player'
 import countries from '@/flags/countries.json'
-import { activateCapabilityToken, exchangeLegacyCapabilityLink, resolveCapabilityLink, type CapabilityRecord } from '@/functions/accessTokens'
 import { useAuth } from '@/lib/auth'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import type { LiveSyncStatus } from '@/lib/liveSync'
+import { useSearchParams } from 'react-router-dom'
+import { createOptimisticPointUpdate, reconcileOptimisticPointUpdate, resolveActiveTableNumber } from './scoringStationRuntimeModel'
+import { useScoringStationRuntime } from './useScoringStationRuntime'
 import type {
   Match as MatchRecord,
   MatchPlayerKey,
-  MatchSide,
   Player,
   ScheduledMatch,
-  Table as TableRecord,
-  TeamMatch as TeamMatchRecord,
 } from '@/types/matches'
 
 const countryOptions = Object.entries(countries)
@@ -276,19 +262,11 @@ export default function ScoringStation({
   teamMatchID?: string
   teamMatchTableNumber?: string
 }) {
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { user, loading: authLoading } = useAuth()
 
-  const [loading, setLoading] = useState(true)
-  const [accessGranted, setAccessGranted] = useState(false)
   const [passwordInput, setPasswordInput] = useState('')
-  const [passwordError, setPasswordError] = useState('')
-  const [tableInfo, setTableInfo] = useState<TableRecord | null>(null)
-  const [teamMatch, setTeamMatch] = useState<TeamMatchRecord | null>(null)
   const [activeTableNumber, setActiveTableNumber] = useState(teamMatchTableNumber || '1')
-  const [matchID, setMatchID] = useState('')
-  const [match, setMatch] = useState<MatchRecord | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showMatchWizard, setShowMatchWizard] = useState(false)
   const [warmupActive, setWarmupActive] = useState(false)
@@ -314,183 +292,108 @@ export default function ScoringStation({
   const [copiedLink, setCopiedLink] = useState('')
   const [activeAction, setActiveAction] = useState('')
   const accessToken = searchParams.get('token')
-  const [resolvedCapability, setResolvedCapability] = useState<CapabilityRecord | null>(null)
-  const hasCapabilitySession = Boolean(accessToken || resolvedCapability)
   const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null)
-  const [judgeNote, setJudgeNote] = useState('')
-  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
-  const [syncError, setSyncError] = useState('')
-  const [matchSyncStatus, setMatchSyncStatus] = useState<LiveSyncStatus>('idle')
-  const [matchSyncError, setMatchSyncError] = useState('')
+  const [pendingPointUpdate, setPendingPointUpdate] = useState<ReturnType<typeof createOptimisticPointUpdate> | null>(null)
+  const [localConflictMessage, setLocalConflictMessage] = useState('')
+
+  const {
+    loading,
+    accessGranted,
+    passwordError,
+    tableInfo,
+    teamMatch,
+    matchID,
+    match,
+    syncStatus,
+    syncError,
+    matchSyncStatus,
+    matchSyncError,
+    resolvedCapability,
+    hasCapabilitySession,
+    unlockTable,
+  } = useScoringStationRuntime({
+    mode,
+    tableID,
+    teamMatchID,
+    activeTableNumber,
+    accessToken,
+    user,
+    authLoading,
+  })
 
   useEffect(() => {
-    if (authLoading) return
-
-    if (user) {
-      setResolvedCapability(null)
-      setAccessGranted(true)
+    if (mode !== 'teamMatch') {
       return
     }
 
-    if (mode === 'teamMatch') {
-      if (accessToken && teamMatchID) {
-        resolveCapabilityLink(accessToken, 'team_match_scoring')
-          .then((resolved) => {
-            if (resolved?.record.teamMatchID === teamMatchID) {
-              activateCapabilityToken(accessToken)
-              setResolvedCapability(resolved.record)
-              setAccessGranted(true)
-              setPasswordError('')
-              return
-            }
-            setResolvedCapability(null)
-            setAccessGranted(false)
-            setLoading(false)
-          })
-          .catch(() => setLoading(false))
-        return
-      }
-
-      setAccessGranted(false)
-      setLoading(false)
-      return
-    }
-
-    if (!tableID) {
-      setLoading(false)
-      return
-    }
-
-    if (accessToken) {
-      resolveCapabilityLink(accessToken, 'table_scoring')
-        .then((resolved) => {
-          const record = resolved?.record
-          const isValid = record?.tableID === tableID
-          if (resolved && isValid) {
-            activateCapabilityToken(accessToken)
-            setResolvedCapability(record)
-            setAccessGranted(true)
-            setPasswordError('')
-            return
-          }
-          setResolvedCapability(null)
-          setLoading(false)
-        })
-        .catch(() => setLoading(false))
-      return
-    }
-
-    isTableAccessRequired(tableID)
-      .then((requiresAccess) => {
-        if (!requiresAccess) {
-          setAccessGranted(true)
-          return
-        }
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
-  }, [authLoading, user, tableID, mode, accessToken, teamMatchID])
-
-  useEffect(() => {
-    if (!accessGranted || mode !== 'table' || !tableID) return
-
-    return subscribeToTableRuntime({
-      tableID,
-      token: accessToken,
-      capabilityType: 'table_scoring',
-    }, (runtimeState) => {
-      setSyncStatus(runtimeState.connection.status)
-      setSyncError(runtimeState.connection.error)
-      setTableInfo(runtimeState.table.value)
-      setMatchID(runtimeState.currentMatchID)
-      setMatch(runtimeState.currentMatch.value)
-      setMatchSyncStatus(runtimeState.currentMatch.status)
-      setMatchSyncError(runtimeState.currentMatch.error)
-      if (runtimeState.accessToken.value) {
-        setResolvedCapability(runtimeState.accessToken.value)
-      }
-      if (!user && runtimeState.accessToken.status === 'unauthorized') {
-        setAccessGranted(false)
-        setPasswordError('This scoring link is invalid, expired, or has been revoked.')
-      }
-      setLoading(runtimeState.table.status === 'loading' && !runtimeState.table.value)
-    })
-  }, [accessGranted, mode, tableID, accessToken, user])
-
-  useEffect(() => {
-    if (!accessGranted || mode !== 'teamMatch' || !teamMatchID) return
-
-    return subscribeToTeamMatchRuntime({
-      teamMatchID,
-      tableNumber: activeTableNumber,
-      token: accessToken,
-      capabilityType: 'team_match_scoring',
-    }, (runtimeState) => {
-      setSyncStatus(runtimeState.connection.status)
-      setSyncError(runtimeState.connection.error)
-      setTeamMatch(runtimeState.teamMatch.value)
-      setMatchID(runtimeState.currentMatchID)
-      setMatch(runtimeState.currentMatch.value)
-      setMatchSyncStatus(runtimeState.currentMatch.status)
-      setMatchSyncError(runtimeState.currentMatch.error)
-      if (runtimeState.accessToken.value) {
-        setResolvedCapability(runtimeState.accessToken.value)
-      }
-      if (!user && runtimeState.accessToken.status === 'unauthorized') {
-        setAccessGranted(false)
-        setPasswordError('This scoring link is invalid, expired, or has been revoked.')
-      }
-      setLoading(runtimeState.teamMatch.status === 'loading' && !runtimeState.teamMatch.value)
-    })
-  }, [accessGranted, mode, teamMatchID, activeTableNumber, accessToken, user])
-
-  useEffect(() => {
-    if (!accessGranted || mode !== 'table' || !tableID || resolvedCapability) return
-
-    let hasSeenInitialAccessValue = false
-    let lastAccessMarker = ''
-    const unsubscribe = watchForPasswordChange(tableID, async (accessMarker) => {
-      if (!hasSeenInitialAccessValue) {
-        hasSeenInitialAccessValue = true
-        lastAccessMarker = accessMarker
-        return
-      }
-      if (!user && accessMarker && accessMarker !== lastAccessMarker) {
-        setAccessGranted(false)
-        setPasswordError('The table password changed. Re-enter it to continue scoring.')
-      }
-      lastAccessMarker = accessMarker
+    const availableTableNumbers = teamMatch?.currentMatches ? Object.keys(teamMatch.currentMatches) : []
+    const nextTableNumber = resolveActiveTableNumber({
+      availableTableNumbers,
+      preferredTableNumber: teamMatchTableNumber || '1',
+      currentTableNumber: activeTableNumber,
     })
 
-    return unsubscribe
-  }, [accessGranted, mode, tableID, user, resolvedCapability])
+    if (nextTableNumber !== activeTableNumber) {
+      setActiveTableNumber(nextTableNumber)
+    }
+  }, [activeTableNumber, mode, teamMatch?.currentMatches, teamMatchTableNumber])
 
   useEffect(() => {
-    if (match) {
+    setPendingPointUpdate(null)
+    setLocalConflictMessage('')
+    setShowGameEndDialog(false)
+    setShowMatchEndDialog(false)
+  }, [matchID])
+
+  useEffect(() => {
+    const reconciliation = reconcileOptimisticPointUpdate({
+      pendingPointUpdate,
+      canonicalMatch: match,
+      currentMatchID: matchID,
+    })
+
+    if (reconciliation.status === 'conflict') {
+      setPendingPointUpdate(null)
+      setLocalConflictMessage(reconciliation.message)
+      return
+    }
+
+    if (reconciliation.status === 'resolved' && pendingPointUpdate) {
+      setPendingPointUpdate(null)
+      setLocalConflictMessage('')
+    }
+  }, [match, matchID, pendingPointUpdate])
+
+  const renderedMatch = pendingPointUpdate?.optimisticMatch || match
+  const effectiveMatchSyncStatus = localConflictMessage ? 'conflict' : matchSyncStatus
+  const effectiveMatchSyncError = localConflictMessage || matchSyncError
+
+  useEffect(() => {
+    if (renderedMatch) {
       setSettingsDraft({
-        bestOf: match.bestOf || 5,
-        pointsToWinGame: match.pointsToWinGame || 11,
-        changeServeEveryXPoints: match.changeServeEveryXPoints || 2,
-        isDoubles: !!match.isDoubles,
-        isAInitialServer: !!match.isAInitialServer,
-        isManualServiceMode: !!match.isManualServiceMode,
-        scoringType: match.scoringType || 'normal',
+        bestOf: renderedMatch.bestOf || 5,
+        pointsToWinGame: renderedMatch.pointsToWinGame || 11,
+        changeServeEveryXPoints: renderedMatch.changeServeEveryXPoints || 2,
+        isDoubles: !!renderedMatch.isDoubles,
+        isAInitialServer: !!renderedMatch.isAInitialServer,
+        isManualServiceMode: !!renderedMatch.isManualServiceMode,
+        scoringType: renderedMatch.scoringType || 'normal',
       })
       const nextManualScores: Record<number, { a: string; b: string }> = {}
       for (let gameNumber = 1; gameNumber <= 9; gameNumber++) {
-        if (match[`isGame${gameNumber}Finished`]) {
+        if (renderedMatch[`isGame${gameNumber}Finished`]) {
           nextManualScores[gameNumber] = {
-            a: String(match[`game${gameNumber}AScore`] ?? 0),
-            b: String(match[`game${gameNumber}BScore`] ?? 0),
+            a: String(renderedMatch[`game${gameNumber}AScore`] ?? 0),
+            b: String(renderedMatch[`game${gameNumber}BScore`] ?? 0),
           }
         }
       }
       setManualGameScores(nextManualScores)
     }
-  }, [match])
+  }, [renderedMatch])
 
   const ensureMatchStarted = async (gameNumber: number) => {
-    if (!match?.isMatchStarted || !match?.[`isGame${gameNumber}Started`]) {
+    if (!renderedMatch?.isMatchStarted || !renderedMatch?.[`isGame${gameNumber}Started`]) {
       await startGame(matchID, gameNumber)
     }
   }
@@ -511,55 +414,66 @@ export default function ScoringStation({
   }
 
   const applyPoint = async (side: 'A' | 'B', increment: boolean) => {
-    if (!matchID || !match) return
+    if (!matchID || !renderedMatch) return
 
-    const gameNumber = getCurrentGameNumber(match) || 1
-    await ensureMatchStarted(gameNumber)
-
-    let nextScore
-    if (increment) {
-      if (match.sportName === 'pickleball') {
-        nextScore = side === 'A'
-          ? await AWonRally_PB(matchID, gameNumber, match.isACurrentlyServing, match.isSecondServer, match.isDoubles, match.scoringType === 'rally', match.pointsToWinGame, match[`game${gameNumber}AScore`])
-          : await BWonRally_PB(matchID, gameNumber, match.isACurrentlyServing, match.isSecondServer, match.isDoubles, match.scoringType === 'rally', match.pointsToWinGame, match[`game${gameNumber}BScore`])
-      } else {
-        nextScore = await AddPoint(matchID, gameNumber, side)
-        if (!match.isManualServiceMode) {
-          const otherSide = side === 'A' ? 'B' : 'A'
-          const combinedPoints = nextScore + (match[`game${gameNumber}${otherSide}Score`] || 0)
-          await updateService(matchID, match.isAInitialServer, gameNumber, combinedPoints, match.changeServeEveryXPoints, match.pointsToWinGame, match.sportName, match.scoringType)
-        }
-      }
-    } else {
-      nextScore = await MinusPoint(matchID, gameNumber, side)
-      if (!match.isManualServiceMode && match.sportName !== 'pickleball') {
-        const otherSide = side === 'A' ? 'B' : 'A'
-        const combinedPoints = nextScore + (match[`game${gameNumber}${otherSide}Score`] || 0)
-        await updateService(matchID, match.isAInitialServer, gameNumber, combinedPoints, match.changeServeEveryXPoints, match.pointsToWinGame, match.sportName, match.scoringType)
-      }
+    const optimisticPointUpdate = createOptimisticPointUpdate(renderedMatch, matchID, side, increment)
+    if (optimisticPointUpdate) {
+      setPendingPointUpdate(optimisticPointUpdate)
+      setLocalConflictMessage('')
     }
 
-    const refreshed = await refreshMatch()
-    if (!refreshed) return
-    const refreshedMatch = refreshed
+    const gameNumber = getCurrentGameNumber(renderedMatch) || 1
+    await ensureMatchStarted(gameNumber)
 
-    const currentGame = getCurrentGameNumber(refreshedMatch) || gameNumber
-    const gameDone = isGameFinished(
-      refreshedMatch.enforceGameScore,
-      refreshedMatch[`game${currentGame}AScore`],
-      refreshedMatch[`game${currentGame}BScore`],
-      refreshedMatch.pointsToWinGame
-    )
-
-    if (gameDone && !refreshedMatch[`isGame${currentGame}Finished`]) {
-      await endGame(matchID, currentGame)
-      const afterEnd = await refreshMatch()
-      if (!afterEnd) return
-      if (isMatchFinished(afterEnd)) {
-        setShowMatchEndDialog(true)
+    try {
+      let nextScore
+      if (increment) {
+        if (renderedMatch.sportName === 'pickleball') {
+          nextScore = side === 'A'
+            ? await AWonRally_PB(matchID, gameNumber, renderedMatch.isACurrentlyServing, renderedMatch.isSecondServer, renderedMatch.isDoubles, renderedMatch.scoringType === 'rally', renderedMatch.pointsToWinGame, renderedMatch[`game${gameNumber}AScore`])
+            : await BWonRally_PB(matchID, gameNumber, renderedMatch.isACurrentlyServing, renderedMatch.isSecondServer, renderedMatch.isDoubles, renderedMatch.scoringType === 'rally', renderedMatch.pointsToWinGame, renderedMatch[`game${gameNumber}BScore`])
+        } else {
+          nextScore = await AddPoint(matchID, gameNumber, side)
+          if (!renderedMatch.isManualServiceMode) {
+            const otherSide = side === 'A' ? 'B' : 'A'
+            const combinedPoints = nextScore + (renderedMatch[`game${gameNumber}${otherSide}Score`] || 0)
+            await updateService(matchID, renderedMatch.isAInitialServer, gameNumber, combinedPoints, renderedMatch.changeServeEveryXPoints, renderedMatch.pointsToWinGame, renderedMatch.sportName, renderedMatch.scoringType)
+          }
+        }
       } else {
-        setShowGameEndDialog(true)
+        nextScore = await MinusPoint(matchID, gameNumber, side)
+        if (!renderedMatch.isManualServiceMode && renderedMatch.sportName !== 'pickleball') {
+          const otherSide = side === 'A' ? 'B' : 'A'
+          const combinedPoints = nextScore + (renderedMatch[`game${gameNumber}${otherSide}Score`] || 0)
+          await updateService(matchID, renderedMatch.isAInitialServer, gameNumber, combinedPoints, renderedMatch.changeServeEveryXPoints, renderedMatch.pointsToWinGame, renderedMatch.sportName, renderedMatch.scoringType)
+        }
       }
+
+      const refreshed = await refreshMatch()
+      if (!refreshed) return
+      const refreshedMatch = refreshed
+
+      const currentGame = getCurrentGameNumber(refreshedMatch) || gameNumber
+      const gameDone = isGameFinished(
+        refreshedMatch.enforceGameScore,
+        refreshedMatch[`game${currentGame}AScore`],
+        refreshedMatch[`game${currentGame}BScore`],
+        refreshedMatch.pointsToWinGame
+      )
+
+      if (gameDone && !refreshedMatch[`isGame${currentGame}Finished`]) {
+        await endGame(matchID, currentGame)
+        const afterEnd = await refreshMatch()
+        if (!afterEnd) return
+        if (isMatchFinished(afterEnd)) {
+          setShowMatchEndDialog(true)
+        } else {
+          setShowGameEndDialog(true)
+        }
+      }
+    } catch (error) {
+      setPendingPointUpdate(null)
+      setLocalConflictMessage(error instanceof Error ? error.message : 'Unable to save the point right now.')
     }
   }
 
@@ -595,8 +509,8 @@ export default function ScoringStation({
         await manuallySetGameScore(matchID, gameNumber, aScore, bScore)
       }
     }
-    if (match && !hasActiveGame(match)) {
-      await updateService(matchID, settingsDraft.isAInitialServer, getCurrentGameNumber(match) || 1, 0, Number(settingsDraft.changeServeEveryXPoints), Number(settingsDraft.pointsToWinGame), match.sportName, settingsDraft.scoringType)
+    if (renderedMatch && !hasActiveGame(renderedMatch)) {
+      await updateService(matchID, settingsDraft.isAInitialServer, getCurrentGameNumber(renderedMatch) || 1, 0, Number(settingsDraft.changeServeEveryXPoints), Number(settingsDraft.pointsToWinGame), renderedMatch.sportName, settingsDraft.scoringType)
     }
     setShowSettings(false)
     await refreshMatch()
@@ -612,8 +526,8 @@ export default function ScoringStation({
   }
 
   const handleStartNextGame = async () => {
-    if (!matchID || !match) return
-    const gameNumber = getCurrentGameNumber(match) || 1
+    if (!matchID || !renderedMatch) return
+    const gameNumber = getCurrentGameNumber(renderedMatch) || 1
     await startGame(matchID, gameNumber)
     await updateService(
       matchID,
@@ -622,7 +536,7 @@ export default function ScoringStation({
       0,
       Number(settingsDraft.changeServeEveryXPoints),
       Number(settingsDraft.pointsToWinGame),
-      match.sportName,
+      renderedMatch.sportName,
       settingsDraft.scoringType
     )
     setShowGameEndDialog(false)
@@ -637,7 +551,7 @@ export default function ScoringStation({
       resolvedCapability.capabilityType === 'team_match_scoring'
     )
   )
-  const canFinalizeAssignedTableMatch = mode === 'table' && Boolean(tableID && matchID && match)
+  const canFinalizeAssignedTableMatch = mode === 'table' && Boolean(tableID && matchID && renderedMatch)
 
   const handleCreateMatch = async () => {
     if (!canCreateAdHocMatch) return
@@ -682,8 +596,8 @@ export default function ScoringStation({
     const sportName = wizardData.sportName || 'tableTennis'
 
     if (mode === 'table' && tableID && tableInfo) {
-      if (matchID && match && isMatchFinished(match)) {
-        await finalizeCurrentTableMatch(tableID, matchID, match, false)
+      if (matchID && renderedMatch && isMatchFinished(renderedMatch)) {
+        await finalizeCurrentTableMatch(tableID, matchID, renderedMatch, false)
       }
       const newMatchID = await createNewMatch(tableID, sportName, null, false, wizardData.scoringType || 'normal')
       if (!newMatchID) {
@@ -691,7 +605,6 @@ export default function ScoringStation({
         setWarmupActive(false)
         return
       }
-      setMatchID(newMatchID)
       setActiveAction('')
       return
     }
@@ -703,7 +616,6 @@ export default function ScoringStation({
         setWarmupActive(false)
         return
       }
-      setMatchID(newMatchID)
     }
     setActiveAction('')
   }
@@ -718,16 +630,13 @@ export default function ScoringStation({
   const nextQueuedTableMatch = mode === 'table' && tableInfo?.scheduledMatches && typeof tableInfo.scheduledMatches === 'object'
     ? getNextPromotableScheduledMatch(Object.entries(tableInfo.scheduledMatches as Record<string, ScheduledMatch>))
     : null
-  const latestUndoablePointEvent = getLatestUndoablePointEvent(match)
-  const recentPointHistory = getRecentPointHistory(match, 3)
-  const canUndoCurrentMatch = Boolean(matchID && latestUndoablePointEvent && match?.sportName !== 'pickleball')
   const autoAdvanceMode = mode === 'table' ? (tableInfo?.autoAdvanceMode || 'manual') : 'manual'
   const autoAdvanceDelaySeconds = mode === 'table' ? Number(tableInfo?.autoAdvanceDelaySeconds || 0) : 0
 
   const handlePromoteNextAfterMatch = async () => {
-    if (mode !== 'table' || !tableID || !matchID || !match) return
+    if (mode !== 'table' || !tableID || !matchID || !renderedMatch) return
     setActiveAction('promote-next')
-    await finalizeCurrentTableMatch(tableID, matchID, match, true)
+    await finalizeCurrentTableMatch(tableID, matchID, renderedMatch, true)
     setShowMatchEndDialog(false)
     setAutoAdvanceCountdown(null)
     setActiveAction('')
@@ -766,7 +675,7 @@ export default function ScoringStation({
     return () => {
       window.clearInterval(intervalID)
     }
-  }, [showMatchEndDialog, mode, canFinalizeAssignedTableMatch, autoAdvanceMode, autoAdvanceDelaySeconds, nextQueuedTableMatch, tableID, matchID, match])
+  }, [showMatchEndDialog, mode, canFinalizeAssignedTableMatch, autoAdvanceMode, autoAdvanceDelaySeconds, nextQueuedTableMatch, tableID, matchID, renderedMatch])
 
   const handleCopyScoringLink = async () => {
     const url = typeof window !== 'undefined' ? window.location.href : ''
@@ -778,7 +687,7 @@ export default function ScoringStation({
   }
 
   const persistInlineSettings = async (nextSettings: typeof settingsDraft) => {
-    if (!matchID || !match) return
+    if (!matchID || !renderedMatch) return
     setActiveAction('settings-inline')
     await Promise.all([
       setBestOf(matchID, Number(nextSettings.bestOf)),
@@ -790,15 +699,15 @@ export default function ScoringStation({
       setScoringType(matchID, nextSettings.scoringType),
       syncShowInBetweenGamesModal(matchID, false),
     ])
-    if (!hasActiveGame(match)) {
+    if (!hasActiveGame(renderedMatch)) {
       await updateService(
         matchID,
         nextSettings.isAInitialServer,
-        getCurrentGameNumber(match) || 1,
+        getCurrentGameNumber(renderedMatch) || 1,
         0,
         Number(nextSettings.changeServeEveryXPoints),
         Number(nextSettings.pointsToWinGame),
-        match.sportName,
+        renderedMatch.sportName,
         nextSettings.scoringType
       )
     }
@@ -813,9 +722,9 @@ export default function ScoringStation({
   }
 
   const handleStartCurrentGame = async () => {
-    if (!matchID || !match || isMatchFinished(match)) return
+    if (!matchID || !renderedMatch || isMatchFinished(renderedMatch)) return
     setActiveAction('start-game')
-    const gameNumber = getCurrentGameNumber(match) || 1
+    const gameNumber = getCurrentGameNumber(renderedMatch) || 1
     await startGame(matchID, gameNumber)
     await updateService(
       matchID,
@@ -824,33 +733,31 @@ export default function ScoringStation({
       0,
       Number(settingsDraft.changeServeEveryXPoints),
       Number(settingsDraft.pointsToWinGame),
-      match.sportName,
+      renderedMatch.sportName,
       settingsDraft.scoringType
     )
     await refreshMatch()
     setActiveAction('')
   }
 
-  const leftSide = match?.isSwitched ? 'B' : 'A'
-  const rightSide = match?.isSwitched ? 'A' : 'B'
+  const leftSide = renderedMatch?.isSwitched ? 'B' : 'A'
+  const rightSide = renderedMatch?.isSwitched ? 'A' : 'B'
   const teamMatchTables = teamMatch?.currentMatches ? Object.keys(teamMatch.currentMatches) : ['1']
-  const scoreActionsDisabled = !matchID || showGameEndDialog || showMatchEndDialog || !!match?.isInBetweenGames || (match ? isMatchFinished(match) : false)
-  const currentGameNumber = getCurrentGameNumber(match) || 1
-  const currentGameStarted = Boolean(match?.[`isGame${currentGameNumber}Started`])
-  const currentGameFinished = Boolean(match?.[`isGame${currentGameNumber}Finished`])
+  const scoreActionsDisabled = !matchID || Boolean(pendingPointUpdate) || showGameEndDialog || showMatchEndDialog || effectiveMatchSyncStatus === 'conflict' || effectiveMatchSyncStatus === 'offline' || effectiveMatchSyncStatus === 'unauthorized' || !!renderedMatch?.isInBetweenGames || (renderedMatch ? isMatchFinished(renderedMatch) : false)
+  const currentGameNumber = getCurrentGameNumber(renderedMatch) || 1
+  const currentGameStarted = Boolean(renderedMatch?.[`isGame${currentGameNumber}Started`])
+  const currentGameFinished = Boolean(renderedMatch?.[`isGame${currentGameNumber}Finished`])
   const canStartCurrentGame = Boolean(
     matchID
-      && match
+      && renderedMatch
       && !showGameEndDialog
       && !showMatchEndDialog
-      && !isMatchFinished(match)
-      && (!currentGameStarted || currentGameFinished || !hasActiveGame(match) || Boolean(match?.isInBetweenGames))
+      && !isMatchFinished(renderedMatch)
+      && (!currentGameStarted || currentGameFinished || !hasActiveGame(renderedMatch) || Boolean(renderedMatch?.isInBetweenGames))
   )
-  const scoringContextLabel = [match?.matchRound || match?.context?.matchRound || '', match?.eventName || match?.context?.eventName || ''].filter(Boolean).join(' • ')
-  const scoringTypeOptions = Object.entries((supportedSports[match?.sportName || '']?.scoringTypes || {}) as Record<string, { displayName: string }>)
-
+  const scoringContextLabel = [renderedMatch?.matchRound || renderedMatch?.context?.matchRound || '', renderedMatch?.eventName || renderedMatch?.context?.eventName || ''].filter(Boolean).join(' • ')
   const handleCompleteAction = () => {
-    if (match && isMatchFinished(match)) {
+    if (renderedMatch && isMatchFinished(renderedMatch)) {
       setShowMatchEndDialog(true)
       return
     }
@@ -893,19 +800,8 @@ export default function ScoringStation({
               action="primary"
               onClick={async () => {
                 try {
-                  const exchanged = await exchangeLegacyCapabilityLink({
-                    capabilityType: 'table_scoring',
-                    tableID: tableID || '',
-                    secret: passwordInput,
-                  })
-                  activateCapabilityToken(exchanged.token)
-                  setResolvedCapability(exchanged.record)
-                  setAccessGranted(true)
-                  setPasswordError('')
-                } catch (error) {
-                  const message = error instanceof Error ? error.message : 'Incorrect password'
-                  setPasswordError(message)
-                }
+                  await unlockTable(passwordInput)
+                } catch {}
               }}
             >
               <Text className="text-white">Unlock Scoring</Text>
@@ -931,7 +827,7 @@ export default function ScoringStation({
           ) : null}
           <HStack className="flex-wrap gap-2 pt-2">
             <LiveStatusBadge status={syncStatus} prefix="Station" />
-            <LiveStatusBadge status={matchSyncStatus} prefix="Match" />
+            <LiveStatusBadge status={effectiveMatchSyncStatus} prefix="Match" />
           </HStack>
         </VStack>
         <HStack className="shrink-0 items-center gap-2">
@@ -949,10 +845,21 @@ export default function ScoringStation({
 
       <VStack className="gap-2 px-4 py-3">
         <LiveStatusAlert status={syncStatus} error={syncError} className="bg-slate-900/80 text-white" />
-        <LiveStatusAlert status={matchSyncStatus} error={matchSyncError} className="bg-slate-900/80 text-white" />
+        <LiveStatusAlert status={effectiveMatchSyncStatus} error={effectiveMatchSyncError} className="bg-slate-900/80 text-white" />
       </VStack>
 
-      {!match ? (
+      {(mode === 'table' && !tableInfo) || (mode === 'teamMatch' && !teamMatch) ? (
+        <Box className="flex min-h-0 flex-1 items-center justify-center p-6 text-white">
+          <VStack className="items-center gap-4 text-center">
+            <Heading size="lg" className="text-white">Station Unavailable</Heading>
+            <Text className="max-w-md text-sm text-white/70">
+              {mode === 'table'
+                ? 'This table was reassigned, archived, or is no longer available.'
+                : 'This team match no longer exposes the selected table while the screen is open.'}
+            </Text>
+          </VStack>
+        </Box>
+      ) : !renderedMatch ? (
         <Box className="flex min-h-0 flex-1 items-center justify-center p-6 text-white">
           <VStack className="items-center gap-4 text-center">
             <Heading size="lg" className="text-white">No active match</Heading>
@@ -990,11 +897,16 @@ export default function ScoringStation({
               </VStack>
 
               <VStack className="gap-1">
-                <Button variant="outline" className="min-h-[2.75rem] border-white/20 bg-white text-slate-900 hover:bg-slate-100" onClick={handleCompleteAction} disabled={!matchID || (!currentGameFinished && !isMatchFinished(match))}>
+                <Button variant="outline" className="min-h-[2.75rem] border-white/20 bg-white text-slate-900 hover:bg-slate-100" onClick={handleCompleteAction} disabled={!matchID || (!currentGameFinished && !isMatchFinished(renderedMatch))}>
                   <Text className="text-slate-900">Complete Match</Text>
                 </Button>
               </VStack>
             </HStack>
+            {effectiveMatchSyncStatus === 'stale' || effectiveMatchSyncStatus === 'conflict' ? (
+              <Box className="mt-3 rounded-2xl border border-white/10 bg-slate-900/80 px-3 py-2">
+                <LiveStatusAlert status={effectiveMatchSyncStatus} error={effectiveMatchSyncError} className="bg-transparent p-0 text-white shadow-none" />
+              </Box>
+            ) : null}
           </Box>
 
           {warmupActive ? (
@@ -1016,13 +928,13 @@ export default function ScoringStation({
             <ScoreSide
               side={leftSide}
               isLeft={true}
-              match={match}
+              match={renderedMatch}
               disabled={scoreActionsDisabled}
               onAddPoint={() => applyPoint(leftSide, true)}
               onMinusPoint={() => applyPoint(leftSide, false)}
               onEditPlayer={(playerKey) => {
                 setEditingPlayerKey(playerKey)
-                setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
+                setPlayerDraft({ ...getNewPlayer(), ...(renderedMatch?.[playerKey] || {}) })
                 setShowPlayerEditor(true)
               }}
               onToggleServer={() => setServerManually(matchID, leftSide === 'A')}
@@ -1030,13 +942,13 @@ export default function ScoringStation({
             <ScoreSide
               side={rightSide}
               isLeft={false}
-              match={match}
+              match={renderedMatch}
               disabled={scoreActionsDisabled}
               onAddPoint={() => applyPoint(rightSide, true)}
               onMinusPoint={() => applyPoint(rightSide, false)}
               onEditPlayer={(playerKey) => {
                 setEditingPlayerKey(playerKey)
-                setPlayerDraft({ ...getNewPlayer(), ...(match?.[playerKey] || {}) })
+                setPlayerDraft({ ...getNewPlayer(), ...(renderedMatch?.[playerKey] || {}) })
                 setShowPlayerEditor(true)
               }}
               onToggleServer={() => setServerManually(matchID, rightSide === 'A')}
@@ -1164,8 +1076,8 @@ export default function ScoringStation({
               await manuallySetGameScore(matchID, gameNumber, aScore, bScore)
             }
           }
-          if (match && !hasActiveGame(match)) {
-            await updateService(matchID, settings.isAInitialServer, getCurrentGameNumber(match) || 1, 0, Number(settings.changeServeEveryXPoints), Number(settings.pointsToWinGame), match.sportName, settings.scoringType)
+          if (renderedMatch && !hasActiveGame(renderedMatch)) {
+            await updateService(matchID, settings.isAInitialServer, getCurrentGameNumber(renderedMatch) || 1, 0, Number(settings.changeServeEveryXPoints), Number(settings.pointsToWinGame), renderedMatch.sportName, settings.scoringType)
           }
           setShowSettings(false)
           await refreshMatch()
@@ -1183,7 +1095,7 @@ export default function ScoringStation({
           })
         }}
         supportedSports={supportedSports}
-        sportName={match?.sportName}
+        sportName={renderedMatch?.sportName}
         isDoubles={settingsDraft.isDoubles}
         activeAction={activeAction}
         matchID={matchID}

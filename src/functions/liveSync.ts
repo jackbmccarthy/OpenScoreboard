@@ -4,15 +4,15 @@ import {
   createInitialLiveSyncState,
   createLiveSyncState,
   createSubscriptionRegistry,
-  mapRealtimeState,
   type LiveSyncState,
 } from '@/lib/liveSync'
-import { subscribeToPathState, type RealtimeUnsubscribe } from '@/lib/realtime'
-import { getRecentPointHistory, subscribeToMatchData } from './scoring'
+import { subscribeToPathState, type RealtimeState, type RealtimeUnsubscribe } from '@/lib/realtime'
+import { getRecentPointHistory } from './scoring'
 import { resolveCapabilityLink, type CapabilityRecord, type CapabilityType } from './accessTokens'
+import { sanitizeClientAccessRecord } from './accessSecrets'
+import { isRecordActive } from './deletion'
 import { sortScheduledMatchEntries } from './scoring'
-import { subscribeToTable } from './tables'
-import { subscribeToTeamMatch, subscribeToTeamMatchCurrentMatch } from './teammatches'
+import { normalizeMatchSchema, normalizeTeamMatchSchema } from './matchSchema'
 
 type MatchHistoryEntry = ReturnType<typeof getRecentPointHistory>
 
@@ -51,6 +51,24 @@ export type TeamMatchRuntimeState = {
   currentMatchID: string
 }
 
+export type ScoringStationRuntimeState =
+  | ({ mode: 'table' } & TableRuntimeState)
+  | ({ mode: 'teamMatch' } & TeamMatchRuntimeState)
+
+type TableRuntimeOptions = {
+  tableID: string
+  token?: string | null
+  capabilityType?: CapabilityType
+  watchLegacyAccess?: boolean
+}
+
+type TeamMatchRuntimeOptions = {
+  teamMatchID: string
+  tableNumber: string
+  token?: string | null
+  capabilityType?: CapabilityType
+}
+
 function buildQueueState(
   status: LiveSyncState<unknown>['status'],
   updatedAt: string,
@@ -81,6 +99,56 @@ function createIdleTeamMatchState() {
 
 function createIdleHistoryState() {
   return createInitialLiveSyncState<MatchHistoryEntry>('idle', [])
+}
+
+function buildAccessMarker(tableValue: Partial<Table> | null) {
+  return [
+    tableValue?.accessRequired ? 'required' : 'open',
+    tableValue?.accessSecretMode || '',
+    tableValue?.passwordUpdatedAt || '',
+    tableValue?.legacyAccess?.enabledUntil || '',
+    tableValue?.legacyAccess?.retiredAt || '',
+  ].join(':')
+}
+
+function normalizeMatchState(state: RealtimeState<unknown>) {
+  const matchValue = state.value && typeof state.value === 'object'
+    ? normalizeMatchSchema(state.value as Record<string, unknown> | null) as Match | null
+    : null
+
+  return createLiveSyncState<Match | null>({
+    status: state.status,
+    value: matchValue,
+    error: state.error,
+    updatedAt: state.updatedAt,
+  })
+}
+
+function normalizeTeamMatchState(state: RealtimeState<unknown>) {
+  const teamMatchValue = state.value && typeof state.value === 'object'
+    ? normalizeTeamMatchSchema(state.value as Record<string, unknown> | null) as TeamMatch | null
+    : null
+  const activeTeamMatch = isRecordActive(teamMatchValue) ? teamMatchValue : null
+
+  return createLiveSyncState<TeamMatch | null>({
+    status: state.status,
+    value: activeTeamMatch,
+    error: state.error,
+    updatedAt: state.updatedAt,
+  })
+}
+
+function normalizeTableState(state: RealtimeState<unknown>) {
+  const tableValue = state.value && typeof state.value === 'object' && isRecordActive(state.value)
+    ? sanitizeClientAccessRecord(state.value as Table)
+    : null
+
+  return createLiveSyncState<Table | null>({
+    status: state.status,
+    value: tableValue,
+    error: state.error,
+    updatedAt: state.updatedAt,
+  })
 }
 
 function buildRuntimeConnectionState(channels: RuntimeSyncChannels) {
@@ -199,15 +267,14 @@ export function subscribeToTableRuntime(
     tableID,
     token,
     capabilityType = 'table_scoring',
-  }: {
-    tableID: string
-    token?: string | null
-    capabilityType?: CapabilityType
-  },
+    watchLegacyAccess = false,
+  }: TableRuntimeOptions,
   callback: (state: TableRuntimeState) => void,
 ): RealtimeUnsubscribe {
   const subscriptions = createSubscriptionRegistry()
   let currentMatchID = ''
+  let lastAccessMarker = ''
+  let hasSeenInitialTableValue = false
   let currentState: TableRuntimeState = {
     connection: createInitialLiveSyncState<null>('loading', null),
     channels: {
@@ -271,33 +338,15 @@ export function subscribeToTableRuntime(
     emit()
 
     subscriptions.replace('match-state', subscribeToPathState(`matches/${nextMatchID}`, (state) => {
+      const matchState = normalizeMatchState(state)
       currentState = {
         ...currentState,
-        currentMatch: {
-          ...currentState.currentMatch,
-          ...mapRealtimeState<Match | null>(state as never),
-        },
-        history: createLiveSyncState({
+        currentMatch: matchState,
+        history: {
           status: state.status,
-          value: currentState.history.value || [],
+          value: getRecentPointHistory(matchState.value),
           error: state.error,
           updatedAt: state.updatedAt,
-        }),
-      }
-      emit()
-    }))
-    subscriptions.replace('match-data', subscribeToMatchData(nextMatchID, (match) => {
-      currentState = {
-        ...currentState,
-        currentMatch: {
-          ...currentState.currentMatch,
-          value: match,
-          updatedAt: new Date().toISOString(),
-        },
-        history: {
-          ...currentState.history,
-          value: getRecentPointHistory(match),
-          updatedAt: new Date().toISOString(),
         },
       }
       emit()
@@ -305,36 +354,49 @@ export function subscribeToTableRuntime(
   }
 
   subscriptions.replace('table-state', subscribeToPathState(`tables/${tableID}`, (state) => {
+    const tableState = normalizeTableState(state)
+    const rawTableValue = state.value && typeof state.value === 'object'
+      ? state.value as Partial<Table>
+      : null
+    const nextAccessMarker = rawTableValue ? buildAccessMarker(rawTableValue) : ''
+
     currentState = {
       ...currentState,
-      table: {
-        ...currentState.table,
-        ...mapRealtimeState<Table | null>(state as never),
-      },
-      queue: createLiveSyncState({
-        status: state.status,
-        value: currentState.queue.value || [],
-        error: state.error,
-        updatedAt: state.updatedAt,
-      }),
-    }
-    emit()
-  }))
-  subscriptions.replace('table-data', subscribeToTable(tableID, (table) => {
-    currentState = {
-      ...currentState,
-      table: {
-        ...currentState.table,
-        value: table,
-        updatedAt: new Date().toISOString(),
-      },
+      table: tableState,
       queue: buildQueueState(
-        currentState.table.status,
-        new Date().toISOString(),
-        table?.scheduledMatches as Record<string, ScheduledMatch> | undefined,
+        tableState.status,
+        state.updatedAt,
+        tableState.value?.scheduledMatches as Record<string, ScheduledMatch> | undefined,
       ),
     }
-    syncCurrentMatch(typeof table?.currentMatch === 'string' ? table.currentMatch : '')
+
+    if (watchLegacyAccess) {
+      if (!hasSeenInitialTableValue) {
+        hasSeenInitialTableValue = true
+      } else if (nextAccessMarker && nextAccessMarker !== lastAccessMarker) {
+        currentState = {
+          ...currentState,
+          accessToken: createLiveSyncState({
+            status: 'unauthorized',
+            value: currentState.accessToken.value,
+            error: 'The table password changed. Re-enter it to continue scoring.',
+            updatedAt: state.updatedAt,
+          }),
+        }
+      } else if (currentState.accessToken.status === 'idle') {
+        currentState = {
+          ...currentState,
+          accessToken: createLiveSyncState({
+            status: tableState.status === 'loading' ? 'loading' : 'live',
+            value: null,
+            updatedAt: state.updatedAt,
+          }),
+        }
+      }
+      lastAccessMarker = nextAccessMarker
+    }
+
+    syncCurrentMatch(typeof tableState.value?.currentMatch === 'string' ? tableState.value.currentMatch : '')
     emit()
   }))
 
@@ -361,12 +423,7 @@ export function subscribeToTeamMatchRuntime(
     tableNumber,
     token,
     capabilityType = 'team_match_scoring',
-  }: {
-    teamMatchID: string
-    tableNumber: string
-    token?: string | null
-    capabilityType?: CapabilityType
-  },
+  }: TeamMatchRuntimeOptions,
   callback: (state: TeamMatchRuntimeState) => void,
 ): RealtimeUnsubscribe {
   const subscriptions = createSubscriptionRegistry()
@@ -434,33 +491,15 @@ export function subscribeToTeamMatchRuntime(
     emit()
 
     subscriptions.replace('match-state', subscribeToPathState(`matches/${nextMatchID}`, (state) => {
+      const matchState = normalizeMatchState(state)
       currentState = {
         ...currentState,
-        currentMatch: {
-          ...currentState.currentMatch,
-          ...mapRealtimeState<Match | null>(state as never),
-        },
-        history: createLiveSyncState({
+        currentMatch: matchState,
+        history: {
           status: state.status,
-          value: currentState.history.value || [],
+          value: getRecentPointHistory(matchState.value),
           error: state.error,
           updatedAt: state.updatedAt,
-        }),
-      }
-      emit()
-    }))
-    subscriptions.replace('match-data', subscribeToMatchData(nextMatchID, (match) => {
-      currentState = {
-        ...currentState,
-        currentMatch: {
-          ...currentState.currentMatch,
-          value: match,
-          updatedAt: new Date().toISOString(),
-        },
-        history: {
-          ...currentState.history,
-          value: getRecentPointHistory(match),
-          updatedAt: new Date().toISOString(),
         },
       }
       emit()
@@ -468,43 +507,22 @@ export function subscribeToTeamMatchRuntime(
   }
 
   subscriptions.replace('team-match-state', subscribeToPathState(`teamMatches/${teamMatchID}`, (state) => {
+    const teamMatchState = normalizeTeamMatchState(state)
+    const currentMatches = teamMatchState.value?.currentMatches && typeof teamMatchState.value.currentMatches === 'object'
+      ? teamMatchState.value.currentMatches as Record<string, string>
+      : {}
+
     currentState = {
       ...currentState,
-      teamMatch: {
-        ...currentState.teamMatch,
-        ...mapRealtimeState<TeamMatch | null>(state as never),
-      },
-      queue: createLiveSyncState({
-        status: state.status,
-        value: currentState.queue.value || [],
-        error: state.error,
-        updatedAt: state.updatedAt,
-      }),
-    }
-    emit()
-  }))
-  subscriptions.replace('team-match-data', subscribeToTeamMatch(teamMatchID, (teamMatch) => {
-    currentState = {
-      ...currentState,
-      teamMatch: {
-        ...currentState.teamMatch,
-        value: teamMatch,
-        updatedAt: new Date().toISOString(),
-      },
+      teamMatch: teamMatchState,
       queue: buildQueueState(
-        currentState.teamMatch.status,
-        new Date().toISOString(),
-        teamMatch?.scheduledMatches as Record<string, ScheduledMatch> | undefined,
+        teamMatchState.status,
+        state.updatedAt,
+        teamMatchState.value?.scheduledMatches as Record<string, ScheduledMatch> | undefined,
       ),
     }
-    const currentMatches = teamMatch?.currentMatches && typeof teamMatch.currentMatches === 'object'
-      ? teamMatch.currentMatches as Record<string, string>
-      : {}
     syncCurrentMatch(currentMatches[tableNumber] || '')
     emit()
-  }))
-  subscriptions.replace('team-match-current', subscribeToTeamMatchCurrentMatch(teamMatchID, tableNumber, (nextMatchID) => {
-    syncCurrentMatch(nextMatchID)
   }))
 
   if (token) {
@@ -522,4 +540,25 @@ export function subscribeToTeamMatchRuntime(
   return () => {
     subscriptions.clear()
   }
+}
+
+export function subscribeToScoringStationRuntime(
+  options: ({ mode: 'table' } & TableRuntimeOptions) | ({ mode: 'teamMatch' } & TeamMatchRuntimeOptions),
+  callback: (state: ScoringStationRuntimeState) => void,
+): RealtimeUnsubscribe {
+  if (options.mode === 'table') {
+    return subscribeToTableRuntime(options, (state) => {
+      callback({
+        mode: 'table',
+        ...state,
+      })
+    })
+  }
+
+  return subscribeToTeamMatchRuntime(options, (state) => {
+    callback({
+      mode: 'teamMatch',
+      ...state,
+    })
+  })
 }

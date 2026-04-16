@@ -11,6 +11,7 @@
     "start": "next start",
     "preview": "next start",
     "test:ownership": "node --test scripts/*.test.mjs",
+    "test:scoring-station": "node --test scripts/scoring-station-runtime.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "ci:type-baseline": "npm run typecheck && npm run check:ts-nocheck",
     "check:ts-nocheck": "bash scripts/check-no-new-ts-nocheck.sh",
