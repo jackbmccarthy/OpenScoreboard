@@ -1,6 +1,7 @@
 import db, { getUserPath } from '../lib/database'
 import { listCapabilityLinks, revokeCapabilityLink } from './accessTokens'
 import { auditOwnershipSnapshot } from '@/ownership/audit.js'
+import { collectTableDependentMatchIDs, collectTeamMatchDependentMatchIDs } from '@/ownership/dependents.js'
 import { getOwnershipPolicy, isRecordActive as isOwnershipRecordActive } from '@/ownership/policies.js'
 
 export const ACTIVE_DELETE_MODE = 'active'
@@ -78,29 +79,6 @@ function getOwnerIDFromRecord(record: Record<string, any> | null | undefined) {
 function getRetentionDays(entityType: string) {
   const policy = getOwnershipPolicy(entityType)
   return Number(policy?.retentionDays || 30)
-}
-
-function getNestedMatchIDs(value: unknown) {
-  if (!value || typeof value !== 'object') {
-    return []
-  }
-
-  const matchIDs: string[] = []
-  for (const candidate of Object.values(value as Record<string, unknown>)) {
-    if (typeof candidate === 'string' && candidate.length > 0) {
-      matchIDs.push(candidate)
-      continue
-    }
-
-    if (candidate && typeof candidate === 'object') {
-      const record = candidate as Record<string, unknown>
-      if (typeof record.matchID === 'string' && record.matchID.length > 0) {
-        matchIDs.push(record.matchID)
-      }
-    }
-  }
-
-  return matchIDs
 }
 
 async function getRootValue(path: string) {
@@ -181,22 +159,6 @@ export async function softDeleteCanonical(
 export async function getPreviewValue(path: string) {
   const snapshot = await db.ref(path).get()
   return snapshot.val()
-}
-
-export function collectTableDependentMatchIDs(tableRecord: Record<string, any> | null | undefined) {
-  const currentMatchID = typeof tableRecord?.currentMatch === 'string' ? tableRecord.currentMatch : ''
-  return Array.from(new Set([
-    currentMatchID,
-    ...getNestedMatchIDs(tableRecord?.scheduledMatches),
-    ...getNestedMatchIDs(tableRecord?.previousMatches),
-  ].filter(Boolean)))
-}
-
-export function collectTeamMatchDependentMatchIDs(teamMatchRecord: Record<string, any> | null | undefined) {
-  return Array.from(new Set([
-    ...getNestedMatchIDs(teamMatchRecord?.currentMatches),
-    ...getNestedMatchIDs(teamMatchRecord?.scheduledMatches),
-  ].filter(Boolean)))
 }
 
 export async function revokeCapabilityLinksByReference(

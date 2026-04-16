@@ -92,14 +92,14 @@ Each soft delete also appends an audit event to `deletionLog/*`.
 
 ### Delete table
 - Soft-delete the canonical table record.
-- Soft-delete the canonical `matches/*` referenced by `currentMatch`, `scheduledMatches/*`, and legacy `previousMatches`.
+- Soft-delete the canonical `matches/*` referenced by `currentMatch`, `scheduledMatches/*`, `archivedMatches/*`, and legacy `previousMatches`.
 - Soft-delete `dynamicurls/*` that target the table.
 - Revoke capability links that target the table.
 - Remove the owner preview entry under `users/{uid}/myTables/*`.
 
 ### Delete team match
 - Soft-delete the canonical team-match record.
-- Soft-delete the canonical `matches/*` referenced by `currentMatches/*` and `scheduledMatches/*`.
+- Soft-delete the canonical `matches/*` referenced by `currentMatches/*`, `scheduledMatches/*`, and `archivedMatches/*`.
 - Soft-delete `dynamicurls/*` that target the team match.
 - Revoke capability links that target the team match.
 - Remove the owner preview entry under `users/{uid}/myTeamMatches/*`.
@@ -122,7 +122,7 @@ Each soft delete also appends an audit event to `deletionLog/*`.
 ## Dry-Run And Repair Tooling
 
 ### Delete flow dry-run
-The destructive list actions now accept an optional dry-run mode and return a report instead of mutating data:
+The destructive list actions now accept an optional dry-run mode and return a report instead of mutating data. The primary admin delete dialogs call the dry-run variant first and block the archive button until the impact preview succeeds:
 
 - `deleteTable(myTableID, { dryRun: true })`
 - `deleteTeamMatch(myTeamMatchID, { dryRun: true })`

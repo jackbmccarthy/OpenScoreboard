@@ -5,6 +5,7 @@ import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import OperationToast from '@/components/realtime/OperationToast'
 import { addNewTeam, deleteMyTeam, getMyTeams, subscribeToMyTeams, updateMyTeam, updateTeam } from '@/functions/teams'
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
+import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import { UserIcon } from '@/components/icons'
 import { subscribeToPathState } from '@/lib/realtime'
 import type { LiveSyncStatus } from '@/lib/liveSync'
@@ -29,6 +30,15 @@ type TeamPreview = {
 }
 
 type TeamEntry = [string, TeamPreview]
+
+type PendingBulkArchive = {
+  removedTeams: Array<{
+    myTeamID: string
+    teamID: string
+    teamName: string
+    report: Record<string, any>
+  }>
+}
 
 function createEmptyRow(): BulkTeamRow {
   return {
@@ -102,6 +112,7 @@ export default function BulkTeamsPage() {
   const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
   const [syncError, setSyncError] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<{ id: string; label: string } | null>(null)
+  const [pendingBulkArchive, setPendingBulkArchive] = useState<PendingBulkArchive | null>(null)
   const [viewMode, setViewMode] = useState<'form' | 'spreadsheet'>('form')
   const [spreadsheetValue, setSpreadsheetValue] = useState('')
   const feedback = useOperationFeedback()
@@ -156,7 +167,7 @@ export default function BulkTeamsPage() {
     feedback.showSuccess(`Loaded ${parsedRows.length} team row${parsedRows.length === 1 ? '' : 's'}.`)
   }
 
-  const handleSave = async () => {
+  const handleSave = async (skipDeletePreview = false) => {
     setSaving(true)
     setError(null)
 
@@ -164,6 +175,24 @@ export default function BulkTeamsPage() {
       const currentTeams = await getMyTeams()
       const currentMap = new Map((currentTeams as TeamEntry[]).map(([myTeamID, preview]) => [preview.id, { myTeamID, preview }]))
       const nextTeamIDs = new Set(rows.filter((row) => !row.isNew).map((row) => row.teamID))
+      const removedTeams = Array.from(currentMap.entries())
+        .filter(([teamID]) => !nextTeamIDs.has(teamID))
+        .map(([teamID, { myTeamID, preview }]) => ({
+          myTeamID,
+          teamID,
+          teamName: preview.name || teamID,
+        }))
+
+      if (!skipDeletePreview && removedTeams.length > 0) {
+        const removedTeamsWithReports = await Promise.all(removedTeams.map(async (team) => ({
+          ...team,
+          report: await deleteMyTeam(team.myTeamID, { dryRun: true }),
+        })))
+        setPendingBulkArchive({
+          removedTeams: removedTeamsWithReports,
+        })
+        return
+      }
 
       for (const row of rows) {
         if (!row.teamName.trim()) {
@@ -185,13 +214,12 @@ export default function BulkTeamsPage() {
         }
       }
 
-      for (const [teamID, { myTeamID }] of currentMap.entries()) {
-        if (!nextTeamIDs.has(teamID)) {
-          await deleteMyTeam(myTeamID)
-        }
+      for (const removedTeam of removedTeams) {
+        await deleteMyTeam(removedTeam.myTeamID)
       }
 
       feedback.showSuccess('Bulk team changes saved.')
+      setPendingBulkArchive(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save teams')
       feedback.showError(err instanceof Error ? err.message : 'Failed to save teams')
@@ -289,7 +317,7 @@ export default function BulkTeamsPage() {
           <Button variant="outline" onClick={() => setRows((current) => [...current, createEmptyRow()])}>
             <Text>Add Row</Text>
           </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={() => { void handleSave() }} disabled={saving}>
             <Text className="text-white">{saving ? 'Saving...' : 'Save All Changes'}</Text>
           </Button>
         </HStack>
@@ -303,6 +331,25 @@ export default function BulkTeamsPage() {
         message={`Remove ${pendingRemoval?.label || 'this team row'} from the pending bulk changes? This does not save until you confirm the full bulk update.`}
         confirmLabel="Remove Row"
       />
+
+      <ConfirmDialog
+        isOpen={Boolean(pendingBulkArchive)}
+        onClose={() => setPendingBulkArchive(null)}
+        onConfirm={() => handleSave(true)}
+        title="Archive Removed Teams"
+        message={`Save these bulk changes and archive ${pendingBulkArchive?.removedTeams.length || 0} team${pendingBulkArchive?.removedTeams.length === 1 ? '' : 's'} that were removed from the sheet?`}
+        description="Each removed team is dry-run scanned before the bulk archive goes through."
+        confirmLabel="Save And Archive"
+      >
+        <VStack className="mt-4 gap-3">
+          {pendingBulkArchive?.removedTeams.map((team) => (
+            <Box key={team.myTeamID} className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <Text className="text-sm font-semibold text-slate-900">{team.teamName}</Text>
+              <OwnershipDeleteImpact report={team.report} />
+            </Box>
+          ))}
+        </VStack>
+      </ConfirmDialog>
       <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )

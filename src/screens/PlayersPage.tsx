@@ -4,7 +4,9 @@ import { ChevronRightIcon, PencilIcon, PlayersIcon, PlusIcon, TrashIcon } from '
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import OperationToast from '@/components/realtime/OperationToast'
 import {
@@ -153,7 +155,7 @@ export default function PlayersPage() {
   }
 
   const handleDeleteList = async () => {
-    if (!pendingDeleteList) return
+    if (!pendingDeleteList || deletePlayerListReport.loading || deletePlayerListReport.error) return
 
     await deletePlayerList(pendingDeleteList.myPlayerListID)
     if (selectedList?.myPlayerListID === pendingDeleteList.myPlayerListID) {
@@ -164,6 +166,10 @@ export default function PlayersPage() {
     feedback.showSuccess('Player list archived.')
     setPendingDeleteList(null)
   }
+  const deletePlayerListReport = useOwnershipDeleteReport(
+    pendingDeleteList?.myPlayerListID || '',
+    pendingDeleteList ? () => deletePlayerList(pendingDeleteList.myPlayerListID, { dryRun: true }) : null,
+  )
 
   const handleDeletePlayer = async () => {
     if (!selectedList || !pendingDeletePlayer) return
@@ -425,7 +431,14 @@ export default function PlayersPage() {
         message={`Remove ${pendingDeleteList?.name || 'this list'} from your dashboard?`}
         description="This will archive the player list and clear any table assignments. The player list data will be preserved and can be recovered during the retention window."
         confirmLabel="Remove"
-      />
+        confirmDisabled={deletePlayerListReport.loading || Boolean(deletePlayerListReport.error)}
+      >
+        <OwnershipDeleteImpact
+          report={deletePlayerListReport.report}
+          loading={deletePlayerListReport.loading}
+          error={deletePlayerListReport.error}
+        />
+      </ConfirmDialog>
 
       <ConfirmDialog
         isOpen={!!pendingDeletePlayer}

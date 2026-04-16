@@ -1,4 +1,5 @@
 import { Button, Text } from '@/components/ui'
+import type { ReactNode } from 'react'
 import OverlayDialog from './OverlayDialog'
 
 interface ConfirmDialogProps {
@@ -10,6 +11,8 @@ interface ConfirmDialogProps {
   description?: string
   confirmLabel?: string
   tone?: 'danger' | 'primary'
+  confirmDisabled?: boolean
+  children?: ReactNode
 }
 
 export function ConfirmDialog({
@@ -21,6 +24,8 @@ export function ConfirmDialog({
   description,
   confirmLabel = 'Confirm',
   tone = 'danger',
+  confirmDisabled = false,
+  children,
 }: ConfirmDialogProps) {
   return (
     <OverlayDialog
@@ -32,7 +37,7 @@ export function ConfirmDialog({
           <Button variant="outline" onClick={onClose}>
             <Text>Cancel</Text>
           </Button>
-          <Button variant={tone === 'danger' ? 'danger' : 'solid'} onClick={onConfirm}>
+          <Button variant={tone === 'danger' ? 'danger' : 'solid'} onClick={onConfirm} disabled={confirmDisabled}>
             <Text className="text-white">{confirmLabel}</Text>
           </Button>
         </>
@@ -42,6 +47,7 @@ export function ConfirmDialog({
       {description && (
         <Text className="text-sm leading-6 text-slate-500 mt-2">{description}</Text>
       )}
+      {children}
     </OverlayDialog>
   )
 }

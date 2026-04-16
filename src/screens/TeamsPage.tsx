@@ -4,7 +4,9 @@ import { Badge, Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, 
 import { ChevronRightIcon, PencilIcon, PlusIcon, TeamsIcon, TrashIcon } from '@/components/icons'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
 import { addNewTeam, deleteMyTeam, getTeam, subscribeToMyTeams, updateMyTeam, updateTeam } from '@/functions/teams'
 import SyncIndicator from '@/components/realtime/SyncIndicator'
 import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
@@ -167,6 +169,10 @@ export default function TeamsPage() {
   const [tagInput, setTagInput] = useState('')
   const [activeTagFilter, setActiveTagFilter] = useState<string>(ALL_TAG_FILTER)
   const [pendingDeleteTeam, setPendingDeleteTeam] = useState<{ myTeamID: string; name: string } | null>(null)
+  const deleteTeamReport = useOwnershipDeleteReport(
+    pendingDeleteTeam?.myTeamID || '',
+    pendingDeleteTeam ? () => deleteMyTeam(pendingDeleteTeam.myTeamID, { dryRun: true }) : null,
+  )
 
   useEffect(() => {
     if (authLoading) return
@@ -288,7 +294,7 @@ export default function TeamsPage() {
   }
 
   const handleDeleteTeam = async () => {
-    if (!pendingDeleteTeam) return
+    if (!pendingDeleteTeam || deleteTeamReport.loading || deleteTeamReport.error) return
     await deleteMyTeam(pendingDeleteTeam.myTeamID)
     setPendingDeleteTeam(null)
   }
@@ -527,7 +533,14 @@ export default function TeamsPage() {
         message={`Remove ${pendingDeleteTeam?.name || 'this team'} from your visible team list?`}
         description="This will archive the team. If this team is still referenced by active team matches, those references will be preserved in the archive. The team can be recovered during the retention window."
         confirmLabel="Remove"
-      />
+        confirmDisabled={deleteTeamReport.loading || Boolean(deleteTeamReport.error)}
+      >
+        <OwnershipDeleteImpact
+          report={deleteTeamReport.report}
+          loading={deleteTeamReport.loading}
+          error={deleteTeamReport.error}
+        />
+      </ConfirmDialog>
     </Box>
   )
 }

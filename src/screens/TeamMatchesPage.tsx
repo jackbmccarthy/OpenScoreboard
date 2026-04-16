@@ -5,6 +5,8 @@ import { PencilIcon, PlusIcon, TeamsIcon, TrashIcon } from '@/components/icons'
 import { useAuth } from '@/lib/auth'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
+import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import OperationToast from '@/components/realtime/OperationToast'
@@ -161,11 +163,15 @@ export default function TeamMatchesPage() {
   }
 
   const handleDeleteMatch = async () => {
-    if (!pendingDeleteMatch) return
+    if (!pendingDeleteMatch || deleteTeamMatchReport.loading || deleteTeamMatchReport.error) return
     await deleteTeamMatch(pendingDeleteMatch.myTeamMatchID)
     feedback.showSuccess('Team match archived.')
     setPendingDeleteMatch(null)
   }
+  const deleteTeamMatchReport = useOwnershipDeleteReport(
+    pendingDeleteMatch?.myTeamMatchID || '',
+    pendingDeleteMatch ? () => deleteTeamMatch(pendingDeleteMatch.myTeamMatchID, { dryRun: true }) : null,
+  )
 
   if (loading || authLoading) {
     return (
@@ -328,7 +334,14 @@ export default function TeamMatchesPage() {
         message={`Remove ${pendingDeleteMatch?.name || 'this team match'} from your visible team match list?`}
         description="This will archive the team match and all its sub-match references. The team match data will be preserved and can be recovered during the retention window."
         confirmLabel="Remove"
-      />
+        confirmDisabled={deleteTeamMatchReport.loading || Boolean(deleteTeamMatchReport.error)}
+      >
+        <OwnershipDeleteImpact
+          report={deleteTeamMatchReport.report}
+          loading={deleteTeamMatchReport.loading}
+          error={deleteTeamMatchReport.error}
+        />
+      </ConfirmDialog>
 
       <OverlayDialog
         isOpen={Boolean(selectedMatchDetail)}

@@ -4,6 +4,8 @@ import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select,
 import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/icons'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
+import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import OperationToast from '@/components/realtime/OperationToast'
 import { addDynamicURL, deleteDynamicURL, subscribeToMyDynamicURLs, updateDynamicURL } from '@/functions/dynamicurls'
@@ -154,12 +156,22 @@ export default function DynamicURLsPage() {
   }
 
   const handleDeleteDynamicURL = async () => {
-    if (!pendingDeleteDynamicURL) return
+    if (!pendingDeleteDynamicURL || deleteDynamicURLReport.loading || deleteDynamicURLReport.error) return
     await deleteDynamicURL(pendingDeleteDynamicURL.myDynamicURLID, pendingDeleteDynamicURL.dynamicURLID)
     feedback.showSuccess('Dynamic URL archived.')
     setPendingDeleteDynamicURL(null)
     // Subscription fires when data changes — no manual reload needed
   }
+  const deleteDynamicURLReport = useOwnershipDeleteReport(
+    pendingDeleteDynamicURL?.myDynamicURLID || '',
+    pendingDeleteDynamicURL
+      ? () => deleteDynamicURL(
+        pendingDeleteDynamicURL.myDynamicURLID,
+        pendingDeleteDynamicURL.dynamicURLID,
+        { dryRun: true },
+      )
+      : null,
+  )
 
   const scoreboardOptions = useMemo(
     () => scoreboards.map(([, scoreboard]) => ({ id: scoreboard.id, label: scoreboard.name })),
@@ -309,7 +321,14 @@ export default function DynamicURLsPage() {
         title="Delete Dynamic URL"
         message={`Delete ${pendingDeleteDynamicURL?.name || 'this dynamic URL'}?`}
         confirmLabel="Delete"
-      />
+        confirmDisabled={deleteDynamicURLReport.loading || Boolean(deleteDynamicURLReport.error)}
+      >
+        <OwnershipDeleteImpact
+          report={deleteDynamicURLReport.report}
+          loading={deleteDynamicURLReport.loading}
+          error={deleteDynamicURLReport.error}
+        />
+      </ConfirmDialog>
       <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )

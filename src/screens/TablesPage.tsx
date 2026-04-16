@@ -4,7 +4,9 @@ import { CheckIcon, CopyIcon, ExternalLinkIcon, LinkIcon, PencilIcon, PlusIcon, 
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import OperationToast from '@/components/realtime/OperationToast'
@@ -170,6 +172,10 @@ export default function TablesPage() {
   ]
   const tableStatusOptions = ['idle', 'queued', 'called', 'paused', 'active']
   const visibleTables = tables.filter((table) => statusFilter === 'all' ? true : (table.status || 'idle') === statusFilter)
+  const deleteTableReport = useOwnershipDeleteReport(
+    pendingDeleteTable?.myTableID || '',
+    pendingDeleteTable ? () => deleteTable(pendingDeleteTable.myTableID, { dryRun: true }) : null,
+  )
 
   const handlePromoteNext = async (tableID: string) => {
     setPromotingTableID(tableID)
@@ -231,7 +237,7 @@ export default function TablesPage() {
   }
 
   const handleDeleteTable = async () => {
-    if (!pendingDeleteTable) return
+    if (!pendingDeleteTable || deleteTableReport.loading || deleteTableReport.error) return
     await deleteTable(pendingDeleteTable.myTableID)
     feedback.showSuccess('Table archived.')
     setPendingDeleteTable(null)
@@ -491,7 +497,14 @@ export default function TablesPage() {
         message={`Remove ${pendingDeleteTable?.tableName || 'this table'} from your visible table list?`}
         description="This will archive the table and remove it from your dashboard. The table data will be preserved and can be recovered during the retention window."
         confirmLabel="Remove"
-      />
+        confirmDisabled={deleteTableReport.loading || Boolean(deleteTableReport.error)}
+      >
+        <OwnershipDeleteImpact
+          report={deleteTableReport.report}
+          loading={deleteTableReport.loading}
+          error={deleteTableReport.error}
+        />
+      </ConfirmDialog>
 
       <OverlayDialog
         isOpen={showTableLinksModal && !!selectedTableForLinks}

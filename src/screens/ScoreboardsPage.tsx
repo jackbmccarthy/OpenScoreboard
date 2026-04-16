@@ -4,7 +4,9 @@ import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select,
 import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/icons'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
 import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import OperationToast from '@/components/realtime/OperationToast'
 import { addNewScoreboard, deleteMyScoreboard, duplicateScoreboard, getScoreboardTypesList, subscribeToMyScoreboards, updateScoreboardDetails } from '@/functions/scoreboards'
@@ -165,11 +167,15 @@ export default function ScoreboardsPage() {
   }
 
   const handleDeleteScoreboard = async () => {
-    if (!pendingDeleteScoreboard) return
+    if (!pendingDeleteScoreboard || deleteScoreboardReport.loading || deleteScoreboardReport.error) return
     await deleteMyScoreboard(pendingDeleteScoreboard.myScoreboardID)
     feedback.showSuccess('Scoreboard archived.')
     setPendingDeleteScoreboard(null)
   }
+  const deleteScoreboardReport = useOwnershipDeleteReport(
+    pendingDeleteScoreboard?.myScoreboardID || '',
+    pendingDeleteScoreboard ? () => deleteMyScoreboard(pendingDeleteScoreboard.myScoreboardID, { dryRun: true }) : null,
+  )
 
   if (authLoading || loading) {
     return (
@@ -350,7 +356,14 @@ export default function ScoreboardsPage() {
         message={`Remove ${pendingDeleteScoreboard?.name || 'this scoreboard'} from your visible scoreboard list?`}
         description="This will archive the scoreboard and clear any table assignments. The scoreboard data will be preserved and can be recovered during the retention window."
         confirmLabel="Remove"
-      />
+        confirmDisabled={deleteScoreboardReport.loading || Boolean(deleteScoreboardReport.error)}
+      >
+        <OwnershipDeleteImpact
+          report={deleteScoreboardReport.report}
+          loading={deleteScoreboardReport.loading}
+          error={deleteScoreboardReport.error}
+        />
+      </ConfirmDialog>
 
       <OverlayDialog
         isOpen={!!previewScoreboard}

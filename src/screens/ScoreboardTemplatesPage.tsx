@@ -14,7 +14,10 @@ import {
   updateScoreboardTemplate,
 } from '@/functions/scoreboardTemplates'
 import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
+import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import OwnershipDeleteImpact from '@/components/crud/OwnershipDeleteImpact'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import { useOwnershipDeleteReport } from '@/components/crud/useOwnershipDeleteReport'
 import { subscribeToPathState } from '@/lib/realtime'
 import type { LiveSyncStatus } from '@/lib/liveSync'
 import { useOperationFeedback } from '@/lib/useOperationFeedback'
@@ -46,6 +49,7 @@ export default function ScoreboardTemplatesPage() {
   const [syncError, setSyncError] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState<ScoreboardTemplateRecord | null>(null)
   const [editingTemplate, setEditingTemplate] = useState<ScoreboardTemplateRecord | null>(null)
+  const [pendingDeleteTemplate, setPendingDeleteTemplate] = useState<ScoreboardTemplateRecord | null>(null)
   const [scoreboardName, setScoreboardName] = useState('')
   const [templateDraft, setTemplateDraft] = useState({
     name: '',
@@ -54,6 +58,10 @@ export default function ScoreboardTemplatesPage() {
     type: 'liveStream',
   })
   const feedback = useOperationFeedback()
+  const deleteTemplateReport = useOwnershipDeleteReport(
+    pendingDeleteTemplate?.id || '',
+    pendingDeleteTemplate ? () => deleteScoreboardTemplate(pendingDeleteTemplate.id, { dryRun: true }) : null,
+  )
 
   useEffect(() => {
     const unsubscribeState = subscribeToPathState('scoreboardTemplates', (state) => {
@@ -120,6 +128,16 @@ export default function ScoreboardTemplatesPage() {
       category: 'General',
       type: 'liveStream',
     })
+  }
+
+  const handleDeleteTemplate = async () => {
+    if (!pendingDeleteTemplate || deleteTemplateReport.loading || deleteTemplateReport.error) {
+      return
+    }
+
+    await deleteScoreboardTemplate(pendingDeleteTemplate.id)
+    feedback.showSuccess('Template archived.')
+    setPendingDeleteTemplate(null)
   }
 
   return (
@@ -209,10 +227,7 @@ export default function ScoreboardTemplatesPage() {
                         </Button>
                       ) : null}
                       {canEditTemplate(template) ? (
-                        <Button variant="outline" onClick={async () => {
-                          await deleteScoreboardTemplate(template.id)
-                          feedback.showSuccess('Template archived.')
-                        }}>
+                        <Button variant="outline" onClick={() => setPendingDeleteTemplate(template)}>
                           <Text>Archive</Text>
                         </Button>
                       ) : null}
@@ -281,6 +296,23 @@ export default function ScoreboardTemplatesPage() {
           </LabeledField>
         </VStack>
       </OverlayDialog>
+
+      <ConfirmDialog
+        isOpen={!!pendingDeleteTemplate}
+        onClose={() => setPendingDeleteTemplate(null)}
+        onConfirm={handleDeleteTemplate}
+        title="Archive Template"
+        message={`Archive ${pendingDeleteTemplate?.name || 'this template'}?`}
+        description="This will archive the template and clear any live scoreboard references to it before the archive is applied."
+        confirmLabel="Archive"
+        confirmDisabled={deleteTemplateReport.loading || Boolean(deleteTemplateReport.error)}
+      >
+        <OwnershipDeleteImpact
+          report={deleteTemplateReport.report}
+          loading={deleteTemplateReport.loading}
+          error={deleteTemplateReport.error}
+        />
+      </ConfirmDialog>
       <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )
