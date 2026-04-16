@@ -31,6 +31,7 @@ export interface Player {
 // ============================================
 export interface MatchSettings {
   schemaVersion?: number;
+  warmupDurationSeconds?: number;
 
   // Pregame settings
   isActive: boolean;
@@ -272,6 +273,7 @@ export interface TeamMatch {
   teamBID: string;
   teamAScore: number;
   teamBScore: number;
+  sportDisplayName?: string;
   tournamentID?: string;
   eventID?: string;
   roundID?: string;
@@ -321,6 +323,13 @@ export interface Table {
   passwordHash?: string;
   passwordUpdatedAt?: string;
   accessVersion?: number;
+  accessSecretMode?: string;
+  legacyAccess?: {
+    enabledUntil?: string;
+    retiredAt?: string;
+    lastAccessedAt?: string;
+    lastIssuedCapabilityAt?: string;
+  };
   currentMatch?: string;
   playerListID?: string;
   pointsToWinGame?: number;
@@ -397,6 +406,13 @@ export interface PlayerList {
   passwordHash?: string;
   passwordUpdatedAt?: string;
   accessVersion?: number;
+  accessSecretMode?: string;
+  legacyAccess?: {
+    enabledUntil?: string;
+    retiredAt?: string;
+    lastAccessedAt?: string;
+    lastIssuedCapabilityAt?: string;
+  };
 }
 
 // ============================================

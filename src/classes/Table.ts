@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { buildAccessSecretMetadata } from '../functions/accessSecrets';
+import type { ScheduledMatch } from '../types/matches';
 
 class Table {
   /**
@@ -30,10 +31,17 @@ class Table {
   passwordHash: string
   passwordUpdatedAt: string
   accessVersion: number
+  accessSecretMode: string
+  legacyAccess: {
+    enabledUntil: string
+    retiredAt: string
+    lastAccessedAt: string
+    lastIssuedCapabilityAt: string
+  }
   currentMatch: string
-  previousMatches: Record<string, any>
-  playerList: Record<string, any>
-  scheduledMatches: Record<string, any>
+  previousMatches: Record<string, string>
+  playerList: Record<string, string>
+  scheduledMatches: Record<string, ScheduledMatch>
   autoAdvanceMode: string
   autoAdvanceDelaySeconds: number
   playerListID: string

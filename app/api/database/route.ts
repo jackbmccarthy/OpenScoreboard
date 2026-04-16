@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { executeDatabaseActions, type DatabaseAction } from '@/server/databaseDriver'
+import { isRequestSecurityError } from '@/server/errors'
 
 export const runtime = 'nodejs'
 
@@ -28,6 +29,12 @@ export async function POST(request: Request) {
     const results = await executeDatabaseActions(actions, authToken, capabilityToken)
     return NextResponse.json({ results })
   } catch (error) {
+    if (isRequestSecurityError(error)) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status },
+      )
+    }
     const message = error instanceof Error ? error.message : 'Database request failed'
     return NextResponse.json(
       { error: message },

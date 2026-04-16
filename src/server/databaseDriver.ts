@@ -2,6 +2,7 @@ import { AceBaseClient } from 'acebase-client'
 
 import { acebaseConfig, firebaseClientConfig, isLocalDatabase } from '../lib/env'
 import { capabilityAllowsRead, capabilityAllowsWrite, resolveCapabilityToken } from './capabilities'
+import { RequestSecurityError } from './errors'
 
 export type DatabaseAction =
   | { type: 'get'; path: string }
@@ -11,9 +12,9 @@ export type DatabaseAction =
   | { type: 'remove'; path: string }
   | { type: 'push'; path: string; value: unknown }
 
-type DatabaseActionResult = {
+type DatabaseActionResult<T = any> = {
   key?: string
-  value?: unknown
+  value?: T
 }
 
 let acebaseClient: AceBaseClient | null = null
@@ -281,9 +282,144 @@ async function getPathValue(path: string, authToken?: string | null) {
   return result.value
 }
 
+function getRecordOwnerID(value: unknown) {
+  if (!value || typeof value !== 'object') {
+    return ''
+  }
+
+  const record = value as Record<string, unknown>
+  const ownerID = record.ownerID || record.creatorID || record.createdBy
+  return typeof ownerID === 'string' ? ownerID : ''
+}
+
+async function getOwnedParentOwnerID(
+  path: string,
+  authToken?: string | null,
+) {
+  const normalizedPath = normalizePath(path)
+  const segments = getPathSegments(normalizedPath)
+
+  if (segments[0] === 'tables' && segments[1]) {
+    return getRecordOwnerID(await getPathValue(`tables/${segments[1]}`, authToken))
+  }
+  if (segments[0] === 'playerLists' && segments[1]) {
+    return getRecordOwnerID(await getPathValue(`playerLists/${segments[1]}`, authToken))
+  }
+  if (segments[0] === 'teamMatches' && segments[1]) {
+    return getRecordOwnerID(await getPathValue(`teamMatches/${segments[1]}`, authToken))
+  }
+  if (segments[0] === 'scoreboards' && segments[1]) {
+    return getRecordOwnerID(await getPathValue(`scoreboards/${segments[1]}`, authToken))
+  }
+  if (segments[0] === 'dynamicurls' && segments[1]) {
+    const dynamicURL = await getPathValue(`dynamicurls/${segments[1]}`, authToken)
+    if (!dynamicURL || typeof dynamicURL !== 'object') {
+      return ''
+    }
+    const record = dynamicURL as Record<string, unknown>
+    if (typeof record.tableID === 'string' && record.tableID) {
+      return getRecordOwnerID(await getPathValue(`tables/${record.tableID}`, authToken))
+    }
+    if (typeof record.teamMatchID === 'string' && record.teamMatchID) {
+      return getRecordOwnerID(await getPathValue(`teamMatches/${record.teamMatchID}`, authToken))
+    }
+    if (typeof record.scoreboardID === 'string' && record.scoreboardID) {
+      return getRecordOwnerID(await getPathValue(`scoreboards/${record.scoreboardID}`, authToken))
+    }
+    return ''
+  }
+  if (segments[0] === 'matches') {
+    const matchID = segments[1]
+    if (!matchID) {
+      return ''
+    }
+    const matchValue = await getPathValue(`matches/${matchID}`, authToken)
+    if (!matchValue || typeof matchValue !== 'object') {
+      return ''
+    }
+    const record = matchValue as Record<string, unknown>
+    const scheduling = record.scheduling && typeof record.scheduling === 'object'
+      ? record.scheduling as Record<string, unknown>
+      : {}
+    const tableID = typeof scheduling.tableID === 'string' && scheduling.tableID
+      ? scheduling.tableID
+      : typeof record.tableID === 'string'
+        ? record.tableID
+        : ''
+    if (tableID) {
+      return getRecordOwnerID(await getPathValue(`tables/${tableID}`, authToken))
+    }
+    const teamMatchID = typeof scheduling.teamMatchID === 'string' && scheduling.teamMatchID
+      ? scheduling.teamMatchID
+      : typeof record.teamMatchID === 'string'
+        ? record.teamMatchID
+        : ''
+    if (teamMatchID) {
+      return getRecordOwnerID(await getPathValue(`teamMatches/${teamMatchID}`, authToken))
+    }
+  }
+
+  return ''
+}
+
 async function canWriteProtectedAction(action: DatabaseAction, callerID: string, authToken?: string | null) {
   const normalizedPath = normalizePath(action.path)
   const pathSegments = getPathSegments(action.path)
+
+  if (pathSegments[0] === 'capabilityTokens') {
+    return false
+  }
+
+  if (pathSegments[0] === 'tables') {
+    if (action.type === 'push' && normalizedPath === 'tables') {
+      return callerID === 'mylocalserver' || (action.value && typeof action.value === 'object' && (action.value as Record<string, unknown>).creatorID === callerID)
+    }
+    return (await getOwnedParentOwnerID(action.path, authToken)) === callerID || callerID === 'mylocalserver'
+  }
+
+  if (pathSegments[0] === 'playerLists') {
+    if (action.type === 'push' && normalizedPath === 'playerLists') {
+      return callerID === 'mylocalserver' || (action.value && typeof action.value === 'object' && (action.value as Record<string, unknown>).ownerID === callerID)
+    }
+    return (await getOwnedParentOwnerID(action.path, authToken)) === callerID || callerID === 'mylocalserver'
+  }
+
+  if (pathSegments[0] === 'teamMatches') {
+    if (action.type === 'push' && normalizedPath === 'teamMatches') {
+      return callerID === 'mylocalserver' || (action.value && typeof action.value === 'object' && (action.value as Record<string, unknown>).ownerID === callerID)
+    }
+    return (await getOwnedParentOwnerID(action.path, authToken)) === callerID || callerID === 'mylocalserver'
+  }
+
+  if (pathSegments[0] === 'matches') {
+    if (action.type === 'push' && normalizedPath === 'matches') {
+      if (!action.value || typeof action.value !== 'object') {
+        return false
+      }
+      const record = action.value as Record<string, unknown>
+      const scheduling = record.scheduling && typeof record.scheduling === 'object'
+        ? record.scheduling as Record<string, unknown>
+        : {}
+      const tableID = typeof scheduling.tableID === 'string' && scheduling.tableID
+        ? scheduling.tableID
+        : typeof record.tableID === 'string'
+          ? record.tableID
+          : ''
+      if (tableID) {
+        return getRecordOwnerID(await getPathValue(`tables/${tableID}`, authToken)) === callerID || callerID === 'mylocalserver'
+      }
+      const teamMatchID = typeof scheduling.teamMatchID === 'string' && scheduling.teamMatchID
+        ? scheduling.teamMatchID
+        : typeof record.teamMatchID === 'string'
+          ? record.teamMatchID
+          : ''
+      if (teamMatchID) {
+        return getRecordOwnerID(await getPathValue(`teamMatches/${teamMatchID}`, authToken)) === callerID || callerID === 'mylocalserver'
+      }
+      return false
+    }
+    return (await getOwnedParentOwnerID(action.path, authToken)) === callerID || callerID === 'mylocalserver'
+  }
 
   if (pathSegments[0] === 'scoreboards') {
     if (action.type === 'push' && normalizedPath === 'scoreboards') {
@@ -298,6 +434,26 @@ async function canWriteProtectedAction(action: DatabaseAction, callerID: string,
       ? scoreboardValue as Record<string, unknown>
       : null
     return Boolean(scoreboard && (scoreboard.ownerID === callerID || callerID === 'mylocalserver'))
+  }
+
+  if (pathSegments[0] === 'dynamicurls') {
+    if (action.type === 'push' && normalizedPath === 'dynamicurls') {
+      if (!action.value || typeof action.value !== 'object') {
+        return false
+      }
+      const record = action.value as Record<string, unknown>
+      if (typeof record.tableID === 'string' && record.tableID) {
+        return getRecordOwnerID(await getPathValue(`tables/${record.tableID}`, authToken)) === callerID || callerID === 'mylocalserver'
+      }
+      if (typeof record.teamMatchID === 'string' && record.teamMatchID) {
+        return getRecordOwnerID(await getPathValue(`teamMatches/${record.teamMatchID}`, authToken)) === callerID || callerID === 'mylocalserver'
+      }
+      if (typeof record.scoreboardID === 'string' && record.scoreboardID) {
+        return getRecordOwnerID(await getPathValue(`scoreboards/${record.scoreboardID}`, authToken)) === callerID || callerID === 'mylocalserver'
+      }
+      return false
+    }
+    return (await getOwnedParentOwnerID(action.path, authToken)) === callerID || callerID === 'mylocalserver'
   }
 
   if (pathSegments[0] === 'scoreboardTemplates') {
@@ -375,13 +531,16 @@ async function canWriteProtectedAction(action: DatabaseAction, callerID: string,
   return false
 }
 
-export async function executeDatabaseActions(
+export async function executeDatabaseActions<T = any>(
   actions: DatabaseAction[],
   authToken?: string | null,
   capabilityToken?: string | null,
 ) {
   const results: DatabaseActionResult[] = []
-  const capabilityRecord = capabilityToken ? await resolveCapabilityToken(capabilityToken) : null
+  const capabilityRecord = capabilityToken ? await resolveCapabilityToken(capabilityToken, undefined, {
+    source: 'database_proxy',
+    skipAudit: true,
+  }) : null
   const callerID = authToken ? await resolveFirebaseCallerID(authToken) : null
 
   for (const action of actions) {
@@ -390,17 +549,21 @@ export async function executeDatabaseActions(
       continue
     }
 
+    if (authToken && !callerID) {
+      throw new RequestSecurityError('Invalid authentication token', 401, 'invalid_auth_token')
+    }
+
     if (action.type === 'get' && !authToken) {
-      if (!capabilityRecord || !capabilityAllowsRead(capabilityRecord, action)) {
-        throw new Error(`Unauthorized database action for ${action.path}`)
+      if (!capabilityRecord || !await capabilityAllowsRead(capabilityRecord, action)) {
+        throw new RequestSecurityError(`Unauthorized database action for ${action.path}`, 401, 'unauthorized_database_action')
       }
       results.push(await runServerFirebaseAction(action))
       continue
     }
 
     if (action.type !== 'get' && !authToken) {
-      if (!capabilityRecord || !capabilityAllowsWrite(capabilityRecord, action)) {
-        throw new Error(`Unauthorized database action for ${action.path}`)
+      if (!capabilityRecord || !await capabilityAllowsWrite(capabilityRecord, action)) {
+        throw new RequestSecurityError(`Unauthorized database action for ${action.path}`, 401, 'unauthorized_database_action')
       }
       results.push(await runServerFirebaseAction(action))
       continue
@@ -409,17 +572,17 @@ export async function executeDatabaseActions(
     if (action.type !== 'get' && callerID) {
       const allowed = await canWriteProtectedAction(action, callerID, authToken)
       if (!allowed) {
-        throw new Error(`Forbidden database action for ${action.path}`)
+        throw new RequestSecurityError(`Forbidden database action for ${action.path}`, 403, 'forbidden_database_action')
       }
     }
 
     results.push(await runFirebaseAction(action, authToken))
   }
 
-  return results
+  return results as DatabaseActionResult<T>[]
 }
 
-export async function executeServerDatabaseActions(actions: DatabaseAction[]) {
+export async function executeServerDatabaseActions<T = any>(actions: DatabaseAction[]) {
   const results: DatabaseActionResult[] = []
 
   for (const action of actions) {
@@ -431,5 +594,5 @@ export async function executeServerDatabaseActions(actions: DatabaseAction[]) {
     results.push(await runServerFirebaseAction(action))
   }
 
-  return results
+  return results as DatabaseActionResult<T>[]
 }

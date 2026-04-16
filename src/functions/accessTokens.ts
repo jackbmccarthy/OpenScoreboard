@@ -11,10 +11,16 @@ export type CapabilityType =
 export type CapabilityRecord = {
   tokenId: string
   capabilityType: CapabilityType
+  status: 'active' | 'revoked' | 'expired' | 'rotated'
   createdAt: string
   createdBy: string
   expiresAt: string | null
   revokedAt: string | null
+  revokedBy?: string
+  revocationReason?: string
+  rotatedAt?: string
+  replacedByTokenId?: string
+  replacesTokenId?: string
   tableID?: string
   teamMatchID?: string
   matchID?: string
@@ -23,6 +29,11 @@ export type CapabilityRecord = {
   scoreboardID?: string
   label?: string
   tokenFingerprint: string
+  lastAccessedAt?: string
+  accessCount?: number
+  lastInvalidAttemptAt?: string
+  invalidAttemptCount?: number
+  suspiciousAttemptCount?: number
 }
 
 type IssueCapabilityInput = {
@@ -34,6 +45,13 @@ type IssueCapabilityInput = {
   playerListID?: string
   tableNumber?: string
   scoreboardID?: string
+  label?: string
+  origin?: string
+}
+
+type RotateCapabilityInput = {
+  tokenId: string
+  expiresInHours?: number | null
   label?: string
   origin?: string
 }
@@ -114,6 +132,46 @@ export async function revokeCapabilityLink(tokenId: string) {
     throw new Error(payload?.error || 'Failed to revoke capability link')
   }
   return payload?.record as CapabilityRecord
+}
+
+export async function rotateCapabilityLink(input: RotateCapabilityInput) {
+  const response = await fetch('/api/capabilities', {
+    method: 'POST',
+    headers: await getJsonHeaders(),
+    body: JSON.stringify({
+      action: 'rotate',
+      ...input,
+      origin: input.origin || (typeof window !== 'undefined' ? window.location.origin : ''),
+    }),
+  })
+  const payload = await response.json()
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to rotate capability link')
+  }
+  return payload as { token: string; record: CapabilityRecord; url: string }
+}
+
+export async function exchangeLegacyCapabilityLink(input: {
+  capabilityType: 'table_scoring' | 'player_registration'
+  tableID?: string
+  playerListID?: string
+  secret: string
+  origin?: string
+}) {
+  const response = await fetch('/api/capabilities', {
+    method: 'POST',
+    headers: await getJsonHeaders(),
+    body: JSON.stringify({
+      action: 'exchangeLegacy',
+      ...input,
+      origin: input.origin || (typeof window !== 'undefined' ? window.location.origin : ''),
+    }),
+  })
+  const payload = await response.json()
+  if (!response.ok) {
+    throw new Error(payload?.error || 'Failed to exchange legacy access')
+  }
+  return payload as { token: string; record: CapabilityRecord; url: string }
 }
 
 export function activateCapabilityToken(token: string | null) {

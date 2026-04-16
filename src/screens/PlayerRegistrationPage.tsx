@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Box, Text, VStack, Button, Input, Spinner } from '@/components/ui';
-import { activateCapabilityToken, resolveCapabilityLink } from '@/functions/accessTokens';
+import { activateCapabilityToken, exchangeLegacyCapabilityLink, resolveCapabilityLink, type CapabilityRecord } from '@/functions/accessTokens';
 
 export default function PlayerRegistrationPage() {
   const [searchParams] = useSearchParams()
@@ -20,12 +20,12 @@ export default function PlayerRegistrationPage() {
   const [loadingPlayer, setLoadingPlayer] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [resolvedCapability, setResolvedCapability] = useState<CapabilityRecord | null>(null);
 
   useEffect(() => {
     async function checkPlayerList() {
-      let unSub: (() => void) | undefined
       try {
-        const { getPlayerListName, isPlayerListAccessRequired, verifyPlayerListPassword, watchForPlayerListPasswordChange } = await import('@/functions/players');
+        const { getPlayerListName, isPlayerListAccessRequired } = await import('@/functions/players');
         if (token) {
           const resolved = await resolveCapabilityLink(token, 'player_registration')
           if (!resolved || resolved.record.playerListID !== playerListID) {
@@ -33,54 +33,48 @@ export default function PlayerRegistrationPage() {
             return undefined
           }
           activateCapabilityToken(token)
+          setResolvedCapability(resolved.record)
           const playerList = await getPlayerListName(playerListID || resolved.record.playerListID || '')
           if (playerList.length > 0) {
             setPlayerListExists(true)
           }
+          return undefined
         }
 
-        // Watch for password changes
+        if (playerListID && password && !token) {
+          const exchanged = await exchangeLegacyCapabilityLink({
+            capabilityType: 'player_registration',
+            playerListID,
+            secret: password,
+          })
+          activateCapabilityToken(exchanged.token)
+          setResolvedCapability(exchanged.record)
+          const playerList = await getPlayerListName(playerListID)
+          if (playerList.length > 0) {
+            setPlayerListExists(true)
+          }
+          return undefined
+        }
+
         if (playerListID && !token) {
           const requiresAccess = await isPlayerListAccessRequired(playerListID)
-          const legacyPasswordAccepted = requiresAccess ? Boolean(password && await verifyPlayerListPassword(playerListID, password)) : true
-          if (!legacyPasswordAccepted) {
+          if (requiresAccess) {
             setUnauthorized(true)
             return undefined
           }
-          let hasSeenInitialAccessValue = false
-          unSub = watchForPlayerListPasswordChange(playerListID, (accessMarker: string) => {
-            if (!hasSeenInitialAccessValue) {
-              hasSeenInitialAccessValue = true
-              return
-            }
-            if (accessMarker) {
-              setUnauthorized(true);
-            }
-          });
-          
-          // Check if player list exists
+
           const playerList = await getPlayerListName(playerListID);
           if (playerList.length > 0) {
             setPlayerListExists(true);
           }
         }
       } catch (err) {
-        console.error('Error checking player list:', err);
+        setUnauthorized(true)
       } finally {
         setLoading(false);
       }
-
-      return unSub
     }
-
-    let cleanup: (() => void) | undefined
-    checkPlayerList().then((unsubscribe) => {
-      cleanup = unsubscribe
-    })
-
-    return () => {
-      cleanup?.()
-    }
+    void checkPlayerList()
   }, [password, playerListID, token]);
 
   const handleRegister = async () => {
@@ -108,7 +102,7 @@ export default function PlayerRegistrationPage() {
       setFirstName('');
       setLastName('');
     } catch (err) {
-      console.error('Error registering player:', err);
+      setUnauthorized(true)
     } finally {
       setLoadingPlayer(false);
     }
@@ -127,7 +121,7 @@ export default function PlayerRegistrationPage() {
       <Box className="flex items-center justify-center p-8">
         <VStack space="md" className="text-center">
           <Text className="text-2xl font-bold text-red-600">Unauthorized</Text>
-          <Text className="text-gray-600">You are not authorized to access this registration.</Text>
+          <Text className="text-gray-600">This registration link is invalid, expired, or still using a retired legacy password.</Text>
         </VStack>
       </Box>
     );
@@ -149,7 +143,9 @@ export default function PlayerRegistrationPage() {
       <VStack space="lg">
         <VStack space="sm" className="text-center">
           <Text className="text-3xl font-bold text-center">Player Registration</Text>
-          <Text className="text-gray-600 text-center">Register here to join the tournament</Text>
+          <Text className="text-gray-600 text-center">
+            {resolvedCapability ? 'Secure registration session active.' : 'Register here to join the tournament'}
+          </Text>
         </VStack>
 
         {showSuccess ? (

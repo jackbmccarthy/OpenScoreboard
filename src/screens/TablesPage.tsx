@@ -390,7 +390,7 @@ export default function TablesPage() {
                       >
                         <Text>{promotingTableID === table.tableID ? 'Promoting...' : 'Promote Next'}</Text>
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?tableID=${table.tableID}&matchID=${table.currentMatchID || ''}&label=${encodeURIComponent(table.tableName)}`)} className="w-full sm:w-auto">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?capabilityType=table_scoring&tableID=${table.tableID}&matchID=${table.currentMatchID || ''}&label=${encodeURIComponent(table.tableName)}`)} className="w-full sm:w-auto">
                         <Text>Secure Link</Text>
                       </Button>
                       <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2" onPress={() => openTableLinksModal(table)}>

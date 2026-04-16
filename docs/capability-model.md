@@ -33,9 +33,12 @@ Canonical token records live under:
 Stored metadata includes:
 - capability type
 - created/expiry/revocation timestamps
+- status and rotation lineage (`replacesTokenId`, `replacedByTokenId`)
 - label
 - target ids (`tableID`, `teamMatchID`, `playerListID`, `scoreboardID`, `tableNumber`)
 - token fingerprint
+- last-access timestamps/counts
+- per-link audit events for issue, resolve, rotate, revoke, and legacy-password exchange
 
 ## Current routes
 
@@ -49,6 +52,7 @@ Stored metadata includes:
 
 - Existing legacy `tables/{tableID}/password` and `playerLists/{playerListID}/password` fields are still read for migration compatibility.
 - New and reset access secrets write `passwordHash`, `passwordUpdatedAt`, and `accessSecretMode: "hashed"` instead of persisting the generated raw secret.
+- Legacy password links are migration-only. During the configured migration window they are exchanged server-side into short-lived capability sessions; after `legacyAccess.enabledUntil` or `legacyAccess.retiredAt`, they stop resolving.
 - Existing routes continue to work:
   - `/scoring/table/:id`
   - `/teamscoring/teammatch/:id`
@@ -57,8 +61,8 @@ Stored metadata includes:
 - Secure token support is additive through `?token=...`; it does not replace the old route structure.
 - Existing scoreboard URLs/query params are preserved.
 
-## Current limitations
+## Abuse protection
 
-- This repo still relies on Firebase rules for cloud-mode writes because it is not using the Firebase Admin SDK for privileged server writes.
-- The token model is a first security slice, not the full CI-4 completion.
-- Legacy password flows remain readable until migration retirement is explicitly implemented.
+- Public resolve and legacy-exchange requests are rate limited per client IP.
+- Invalid token and invalid legacy-secret attempts are logged to `securityEvents/capabilityAccess` without storing plaintext tokens or secrets.
+- The database proxy returns scoped `401`/`403` errors for capability misuse instead of relying on client-side hiding.

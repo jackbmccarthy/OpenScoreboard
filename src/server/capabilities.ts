@@ -1,6 +1,9 @@
-import crypto from 'node:crypto'
+import * as crypto from 'node:crypto'
+
+import { isAccessSecretValid, isLegacyAccessAllowed, type LegacyAccessRecord } from '@/functions/accessSecrets'
 
 import { executeDatabaseActions, executeServerDatabaseActions, type DatabaseAction } from './databaseDriver'
+import { RequestSecurityError } from './errors'
 
 export type CapabilityType =
   | 'table_scoring'
@@ -8,13 +11,35 @@ export type CapabilityType =
   | 'player_registration'
   | 'public_score_view'
 
+export type CapabilityStatus =
+  | 'active'
+  | 'revoked'
+  | 'expired'
+  | 'rotated'
+
+export type CapabilityAuditEvent = {
+  type: string
+  at: string
+  actorID?: string
+  ipHash?: string
+  userAgentHash?: string
+  origin?: string
+  details?: Record<string, unknown>
+}
+
 export type CapabilityRecord = {
   tokenId: string
   capabilityType: CapabilityType
+  status: CapabilityStatus
   createdAt: string
   createdBy: string
   expiresAt: string | null
   revokedAt: string | null
+  revokedBy?: string
+  revocationReason?: string
+  rotatedAt?: string
+  replacedByTokenId?: string
+  replacesTokenId?: string
   tableID?: string
   teamMatchID?: string
   matchID?: string
@@ -23,10 +48,20 @@ export type CapabilityRecord = {
   scoreboardID?: string
   label?: string
   tokenFingerprint: string
+  issuedFromIPHash?: string
+  issuedUserAgentHash?: string
+  lastAccessedAt?: string
+  lastAccessIPHash?: string
+  lastAccessUserAgentHash?: string
+  accessCount?: number
+  lastInvalidAttemptAt?: string
+  invalidAttemptCount?: number
+  suspiciousAttemptCount?: number
+  auditTrail?: Record<string, CapabilityAuditEvent>
 }
 
 type CapabilityPayload = {
-  v: 1
+  v: 2
   jti: string
   capabilityType: CapabilityType
   iat: number
@@ -37,6 +72,34 @@ type CapabilityPayload = {
   playerListID?: string
   tableNumber?: string
   scoreboardID?: string
+}
+
+export type CapabilityRequestContext = {
+  actorID?: string
+  ipAddress?: string
+  userAgent?: string
+  origin?: string
+  source?: string
+  skipAudit?: boolean
+}
+
+type MatchScope = {
+  matchID?: string
+  tableID?: string
+  teamMatchID?: string
+  tableNumber?: string
+}
+
+function normalizePath(path: string) {
+  return path.replace(/^\/+|\/+$/g, '')
+}
+
+function getPathSegments(path: string) {
+  return normalizePath(path).split('/').filter(Boolean)
+}
+
+function isPathOrChild(path: string, parentPath: string) {
+  return path === parentPath || path.startsWith(`${parentPath}/`)
 }
 
 function base64UrlEncode(value: string) {
@@ -51,6 +114,10 @@ function base64UrlDecode(value: string) {
   const normalized = value.replace(/-/g, '+').replace(/_/g, '/')
   const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4))
   return Buffer.from(`${normalized}${padding}`, 'base64').toString('utf8')
+}
+
+function hashValue(value: string) {
+  return crypto.createHash('sha256').update(value).digest('hex').slice(0, 16)
 }
 
 function getCapabilitySecret() {
@@ -104,7 +171,198 @@ function verifyCapabilitySignature(token: string) {
 }
 
 function fingerprintToken(token: string) {
-  return crypto.createHash('sha256').update(token).digest('hex').slice(0, 16)
+  return hashValue(token)
+}
+
+function buildAuditEvent(
+  type: string,
+  context?: CapabilityRequestContext,
+  details?: Record<string, unknown>,
+): CapabilityAuditEvent {
+  return {
+    type,
+    at: new Date().toISOString(),
+    ...(context?.actorID ? { actorID: context.actorID } : {}),
+    ...(context?.ipAddress ? { ipHash: hashValue(context.ipAddress) } : {}),
+    ...(context?.userAgent ? { userAgentHash: hashValue(context.userAgent) } : {}),
+    ...(context?.origin ? { origin: context.origin } : {}),
+    ...(details ? { details } : {}),
+  }
+}
+
+async function appendCapabilityAuditEvent(
+  tokenId: string,
+  type: string,
+  context?: CapabilityRequestContext,
+  details?: Record<string, unknown>,
+) {
+  await executeServerDatabaseActions([
+    {
+      type: 'push',
+      path: `capabilityTokens/${tokenId}/auditTrail`,
+      value: buildAuditEvent(type, context, details),
+    },
+  ])
+}
+
+async function updateCapabilityRecord(
+  tokenId: string,
+  updater: (record: CapabilityRecord) => CapabilityRecord | null,
+) {
+  const currentRecord = await getCapabilityRecord(tokenId)
+  if (!currentRecord) {
+    return null
+  }
+  const nextRecord = updater(currentRecord)
+  if (!nextRecord) {
+    return null
+  }
+  await executeServerDatabaseActions([
+    { type: 'set', path: `capabilityTokens/${tokenId}`, value: nextRecord },
+  ])
+  return nextRecord
+}
+
+function getRecordStatus(record: CapabilityRecord): CapabilityStatus {
+  if (record.revokedAt) {
+    return record.replacedByTokenId ? 'rotated' : 'revoked'
+  }
+  if (record.expiresAt && new Date(record.expiresAt).getTime() <= Date.now()) {
+    return 'expired'
+  }
+  return 'active'
+}
+
+async function getServerValue(path: string) {
+  const [result] = await executeServerDatabaseActions([{ type: 'get', path }])
+  return result?.value ?? null
+}
+
+function getMatchScopeFromValue(value: unknown): MatchScope | null {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const record = value as Record<string, unknown>
+  const scheduling = record.scheduling && typeof record.scheduling === 'object'
+    ? record.scheduling as Record<string, unknown>
+    : {}
+
+  return {
+    tableID: typeof scheduling.tableID === 'string' && scheduling.tableID
+      ? scheduling.tableID
+      : typeof record.tableID === 'string'
+        ? record.tableID
+        : '',
+    teamMatchID: typeof scheduling.teamMatchID === 'string' && scheduling.teamMatchID
+      ? scheduling.teamMatchID
+      : typeof record.teamMatchID === 'string'
+        ? record.teamMatchID
+        : '',
+    tableNumber: typeof scheduling.tableNumber === 'string' && scheduling.tableNumber
+      ? scheduling.tableNumber
+      : typeof record.tableNumber === 'string'
+        ? record.tableNumber
+        : '',
+  }
+}
+
+async function getMatchScopeByID(matchID: string): Promise<MatchScope | null> {
+  const matchValue = await getServerValue(`matches/${matchID}`)
+  if (!matchValue || typeof matchValue !== 'object') {
+    return null
+  }
+
+  const record = matchValue as Record<string, unknown>
+  const scheduling = record.scheduling && typeof record.scheduling === 'object'
+    ? record.scheduling as Record<string, unknown>
+    : {}
+
+  return {
+    matchID,
+    tableID: typeof scheduling.tableID === 'string' && scheduling.tableID
+      ? scheduling.tableID
+      : typeof record.tableID === 'string'
+        ? record.tableID
+        : '',
+    teamMatchID: typeof scheduling.teamMatchID === 'string' && scheduling.teamMatchID
+      ? scheduling.teamMatchID
+      : typeof record.teamMatchID === 'string'
+        ? record.teamMatchID
+        : '',
+    tableNumber: typeof scheduling.tableNumber === 'string' && scheduling.tableNumber
+      ? scheduling.tableNumber
+      : typeof record.tableNumber === 'string'
+        ? record.tableNumber
+        : '',
+  }
+}
+
+function capabilityMatchesScope(record: CapabilityRecord, scope: MatchScope | null) {
+  if (!scope) {
+    return false
+  }
+
+  if (record.matchID) {
+    return scope.matchID === record.matchID
+  }
+
+  if (record.capabilityType === 'table_scoring') {
+    return Boolean(record.tableID && scope.tableID === record.tableID)
+  }
+
+  if (record.capabilityType === 'team_match_scoring') {
+    return Boolean(
+      record.teamMatchID &&
+      scope.teamMatchID === record.teamMatchID &&
+      `${scope.tableNumber || ''}` === `${record.tableNumber || '1'}`,
+    )
+  }
+
+  if (record.capabilityType === 'public_score_view') {
+    if (record.tableID) {
+      return scope.tableID === record.tableID
+    }
+    if (record.teamMatchID) {
+      return scope.teamMatchID === record.teamMatchID &&
+        `${scope.tableNumber || ''}` === `${record.tableNumber || scope.tableNumber || '1'}`
+    }
+  }
+
+  return false
+}
+
+async function updateCapabilityAccess(record: CapabilityRecord, context?: CapabilityRequestContext) {
+  const nextRecord = await updateCapabilityRecord(record.tokenId, (currentRecord) => ({
+    ...currentRecord,
+    status: getRecordStatus(currentRecord),
+    lastAccessedAt: new Date().toISOString(),
+    lastAccessIPHash: context?.ipAddress ? hashValue(context.ipAddress) : currentRecord.lastAccessIPHash || '',
+    lastAccessUserAgentHash: context?.userAgent ? hashValue(context.userAgent) : currentRecord.lastAccessUserAgentHash || '',
+    accessCount: Number(currentRecord.accessCount || 0) + 1,
+  }))
+
+  if (nextRecord && !context?.skipAudit) {
+    await appendCapabilityAuditEvent(record.tokenId, 'resolved', context, {
+      source: context?.source || 'resolve',
+      status: nextRecord.status,
+    })
+  }
+
+  return nextRecord
+}
+
+async function markCapabilityExpired(record: CapabilityRecord, context?: CapabilityRequestContext) {
+  const nextRecord = await updateCapabilityRecord(record.tokenId, (currentRecord) => ({
+    ...currentRecord,
+    status: 'expired',
+  }))
+
+  if (nextRecord && !context?.skipAudit) {
+    await appendCapabilityAuditEvent(record.tokenId, 'expired', context, {
+      source: context?.source || 'resolve',
+    })
+  }
 }
 
 export function buildCapabilityUrl(origin: string, record: CapabilityRecord, token: string) {
@@ -131,7 +389,8 @@ export async function issueCapabilityToken({
   tableNumber,
   scoreboardID,
   label,
-  authToken,
+  requestContext,
+  replacesTokenId,
 }: {
   capabilityType: CapabilityType
   createdBy: string
@@ -143,13 +402,14 @@ export async function issueCapabilityToken({
   tableNumber?: string
   scoreboardID?: string
   label?: string
-  authToken?: string | null
+  requestContext?: CapabilityRequestContext
+  replacesTokenId?: string
 }) {
   const tokenId = crypto.randomUUID()
   const issuedAt = Date.now()
   const expiresAt = expiresInHours && expiresInHours > 0 ? new Date(issuedAt + expiresInHours * 60 * 60 * 1000) : null
   const payload: CapabilityPayload = {
-    v: 1,
+    v: 2,
     jti: tokenId,
     capabilityType,
     iat: Math.floor(issuedAt / 1000),
@@ -166,6 +426,7 @@ export async function issueCapabilityToken({
   const record: CapabilityRecord = {
     tokenId,
     capabilityType,
+    status: 'active',
     createdAt: new Date(issuedAt).toISOString(),
     createdBy,
     expiresAt: expiresAt ? expiresAt.toISOString() : null,
@@ -177,12 +438,22 @@ export async function issueCapabilityToken({
     ...(tableNumber ? { tableNumber } : {}),
     ...(scoreboardID ? { scoreboardID } : {}),
     ...(label ? { label } : {}),
+    ...(replacesTokenId ? { replacesTokenId } : {}),
+    ...(requestContext?.ipAddress ? { issuedFromIPHash: hashValue(requestContext.ipAddress) } : {}),
+    ...(requestContext?.userAgent ? { issuedUserAgentHash: hashValue(requestContext.userAgent) } : {}),
     tokenFingerprint: fingerprintToken(token),
+    accessCount: 0,
+    invalidAttemptCount: 0,
+    suspiciousAttemptCount: 0,
   }
 
   await executeServerDatabaseActions([
     { type: 'set', path: `capabilityTokens/${tokenId}`, value: record },
   ])
+  await appendCapabilityAuditEvent(tokenId, 'issued', requestContext, {
+    replacesTokenId: replacesTokenId || '',
+    source: requestContext?.source || 'issue',
+  })
 
   return { token, record }
 }
@@ -194,7 +465,11 @@ export async function getCapabilityRecord(tokenId: string) {
   return (result?.value || null) as CapabilityRecord | null
 }
 
-export async function resolveCapabilityToken(token: string, expectedType?: CapabilityType) {
+export async function resolveCapabilityToken(
+  token: string,
+  expectedType?: CapabilityType,
+  requestContext?: CapabilityRequestContext,
+) {
   const payload = verifyCapabilitySignature(token)
   if (!payload) {
     return null
@@ -205,7 +480,7 @@ export async function resolveCapabilityToken(token: string, expectedType?: Capab
   }
 
   const record = await getCapabilityRecord(payload.jti)
-  if (!record || record.revokedAt) {
+  if (!record) {
     return null
   }
 
@@ -213,14 +488,26 @@ export async function resolveCapabilityToken(token: string, expectedType?: Capab
     return null
   }
 
-  if (record.expiresAt && new Date(record.expiresAt).getTime() <= Date.now()) {
+  const status = getRecordStatus(record)
+  if (status === 'revoked' || status === 'rotated') {
+    return null
+  }
+  if (status === 'expired') {
+    await markCapabilityExpired(record, requestContext)
     return null
   }
 
-  return record
+  if (requestContext?.skipAudit && requestContext?.source === 'database_proxy') {
+    return {
+      ...record,
+      status,
+    }
+  }
+
+  return updateCapabilityAccess(record, requestContext)
 }
 
-export async function listCapabilityTokens(filters: Partial<CapabilityRecord>, authToken?: string | null) {
+export async function listCapabilityTokens(filters: Partial<CapabilityRecord>) {
   const [result] = await executeServerDatabaseActions([
     { type: 'get', path: 'capabilityTokens' },
   ])
@@ -228,14 +515,18 @@ export async function listCapabilityTokens(filters: Partial<CapabilityRecord>, a
     ? Object.values(result.value as Record<string, CapabilityRecord>)
     : []
 
-  return records.filter((record) => {
-    return Object.entries(filters).every(([key, value]) => {
+  return records
+    .filter((record) => Object.entries(filters).every(([key, value]) => {
       if (typeof value === 'undefined') {
         return true
       }
       return record[key as keyof CapabilityRecord] === value
-    })
-  })
+    }))
+    .map((record) => ({
+      ...record,
+      status: getRecordStatus(record),
+    }))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 }
 
 export async function getOwnedCapabilityRecord(tokenId: string, ownerID: string) {
@@ -249,7 +540,12 @@ export async function getOwnedCapabilityRecord(tokenId: string, ownerID: string)
   return record
 }
 
-export async function revokeCapabilityToken(tokenId: string, authToken?: string | null, ownerID?: string) {
+export async function revokeCapabilityToken(
+  tokenId: string,
+  ownerID?: string,
+  requestContext?: CapabilityRequestContext,
+  reason = 'revoked_by_owner',
+) {
   const record = await getCapabilityRecord(tokenId)
   if (!record) {
     return null
@@ -258,142 +554,85 @@ export async function revokeCapabilityToken(tokenId: string, authToken?: string 
     return null
   }
 
-  const nextRecord = {
-    ...record,
-    revokedAt: new Date().toISOString(),
+  const nextRecord = await updateCapabilityRecord(tokenId, (currentRecord) => ({
+    ...currentRecord,
+    status: currentRecord.replacedByTokenId ? 'rotated' : 'revoked',
+    revokedAt: currentRecord.revokedAt || new Date().toISOString(),
+    revokedBy: requestContext?.actorID || ownerID || currentRecord.revokedBy || '',
+    revocationReason: reason,
+  }))
+
+  if (nextRecord) {
+    await appendCapabilityAuditEvent(tokenId, 'revoked', requestContext, { reason })
   }
-  await executeServerDatabaseActions([
-    { type: 'set', path: `capabilityTokens/${tokenId}`, value: nextRecord },
-  ])
+
   return nextRecord
 }
 
-export function capabilityAllowsWrite(record: CapabilityRecord, action: DatabaseAction) {
-  const path = action.path.replace(/^\/+/, '')
-  const allowedMatchPrefixes = record.matchID
-    ? [
-        `matches/${record.matchID}/game`,
-        `matches/${record.matchID}/games`,
-        `matches/${record.matchID}/pointHistory`,
-        `matches/${record.matchID}/auditTrail`,
-        `matches/${record.matchID}/scoringRules`,
-        `matches/${record.matchID}/scheduling`,
-        `matches/${record.matchID}/schemaVersion`,
-        `matches/${record.matchID}/context`,
-        `matches/${record.matchID}/tournamentContext`,
-        `matches/${record.matchID}/playerA`,
-        `matches/${record.matchID}/playerA2`,
-        `matches/${record.matchID}/playerB`,
-        `matches/${record.matchID}/playerB2`,
-        `matches/${record.matchID}/isA`,
-        `matches/${record.matchID}/isB`,
-        `matches/${record.matchID}/isSecondServer`,
-        `matches/${record.matchID}/isInitialServerSelected`,
-        `matches/${record.matchID}/isGame`,
-        `matches/${record.matchID}/isMatch`,
-        `matches/${record.matchID}/isInBetweenGames`,
-        `matches/${record.matchID}/isWarmUp`,
-        `matches/${record.matchID}/isCourtSideScoreboardFlipped`,
-        `matches/${record.matchID}/isManualServiceMode`,
-        `matches/${record.matchID}/isDoubles`,
-        `matches/${record.matchID}/isSwitched`,
-        `matches/${record.matchID}/isJudgePaused`,
-        `matches/${record.matchID}/judgePauseReason`,
-        `matches/${record.matchID}/isDisputed`,
-        `matches/${record.matchID}/latestJudgeNote`,
-        `matches/${record.matchID}/latestJudgeNoteAt`,
-        `matches/${record.matchID}/matchStartTime`,
-        `matches/${record.matchID}/matchRound`,
-        `matches/${record.matchID}/bestOf`,
-        `matches/${record.matchID}/pointsToWinGame`,
-        `matches/${record.matchID}/changeServeEveryXPoints`,
-        `matches/${record.matchID}/scoringType`,
-        `matches/${record.matchID}/enforceGameScore`,
-        `matches/${record.matchID}/timeOutStartTime`,
-        `matches/${record.matchID}/showGameWonConfirmationModal`,
-        `matches/${record.matchID}/showInBetweenGamesModal`,
-      ]
-    : []
-  const matchWriteAllowed = allowedMatchPrefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}`))
-  const actionValue = 'value' in action ? action.value : undefined
-  const currentMatchWriteAllowed = Boolean(
-    record.matchID &&
-    record.tableID &&
-    path === `tables/${record.tableID}/currentMatch` &&
-    action.type === 'set' &&
-    (actionValue === record.matchID || actionValue === ''),
-  )
-  const teamCurrentMatchWriteAllowed = Boolean(
-    record.matchID &&
-    record.teamMatchID &&
-    path === `teamMatches/${record.teamMatchID}/currentMatches/${record.tableNumber || ''}` &&
-    action.type === 'set' &&
-    (actionValue === record.matchID || actionValue === ''),
-  )
-  const archivedTableWriteAllowed = Boolean(
-    record.matchID &&
-    record.tableID &&
-    path === `tables/${record.tableID}/archivedMatches` &&
-    action.type === 'push' &&
-    actionValue &&
-    typeof actionValue === 'object' &&
-    (actionValue as Record<string, unknown>).matchID === record.matchID,
-  )
-  const archivedTeamMatchWriteAllowed = Boolean(
-    record.matchID &&
-    record.teamMatchID &&
-    path === `teamMatches/${record.teamMatchID}/archivedMatches` &&
-    action.type === 'push' &&
-    actionValue &&
-    typeof actionValue === 'object' &&
-    (actionValue as Record<string, unknown>).matchID === record.matchID,
-  )
-
-  switch (record.capabilityType) {
-    case 'table_scoring':
-      return matchWriteAllowed || currentMatchWriteAllowed || archivedTableWriteAllowed
-    case 'team_match_scoring':
-      return (
-        matchWriteAllowed ||
-        teamCurrentMatchWriteAllowed ||
-        archivedTeamMatchWriteAllowed ||
-        path.startsWith(`teamMatches/${record.teamMatchID}/teamAScore`) ||
-        path.startsWith(`teamMatches/${record.teamMatchID}/teamBScore`)
-      )
-    case 'player_registration':
-      return path.startsWith(`playerLists/${record.playerListID}/players`)
-    case 'public_score_view':
-      return false
+function deriveRotationHours(record: CapabilityRecord, expiresInHours?: number | null) {
+  if (typeof expiresInHours === 'number') {
+    return expiresInHours
   }
+  if (!record.expiresAt) {
+    return null
+  }
+  const remainingMs = new Date(record.expiresAt).getTime() - Date.now()
+  if (remainingMs <= 0) {
+    return 1
+  }
+  return Math.max(1, Math.ceil(remainingMs / (60 * 60 * 1000)))
 }
 
-function isPathOrChild(path: string, parentPath: string) {
-  return path === parentPath || path.startsWith(`${parentPath}/`)
-}
-
-export function capabilityAllowsRead(record: CapabilityRecord, action: DatabaseAction) {
-  if (action.type !== 'get') {
-    return false
+export async function rotateCapabilityToken({
+  tokenId,
+  ownerID,
+  expiresInHours,
+  label,
+  requestContext,
+}: {
+  tokenId: string
+  ownerID: string
+  expiresInHours?: number | null
+  label?: string
+  requestContext?: CapabilityRequestContext
+}) {
+  const currentRecord = await getOwnedCapabilityRecord(tokenId, ownerID)
+  if (!currentRecord) {
+    return null
   }
 
-  const path = action.path.replace(/^\/+/, '')
-  const matchReadAllowed = Boolean(record.matchID && isPathOrChild(path, `matches/${record.matchID}`))
+  const { token, record } = await issueCapabilityToken({
+    capabilityType: currentRecord.capabilityType,
+    createdBy: currentRecord.createdBy,
+    expiresInHours: deriveRotationHours(currentRecord, expiresInHours),
+    tableID: currentRecord.tableID,
+    teamMatchID: currentRecord.teamMatchID,
+    matchID: currentRecord.matchID,
+    playerListID: currentRecord.playerListID,
+    tableNumber: currentRecord.tableNumber,
+    scoreboardID: currentRecord.scoreboardID,
+    label: label || currentRecord.label,
+    requestContext: {
+      ...requestContext,
+      source: requestContext?.source || 'rotate',
+    },
+    replacesTokenId: currentRecord.tokenId,
+  })
 
-  switch (record.capabilityType) {
-    case 'table_scoring':
-      return matchReadAllowed || Boolean(record.tableID && isPathOrChild(path, `tables/${record.tableID}`))
-    case 'team_match_scoring':
-      return matchReadAllowed || Boolean(record.teamMatchID && isPathOrChild(path, `teamMatches/${record.teamMatchID}`))
-    case 'player_registration':
-      return Boolean(record.playerListID && isPathOrChild(path, `playerLists/${record.playerListID}`))
-    case 'public_score_view':
-      return (
-        matchReadAllowed ||
-        Boolean(record.scoreboardID && isPathOrChild(path, `scoreboards/${record.scoreboardID}`)) ||
-        Boolean(record.tableID && isPathOrChild(path, `tables/${record.tableID}`)) ||
-        Boolean(record.teamMatchID && isPathOrChild(path, `teamMatches/${record.teamMatchID}`))
-      )
-  }
+  await updateCapabilityRecord(tokenId, (recordToRotate) => ({
+    ...recordToRotate,
+    status: 'rotated',
+    revokedAt: recordToRotate.revokedAt || new Date().toISOString(),
+    revokedBy: requestContext?.actorID || ownerID,
+    revocationReason: 'rotated',
+    rotatedAt: new Date().toISOString(),
+    replacedByTokenId: record.tokenId,
+  }))
+  await appendCapabilityAuditEvent(tokenId, 'rotated', requestContext, {
+    replacedByTokenId: record.tokenId,
+  })
+
+  return { token, record }
 }
 
 export async function callerOwnsCapabilityTarget(record: Partial<CapabilityRecord>, callerID: string, authToken?: string | null) {
@@ -444,6 +683,24 @@ export async function validateScoringCapabilityTarget(
   },
   authToken?: string | null,
 ) {
+  if (record.capabilityType === 'table_scoring') {
+    if (!record.tableID) {
+      return false
+    }
+    if (!record.matchID) {
+      return true
+    }
+  }
+
+  if (record.capabilityType === 'team_match_scoring') {
+    if (!record.teamMatchID) {
+      return false
+    }
+    if (!record.matchID) {
+      return true
+    }
+  }
+
   if (!record.matchID) {
     return false
   }
@@ -459,9 +716,6 @@ export async function validateScoringCapabilityTarget(
     : {}
 
   if (record.capabilityType === 'table_scoring') {
-    if (!record.tableID) {
-      return false
-    }
     const [tableResult] = await executeDatabaseActions([{ type: 'get', path: `tables/${record.tableID}` }], authToken)
     const tableValue = tableResult?.value as Record<string, any> | null
     if (!tableValue) {
@@ -474,25 +728,235 @@ export async function validateScoringCapabilityTarget(
     )
   }
 
-  if (record.capabilityType === 'team_match_scoring') {
-    if (!record.teamMatchID) {
+  const effectiveTableNumber = record.tableNumber || '1'
+  const [teamMatchResult] = await executeDatabaseActions([{ type: 'get', path: `teamMatches/${record.teamMatchID}` }], authToken)
+  const teamMatchValue = teamMatchResult?.value as Record<string, any> | null
+  if (!teamMatchValue) {
+    return false
+  }
+  const currentMatches = teamMatchValue.currentMatches && typeof teamMatchValue.currentMatches === 'object'
+    ? teamMatchValue.currentMatches as Record<string, string>
+    : {}
+  return (
+    currentMatches[effectiveTableNumber] === record.matchID ||
+    (matchValue.teamMatchID === record.teamMatchID && `${matchValue.tableNumber || ''}` === effectiveTableNumber) ||
+    (matchScheduling.teamMatchID === record.teamMatchID && `${matchScheduling.tableNumber || ''}` === effectiveTableNumber)
+  )
+}
+
+export async function exchangeLegacyCapabilityToken({
+  capabilityType,
+  secret,
+  tableID,
+  playerListID,
+  requestContext,
+}: {
+  capabilityType: 'table_scoring' | 'player_registration'
+  secret: string
+  tableID?: string
+  playerListID?: string
+  requestContext?: CapabilityRequestContext
+}) {
+  const targetPath = capabilityType === 'table_scoring'
+    ? `tables/${tableID}`
+    : `playerLists/${playerListID}`
+  const recordValue = await getServerValue(targetPath)
+  if (!recordValue || typeof recordValue !== 'object') {
+    return null
+  }
+
+  const targetRecord = recordValue as Record<string, any>
+  if (!isLegacyAccessAllowed(targetRecord)) {
+    throw new RequestSecurityError('This legacy password link has expired. Generate a new secure link from the QR/access page.', 410, 'legacy_access_retired')
+  }
+  if (!isAccessSecretValid(secret, targetRecord)) {
+    return null
+  }
+
+  const { token, record } = await issueCapabilityToken({
+    capabilityType,
+    createdBy: capabilityType === 'table_scoring'
+      ? String(targetRecord.creatorID || '')
+      : String(targetRecord.ownerID || ''),
+    tableID,
+    playerListID,
+    expiresInHours: capabilityType === 'table_scoring' ? 12 : 6,
+    requestContext: {
+      ...requestContext,
+      source: requestContext?.source || 'legacy_exchange',
+    },
+  })
+
+  const legacyAccess = targetRecord.legacyAccess && typeof targetRecord.legacyAccess === 'object'
+    ? targetRecord.legacyAccess as LegacyAccessRecord
+    : {}
+
+  await executeServerDatabaseActions([
+    {
+      type: 'update',
+      path: targetPath,
+      value: {
+        legacyAccess: {
+          ...legacyAccess,
+          lastAccessedAt: new Date().toISOString(),
+          lastIssuedCapabilityAt: new Date().toISOString(),
+        },
+      },
+    },
+  ])
+
+  await appendCapabilityAuditEvent(record.tokenId, 'legacy_exchange', requestContext, {
+    targetPath,
+  })
+
+  return { token, record }
+}
+
+async function capabilityCanReadMatch(record: CapabilityRecord, path: string) {
+  if (!path.startsWith('matches/')) {
+    return false
+  }
+  const segments = getPathSegments(path)
+  const matchID = segments[1]
+  if (!matchID) {
+    return false
+  }
+
+  if (record.matchID) {
+    return isPathOrChild(path, `matches/${record.matchID}`)
+  }
+
+  const scope = await getMatchScopeByID(matchID)
+  return capabilityMatchesScope(record, scope)
+}
+
+export async function capabilityAllowsRead(record: CapabilityRecord, action: DatabaseAction) {
+  if (action.type !== 'get') {
+    return false
+  }
+
+  const path = normalizePath(action.path)
+
+  switch (record.capabilityType) {
+    case 'table_scoring':
+      return isPathOrChild(path, `tables/${record.tableID}`) || await capabilityCanReadMatch(record, path)
+    case 'team_match_scoring':
+      return isPathOrChild(path, `teamMatches/${record.teamMatchID}`) || await capabilityCanReadMatch(record, path)
+    case 'player_registration':
+      return isPathOrChild(path, `playerLists/${record.playerListID}`)
+    case 'public_score_view':
+      return (
+        Boolean(record.scoreboardID && isPathOrChild(path, `scoreboards/${record.scoreboardID}`)) ||
+        Boolean(record.tableID && isPathOrChild(path, `tables/${record.tableID}`)) ||
+        Boolean(record.teamMatchID && isPathOrChild(path, `teamMatches/${record.teamMatchID}`)) ||
+        await capabilityCanReadMatch(record, path) ||
+        (record.matchID ? isPathOrChild(path, `matches/${record.matchID}`) : false)
+      )
+  }
+}
+
+function getActionValue(action: DatabaseAction) {
+  return 'value' in action ? action.value : undefined
+}
+
+async function capabilityCanWriteMatch(record: CapabilityRecord, action: DatabaseAction) {
+  const path = normalizePath(action.path)
+  const segments = getPathSegments(path)
+
+  if (path === 'matches' && action.type === 'push') {
+    return capabilityMatchesScope(record, getMatchScopeFromValue(getActionValue(action)))
+  }
+
+  if (segments[0] !== 'matches' || !segments[1]) {
+    return false
+  }
+
+  const scope = await getMatchScopeByID(segments[1])
+  return capabilityMatchesScope(record, scope)
+}
+
+async function capabilityAllowsTableWrite(record: CapabilityRecord, action: DatabaseAction) {
+  const path = normalizePath(action.path)
+
+  if (await capabilityCanWriteMatch(record, action)) {
+    return true
+  }
+
+  if (!record.tableID) {
+    return false
+  }
+
+  if (path === `tables/${record.tableID}/currentMatch`) {
+    const actionValue = getActionValue(action)
+    if (actionValue === '') {
+      return action.type === 'set' || action.type === 'compareSet'
+    }
+    if (typeof actionValue !== 'string' || !actionValue) {
       return false
     }
-    const effectiveTableNumber = record.tableNumber || '1'
-    const [teamMatchResult] = await executeDatabaseActions([{ type: 'get', path: `teamMatches/${record.teamMatchID}` }], authToken)
-    const teamMatchValue = teamMatchResult?.value as Record<string, any> | null
-    if (!teamMatchValue) {
-      return false
-    }
-    const currentMatches = teamMatchValue.currentMatches && typeof teamMatchValue.currentMatches === 'object'
-      ? teamMatchValue.currentMatches as Record<string, string>
-      : {}
-    return (
-      currentMatches[effectiveTableNumber] === record.matchID ||
-      (matchValue.teamMatchID === record.teamMatchID && `${matchValue.tableNumber || ''}` === effectiveTableNumber) ||
-      (matchScheduling.teamMatchID === record.teamMatchID && `${matchScheduling.tableNumber || ''}` === effectiveTableNumber)
-    )
+    return capabilityMatchesScope(record, await getMatchScopeByID(actionValue))
+  }
+
+  if (isPathOrChild(path, `tables/${record.tableID}/scheduledMatches`)) {
+    return action.type === 'set' || action.type === 'update' || action.type === 'remove'
+  }
+
+  if (path === `tables/${record.tableID}/archivedMatches` && action.type === 'push') {
+    const actionValue = getActionValue(action)
+    const archivedMatchID = actionValue && typeof actionValue === 'object'
+      ? String((actionValue as Record<string, unknown>).matchID || '')
+      : ''
+    return archivedMatchID ? capabilityMatchesScope(record, await getMatchScopeByID(archivedMatchID)) : false
   }
 
   return false
+}
+
+async function capabilityAllowsTeamMatchWrite(record: CapabilityRecord, action: DatabaseAction) {
+  const path = normalizePath(action.path)
+
+  if (await capabilityCanWriteMatch(record, action)) {
+    return true
+  }
+
+  if (!record.teamMatchID) {
+    return false
+  }
+
+  if (path === `teamMatches/${record.teamMatchID}/currentMatches/${record.tableNumber || '1'}`) {
+    const actionValue = getActionValue(action)
+    if (actionValue === '') {
+      return action.type === 'set' || action.type === 'compareSet'
+    }
+    if (typeof actionValue !== 'string' || !actionValue) {
+      return false
+    }
+    return capabilityMatchesScope(record, await getMatchScopeByID(actionValue))
+  }
+
+  if (path === `teamMatches/${record.teamMatchID}/archivedMatches` && action.type === 'push') {
+    const actionValue = getActionValue(action)
+    const archivedMatchID = actionValue && typeof actionValue === 'object'
+      ? String((actionValue as Record<string, unknown>).matchID || '')
+      : ''
+    return archivedMatchID ? capabilityMatchesScope(record, await getMatchScopeByID(archivedMatchID)) : false
+  }
+
+  return (
+    isPathOrChild(path, `teamMatches/${record.teamMatchID}/teamAScore`) ||
+    isPathOrChild(path, `teamMatches/${record.teamMatchID}/teamBScore`)
+  )
+}
+
+export async function capabilityAllowsWrite(record: CapabilityRecord, action: DatabaseAction) {
+  switch (record.capabilityType) {
+    case 'table_scoring':
+      return capabilityAllowsTableWrite(record, action)
+    case 'team_match_scoring':
+      return capabilityAllowsTeamMatchWrite(record, action)
+    case 'player_registration':
+      return isPathOrChild(normalizePath(action.path), `playerLists/${record.playerListID}/players`)
+    case 'public_score_view':
+      return false
+  }
 }

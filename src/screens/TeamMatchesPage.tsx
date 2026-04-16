@@ -230,7 +230,7 @@ export default function TeamMatchesPage() {
                         <Button size="sm" variant="outline" onClick={() => navigate(`/teamscoring/teammatch/${match.id}`)} className="w-full sm:w-auto">
                           <Text>Score</Text>
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?teamMatchID=${match.id}&table=1&matchID=${match.currentTableSummaries?.[0]?.matchID || ''}&label=${encodeURIComponent(`${match.teamAName || 'Team A'} vs ${match.teamBName || 'Team B'}`)}`)} className="w-full sm:w-auto">
+                        <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?capabilityType=team_match_scoring&teamMatchID=${match.id}&table=1&matchID=${match.currentTableSummaries?.[0]?.matchID || ''}&label=${encodeURIComponent(`${match.teamAName || 'Team A'} vs ${match.teamBName || 'Team B'}`)}`)} className="w-full sm:w-auto">
                           <Text>Secure Link</Text>
                         </Button>
                         <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2" onPress={() => openEditMatchModal(myTeamMatchID, match)}>

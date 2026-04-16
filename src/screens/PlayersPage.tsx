@@ -221,7 +221,7 @@ export default function PlayersPage() {
                       </VStack>
                     </Pressable>
                     <HStack className="flex-wrap items-center gap-2">
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?playerListID=${list.id}&label=${encodeURIComponent(list.playerListName)}`)} className="w-full sm:w-auto">
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/qrcode?capabilityType=player_registration&playerListID=${list.id}&label=${encodeURIComponent(list.playerListName)}`)} className="w-full sm:w-auto">
                         <Text>Secure Link</Text>
                       </Button>
                       <Pressable

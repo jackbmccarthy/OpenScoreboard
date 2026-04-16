@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select, Spinner, Text, VStack } from '@/components/ui'
 import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/icons'
 import OverlayDialog from '@/components/crud/OverlayDialog'
@@ -64,6 +65,7 @@ const emptyDynamicURLDraft = {
 } satisfies DynamicURLDraft
 
 export default function DynamicURLsPage() {
+  const navigate = useNavigate()
   const { user, loading: authLoading } = useAuth()
   const [dynamicURLs, setDynamicURLs] = useState<DynamicURLEntry[]>([])
   const [scoreboards, setScoreboards] = useState<ScoreboardEntry[]>([])
@@ -202,6 +204,14 @@ export default function DynamicURLsPage() {
                       </Text>
                     </VStack>
                     <HStack className="flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/qrcode?capabilityType=public_score_view&scoreboardID=${dynamicURL.scoreboardID}&tableID=${dynamicURL.tableID || ''}&teamMatchID=${dynamicURL.teammatchID || dynamicURL.teamMatchID || ''}&table=${dynamicURL.tableNumber || ''}&label=${encodeURIComponent(dynamicURL.dynamicURLName)}`)}
+                        className="w-full sm:w-auto"
+                      >
+                        <Text>Public QR</Text>
+                      </Button>
                       <Pressable className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-lg border border-slate-200 p-2" onPress={() => openEditDynamicURLModal(myDynamicURLID, dynamicURL)}>
                         <PencilIcon size={16} className="text-slate-500" />
                       </Pressable>

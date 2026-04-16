@@ -256,6 +256,12 @@ Enable **auto-advance** on a table's queue:
 - **Public score view** — scan to see live scores on a phone
 - **Player registration** — scan to open the pre-filled registration form
 
+Every generated link now includes:
+- expiration
+- revoke/rotate controls
+- per-link audit metadata (issued, used, revoked, rotated)
+- signed capability tokens instead of raw passwords
+
 #### Phone-First Scoring (Operator Mode)
 1. Scan the QR code for a table
 2. The simplified scoring UI opens on your phone
@@ -329,6 +335,9 @@ Instead of usernames/passwords, access to private scoreboards and tournaments is
 
 ### QR Code Access
 QR codes on tables can encode capability tokens, so scanning a QR automatically grants the right level of access.
+
+### Legacy Password Migration
+Older password-based table and registration links still work only during the migration window. When used, they are exchanged server-side into short-lived capability sessions and can be retired centrally without exposing the original password again.
 
 ---
 

@@ -53,12 +53,11 @@ import {
   subscribeToMatchData,
 } from '@/functions/scoring'
 import { createTeamMatchNewMatch, subscribeToTeamMatch, subscribeToTeamMatchCurrentMatch } from '@/functions/teammatches'
-import { isTableAccessRequired, subscribeToTable, verifyTablePassword } from '@/functions/tables'
+import { isTableAccessRequired, subscribeToTable } from '@/functions/tables'
 import { supportedSports } from '@/functions/sports'
 import { getNewPlayer } from '@/classes/Player'
 import countries from '@/flags/countries.json'
-import { activateCapabilityToken, resolveCapabilityLink } from '@/functions/accessTokens'
-import { getCurrentCapabilityToken } from '@/lib/capabilitySession'
+import { activateCapabilityToken, exchangeLegacyCapabilityLink, resolveCapabilityLink, type CapabilityRecord } from '@/functions/accessTokens'
 import { useAuth } from '@/lib/auth'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
@@ -282,7 +281,8 @@ export default function ScoringStation({
   const [copiedLink, setCopiedLink] = useState('')
   const [activeAction, setActiveAction] = useState('')
   const accessToken = searchParams.get('token')
-  const hasCapabilitySession = Boolean(accessToken || getCurrentCapabilityToken())
+  const [resolvedCapability, setResolvedCapability] = useState<CapabilityRecord | null>(null)
+  const hasCapabilitySession = Boolean(accessToken || resolvedCapability)
   const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null)
   const [judgeNote, setJudgeNote] = useState('')
   const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
@@ -294,6 +294,7 @@ export default function ScoringStation({
     if (authLoading) return
 
     if (user) {
+      setResolvedCapability(null)
       setAccessGranted(true)
       return
     }
@@ -304,10 +305,12 @@ export default function ScoringStation({
           .then((resolved) => {
             if (resolved?.record.teamMatchID === teamMatchID) {
               activateCapabilityToken(accessToken)
+              setResolvedCapability(resolved.record)
               setAccessGranted(true)
               setPasswordError('')
               return
             }
+            setResolvedCapability(null)
             setAccessGranted(false)
             setLoading(false)
           })
@@ -332,10 +335,12 @@ export default function ScoringStation({
           const isValid = record?.tableID === tableID
           if (resolved && isValid) {
             activateCapabilityToken(accessToken)
+            setResolvedCapability(record)
             setAccessGranted(true)
             setPasswordError('')
             return
           }
+          setResolvedCapability(null)
           setLoading(false)
         })
         .catch(() => setLoading(false))
@@ -433,7 +438,7 @@ export default function ScoringStation({
   }, [matchID])
 
   useEffect(() => {
-    if (!accessGranted || mode !== 'table' || !tableID) return
+    if (!accessGranted || mode !== 'table' || !tableID || resolvedCapability) return
 
     let hasSeenInitialAccessValue = false
     let lastAccessMarker = ''
@@ -451,7 +456,7 @@ export default function ScoringStation({
     })
 
     return unsubscribe
-  }, [accessGranted, mode, tableID, user, passwordInput])
+  }, [accessGranted, mode, tableID, user, resolvedCapability])
 
   useEffect(() => {
     if (match) {
@@ -615,7 +620,14 @@ export default function ScoringStation({
     await refreshMatch()
   }
 
-  const canCreateAdHocMatch = !hasCapabilitySession
+  const canCreateAdHocMatch = !hasCapabilitySession || Boolean(
+    resolvedCapability &&
+    !resolvedCapability.matchID &&
+    (
+      resolvedCapability.capabilityType === 'table_scoring' ||
+      resolvedCapability.capabilityType === 'team_match_scoring'
+    )
+  )
   const canFinalizeAssignedTableMatch = mode === 'table' && Boolean(tableID && matchID && match)
 
   const handleCreateMatch = async () => {
@@ -847,23 +859,43 @@ export default function ScoringStation({
   }
 
   if (!accessGranted) {
+    if (mode === 'teamMatch') {
+      return (
+        <Box className="flex min-h-screen items-center justify-center bg-slate-950 p-6">
+          <Box className="premium-panel w-full max-w-md rounded-[2rem] p-6">
+            <VStack className="gap-4">
+              <Heading size="lg">Secure Link Required</Heading>
+              <Text className="text-sm text-slate-500">Team-match scoring now requires a signed operator link or an authenticated owner session.</Text>
+            </VStack>
+          </Box>
+        </Box>
+      )
+    }
+
     return (
       <Box className="flex min-h-screen items-center justify-center bg-slate-950 p-6">
         <Box className="premium-panel w-full max-w-md rounded-[2rem] p-6">
           <VStack className="gap-4">
             <Heading size="lg">Enter Table Password</Heading>
-            <Text className="text-sm text-slate-500">This scoring station can be used without login, but the table password is required.</Text>
+            <Text className="text-sm text-slate-500">Legacy table passwords are exchanged for a short-lived secure operator session during the migration window.</Text>
             <Input type="password" value={passwordInput} onChangeText={setPasswordInput} placeholder="Table password" />
             {passwordError ? <Text className="text-sm text-red-600">{passwordError}</Text> : null}
             <Button
               action="primary"
               onClick={async () => {
-                const isValid = await verifyTablePassword(tableID || '', passwordInput)
-                if (isValid) {
+                try {
+                  const exchanged = await exchangeLegacyCapabilityLink({
+                    capabilityType: 'table_scoring',
+                    tableID: tableID || '',
+                    secret: passwordInput,
+                  })
+                  activateCapabilityToken(exchanged.token)
+                  setResolvedCapability(exchanged.record)
                   setAccessGranted(true)
                   setPasswordError('')
-                } else {
-                  setPasswordError('Incorrect password')
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : 'Incorrect password'
+                  setPasswordError(message)
                 }
               }}
             >
