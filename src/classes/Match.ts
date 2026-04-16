@@ -183,8 +183,22 @@ export default class Match {
                 tournamentID: "",
                 eventID: "",
                 roundID: "",
+                bracketNodeID: "",
+                teamMatchID: "",
                 matchRound: "",
                 eventName: "",
+                refs: {
+                    tournamentID: "",
+                    eventID: "",
+                    roundID: "",
+                    bracketNodeID: "",
+                    teamMatchID: "",
+                },
+                labels: {
+                    matchRound: "",
+                    eventName: "",
+                },
+                metadata: {},
             },
             scheduling: {
                 tableID: "",
@@ -192,6 +206,28 @@ export default class Match {
                 tableNumber: "",
                 scheduledMatchID: "",
                 sourceType: "",
+                assignment: {
+                    tableID: "",
+                    tableNumber: "",
+                    teamMatchID: "",
+                    queueItemID: "",
+                },
+                queue: {
+                    scheduledMatchID: "",
+                    queueItemID: "",
+                    position: 0,
+                },
+                timing: {
+                    scheduledStartTime: "",
+                    scheduledEndTime: "",
+                    matchStartTime: "",
+                },
+                refs: {
+                    sourceType: "",
+                    sourceID: "",
+                    scheduleBlockID: "",
+                },
+                metadata: {},
             }
 
         }

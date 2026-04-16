@@ -272,6 +272,150 @@ export const textFieldList: TextFieldEntry[] = [
         action: updateInnerText
     },
     {
+        field: "schemaVersion",
+        label: "Schema Version",
+        category: "Schema",
+        sample: 3,
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "sportName",
+        label: "Sport Name",
+        category: "Match",
+        sample: "tableTennis",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "scoringType",
+        label: "Scoring Type",
+        category: "Match",
+        sample: "normal",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "teamMatchID",
+        label: "Team Match ID",
+        category: "Schema",
+        sample: "team-match-1",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "tournamentID",
+        label: "Tournament ID",
+        category: "Schema",
+        sample: "tournament-1",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "eventID",
+        label: "Event ID",
+        category: "Schema",
+        sample: "event-1",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "roundID",
+        label: "Round ID",
+        category: "Schema",
+        sample: "round-1",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "bracketNodeID",
+        label: "Bracket Node ID",
+        category: "Schema",
+        sample: "node-1",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "tournamentContextMatchRound",
+        label: "Context Round",
+        category: "Schema",
+        sample: "Quarter Final",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "tournamentContextEventName",
+        label: "Context Event Name",
+        category: "Schema",
+        sample: "Open Singles",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "schedulingTableID",
+        label: "Scheduling Table ID",
+        category: "Schema",
+        sample: "table-1",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "schedulingScheduledStartTime",
+        label: "Scheduled Start Time",
+        category: "Schema",
+        sample: "2026-04-16T18:00:00.000Z",
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "gamesJSON",
+        label: "Games JSON",
+        category: "Schema",
+        sample: "{\"1\":{\"status\":\"not_started\"}}",
+        justify: "flex-start",
+        action: updateInnerText
+    },
+    {
+        field: "pointHistoryJSON",
+        label: "Point History JSON",
+        category: "Schema",
+        sample: "{\"evt-1\":{\"eventType\":\"point_added\"}}",
+        justify: "flex-start",
+        action: updateInnerText
+    },
+    {
+        field: "auditTrailJSON",
+        label: "Audit Trail JSON",
+        category: "Schema",
+        sample: "{\"evt-1\":{\"eventType\":\"game_started\"}}",
+        justify: "flex-start",
+        action: updateInnerText
+    },
+    {
+        field: "tournamentContextJSON",
+        label: "Tournament Context JSON",
+        category: "Schema",
+        sample: "{\"eventName\":\"Open Singles\"}",
+        justify: "flex-start",
+        action: updateInnerText
+    },
+    {
+        field: "schedulingJSON",
+        label: "Scheduling JSON",
+        category: "Schema",
+        sample: "{\"tableID\":\"table-1\"}",
+        justify: "flex-start",
+        action: updateInnerText
+    },
+    {
+        field: "scoringRulesJSON",
+        label: "Scoring Rules JSON",
+        category: "Schema",
+        sample: "{\"bestOf\":5}",
+        justify: "flex-start",
+        action: updateInnerText
+    },
+    {
         field: "teamAName",
         label: "Team A Name",
         category: "Teams",

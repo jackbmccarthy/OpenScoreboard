@@ -11,6 +11,166 @@ export type FirebaseUser = ReturnType<typeof firebase.auth> extends {
   ? TUser
   : any;
 
+export interface MatchPointHistoryEvent {
+  schemaVersion?: number;
+  eventID?: string;
+  action?: string;
+  eventType?: string;
+  createdAt?: string;
+  sequence?: number;
+  gameNumber?: number;
+  side?: MatchSide;
+  scoreA?: number;
+  scoreB?: number;
+  score?: {
+    a: number;
+    b: number;
+  };
+  delta?: {
+    a: number;
+    b: number;
+  };
+  undone?: boolean;
+  source?: string;
+  payload?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface MatchAuditEvent {
+  schemaVersion?: number;
+  eventID?: string;
+  action?: string;
+  eventType?: string;
+  createdAt?: string;
+  sequence?: number;
+  scope?: string;
+  gameNumber?: number;
+  source?: string;
+  payload: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}
+
+export interface MatchTournamentContext {
+  schemaVersion?: number;
+  tournamentID: string;
+  eventID: string;
+  roundID: string;
+  bracketNodeID?: string;
+  teamMatchID?: string;
+  matchRound: string;
+  eventName: string;
+  refs?: {
+    tournamentID: string;
+    eventID: string;
+    roundID: string;
+    bracketNodeID?: string;
+    teamMatchID?: string;
+    scheduleBlockID?: string;
+  };
+  labels?: {
+    matchRound: string;
+    eventName: string;
+  };
+  metadata: Record<string, unknown>;
+}
+
+export interface MatchSchedulingMetadata {
+  schemaVersion?: number;
+  tableID: string;
+  teamMatchID: string;
+  tableNumber: string;
+  queueItemID?: string;
+  scheduledMatchID?: string;
+  scheduledStartTime?: string;
+  scheduledEndTime?: string;
+  matchStartTime?: string;
+  sourceType: string;
+  sourceID?: string;
+  assignment?: {
+    tableID: string;
+    tableNumber: string;
+    teamMatchID: string;
+    queueItemID?: string;
+  };
+  queue?: {
+    scheduledMatchID?: string;
+    queueItemID?: string;
+    position?: number;
+  };
+  timing?: {
+    scheduledStartTime?: string;
+    scheduledEndTime?: string;
+    matchStartTime?: string;
+  };
+  refs?: {
+    sourceType: string;
+    sourceID?: string;
+    scheduleBlockID?: string;
+  };
+  metadata?: Record<string, unknown>;
+}
+
+export interface MatchGameRecord {
+  schemaVersion?: number;
+  gameNumber: number;
+  status: string;
+  startedAt: string;
+  endedAt: string;
+  winner: string | null;
+  scoreA: number;
+  scoreB: number;
+  deleted?: boolean;
+  deletedAt?: string;
+  legacy?: {
+    scoreA: string;
+    scoreB: string;
+    started: string;
+    finished: string;
+    startedAt: string;
+    endedAt: string;
+  };
+  references?: {
+    pointHistoryIDs?: string[];
+    auditEventIDs?: string[];
+  };
+  rules: {
+    sportName: string;
+    scoringType: string | null;
+    pointsToWinGame: number;
+    changeServeEveryXPoints: number;
+    enforceGameScore: boolean;
+    isManualServiceMode: boolean;
+    isDoubles: boolean;
+  };
+  metadata: {
+    significantPoints: Record<string, number>;
+  };
+}
+
+export interface MatchScoringRules {
+  schemaVersion?: number;
+  sportName: string;
+  scoringType: string | null;
+  bestOf: number;
+  pointsToWinGame: number;
+  changeServeEveryXPoints: number;
+  enforceGameScore: boolean;
+  isManualServiceMode: boolean;
+  isDoubles: boolean;
+  legacy?: Record<string, string>;
+}
+
+export interface TeamMatchTableState {
+  schemaVersion?: number;
+  tableNumber: string;
+  currentMatchID: string;
+  scheduledMatchIDs: string[];
+  archivedMatchIDs: string[];
+  archivedMatches: Record<string, ArchivedMatchSummary>;
+  status: string;
+  metadata?: Record<string, unknown>;
+}
+
 // ============================================
 // Player
 // ============================================
@@ -177,78 +337,18 @@ export interface MatchSettings {
 
   sportName: string;
 
-  games?: Record<string, {
-    gameNumber: number;
-    status: string;
-    startedAt: string;
-    endedAt: string;
-    winner: string | null;
-    scoreA: number;
-    scoreB: number;
-    deleted?: boolean;
-    deletedAt?: string;
-    rules: {
-      sportName: string;
-      scoringType: string | null;
-      pointsToWinGame: number;
-      changeServeEveryXPoints: number;
-      enforceGameScore: boolean;
-      isManualServiceMode: boolean;
-      isDoubles: boolean;
-    };
-    metadata: {
-      significantPoints: Record<string, number>;
-    };
-  }>;
-  pointHistory?: Record<string, Record<string, unknown>>;
-  auditTrail?: Record<string, Record<string, unknown>>;
+  games?: Record<string, MatchGameRecord>;
+  pointHistory?: Record<string, MatchPointHistoryEvent>;
+  auditTrail?: Record<string, MatchAuditEvent>;
   isJudgePaused?: boolean;
   judgePauseReason?: string;
   isDisputed?: boolean;
   latestJudgeNote?: string;
   latestJudgeNoteAt?: string;
-  tournamentContext?: {
-    tournamentID: string;
-    eventID: string;
-    roundID: string;
-    bracketNodeID: string;
-    teamMatchID: string;
-    matchRound: string;
-    eventName: string;
-    metadata: Record<string, unknown>;
-  };
-  context?: {
-    tournamentID: string;
-    eventID: string;
-    roundID: string;
-    bracketNodeID?: string;
-    teamMatchID?: string;
-    matchRound: string;
-    eventName: string;
-    metadata?: Record<string, unknown>;
-  };
-  scheduling?: {
-    tableID: string;
-    teamMatchID: string;
-    tableNumber: string;
-    queueItemID?: string;
-    scheduledMatchID?: string;
-    scheduledStartTime?: string;
-    matchStartTime?: string;
-    sourceType: string;
-    sourceID?: string;
-    metadata?: Record<string, unknown>;
-  };
-  scoringRules?: {
-    sportName: string;
-    scoringType: string | null;
-    bestOf: number;
-    pointsToWinGame: number;
-    changeServeEveryXPoints: number;
-    enforceGameScore: boolean;
-    isManualServiceMode: boolean;
-    isDoubles: boolean;
-  };
+  tournamentContext?: MatchTournamentContext;
+  context?: MatchTournamentContext;
+  scheduling?: MatchSchedulingMetadata;
+  scoringRules?: MatchScoringRules;
 }
 
 // ============================================
@@ -279,6 +379,7 @@ export interface Team {
 // ============================================
 export interface TeamMatch {
   schemaVersion?: number;
+  teamMatchID?: string;
   teamAID: string;
   teamBID: string;
   teamAName?: string;
@@ -289,36 +390,35 @@ export interface TeamMatch {
   tournamentID?: string;
   eventID?: string;
   roundID?: string;
+  matchRound: string;
+  eventName: string;
   startTime: string;
   sportName: string;
   scoringType: string;
   currentMatches: Record<string, string>;
   archivedMatches: Record<string, ArchivedMatchSummary>;
   scheduledMatches: Record<string, string>;
-  auditTrail?: Record<string, Record<string, unknown>>;
-  tournamentContext?: {
-    tournamentID: string;
-    eventID: string;
-    roundID: string;
-    matchRound: string;
-    eventName: string;
-    metadata: Record<string, unknown>;
-  };
-  context?: {
-    tournamentID: string;
-    eventID: string;
-    roundID: string;
-    matchRound: string;
-    eventName: string;
-    metadata?: Record<string, unknown>;
-  };
+  auditTrail?: Record<string, MatchAuditEvent>;
+  tournamentContext?: MatchTournamentContext;
+  context?: MatchTournamentContext;
   scheduling?: {
+    schemaVersion?: number;
     scheduledMatches: Record<string, string>;
     currentMatches: Record<string, string>;
     startTime: string;
     teamMatchID?: string;
+    assignment?: {
+      teamMatchID: string;
+    };
+    queue?: {
+      scheduledMatchCount: number;
+    };
+    timing?: {
+      scheduledStartTime?: string;
+    };
     metadata?: Record<string, unknown>;
   };
+  tables?: Record<string, TeamMatchTableState>;
 }
 
 // ============================================

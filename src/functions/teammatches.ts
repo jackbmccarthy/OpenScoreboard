@@ -3,7 +3,7 @@ import { subscribeToPathValue } from '../lib/realtime';
 import { createSubscriptionRegistry } from '@/lib/liveSync'
 import Match from '../classes/Match';
 import { getCombinedPlayerNames } from './players';
-import { appendTeamMatchAuditEvent, normalizeTeamMatchSchema } from './matchSchema';
+import { appendTeamMatchAuditEvent, normalizeTeamMatchSchema, syncTeamMatchSchema, syncMatchSchemaFromFlat } from './matchSchema';
 import { getMatchData, getMatchScore } from './scoring';
 import type { OwnershipMutationOptions } from './deletion';
 import { getPreviewValue, isRecordActive, revokeCapabilityLinksByReference, softDeleteCanonical, softDeleteDynamicURLsByReference, softDeleteMatches } from './deletion';
@@ -230,7 +230,7 @@ export async function createTeamMatchNewMatch(
     scoringType: string | null = null,
 ) {
     let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, true, scoringType))
-    let currentMatchKey = await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).set(newMatch.key)
+    await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).set(newMatch.key)
     if (newMatch.key) {
         await Promise.all([
             db.ref(`matches/${newMatch.key}/teamMatchID`).set(teamMatchID),
@@ -240,10 +240,12 @@ export async function createTeamMatchNewMatch(
                 sourceType: 'team-match',
             }),
         ])
+        await syncMatchSchemaFromFlat(newMatch.key)
         await appendTeamMatchAuditEvent(teamMatchID, 'team_match_table_created', {
             tableNumber,
             matchID: newMatch.key,
         })
+        await syncTeamMatchSchema(teamMatchID)
     }
     return newMatch.key
 }
@@ -269,8 +271,8 @@ export async function getTeamMatchCurrentMatches(teamMatchID) {
     return await getValue<Record<string, string>>(`teamMatches/${teamMatchID}/currentMatches`)
 }
 export async function addTeamMatchCurrentMatch(teamMatchID, tableNumber) {
-    let pushedTeam = await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).set("")
-
+    await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).set("")
+    await syncTeamMatchSchema(teamMatchID)
 }
 
 export async function getTeamMatchCurrentMatch(teamMatchID, tableNumber) {
@@ -289,24 +291,29 @@ export function subscribeToTeamMatchCurrentMatch(
 }
 
 export async function addNewTeamMatch(teamMatch) {
-
-    let pushedTeamMatch = await db.ref(`teamMatches`).push(teamMatch)
+    const normalizedTeamMatch = normalizeTeamMatchSchema(teamMatch) || teamMatch
+    let pushedTeamMatch = await db.ref(`teamMatches`).push(normalizedTeamMatch)
     if (pushedTeamMatch.key) {
+        await db.ref(`teamMatches/${pushedTeamMatch.key}/teamMatchID`).set(pushedTeamMatch.key)
         await appendTeamMatchAuditEvent(pushedTeamMatch.key, 'team_match_created', {
-            teamAID: teamMatch.teamAID,
-            teamBID: teamMatch.teamBID,
-            sportName: teamMatch.sportName,
-            scoringType: teamMatch.scoringType,
+            teamAID: normalizedTeamMatch.teamAID,
+            teamBID: normalizedTeamMatch.teamBID,
+            sportName: normalizedTeamMatch.sportName,
+            scoringType: normalizedTeamMatch.scoringType,
+        })
+        await syncTeamMatchSchema(pushedTeamMatch.key, {
+            ...normalizedTeamMatch,
+            teamMatchID: pushedTeamMatch.key,
         })
     }
     let preview = {
         id: pushedTeamMatch.key,
-        teamAName: await getTeamName(teamMatch.teamAID),
-        teamBName: await getTeamName(teamMatch.teamBID),
-        startTime: teamMatch.startTime,
-        sportName: teamMatch.sportName,
-        sportDisplayName: supportedSports[teamMatch.sportName].displayName,
-        scoringType: teamMatch.scoringType
+        teamAName: await getTeamName(normalizedTeamMatch.teamAID),
+        teamBName: await getTeamName(normalizedTeamMatch.teamBID),
+        startTime: normalizedTeamMatch.startTime,
+        sportName: normalizedTeamMatch.sportName,
+        sportDisplayName: supportedSports[normalizedTeamMatch.sportName].displayName,
+        scoringType: normalizedTeamMatch.scoringType
     }
 
     await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches").push(preview)
@@ -316,23 +323,26 @@ export async function addNewTeamMatch(teamMatch) {
 export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
     const currentTeamMatchSnapshot = await db.ref(`teamMatches/${teamMatchID}`).get()
     const currentTeamMatch = currentTeamMatchSnapshot.val() || {}
-    const nextTeamMatch = {
+    const nextTeamMatch = normalizeTeamMatchSchema({
         ...currentTeamMatch,
         ...teamMatch,
+        teamMatchID: currentTeamMatch.teamMatchID || teamMatch.teamMatchID || teamMatchID,
         teamAScore: currentTeamMatch.teamAScore || teamMatch.teamAScore || 0,
         teamBScore: currentTeamMatch.teamBScore || teamMatch.teamBScore || 0,
+        matchRound: currentTeamMatch.matchRound || teamMatch.matchRound || '',
+        eventName: currentTeamMatch.eventName || teamMatch.eventName || '',
         currentMatches: currentTeamMatch.currentMatches || teamMatch.currentMatches || { 1: "" },
         archivedMatches: currentTeamMatch.archivedMatches || teamMatch.archivedMatches || {},
         scheduledMatches: currentTeamMatch.scheduledMatches || teamMatch.scheduledMatches || {},
         auditTrail: currentTeamMatch.auditTrail || teamMatch.auditTrail || {},
-        schemaVersion: currentTeamMatch.schemaVersion || teamMatch.schemaVersion,
+        schemaVersion: currentTeamMatch.schemaVersion || teamMatch.schemaVersion || undefined,
         tournamentContext: currentTeamMatch.tournamentContext || teamMatch.tournamentContext,
         context: currentTeamMatch.context || teamMatch.context,
         scheduling: {
             ...(currentTeamMatch.scheduling || {}),
             ...(teamMatch.scheduling || {}),
         },
-    }
+    }) || teamMatch
     await db.ref(`teamMatches/${teamMatchID}`).set(nextTeamMatch)
     await appendTeamMatchAuditEvent(teamMatchID, 'team_match_updated', {
         teamAID: nextTeamMatch.teamAID,
@@ -340,6 +350,7 @@ export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
         sportName: nextTeamMatch.sportName,
         scoringType: nextTeamMatch.scoringType,
     })
+    await syncTeamMatchSchema(teamMatchID, nextTeamMatch)
     await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches/" + myTeamMatchID).set({
         id: teamMatchID,
         teamAName: await getTeamName(nextTeamMatch.teamAID),
@@ -467,6 +478,7 @@ export async function archiveMatchForTeamMatch(teamMatchID, tableNumber, matchID
     }
 
     let currentMatchSnapShot = await db.ref(`teamMatches/${teamMatchID}/archivedMatches`).push(archivedMatch)
+    await syncTeamMatchSchema(teamMatchID)
     return currentMatchSnapShot.key
 
 }
@@ -495,6 +507,10 @@ export async function addWinToTeamMatchTeamScore(teamMatchID, AorB) {
     else {
         await db.ref(`teamMatches/${teamMatchID}/teamBScore`).set(Number(scores.b) + 1)
     }
+    await appendTeamMatchAuditEvent(teamMatchID, 'team_match_score_incremented', {
+        side: AorB,
+    })
+    await syncTeamMatchSchema(teamMatchID)
     let teamAScore = await db.ref(`teamMatches/${teamMatchID}/teamAScore`).get()
     let teamBScore = await db.ref(`teamMatches/${teamMatchID}/teamBScore`).get()
     return {
@@ -510,6 +526,11 @@ export async function setTeamMatchTeamScore(teamMatchID, teamAScore, teamBScore)
     await db.ref(`teamMatches/${teamMatchID}/teamAScore`).set(parseInt(teamAScore))
 
     await db.ref(`teamMatches/${teamMatchID}/teamBScore`).set(parseInt(teamBScore))
+    await appendTeamMatchAuditEvent(teamMatchID, 'team_match_score_set', {
+        teamAScore: parseInt(teamAScore),
+        teamBScore: parseInt(teamBScore),
+    })
+    await syncTeamMatchSchema(teamMatchID)
 
     // let teamAScore = await db.ref(`teamMatches/${teamMatchID}/teamAScore`).get()
     // let teamBScore = await db.ref(`teamMatches/${teamMatchID}/teamBScore`).get()

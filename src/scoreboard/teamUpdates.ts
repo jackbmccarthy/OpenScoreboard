@@ -4,6 +4,65 @@ import { getBroadcastChannelName } from './getBroadcastChannelName';
 type SnapshotLike = { val: () => any }
 type ListenerAdder = (listener: () => void) => void
 
+function postFieldMessage(field: string, value: unknown) {
+    const bc = new BroadcastChannel(field + getBroadcastChannelName())
+    bc.postMessage({ [field]: value })
+    window.postMessage({ [field]: value })
+    bc.close()
+}
+
+function getNormalizedFieldAliases(field: string, value: unknown): Array<[string, unknown]> {
+    if (!value || typeof value !== "object") {
+        return []
+    }
+
+    const record = value as Record<string, unknown>
+    const aliases: Array<[string, unknown]> = [[`${field}JSON`, JSON.stringify(value)]]
+
+    if (field === "tournamentContext") {
+        aliases.push(
+            ["tournamentContextTournamentID", record.tournamentID || ""],
+            ["tournamentContextEventID", record.eventID || ""],
+            ["tournamentContextRoundID", record.roundID || ""],
+            ["tournamentContextBracketNodeID", record.bracketNodeID || ""],
+            ["tournamentContextTeamMatchID", record.teamMatchID || ""],
+            ["tournamentContextMatchRound", record.matchRound || ""],
+            ["tournamentContextEventName", record.eventName || ""],
+        )
+    }
+
+    if (field === "scheduling") {
+        aliases.push(
+            ["schedulingTableID", record.tableID || ""],
+            ["schedulingTableNumber", record.tableNumber || ""],
+            ["schedulingTeamMatchID", record.teamMatchID || ""],
+            ["schedulingScheduledStartTime", record.scheduledStartTime || ""],
+            ["schedulingScheduledMatchID", record.scheduledMatchID || ""],
+            ["schedulingQueueItemID", record.queueItemID || ""],
+            ["schedulingSourceType", record.sourceType || ""],
+            ["schedulingSourceID", record.sourceID || ""],
+        )
+    }
+
+    if (field === "scoringRules") {
+        aliases.push(
+            ["scoringRulesSportName", record.sportName || ""],
+            ["scoringRulesScoringType", record.scoringType || ""],
+            ["scoringRulesBestOf", record.bestOf || 0],
+            ["scoringRulesPointsToWinGame", record.pointsToWinGame || 0],
+        )
+    }
+
+    return aliases
+}
+
+function broadcastFieldUpdate(field: string, value: unknown) {
+    postFieldMessage(field, value)
+    for (const [aliasField, aliasValue] of getNormalizedFieldAliases(field, value)) {
+        postFieldMessage(aliasField, aliasValue)
+    }
+}
+
 export const updateCurrentMatch = async (currentMatchSnap: SnapshotLike, isInitialRun: boolean, resetListeners: {():void}, addToListenerList: ListenerAdder ) => {
     //console.log(resetListeners)
     resetListeners();
@@ -17,14 +76,8 @@ export const updateCurrentMatch = async (currentMatchSnap: SnapshotLike, isIniti
         let match = await db.ref(`matches/${currentMatch}`).get();
         const matchValues = match.val();
         for (const key in matchValues) {
-
             const fieldValue = matchValues[key];
-            let bc = new BroadcastChannel(key+getBroadcastChannelName());
-            bc.postMessage({ [key]: fieldValue });
-            window.postMessage({ [key]: fieldValue });
-            bc.close();
-
-
+            broadcastFieldUpdate(key, fieldValue)
         }
 
         for (const key of Object.keys(match.val())) {
@@ -36,10 +89,7 @@ export const updateCurrentMatch = async (currentMatchSnap: SnapshotLike, isIniti
                         //console.log(key, snapShot.val());
                         //console.log(key+getBroadcastChannelName())
                         if(!(typeof snapShot.val() ==="object" && Object.keys(snapShot.val()).includes("cursor"))){
-                            let bc = new BroadcastChannel(key+getBroadcastChannelName());
-                            bc.postMessage({ [key]: snapShot.val() });
-                            window.postMessage({ [key]: snapShot.val() });
-                            bc.close();
+                            broadcastFieldUpdate(key, snapShot.val())
                         }
                         
                   
@@ -51,12 +101,7 @@ export const updateCurrentMatch = async (currentMatchSnap: SnapshotLike, isIniti
             else {
                 let snapShot = await matchRef.get();
                 if (snapShot.val() !== null && snapShot.val()["cursor"] === undefined) {
-                     //console.log(snapShot.val());
-                    let bc = new BroadcastChannel(key+getBroadcastChannelName());
-                    bc.postMessage({ [key]: snapShot.val() });
-                    window.postMessage({ [key]: snapShot.val() });
-                    bc.close();
-                    //window.postMessage({ [key]: snapShot.val() });
+                    broadcastFieldUpdate(key, snapShot.val())
                 }
             }
 
@@ -81,11 +126,7 @@ export const updateTeamMatch = async (currentMatchSnap: SnapshotLike, isInitialR
                 matchRef.on("value", (snapShot) => {
 
                     if (snapShot.val() !== null && snapShot.val()["cursor"] === undefined) {
-                        //console.log(snapShot.val());
-                        let bc = new BroadcastChannel(key+getBroadcastChannelName());
-                        bc.postMessage({ [key]: snapShot.val() });
-                        bc.close();
-                        //window.postMessage({ [key]: snapShot.val() });
+                        broadcastFieldUpdate(key, snapShot.val())
                     }
 
                 });
@@ -95,10 +136,7 @@ export const updateTeamMatch = async (currentMatchSnap: SnapshotLike, isInitialR
             else {
                 let snapShot = await matchRef.get();
                 if (snapShot.val() !== null && snapShot.val()["cursor"] === undefined) {
-                    //console.log(snapShot.val());
-                    let bc = new BroadcastChannel(key+getBroadcastChannelName());
-                        bc.postMessage({ [key]: snapShot.val() });
-                        bc.close();
+                    broadcastFieldUpdate(key, snapShot.val())
                 }
             }
 

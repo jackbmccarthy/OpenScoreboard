@@ -4,6 +4,7 @@ import { subscribeToPathValue } from '@/lib/realtime'
 import { newTournament, type TournamentScheduleBlockType } from '@/classes/Tournament'
 import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteTournamentChildren } from './deletion'
 import { addScheduledMatch, deleteScheduledTableMatch, getMatchScore, moveScheduledTableMatchToTable, updateScheduledMatch } from './scoring'
+import { syncMatchSchemaFromFlat } from './matchSchema'
 import { getCombinedPlayerNames, getPlayerFormatted } from './players'
 import Match from '@/classes/Match'
 
@@ -2242,6 +2243,9 @@ export async function createTournamentScheduleMatch(tournamentID: string, schedu
   }, false, scoringType)
 
   const pushedMatch = await db.ref('matches').push(newMatch)
+  if (pushedMatch.key) {
+    await syncMatchSchemaFromFlat(pushedMatch.key, newMatch)
+  }
   await updateTournamentScheduleBlock(tournamentID, scheduleBlockID, {
     sourceMatchID: pushedMatch.key || '',
     eventName: scheduleBlock.eventName || eventRecord?.name || '',
@@ -2320,6 +2324,7 @@ export async function updateTournamentScheduleBlock(
           eventName: nextScheduleBlock.eventName || String(match.eventName || ''),
         },
       })
+      await syncMatchSchemaFromFlat(nextScheduleBlock.sourceMatchID)
     }
   }
   if (nextScheduleBlock.roundID && ['completed', 'cancelled'].includes(nextScheduleBlock.status)) {
@@ -2381,6 +2386,7 @@ export async function queueTournamentScheduleBlock(tournamentID: string, schedul
     sourceType: 'tournament-schedule',
     sourceID: scheduleBlockID,
   })
+  await syncMatchSchemaFromFlat(scheduleBlock.sourceMatchID)
 
   const queueItemID = await addScheduledMatch(scheduleBlock.assignedTableID, scheduleBlock.sourceMatchID, scheduleBlock.scheduledStartTime || '', {
     tournamentID,

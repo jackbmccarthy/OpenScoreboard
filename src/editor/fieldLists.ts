@@ -178,6 +178,132 @@ export const textFieldList: FieldListEntry[] = [
         justify: "center"
     },
     {
+        field: "schemaVersion",
+        label: "Schema Version",
+        category: "Schema",
+        sample: 3,
+        justify: "center"
+    },
+    {
+        field: "sportName",
+        label: "Sport Name",
+        category: "Match",
+        sample: "tableTennis",
+        justify: "center"
+    },
+    {
+        field: "scoringType",
+        label: "Scoring Type",
+        category: "Match",
+        sample: "normal",
+        justify: "center"
+    },
+    {
+        field: "teamMatchID",
+        label: "Team Match ID",
+        category: "Schema",
+        sample: "team-match-1",
+        justify: "center"
+    },
+    {
+        field: "tournamentID",
+        label: "Tournament ID",
+        category: "Schema",
+        sample: "tournament-1",
+        justify: "center"
+    },
+    {
+        field: "eventID",
+        label: "Event ID",
+        category: "Schema",
+        sample: "event-1",
+        justify: "center"
+    },
+    {
+        field: "roundID",
+        label: "Round ID",
+        category: "Schema",
+        sample: "round-1",
+        justify: "center"
+    },
+    {
+        field: "bracketNodeID",
+        label: "Bracket Node ID",
+        category: "Schema",
+        sample: "node-1",
+        justify: "center"
+    },
+    {
+        field: "tournamentContextMatchRound",
+        label: "Context Round",
+        category: "Schema",
+        sample: "Quarter Final",
+        justify: "center"
+    },
+    {
+        field: "tournamentContextEventName",
+        label: "Context Event Name",
+        category: "Schema",
+        sample: "Open Singles",
+        justify: "center"
+    },
+    {
+        field: "schedulingTableID",
+        label: "Scheduling Table ID",
+        category: "Schema",
+        sample: "table-1",
+        justify: "center"
+    },
+    {
+        field: "schedulingScheduledStartTime",
+        label: "Scheduled Start Time",
+        category: "Schema",
+        sample: "2026-04-16T18:00:00.000Z",
+        justify: "center"
+    },
+    {
+        field: "gamesJSON",
+        label: "Games JSON",
+        category: "Schema",
+        sample: "{\"1\":{\"status\":\"not_started\"}}",
+        justify: "flex-start"
+    },
+    {
+        field: "pointHistoryJSON",
+        label: "Point History JSON",
+        category: "Schema",
+        sample: "{\"evt-1\":{\"eventType\":\"point_added\"}}",
+        justify: "flex-start"
+    },
+    {
+        field: "auditTrailJSON",
+        label: "Audit Trail JSON",
+        category: "Schema",
+        sample: "{\"evt-1\":{\"eventType\":\"game_started\"}}",
+        justify: "flex-start"
+    },
+    {
+        field: "tournamentContextJSON",
+        label: "Tournament Context JSON",
+        category: "Schema",
+        sample: "{\"eventName\":\"Open Singles\"}",
+        justify: "flex-start"
+    },
+    {
+        field: "schedulingJSON",
+        label: "Scheduling JSON",
+        category: "Schema",
+        sample: "{\"tableID\":\"table-1\"}",
+        justify: "flex-start"
+    },
+    {
+        field: "scoringRulesJSON",
+        label: "Scoring Rules JSON",
+        category: "Schema",
+        sample: "{\"bestOf\":5}",
+        justify: "flex-start"
+    },
+    {
         field: "teamAName",
         label: "Team A Name",
         category: "Teams",

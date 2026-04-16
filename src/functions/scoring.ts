@@ -381,12 +381,16 @@ export async function createNewMatch(
                 sourceType: 'table',
             }),
         ])
+        await syncMatchSchemaFromFlat(newMatch.key)
     }
     return newMatch.key
 }
 
 export async function createNewScheduledMatch(sportName) {
     let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName))
+    if (newMatch.key) {
+        await syncMatchSchemaFromFlat(newMatch.key)
+    }
     return newMatch.key
 }
 
@@ -864,6 +868,12 @@ export async function promoteScheduledTableMatch(tableID, scheduledMatchID, prom
             [`matches/${scheduledMatch.matchID}/scheduling/queueItemID`]: scheduledMatchID,
             [`matches/${scheduledMatch.matchID}/scheduling/sourceType`]: 'scheduled-table-queue',
         })
+        await syncMatchSchemaFromFlat(scheduledMatch.matchID)
+        await appendMatchAuditEvent(scheduledMatch.matchID, 'scheduled_match_promoted', {
+            tableID,
+            queueItemID: scheduledMatchID,
+            promotionSource,
+        })
     } catch (error) {
         await clearCurrentMatchIfMatches(tableID, scheduledMatch.matchID)
         throw error
@@ -896,6 +906,7 @@ export async function switchSides(matchID) {
     let currentSwitchedValue = currentSwitchedValueSnapshot.val()
     let newIsSwitched = currentSwitchedValue ? false : true
     await db.ref(`matches/${matchID}/isSwitched`).set(newIsSwitched)
+    await appendMatchAuditEvent(matchID, 'sides_switched', { isSwitched: newIsSwitched })
     return newIsSwitched
 }
 
@@ -938,6 +949,11 @@ export async function resetMatchScores(matchID) {
 
     }
 
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+        await appendMatchAuditEvent(matchID, 'match_scores_reset')
+    }
 
 }
 
@@ -1173,6 +1189,10 @@ export async function addSignificantPoint(matchID, gameNumber, playerAScore, pla
         scoreA: playerAScore,
         scoreB: playerBScore,
     })
+    const match = await getMatchData(matchID)
+    if (match) {
+        await syncMatchSchemaFromFlat(matchID, match)
+    }
 }
 
 export async function getSignificantPoints(matchID) {

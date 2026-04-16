@@ -1,5 +1,80 @@
 import type { Player } from './Player'
 
+type MatchPointHistoryEvent = {
+    schemaVersion?: number
+    eventID?: string
+    action?: string
+    eventType?: string
+    createdAt?: string
+    sequence?: number
+    gameNumber?: number
+    side?: 'A' | 'B'
+    scoreA?: number
+    scoreB?: number
+    score?: {
+        a: number
+        b: number
+    }
+    delta?: {
+        a: number
+        b: number
+    }
+    undone?: boolean
+    source?: string
+    payload?: Record<string, unknown>
+    metadata?: Record<string, unknown>
+}
+
+type MatchAuditEvent = {
+    schemaVersion?: number
+    eventID?: string
+    action?: string
+    eventType?: string
+    createdAt?: string
+    sequence?: number
+    scope?: string
+    gameNumber?: number
+    source?: string
+    payload?: Record<string, unknown>
+    metadata?: Record<string, unknown>
+}
+
+type MatchTournamentContext = {
+    schemaVersion?: number
+    tournamentID: string
+    eventID: string
+    roundID: string
+    bracketNodeID?: string
+    teamMatchID?: string
+    matchRound: string
+    eventName: string
+    refs?: Record<string, string>
+    labels?: {
+        matchRound: string
+        eventName: string
+    }
+    metadata?: Record<string, unknown>
+}
+
+type MatchSchedulingMetadata = {
+    schemaVersion?: number
+    tableID: string
+    teamMatchID: string
+    tableNumber: string
+    queueItemID?: string
+    scheduledMatchID?: string
+    scheduledStartTime?: string
+    scheduledEndTime?: string
+    matchStartTime?: string
+    sourceType: string
+    sourceID?: string
+    assignment?: Record<string, string>
+    queue?: Record<string, unknown>
+    timing?: Record<string, unknown>
+    refs?: Record<string, string>
+    metadata?: Record<string, unknown>
+}
+
 export interface MatchSettings {
     schemaVersion?: number;
     // Pregame settings
@@ -148,6 +223,7 @@ export interface MatchSettings {
     sportName: string;
 
     games?: Record<string, {
+        schemaVersion?: number;
         gameNumber: number;
         status: string;
         startedAt: string;
@@ -157,11 +233,16 @@ export interface MatchSettings {
         scoreB: number;
         deleted?: boolean;
         deletedAt?: string;
+        legacy?: Record<string, string>;
+        references?: {
+            pointHistoryIDs?: string[];
+            auditEventIDs?: string[];
+        };
     }>;
-    pointHistory?: Record<string, Record<string, unknown>>;
-    auditTrail?: Record<string, Record<string, unknown>>;
-    tournamentContext?: Record<string, unknown>;
-    context?: Record<string, unknown>;
-    scheduling?: Record<string, unknown>;
+    pointHistory?: Record<string, MatchPointHistoryEvent>;
+    auditTrail?: Record<string, MatchAuditEvent>;
+    tournamentContext?: MatchTournamentContext;
+    context?: MatchTournamentContext;
+    scheduling?: MatchSchedulingMetadata;
     scoringRules?: Record<string, unknown>;
 }
