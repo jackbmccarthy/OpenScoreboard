@@ -77,6 +77,17 @@ npm run start
 
 The production server listens on port `3000` by default.
 
+### TypeScript baseline
+
+Run these before pushing changes:
+
+```bash
+npm run typecheck
+npm run check:ts-nocheck
+```
+
+Project rule: do not add new `@ts-nocheck` directives under `app/` or `src/`.
+
 ## Environment Variables
 
 ### Firebase cloud mode

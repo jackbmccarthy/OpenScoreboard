@@ -9,6 +9,11 @@ if [ ! -f "$BASELINE_FILE" ]; then
 fi
 
 BASELINE_COUNT="$(tr -d '[:space:]' < "$BASELINE_FILE")"
+if ! [[ "$BASELINE_COUNT" =~ ^[0-9]+$ ]]; then
+  echo "Baseline file $BASELINE_FILE must contain a single numeric count."
+  exit 1
+fi
+
 CURRENT_COUNT="$( (rg -n '@ts-nocheck' src app || true) | wc -l | tr -d '[:space:]' )"
 
 if [ "$CURRENT_COUNT" -gt "$BASELINE_COUNT" ]; then

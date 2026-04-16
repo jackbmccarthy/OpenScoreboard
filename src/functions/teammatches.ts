@@ -1,4 +1,4 @@
-import db, { getUserPath } from '../lib/database';
+import db, { getUserPath, getValue } from '../lib/database';
 import { subscribeToPathValue } from '../lib/realtime';
 import Match from '../classes/Match';
 import { getCombinedPlayerNames } from './players';
@@ -7,21 +7,28 @@ import { getMatchData, getMatchScore } from './scoring';
 import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
 import { supportedSports } from './sports';
 import { getTeam, getTeamName } from './teams';
+import type { Match as MatchRecord, TeamMatch, Team as TeamRecord } from '../types/matches';
+
+type TeamMatchPreview = {
+    id: string
+    teamAName?: string
+    teamBName?: string
+    startTime?: string
+    sportName?: string
+    sportDisplayName?: string
+    scoringType?: string
+}
 
 export default async function getMyTeamMatches(userID = getUserPath()) {
-
-
-    let myTeamMatches = await db.ref("users" + "/" + userID + "/" + "myTeamMatches").get()
-    myTeamMatches = myTeamMatches.val()
+    let myTeamMatches = await getValue<Record<string, TeamMatchPreview>>(`users/${userID}/myTeamMatches`)
     if (typeof myTeamMatches === "object" && myTeamMatches !== null) {
         return await Promise.all(Object.entries(myTeamMatches).map(async ([id, item]) => {
-            const teamMatchEntry = item as Record<string, any>
-            const canonicalSnapshot = await db.ref(`teamMatches/${teamMatchEntry.id}`).get()
-            if (!isRecordActive(canonicalSnapshot.val())) {
+            const canonicalValue = await getValue<TeamMatch>(`teamMatches/${item.id}`)
+            if (!isRecordActive(canonicalValue)) {
                 return null
             }
-            let teamMatchScores = await getTeamMatchTeamScore(teamMatchEntry.id)
-            return [id, { ...teamMatchEntry, teamAScore: teamMatchScores.a, teamBScore: teamMatchScores.b }]
+            let teamMatchScores = await getTeamMatchTeamScore(item.id)
+            return [id, { ...item, teamAScore: teamMatchScores.a, teamBScore: teamMatchScores.b }]
         })).then((entries) => entries.filter(Boolean))
     }
     else {
@@ -30,7 +37,7 @@ export default async function getMyTeamMatches(userID = getUserPath()) {
 
 }
 
-function buildCurrentTableSummaries(currentMatches: Record<string, string> | null, matchesByID: Record<string, Record<string, any> | null>) {
+function buildCurrentTableSummaries(currentMatches: Record<string, string> | null, matchesByID: Record<string, MatchRecord | null>) {
     if (!currentMatches || typeof currentMatches !== 'object') {
         return []
     }
@@ -62,15 +69,14 @@ function buildCurrentTableSummaries(currentMatches: Record<string, string> | nul
 }
 
 export function subscribeToMyTeamMatches(
-    callback: (teamMatches: Array<[string, Record<string, any>]>) => void,
+    callback: (teamMatches: Array<[string, TeamMatchPreview & { teamAScore: number; teamBScore: number; tableCount: number; activeTableCount: number; currentTableSummaries: ReturnType<typeof buildCurrentTableSummaries>; status: string }]>) => void,
     userID = getUserPath(),
 ) {
     return subscribeToPathValue(`users/${userID}/myTeamMatches`, async (myTeamMatchesValue) => {
         const teamMatches = myTeamMatchesValue && typeof myTeamMatchesValue === 'object'
             ? await Promise.all(Object.entries(myTeamMatchesValue as Record<string, unknown>).map(async ([id, item]) => {
-                const teamMatchEntry = item as Record<string, any>
-                const canonicalSnapshot = await db.ref(`teamMatches/${teamMatchEntry.id}`).get()
-                const teamMatch = canonicalSnapshot.val()
+                const teamMatchEntry = item as TeamMatchPreview
+                const teamMatch = await getValue<TeamMatch>(`teamMatches/${teamMatchEntry.id}`)
                 if (!isRecordActive(teamMatch)) {
                     return null
                 }
@@ -80,7 +86,7 @@ export function subscribeToMyTeamMatches(
                     : {}
                 const matchIDs = Object.values(currentMatches).filter((matchID): matchID is string => typeof matchID === 'string' && matchID.length > 0)
                 const matches = await Promise.all(matchIDs.map(async (matchID) => [matchID, await getMatchData(matchID)] as const))
-                const matchesByID = Object.fromEntries(matches) as Record<string, Record<string, any> | null>
+                const matchesByID = Object.fromEntries(matches) as Record<string, MatchRecord | null>
 
                 return [id, {
                     ...teamMatchEntry,
@@ -90,11 +96,11 @@ export function subscribeToMyTeamMatches(
                     activeTableCount: matchIDs.length,
                     currentTableSummaries: buildCurrentTableSummaries(currentMatches, matchesByID),
                     status: matchIDs.length > 0 ? 'active' : 'not-started',
-                }] as [string, Record<string, any>]
+                }] as [string, TeamMatchPreview & { teamAScore: number; teamBScore: number; tableCount: number; activeTableCount: number; currentTableSummaries: ReturnType<typeof buildCurrentTableSummaries>; status: string }]
             }))
             : []
 
-        callback(teamMatches.filter(Boolean) as Array<[string, Record<string, any>]>)
+        callback(teamMatches.filter(Boolean) as Array<[string, TeamMatchPreview & { teamAScore: number; teamBScore: number; tableCount: number; activeTableCount: number; currentTableSummaries: ReturnType<typeof buildCurrentTableSummaries>; status: string }]>)
     })
 }
 
@@ -125,25 +131,24 @@ export async function createTeamMatchNewMatch(
 }
 
 
-export async function getTeamMatch(teamMatchID) {
-    let pushedTeam = await db.ref(`teamMatches/${teamMatchID}`).get()
-    const teamMatch = normalizeTeamMatchSchema(pushedTeam.val())
-    return isRecordActive(teamMatch) ? teamMatch : null
+export async function getTeamMatch(teamMatchID: string): Promise<TeamMatch | null> {
+    const rawTeamMatch = await getValue<Record<string, unknown>>(`teamMatches/${teamMatchID}`)
+    const teamMatch = normalizeTeamMatchSchema(rawTeamMatch)
+    return isRecordActive(teamMatch) ? teamMatch as TeamMatch : null
 }
 
 export function subscribeToTeamMatch(
     teamMatchID: string,
-    callback: (teamMatch: Record<string, unknown> | null) => void,
+    callback: (teamMatch: TeamMatch | null) => void,
 ) {
     return subscribeToPathValue(`teamMatches/${teamMatchID}`, (teamMatchValue) => {
         const normalized = normalizeTeamMatchSchema(teamMatchValue as Record<string, unknown> | null)
-        callback(isRecordActive(normalized) ? (normalized as Record<string, unknown>) : null)
+        callback(isRecordActive(normalized) ? (normalized as TeamMatch) : null)
     })
 }
 
 export async function getTeamMatchCurrentMatches(teamMatchID) {
-    let pushedTeam = await db.ref(`teamMatches/${teamMatchID}/currentMatches`).get()
-    return pushedTeam.val()
+    return await getValue<Record<string, string>>(`teamMatches/${teamMatchID}/currentMatches`)
 }
 export async function addTeamMatchCurrentMatch(teamMatchID, tableNumber) {
     let pushedTeam = await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).set("")
@@ -258,10 +263,10 @@ export async function getImportTeamMembersList(player, teamMatchID) {
     }
     if (player === "playerA" || player === "playerA2") {
 
-        let ATeam = await getTeam(teamMatch.teamAID)
+        let ATeam = await getTeam(teamMatch.teamAID) as TeamRecord | null
 
         if (ATeam) {
-            return Object.entries(ATeam.players)
+            return Object.entries(ATeam.players || {})
         }
         else {
             return []
@@ -269,9 +274,9 @@ export async function getImportTeamMembersList(player, teamMatchID) {
 
     }
     else {
-        let BTeam = await getTeam(teamMatch.teamBID)
+        let BTeam = await getTeam(teamMatch.teamBID) as TeamRecord | null
         if (BTeam) {
-            return Object.entries(BTeam.players)
+            return Object.entries(BTeam.players || {})
         }
         else {
             return []
@@ -322,22 +327,19 @@ export async function archiveTeamMatch(myTeamMatchID) {
 }
 
 export async function getTeamMatchTeamScore(teamMatchID,) {
-    let teamAScore = await db.ref(`teamMatches/${teamMatchID}/teamAScore`).get()
-    let teamBScore = await db.ref(`teamMatches/${teamMatchID}/teamBScore`).get()
-
     return {
-        a: teamAScore.val() || 0,
-        b: teamBScore.val() || 0
+        a: Number(await getValue<number | string>(`teamMatches/${teamMatchID}/teamAScore`) || 0),
+        b: Number(await getValue<number | string>(`teamMatches/${teamMatchID}/teamBScore`) || 0)
     }
 
 }
 export async function addWinToTeamMatchTeamScore(teamMatchID, AorB) {
     let scores = await getTeamMatchTeamScore(teamMatchID)
     if (AorB === "A") {
-        await db.ref(`teamMatches/${teamMatchID}/teamAScore`).set(parseInt(scores.a) + 1)
+        await db.ref(`teamMatches/${teamMatchID}/teamAScore`).set(Number(scores.a) + 1)
     }
     else {
-        await db.ref(`teamMatches/${teamMatchID}/teamBScore`).set(parseInt(scores.b) + 1)
+        await db.ref(`teamMatches/${teamMatchID}/teamBScore`).set(Number(scores.b) + 1)
     }
     let teamAScore = await db.ref(`teamMatches/${teamMatchID}/teamAScore`).get()
     let teamBScore = await db.ref(`teamMatches/${teamMatchID}/teamBScore`).get()

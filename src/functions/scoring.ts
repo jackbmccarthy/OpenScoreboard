@@ -1,18 +1,16 @@
-import db from '../lib/database';
+import db, { getNumberValue, getStringValue, getValue } from '../lib/database';
 import { MATCH_SCHEMA_VERSION, appendMatchAuditEvent, appendMatchPointHistory, normalizeMatchSchema, syncMatchSchemaFromFlat } from './matchSchema';
 import { subscribeToPathValue, unwrapRealtimeValue } from '../lib/realtime';
 import Match from '../classes/Match';
 import { getNewPlayer } from '../classes/Player';
 import { getCombinedPlayerNames } from './players';
-import type { ScheduledMatch, ScheduledMatchStatus } from '../types/matches';
+import type { Match as MatchRecord, Player, ScheduledMatch, ScheduledMatchStatus } from '../types/matches';
 
 
 
 export async function AddPoint(matchID, gameNumber, AorB) {
-
-    let pointUpdateRef = db.ref(`matches/${matchID}/game${gameNumber}${AorB}Score`)
-    let currentPointSnapShot = await pointUpdateRef.get()
-    let newScore = parseInt(currentPointSnapShot.val()) + 1
+    let pointUpdateRef = db.ref<number>(`matches/${matchID}/game${gameNumber}${AorB}Score`)
+    let newScore = await getNumberValue(`matches/${matchID}/game${gameNumber}${AorB}Score`) + 1
     await pointUpdateRef.set(newScore)
     const match = await getMatchData(matchID)
     if (match) {
@@ -30,10 +28,8 @@ export async function AddPoint(matchID, gameNumber, AorB) {
 }
 
 export async function MinusPoint(matchID, gameNumber, AorB) {
-
-    let pointUpdateRef = db.ref(`matches/${matchID}/game${gameNumber}${AorB}Score`)
-    let currentPointSnapShot = await pointUpdateRef.get()
-    let newScore = parseInt(currentPointSnapShot.val()) - 1
+    let pointUpdateRef = db.ref<number>(`matches/${matchID}/game${gameNumber}${AorB}Score`)
+    let newScore = await getNumberValue(`matches/${matchID}/game${gameNumber}${AorB}Score`) - 1
     if (newScore >= 0) {
         await pointUpdateRef.set(newScore)
         const match = await getMatchData(matchID)
@@ -253,11 +249,9 @@ export function getActiveGameNumber(match) {
     return false
 }
 
-export async function getMatchData(matchID) {
-
-    let matchRef = db.ref(`matches/${matchID}/`)
-    let matchSnapShot = await matchRef.get()
-    return normalizeMatchSchema(matchSnapShot.val())
+export async function getMatchData(matchID: string): Promise<MatchRecord | null> {
+    const matchValue = await getValue<Record<string, unknown>>(`matches/${matchID}`)
+    return normalizeMatchSchema(matchValue) as MatchRecord | null
 
 }
 
@@ -274,15 +268,18 @@ async function syncMatchSchemaAndAudit(matchID, action, payload = {}) {
 
 export function subscribeToMatchData(
     matchID: string,
-    callback: (match: Record<string, unknown> | null) => void,
+    callback: (match: MatchRecord | null) => void,
 ) {
     return subscribeToPathValue(`matches/${matchID}`, (matchValue) => {
-        callback(normalizeMatchSchema(matchValue as Record<string, any> | null) as Record<string, unknown> | null)
+        callback(normalizeMatchSchema(matchValue as Record<string, unknown> | null) as MatchRecord | null)
     })
 }
 
 export async function subscribeToAllMatchFields(matchID, callback) {
     let match = await getMatchData(matchID)
+    if (!match) {
+        return []
+    }
     let offList: Array<() => void> = []
     for (const key in match) {
         offList.push(
@@ -427,11 +424,7 @@ export function getNextPromotableScheduledMatch(entries: Array<[string, Schedule
 }
 
 async function getScheduledMatchesByTable(tableID: string) {
-    const snapshot = await db.ref(`tables/${tableID}/scheduledMatches`).get()
-    const scheduledMatches = snapshot.val() && typeof snapshot.val() === 'object'
-        ? snapshot.val() as Record<string, ScheduledMatch>
-        : {}
-    return scheduledMatches
+    return await getValue<Record<string, ScheduledMatch>>(`tables/${tableID}/scheduledMatches`) || {}
 }
 
 async function persistScheduledMatch(tableID: string, scheduledMatchID: string, scheduledMatch: ScheduledMatch) {
@@ -496,8 +489,7 @@ export async function reconcileScheduledQueueItemForMatch(
 
 
 export async function getCurrentMatchForTable(tableID) {
-    let currentMatchSnapShot = await db.ref(`tables/${tableID}/currentMatch`).get()
-    return currentMatchSnapShot.val()
+    return await getStringValue(`tables/${tableID}/currentMatch`)
 
 }
 export async function unassignedCurrentMatchForTable(tableID) {
@@ -1297,8 +1289,7 @@ export async function setJerseyColor(matchID, side, color) {
     const normalizedColor = typeof color === 'string' ? color : ''
     const sideKey = side === 'B' ? 'b' : 'a'
     const playerKey = side === 'B' ? 'playerB' : 'playerA'
-    const playerSnapshot = await db.ref(`matches/${matchID}/${playerKey}`).get()
-    const currentPlayer = playerSnapshot.val() || getNewPlayer()
+    const currentPlayer = await getValue<Player>(`matches/${matchID}/${playerKey}`) || getNewPlayer()
     await Promise.all([
         db.ref(`matches/${matchID}/${sideKey}JerseyColor`).set(normalizedColor),
         db.ref(`matches/${matchID}/${playerKey}`).set({
@@ -1313,8 +1304,7 @@ async function setSideName(matchID, side: 'A' | 'B', name: string) {
     const normalizedName = typeof name === 'string' ? name.trim() : ''
     const sideKey = side === 'B' ? 'b' : 'a'
     const playerKey = side === 'B' ? 'playerB' : 'playerA'
-    const playerSnapshot = await db.ref(`matches/${matchID}/${playerKey}`).get()
-    const currentPlayer = playerSnapshot.val() || getNewPlayer()
+    const currentPlayer = await getValue<Player>(`matches/${matchID}/${playerKey}`) || getNewPlayer()
     await Promise.all([
         db.ref(`matches/${matchID}/${sideKey}PlayerName`).set(normalizedName),
         db.ref(`matches/${matchID}/${playerKey}`).set({

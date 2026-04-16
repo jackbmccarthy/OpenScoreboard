@@ -10,6 +10,27 @@ import { isLocalDatabase, firebaseConfig, hasValidConfig } from './firebase'
 import { getCurrentCapabilityToken } from './capabilitySession'
 import { runServerDatabaseActions } from './serverDatabaseClient'
 
+export type DatabaseSnapshot<T> = {
+  val(): T
+}
+
+export type DatabaseWriteReceipt<T> = {
+  key?: string
+  val(): T | null
+}
+
+export type DatabaseRef<T = any> = {
+  get(): Promise<DatabaseSnapshot<T | null>>
+  on(event: string, callback: (snapshot: DatabaseSnapshot<T | null>) => void, ...args: unknown[]): unknown
+  off(...args: unknown[]): unknown
+  child<TChild = unknown>(childPath: string): DatabaseRef<TChild>
+  set(value: T): Promise<DatabaseWriteReceipt<T>>
+  compareSet(expected: unknown, value: T): Promise<DatabaseWriteReceipt<T>>
+  update(value: Partial<T> & Record<string, unknown>): Promise<DatabaseWriteReceipt<Partial<T>>>
+  remove(): Promise<DatabaseWriteReceipt<null>>
+  push(value: T): Promise<DatabaseWriteReceipt<T>>
+}
+
 let clientDb: AceBaseClient | firebase.database.Database | null = null
 
 if (typeof window !== "undefined" && isLocalDatabase) {
@@ -41,7 +62,7 @@ function getClientRef(path: string) {
   return clientDb.ref(path)
 }
 
-function createWriteReceipt(key?: string, value: unknown = null) {
+function createWriteReceipt<T>(key?: string, value: T | null = null) {
   return {
     key,
     val() {
@@ -50,7 +71,7 @@ function createWriteReceipt(key?: string, value: unknown = null) {
   }
 }
 
-function createReadSnapshot<T = unknown>(value: T) {
+function createReadSnapshot<T>(value: T) {
   return {
     val() {
       return value
@@ -72,13 +93,13 @@ function shouldUseServerReadProxy() {
   return !currentUser
 }
 
-function createRef(path: string) {
+function createRef<T = any>(path: string): DatabaseRef<T> {
   const clientRef = () => getClientRef(path)
   const pollingIntervals = new Set<number>()
 
   const readViaServer = async () => {
-    const [result] = await runServerDatabaseActions([{ type: 'get', path }])
-    return createReadSnapshot(result?.value ?? null)
+    const [result] = await runServerDatabaseActions<T>([{ type: 'get', path }])
+    return createReadSnapshot<T | null>(result?.value ?? null)
   }
 
   const clearPollingIntervals = () => {
@@ -93,11 +114,10 @@ function createRef(path: string) {
       if (shouldUseServerReadProxy()) {
         return readViaServer()
       }
-      return clientRef().get()
+      return clientRef().get() as Promise<DatabaseSnapshot<T | null>>
     },
-    on: (...args: any[]) => {
-      if (shouldUseServerReadProxy() && args[0] === 'value' && typeof args[1] === 'function' && typeof window !== 'undefined') {
-        const callback = args[1] as (snapshot: { val(): unknown }) => void
+    on: (event: string, callback: (snapshot: DatabaseSnapshot<T | null>) => void, ...args: unknown[]) => {
+      if (shouldUseServerReadProxy() && event === 'value' && typeof window !== 'undefined') {
         const poll = async () => {
           const snapshot = await readViaServer()
           callback(snapshot)
@@ -109,58 +129,86 @@ function createRef(path: string) {
         pollingIntervals.add(intervalID)
         return callback
       }
-      return (clientRef().on as any)(...args)
+      return (clientRef().on as (...onArgs: unknown[]) => unknown)(event, callback, ...args)
     },
-    off: (...args: any[]) => {
+    off: (...args: unknown[]) => {
       if (pollingIntervals.size > 0 && typeof window !== 'undefined') {
         clearPollingIntervals()
         return
       }
-      return (clientRef().off as any)(...args)
+      return (clientRef().off as (...offArgs: unknown[]) => unknown)(...args)
     },
-    child: (childPath: string) => createRef(`${path}/${childPath}`),
-    set: async (value: unknown) => {
+    child: <TChild = unknown>(childPath: string) => createRef<TChild>(`${path}/${childPath}`),
+    set: async (value: T) => {
       if (isLocalDatabase) {
         const result = await clientRef().set(value)
-        return createWriteReceipt(undefined, typeof result?.val === 'function' ? result.val() : value)
+        return createWriteReceipt<T>(undefined, typeof result?.val === 'function' ? result.val() as T : value)
       }
-      const [result] = await runServerDatabaseActions([{ type: 'set', path, value }])
-      return createWriteReceipt(undefined, result?.value ?? null)
+      const [result] = await runServerDatabaseActions<T>([{ type: 'set', path, value }])
+      return createWriteReceipt<T>(undefined, result?.value ?? null)
     },
-    compareSet: async (expected: unknown, value: unknown) => {
-      const [result] = await runServerDatabaseActions([{ type: 'compareSet', path, expected, value }])
-      return createWriteReceipt(undefined, result?.value ?? null)
+    compareSet: async (expected: unknown, value: T) => {
+      const [result] = await runServerDatabaseActions<T>([{ type: 'compareSet', path, expected, value }])
+      return createWriteReceipt<T>(undefined, result?.value ?? null)
     },
-    update: async (value: Record<string, unknown>) => {
+    update: async (value: Partial<T> & Record<string, unknown>) => {
       if (isLocalDatabase) {
         const result = await clientRef().update(value)
-        return createWriteReceipt(undefined, typeof result?.val === 'function' ? result.val() : value)
+        return createWriteReceipt<Partial<T>>(undefined, typeof result?.val === 'function' ? result.val() as Partial<T> : value)
       }
-      const [result] = await runServerDatabaseActions([{ type: 'update', path, value }])
-      return createWriteReceipt(undefined, result?.value ?? null)
+      const [result] = await runServerDatabaseActions<Partial<T>>([{ type: 'update', path, value }])
+      return createWriteReceipt<Partial<T>>(undefined, result?.value ?? null)
     },
     remove: async () => {
       if (isLocalDatabase) {
         const result = await clientRef().remove()
-        return createWriteReceipt(undefined, typeof result?.val === 'function' ? result.val() : null)
+        return createWriteReceipt<null>(undefined, typeof result?.val === 'function' ? result.val() as null : null)
       }
-      const [result] = await runServerDatabaseActions([{ type: 'remove', path }])
-      return createWriteReceipt(undefined, result?.value ?? null)
+      const [result] = await runServerDatabaseActions<null>([{ type: 'remove', path }])
+      return createWriteReceipt<null>(undefined, result?.value ?? null)
     },
-    push: async (value: unknown) => {
+    push: async (value: T) => {
       if (isLocalDatabase) {
-        return clientRef().push(value)
+        return clientRef().push(value) as unknown as Promise<DatabaseWriteReceipt<T>>
       }
-      const [result] = await runServerDatabaseActions([{ type: 'push', path, value }])
-      return createWriteReceipt(result?.key, result?.value ?? null)
+      const [result] = await runServerDatabaseActions<T>([{ type: 'push', path, value }])
+      return createWriteReceipt<T>(result?.key, result?.value ?? null)
     },
   }
 }
 
 const db = {
-  ref(path: string) {
-    return createRef(path)
+  ref<T = any>(path: string) {
+    return createRef<T>(path)
   }
+}
+
+export async function getValue<T>(path: string) {
+  const snapshot = await db.ref<T>(path).get()
+  return snapshot.val()
+}
+
+export async function getNumberValue(path: string, fallback = 0) {
+  const value = await getValue<number | string>(path)
+  const parsed = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+export async function getStringValue(path: string, fallback = '') {
+  const value = await getValue<string>(path)
+  return typeof value === 'string' ? value : fallback
+}
+
+export function setValue<T>(path: string, value: T) {
+  return db.ref<T>(path).set(value)
+}
+
+export function updateValue<T extends Record<string, unknown>>(path: string, value: Partial<T>) {
+  return db.ref<T>(path).update(value)
+}
+
+export function pushValue<T>(path: string, value: T) {
+  return db.ref<T>(path).push(value)
 }
 
 export function authStateListener(callbackFunction: (user: firebase.User | null) => void) {

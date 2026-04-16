@@ -1,9 +1,16 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "types": ["node"]
+  },
   "include": [
-    "app",
+    "app/**/*.ts",
+    "app/**/*.tsx",
     "next-env.d.ts",
-    "src"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/server/**/*.ts"
   ],
   "exclude": [
     "node_modules",

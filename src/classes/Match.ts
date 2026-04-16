@@ -1,20 +1,19 @@
 import { supportedSports } from "../functions/sports"
 import { MATCH_SCHEMA_VERSION, buildMatchSchemaPatch } from "../functions/matchSchema"
 import { getNewPlayer } from "./Player"
+import type { Match as MatchRecord } from "../types/matches"
 
 
 
 export default class Match {
 
-    constructor(match: any = null) {
+    constructor(match: Partial<MatchRecord> | null = null) {
         if (typeof match === "object") {
-            for (const key in match) {
-                (this as any)[key] = (match as any)[key]
-            }
+            Object.assign(this, match)
         }
     }
 
-    getDefaultMatchSettings(sportName: string, previousMatchObj: any = null, isTeamMatch = false, scoringTypeDefault: string | null = "normal") {
+    getDefaultMatchSettings(sportName: string, previousMatchObj: Partial<MatchRecord> | null = null, isTeamMatch = false, scoringTypeDefault: string | null = "normal") {
 
         let matchSettings: Record<string, any> = {
             //Pregame settings

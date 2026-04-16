@@ -1,4 +1,4 @@
-import db, { getUserPath } from "../lib/database"
+import db, { getStringValue, getUserPath, getValue } from "../lib/database"
 import { subscribeToPathValue } from "../lib/realtime";
 import { v4 as uuidv4 } from 'uuid';
 import Table from "../classes/Table";
@@ -6,6 +6,31 @@ import { buildAccessSecretMetadata, hasAccessSecret, isAccessSecretValid } from 
 import { getPreviewValue, isRecordActive, softDeleteCanonical, softDeleteDynamicURLsByReference } from './deletion';
 import { getMatchData, getMatchScore, getNextPromotableScheduledMatch, isScheduledMatchPromotable, sortScheduledMatchEntries } from './scoring';
 import { getCombinedPlayerNames } from './players';
+import type { Match as MatchRecord, ScheduledMatch, Table as TableRecord } from '../types/matches';
+
+type TableListRow = {
+  tableID: string
+  tableName: string
+  sportName: string
+  scoringType: string
+  autoAdvanceMode: 'manual' | 'prompt' | 'automatic'
+  autoAdvanceDelaySeconds: number
+  playerListID: string
+  currentMatchID?: string
+  currentMatchSummary?: {
+    label: string
+    scoreLabel: string
+    contextLabel: string
+  } | null
+  queueCount?: number
+  nextScheduledMatch?: {
+    label: string
+    startTime: string
+    status: string
+    contextLabel: string
+  } | null
+  status?: 'active' | 'called' | 'paused' | 'queued' | 'idle'
+}
 export async function resetTablePassword(tableID) {
   let newPassword = uuidv4()
   await db.ref("tables/" + tableID).update({
@@ -26,18 +51,17 @@ export async function createNewTable(tableName, playerListID, sportName, scoring
 
 }
 
-export async function getTable(tableID) {
-  const tableSnap = await db.ref(`tables/${tableID}`).get()
-  const table = tableSnap.val()
+export async function getTable(tableID: string): Promise<TableRecord | null> {
+  const table = await getValue<TableRecord>(`tables/${tableID}`)
   return isRecordActive(table) ? table : null
 }
 
 export function subscribeToTable(
   tableID: string,
-  callback: (table: Record<string, unknown> | null) => void,
+  callback: (table: TableRecord | null) => void,
 ) {
   return subscribeToPathValue(`tables/${tableID}`, (tableValue) => {
-    callback(isRecordActive(tableValue) ? (tableValue as Record<string, unknown>) : null)
+    callback(isRecordActive(tableValue) ? (tableValue as TableRecord) : null)
   })
 }
 
@@ -50,14 +74,8 @@ export async function updateTable(tableID, tableSettings) {
 }
 
 export async function getScheduledTableMatches(tableID) {
-  let schedMatches = await db.ref("tables/" + tableID + "/scheduledMatches").get()
-  if (schedMatches.val()) {
-    return Object.entries(schedMatches.val())
-  }
-  else {
-    return []
-  }
-
+  const schedMatches = await getValue<Record<string, ScheduledMatch>>(`tables/${tableID}/scheduledMatches`)
+  return schedMatches ? Object.entries(schedMatches) : []
 }
 
 export async function setScheduledTableMatchToCurrentMatch(tableID, matchID, scheduledMatchID) {
@@ -69,8 +87,7 @@ export async function setScheduledTableMatchToCurrentMatch(tableID, matchID, sch
 }
 
 export async function getTableName(tableID) {
-  let name = await db.ref(`tables/${tableID}/tableName`).get()
-  return name.val()
+  return await getStringValue(`tables/${tableID}/tableName`)
 }
 
 export async function isTableAccessRequired(tableID: string) {
@@ -145,7 +162,7 @@ export async function getMyTables() {
   }
 }
 
-function buildCurrentMatchSummary(match: Record<string, any> | null) {
+function buildCurrentMatchSummary(match: MatchRecord | null) {
   if (!match) {
     return null
   }
@@ -160,7 +177,7 @@ function buildCurrentMatchSummary(match: Record<string, any> | null) {
   }
 }
 
-function buildNextScheduledMatchSummary(scheduledMatches: Array<[string, Record<string, any>]>) {
+function buildNextScheduledMatchSummary(scheduledMatches: Array<[string, ScheduledMatch]>) {
   const nextEntry = getNextPromotableScheduledMatch(scheduledMatches)
   if (!nextEntry) {
     return null
@@ -179,7 +196,7 @@ function buildTableStatus({
   queuedMatches,
 }: {
   currentMatchID: string
-  queuedMatches: Array<[string, Record<string, any>]>
+  queuedMatches: Array<[string, ScheduledMatch]>
 }) {
   if (currentMatchID) {
     return 'active'
@@ -197,14 +214,14 @@ function buildTableStatus({
 }
 
 export function subscribeToMyTables(
-  callback: (tables: Array<[string, Record<string, any>]>) => void,
+  callback: (tables: Array<[string, TableListRow]>) => void,
   userID = getUserPath(),
 ) {
-  const tableRows = new Map<string, [string, Record<string, any>]>()
+  const tableRows = new Map<string, [string, TableListRow]>()
   const tableSubscriptions = new Map<string, () => void>()
   const matchSubscriptions = new Map<string, () => void>()
-  const tableRecords = new Map<string, Record<string, any>>()
-  const currentMatches = new Map<string, Record<string, any> | null>()
+  const tableRecords = new Map<string, TableRecord & { id: string }>()
+  const currentMatches = new Map<string, MatchRecord | null>()
   const currentMatchIDs = new Map<string, string>()
 
   const emitRows = () => {
@@ -219,11 +236,11 @@ export function subscribeToMyTables(
       return
     }
 
-    const tableID = String(tableInfo.id || tableInfo.tableID || '')
+    const tableID = String(tableInfo.id || '')
     const currentMatchID = currentMatchIDs.get(myTableID) || ''
     const currentMatch = currentMatches.get(myTableID) || null
     const scheduledMatches = tableInfo.scheduledMatches && typeof tableInfo.scheduledMatches === 'object'
-      ? Object.entries(tableInfo.scheduledMatches as Record<string, Record<string, any>>)
+      ? Object.entries(tableInfo.scheduledMatches as Record<string, ScheduledMatch>)
       : []
     const queuedMatches = sortScheduledMatchEntries(scheduledMatches).filter(([, scheduledMatch]) => isScheduledMatchPromotable(scheduledMatch))
     const queueCount = queuedMatches.length
@@ -258,7 +275,7 @@ export function subscribeToMyTables(
 
     currentMatchIDs.set(myTableID, matchID)
     matchSubscriptions.set(myTableID, subscribeToPathValue(`matches/${matchID}`, (matchValue) => {
-      currentMatches.set(myTableID, matchValue && typeof matchValue === 'object' ? matchValue as Record<string, any> : null)
+      currentMatches.set(myTableID, matchValue && typeof matchValue === 'object' ? matchValue as MatchRecord : null)
       updateRow(myTableID)
     }))
   }
@@ -285,7 +302,7 @@ export function subscribeToMyTables(
     ownerEntries.forEach(([myTableID, tableValue]) => {
       const tableID = String(tableValue ?? '')
       const existingTableRecord = tableRecords.get(myTableID)
-      if (existingTableRecord && String(existingTableRecord.id || existingTableRecord.tableID || '') === tableID) {
+      if (existingTableRecord && String(existingTableRecord.id || '') === tableID) {
         return
       }
 
@@ -306,8 +323,8 @@ export function subscribeToMyTables(
           return
         }
 
-        const tableInfo: Record<string, any> = {
-          ...(tableValueRecord as Record<string, any>),
+        const tableInfo: TableRecord & { id: string } = {
+          ...(tableValueRecord as TableRecord),
           id: tableID,
         }
         tableRecords.set(myTableID, tableInfo)
