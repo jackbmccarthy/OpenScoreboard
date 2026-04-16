@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import { Box, Text, VStack, Spinner } from '@/components/ui'
+import type { ArchivedMatchSummary } from '@/types/matches'
 
 interface ArchivedMatch {
   id: string
@@ -18,7 +19,7 @@ interface ArchivedMatch {
   matchRound?: string
 }
 
-type ArchivedMatchEntry = [string, Record<string, unknown>]
+type ArchivedMatchEntry = [string, ArchivedMatchSummary]
 
 function normalizeArchivedMatches(entries: ArchivedMatchEntry[]): ArchivedMatch[] {
   return entries.map(([id, value]) => ({

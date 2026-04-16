@@ -12,7 +12,7 @@ export type DatabaseAction =
   | { type: 'remove'; path: string }
   | { type: 'push'; path: string; value: unknown }
 
-export type DatabaseActionResult<T = any> = {
+export type DatabaseActionResult<T = unknown> = {
   key?: string
   value?: T
 }
@@ -44,7 +44,7 @@ function buildCapabilityHeaders() {
     : {}
 }
 
-export async function runServerDatabaseActions<T = any>(actions: DatabaseAction[]) {
+export async function runServerDatabaseActions<T = unknown>(actions: DatabaseAction[]) {
   const authHeaders = await getAuthHeaders()
   const response = await fetch('/api/database', {
     method: 'POST',

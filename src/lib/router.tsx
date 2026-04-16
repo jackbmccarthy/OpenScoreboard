@@ -10,7 +10,7 @@ import {
 } from 'next/navigation'
 import { useEffect } from 'react'
 
-type AnyProps = Record<string, any>
+type AnyProps = Record<string, unknown>
 
 type NavigateOptions = {
   replace?: boolean

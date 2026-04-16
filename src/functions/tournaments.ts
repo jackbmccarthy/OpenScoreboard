@@ -2237,7 +2237,7 @@ export async function createTournamentScheduleMatch(tournamentID: string, schedu
     roundID: scheduleBlock.roundID || '',
     matchRound: scheduleBlock.roundTitle || roundRecord?.title || '',
     eventName: scheduleBlock.eventName || eventRecord?.name || '',
-    scoringType,
+    scoringType: scoringType || undefined,
     sportName,
   }, false, scoringType)
 

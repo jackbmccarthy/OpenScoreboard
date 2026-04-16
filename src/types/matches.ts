@@ -73,6 +73,10 @@ export interface MatchSettings {
   teamNameA: string;
   teamNameB: string;
   teamMatchID: string;
+  aJerseyColor?: string;
+  bJerseyColor?: string;
+  aPlayerName?: string;
+  bPlayerName?: string;
 
   isSwitched: boolean;
   tournamentID?: string;
@@ -181,6 +185,8 @@ export interface MatchSettings {
     winner: string | null;
     scoreA: number;
     scoreB: number;
+    deleted?: boolean;
+    deletedAt?: string;
     rules: {
       sportName: string;
       scoringType: string | null;
@@ -253,6 +259,10 @@ export interface Match extends MatchSettings {
   cursor?: string;
 }
 
+export type MatchSide = 'A' | 'B';
+
+export type MatchPlayerKey = 'playerA' | 'playerB' | 'playerA2' | 'playerB2';
+
 // ============================================
 // Team
 // ============================================
@@ -283,7 +293,7 @@ export interface TeamMatch {
   sportName: string;
   scoringType: string;
   currentMatches: Record<string, string>;
-  archivedMatches: Record<string, string>;
+  archivedMatches: Record<string, ArchivedMatchSummary>;
   scheduledMatches: Record<string, string>;
   auditTrail?: Record<string, Record<string, unknown>>;
   tournamentContext?: {
@@ -335,8 +345,25 @@ export interface Table {
   currentMatch?: string;
   playerListID?: string;
   pointsToWinGame?: number;
-  archivedMatches?: Record<string, string>;
+  archivedMatches?: Record<string, ArchivedMatchSummary>;
   scheduledMatches?: Record<string, ScheduledMatch>;
+}
+
+export interface ArchivedMatchSummary {
+  tableNumber?: string;
+  matchID: string;
+  playerA: string;
+  playerB: string;
+  AScore: number;
+  BScore: number;
+  winner?: string;
+  tournamentID: string;
+  eventID: string;
+  roundID: string;
+  eventName: string;
+  matchRound: string;
+  archivedOn: string;
+  startTime?: string;
 }
 
 export type ScheduledMatchStatus =

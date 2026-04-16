@@ -20,6 +20,9 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "incremental": true,
+    "types": [
+      "node"
+    ],
     "baseUrl": ".",
     "paths": {
       "@/*": [
@@ -39,9 +42,12 @@
     "strictNullChecks": true
   },
   "include": [
-    "app",
     "next-env.d.ts",
-    "src",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [

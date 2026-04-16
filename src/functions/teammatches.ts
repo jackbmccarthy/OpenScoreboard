@@ -358,7 +358,7 @@ export async function deleteTeamMatch(myTeamMatchID, options: OwnershipMutationO
     const teamMatchRecord = typeof teamMatchID === 'string' && teamMatchID.length > 0
         ? await getTeamMatch(teamMatchID)
         : null
-    const dependentMatchIDs = collectTeamMatchDependentMatchIDs(teamMatchRecord as Record<string, any> | null)
+    const dependentMatchIDs = collectTeamMatchDependentMatchIDs(teamMatchRecord as Record<string, unknown> | null)
     const report = {
         entityType: 'teamMatch',
         canonicalID: typeof teamMatchID === 'string' ? teamMatchID : '',

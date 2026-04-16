@@ -1,4 +1,4 @@
-import db, { getStringValue, getUserPath, getValue } from "../lib/database"
+import db, { getStringValue, getTableValue, getUserPath, getValue } from "../lib/database"
 import { subscribeToPathValue } from "../lib/realtime";
 import { v4 as uuidv4 } from 'uuid';
 import Table from "../classes/Table";
@@ -53,7 +53,7 @@ export async function createNewTable(tableName, playerListID, sportName, scoring
 }
 
 export async function getTable(tableID: string): Promise<TableRecord | null> {
-  const table = await getValue<TableRecord>(`tables/${tableID}`)
+  const table = await getTableValue(tableID)
   return isRecordActive(table) ? table : null
 }
 
@@ -110,7 +110,7 @@ export async function deleteTable(myTableID, options: OwnershipMutationOptions =
   const tableRecord = typeof tableID === 'string' && tableID.length > 0
     ? await getTable(tableID)
     : null
-  const dependentMatchIDs = collectTableDependentMatchIDs(tableRecord as Record<string, any> | null)
+  const dependentMatchIDs = collectTableDependentMatchIDs(tableRecord as Record<string, unknown> | null)
   const report = {
     entityType: 'table',
     canonicalID: typeof tableID === 'string' ? tableID : '',

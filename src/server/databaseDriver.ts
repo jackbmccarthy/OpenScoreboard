@@ -12,7 +12,7 @@ export type DatabaseAction =
   | { type: 'remove'; path: string }
   | { type: 'push'; path: string; value: unknown }
 
-type DatabaseActionResult<T = any> = {
+type DatabaseActionResult<T = unknown> = {
   key?: string
   value?: T
 }
@@ -537,7 +537,7 @@ async function canWriteProtectedAction(action: DatabaseAction, callerID: string,
   return false
 }
 
-export async function executeDatabaseActions<T = any>(
+export async function executeDatabaseActions<T = unknown>(
   actions: DatabaseAction[],
   authToken?: string | null,
   capabilityToken?: string | null,
@@ -588,7 +588,7 @@ export async function executeDatabaseActions<T = any>(
   return results as DatabaseActionResult<T>[]
 }
 
-export async function executeServerDatabaseActions<T = any>(actions: DatabaseAction[]) {
+export async function executeServerDatabaseActions<T = unknown>(actions: DatabaseAction[]) {
   const results: DatabaseActionResult[] = []
 
   for (const action of actions) {

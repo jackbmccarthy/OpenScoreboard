@@ -9,6 +9,16 @@ import 'firebase/auth'
 import { isLocalDatabase, firebaseConfig, hasValidConfig } from './firebase'
 import { getCurrentCapabilityToken } from './capabilitySession'
 import { runServerDatabaseActions } from './serverDatabaseClient'
+import type {
+  ArchivedMatchSummary,
+  Match as MatchRecord,
+  MatchPlayerKey,
+  MatchSide,
+  Player,
+  ScheduledMatch,
+  Table as TableRecord,
+  TeamMatch,
+} from '@/types/matches'
 
 export type DatabaseSnapshot<T> = {
   val(): T
@@ -211,6 +221,90 @@ export function pushValue<T>(path: string, value: T) {
   return db.ref<T>(path).push(value)
 }
 
+type FirebaseAuthError = {
+  code?: string
+  message?: string
+}
+
+function getFirebaseAuthError(error: unknown): FirebaseAuthError {
+  if (error && typeof error === 'object') {
+    return error as FirebaseAuthError
+  }
+  return {}
+}
+
+export function matchPath(matchID: string) {
+  return `matches/${matchID}`
+}
+
+export function matchScorePath(matchID: string, gameNumber: number, side: MatchSide) {
+  return `${matchPath(matchID)}/game${gameNumber}${side}Score`
+}
+
+export function matchPlayerPath(matchID: string, playerKey: MatchPlayerKey) {
+  return `${matchPath(matchID)}/${playerKey}`
+}
+
+export function tablePath(tableID: string) {
+  return `tables/${tableID}`
+}
+
+export function teamMatchPath(teamMatchID: string) {
+  return `teamMatches/${teamMatchID}`
+}
+
+export function matchRef(matchID: string) {
+  return db.ref<MatchRecord>(matchPath(matchID))
+}
+
+export function matchScoreRef(matchID: string, gameNumber: number, side: MatchSide) {
+  return db.ref<number>(matchScorePath(matchID, gameNumber, side))
+}
+
+export function matchPlayerRef(matchID: string, playerKey: MatchPlayerKey) {
+  return db.ref<Player>(matchPlayerPath(matchID, playerKey))
+}
+
+export function tableRef(tableID: string) {
+  return db.ref<TableRecord>(tablePath(tableID))
+}
+
+export function tableCurrentMatchRef(tableID: string) {
+  return db.ref<string>(`${tablePath(tableID)}/currentMatch`)
+}
+
+export function scheduledTableMatchesRef(tableID: string) {
+  return db.ref<Record<string, ScheduledMatch>>(`${tablePath(tableID)}/scheduledMatches`)
+}
+
+export function archivedTableMatchesRef(tableID: string) {
+  return db.ref<Record<string, ArchivedMatchSummary>>(`${tablePath(tableID)}/archivedMatches`)
+}
+
+export function teamMatchRef(teamMatchID: string) {
+  return db.ref<TeamMatch>(teamMatchPath(teamMatchID))
+}
+
+export function archivedTeamMatchesRef(teamMatchID: string) {
+  return db.ref<Record<string, ArchivedMatchSummary>>(`${teamMatchPath(teamMatchID)}/archivedMatches`)
+}
+
+export function rootUpdateRef() {
+  return db.ref<Record<string, unknown>>('')
+}
+
+export function getMatchValue(matchID: string) {
+  return getValue<MatchRecord>(matchPath(matchID))
+}
+
+export function getTableValue(tableID: string) {
+  return getValue<TableRecord>(tablePath(tableID))
+}
+
+export function getTeamMatchValue(teamMatchID: string) {
+  return getValue<TeamMatch>(teamMatchPath(teamMatchID))
+}
+
 export function authStateListener(callbackFunction: (user: firebase.User | null) => void) {
   if (hasValidConfig) {
     firebase.auth().onAuthStateChanged((user) => {
@@ -260,8 +354,9 @@ export async function loginToFirebase(email: string, password: string): Promise<
       result.user = firebase.auth().currentUser
       return result
     }
-  } catch (err: any) {
-    switch (err.code) {
+  } catch (err: unknown) {
+    const authError = getFirebaseAuthError(err)
+    switch (authError.code) {
       case "auth/user-not-found":
         result.errorMessage = "Invalid Username/Password"
         break;
@@ -272,7 +367,7 @@ export async function loginToFirebase(email: string, password: string): Promise<
         result.errorMessage = "Invalid Username/Password"
         break;
       default:
-        result.errorMessage = err.message
+        result.errorMessage = authError.message || "Authentication failed"
         break;
     }
     result.error = true
@@ -307,10 +402,11 @@ export async function registerToFirebase(email: string, password: string): Promi
     firebase.auth().currentUser?.sendEmailVerification()
     result.user = firebase.auth().currentUser
     return result
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const authError = getFirebaseAuthError(err)
     result.error = true
     result.success = false
-    switch (err.code) {
+    switch (authError.code) {
       case "auth/email-already-in-use":
         result.errorMessage = "Account already exists. Please login."
         break;
@@ -321,7 +417,7 @@ export async function registerToFirebase(email: string, password: string): Promi
         result.errorMessage = "Password must be at least 6 characters."
         break;
       default:
-        result.errorMessage = err.message
+        result.errorMessage = authError.message || "Registration failed"
         break;
     }
   }

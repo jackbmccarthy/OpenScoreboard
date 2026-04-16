@@ -1,15 +1,59 @@
-import db, { getNumberValue, getStringValue, getValue } from '../lib/database';
+import db, {
+    archivedTableMatchesRef,
+    archivedTeamMatchesRef,
+    getMatchValue,
+    getNumberValue,
+    getStringValue,
+    getValue,
+    matchPlayerRef,
+    matchScoreRef,
+    rootUpdateRef,
+    scheduledTableMatchesRef,
+    tableCurrentMatchRef,
+} from '../lib/database';
 import { MATCH_SCHEMA_VERSION, appendMatchAuditEvent, appendMatchPointHistory, normalizeMatchSchema, syncMatchSchemaFromFlat } from './matchSchema';
 import { subscribeToPathValue, unwrapRealtimeValue } from '../lib/realtime';
 import Match from '../classes/Match';
 import { getNewPlayer } from '../classes/Player';
 import { getCombinedPlayerNames } from './players';
-import type { Match as MatchRecord, Player, ScheduledMatch, ScheduledMatchStatus } from '../types/matches';
+import type {
+    ArchivedMatchSummary,
+    Match as MatchRecord,
+    MatchPlayerKey,
+    MatchSide,
+    Player,
+    ScheduledMatch,
+    ScheduledMatchStatus,
+    Table as TableRecord,
+} from '../types/matches';
 
 
 
-export async function AddPoint(matchID, gameNumber, AorB) {
-    let pointUpdateRef = db.ref<number>(`matches/${matchID}/game${gameNumber}${AorB}Score`)
+type PointHistoryEvent = {
+    action?: string
+    createdAt?: string
+    gameNumber?: number
+    side?: string
+    scoreA?: number
+    scoreB?: number
+    undone?: boolean
+}
+
+type PointHistoryRecord = Record<string, PointHistoryEvent>
+
+type RecentPointHistoryEntry = {
+    eventID: string
+    action: string
+    createdAt: string
+    gameNumber: number
+    side: string
+    scoreA: number
+    scoreB: number
+    undone: boolean
+}
+
+export async function AddPoint(matchID: string, gameNumber: number, AorB: MatchSide) {
+    let pointUpdateRef = matchScoreRef(matchID, gameNumber, AorB)
     let newScore = await getNumberValue(`matches/${matchID}/game${gameNumber}${AorB}Score`) + 1
     await pointUpdateRef.set(newScore)
     const match = await getMatchData(matchID)
@@ -27,8 +71,8 @@ export async function AddPoint(matchID, gameNumber, AorB) {
     return newScore
 }
 
-export async function MinusPoint(matchID, gameNumber, AorB) {
-    let pointUpdateRef = db.ref<number>(`matches/${matchID}/game${gameNumber}${AorB}Score`)
+export async function MinusPoint(matchID: string, gameNumber: number, AorB: MatchSide) {
+    let pointUpdateRef = matchScoreRef(matchID, gameNumber, AorB)
     let newScore = await getNumberValue(`matches/${matchID}/game${gameNumber}${AorB}Score`) - 1
     if (newScore >= 0) {
         await pointUpdateRef.set(newScore)
@@ -49,7 +93,14 @@ export async function MinusPoint(matchID, gameNumber, AorB) {
 
 }
 
-function sortPointHistoryEntries(pointHistory: Record<string, Record<string, unknown>> | undefined) {
+function getPointHistory(match: MatchRecord | null | undefined): PointHistoryRecord | undefined {
+    if (!match?.pointHistory || typeof match.pointHistory !== 'object') {
+        return undefined
+    }
+    return match.pointHistory as PointHistoryRecord
+}
+
+function sortPointHistoryEntries(pointHistory: PointHistoryRecord | undefined) {
     return Object.entries(pointHistory || {}).sort((a, b) => {
         const createdAtA = String(a[1]?.createdAt || '')
         const createdAtB = String(b[1]?.createdAt || '')
@@ -57,19 +108,20 @@ function sortPointHistoryEntries(pointHistory: Record<string, Record<string, unk
     })
 }
 
-function isDeletedGame(match: Record<string, any> | null | undefined, gameNumber: number) {
+function isDeletedGame(match: MatchRecord | null | undefined, gameNumber: number) {
     return Boolean(
         match?.games?.[gameNumber]?.deleted
         || match?.games?.[String(gameNumber)]?.deleted
     )
 }
 
-export function getRecentPointHistory(match: Record<string, any> | null, limit = 5) {
-    if (!match?.pointHistory || typeof match.pointHistory !== 'object') {
+export function getRecentPointHistory(match: MatchRecord | null, limit = 5): RecentPointHistoryEntry[] {
+    const pointHistory = getPointHistory(match)
+    if (!pointHistory) {
         return []
     }
 
-    return sortPointHistoryEntries(match.pointHistory as Record<string, Record<string, unknown>>)
+    return sortPointHistoryEntries(pointHistory)
         .slice(0, limit)
         .map(([eventID, event]) => ({
             eventID,
@@ -83,12 +135,13 @@ export function getRecentPointHistory(match: Record<string, any> | null, limit =
         }))
 }
 
-export function getLatestUndoablePointEvent(match: Record<string, any> | null) {
-    if (!match?.pointHistory || typeof match.pointHistory !== 'object') {
+export function getLatestUndoablePointEvent(match: MatchRecord | null): [string, PointHistoryEvent] | null {
+    const pointHistory = getPointHistory(match)
+    if (!pointHistory) {
         return null
     }
 
-    return sortPointHistoryEntries(match.pointHistory as Record<string, Record<string, unknown>>)
+    return sortPointHistoryEntries(pointHistory)
         .find(([, event]) => {
             const action = String(event?.action || '')
             const undone = Boolean(event?.undone)
@@ -98,7 +151,7 @@ export function getLatestUndoablePointEvent(match: Record<string, any> | null) {
 
 export async function undoLastPointAction(matchID: string) {
     const match = await getMatchData(matchID)
-    const latestUndoableEvent = getLatestUndoablePointEvent(match as Record<string, any> | null)
+    const latestUndoableEvent = getLatestUndoablePointEvent(match)
     if (!match || !latestUndoableEvent) {
         return null
     }
@@ -250,7 +303,7 @@ export function getActiveGameNumber(match) {
 }
 
 export async function getMatchData(matchID: string): Promise<MatchRecord | null> {
-    const matchValue = await getValue<Record<string, unknown>>(`matches/${matchID}`)
+    const matchValue = await getMatchValue(matchID)
     return normalizeMatchSchema(matchValue) as MatchRecord | null
 
 }
@@ -424,21 +477,22 @@ export function getNextPromotableScheduledMatch(entries: Array<[string, Schedule
 }
 
 async function getScheduledMatchesByTable(tableID: string) {
-    return await getValue<Record<string, ScheduledMatch>>(`tables/${tableID}/scheduledMatches`) || {}
+    const snapshot = await scheduledTableMatchesRef(tableID).get()
+    return snapshot.val() || {}
 }
 
 async function persistScheduledMatch(tableID: string, scheduledMatchID: string, scheduledMatch: ScheduledMatch) {
-    await db.ref(`tables/${tableID}/scheduledMatches/${scheduledMatchID}`).set(scheduledMatch)
+    await scheduledTableMatchesRef(tableID).child<ScheduledMatch>(scheduledMatchID).set(scheduledMatch)
     return scheduledMatch
 }
 
 async function applyRootUpdate(update: Record<string, unknown>) {
-    await db.ref('').update(update)
+    await rootUpdateRef().update(update)
 }
 
 async function clearCurrentMatchIfMatches(tableID: string, matchID: string) {
     try {
-        await db.ref(`tables/${tableID}/currentMatch`).compareSet(matchID, "")
+        await tableCurrentMatchRef(tableID).compareSet(matchID, "")
     } catch {
         const currentMatchID = await getCurrentMatchForTable(tableID)
         if (currentMatchID === matchID) {
@@ -493,21 +547,18 @@ export async function getCurrentMatchForTable(tableID) {
 
 }
 export async function unassignedCurrentMatchForTable(tableID) {
-    await db.ref(`tables/${tableID}/currentMatch`).set("")
+    await tableCurrentMatchRef(tableID).set("")
 }
 
-export async function archiveMatchForTable(tableID, matchID, matchSettings: any = null) {
-    let match
-    if (matchSettings) {
-        match = matchSettings
-    }
-    else {
-        match = await getMatchData(matchID)
+export async function archiveMatchForTable(tableID: string, matchID: string, matchSettings: MatchRecord | null = null) {
+    const match = matchSettings || await getMatchData(matchID)
+    if (!match) {
+        return null
     }
 
     let matchScores = getMatchScore(match)
 
-    let archivedMatch = {
+    let archivedMatch: ArchivedMatchSummary = {
         matchID: matchID,
         playerA: getCombinedPlayerNames(match["playerA"], match["playerB"], match["playerA2"], match["playerB2"]).a,
         playerB: getCombinedPlayerNames(match["playerA"], match["playerB"], match["playerA2"], match["playerB2"]).b,
@@ -522,18 +573,21 @@ export async function archiveMatchForTable(tableID, matchID, matchSettings: any 
         startTime: match["matchStartTime"]
     }
 
-    let currentMatchSnapShot = await db.ref(`tables/${tableID}/archivedMatches`).push(archivedMatch)
+    let currentMatchSnapShot = await db.ref<ArchivedMatchSummary>(`tables/${tableID}/archivedMatches`).push(archivedMatch)
     return currentMatchSnapShot.key
 
 }
 
 export async function completeCurrentTableMatch(
-    tableID,
-    matchID,
-    matchSettings: any = null,
+    tableID: string,
+    matchID: string,
+    matchSettings: MatchRecord | null = null,
     shouldPromoteNext: boolean = false,
 ) {
     const archivedMatch = matchSettings || await getMatchData(matchID)
+    if (!archivedMatch) {
+        return null
+    }
     await archiveMatchForTable(tableID, matchID, archivedMatch)
     await reconcileScheduledQueueItemForMatch(tableID, matchID, 'completed', true)
     if (archivedMatch?.tournamentID && archivedMatch?.roundID) {
@@ -549,13 +603,10 @@ export async function completeCurrentTableMatch(
 
 
 export async function getArchivedMatchesForTable(tableID) {
-
-
-
-    let currentMatchSnapShot = await db.ref(`tables/${tableID}/archivedMatches`).get()
+    let currentMatchSnapShot = await archivedTableMatchesRef(tableID).get()
     let val = currentMatchSnapShot.val()
     if (val) {
-        return Object.entries(currentMatchSnapShot.val())
+        return Object.entries(val)
     }
     else {
         return []
@@ -564,10 +615,10 @@ export async function getArchivedMatchesForTable(tableID) {
 
 }
 export async function getArchivedMatchesForTeamMatch(teamMatchID) {
-    let currentMatchSnapShot = await db.ref(`teamMatches/${teamMatchID}/archivedMatches`).get()
+    let currentMatchSnapShot = await archivedTeamMatchesRef(teamMatchID).get()
     let val = currentMatchSnapShot.val()
     if (val) {
-        return Object.entries(currentMatchSnapShot.val())
+        return Object.entries(val)
     }
     else {
         return []
@@ -849,9 +900,8 @@ export async function switchSides(matchID) {
 
 
 
-export async function updateCurrentPlayer(currentMatchID, player, playerSettings) {
-    let updatePlayer = await db.ref(`matches/${currentMatchID}/${player}/`).set(playerSettings)
-
+export async function updateCurrentPlayer(currentMatchID: string, player: MatchPlayerKey, playerSettings: Player) {
+    await matchPlayerRef(currentMatchID, player).set(playerSettings)
 }
 
 export function getMatchScore(match) {
@@ -1356,10 +1406,10 @@ export async function setChangeServiceEveryXPoints(matchID, changeEveryPoints) {
     }
 }
 
-export async function manuallySetGameScore(matchID, gameNumber, AScore, BScore) {
+export async function manuallySetGameScore(matchID: string, gameNumber: number, AScore: number, BScore: number) {
     await Promise.all([
-        db.ref(`matches/${matchID}/game${gameNumber}AScore`).set(AScore),
-        db.ref(`matches/${matchID}/game${gameNumber}BScore`).set(BScore),
+        matchScoreRef(matchID, gameNumber, 'A').set(AScore),
+        matchScoreRef(matchID, gameNumber, 'B').set(BScore),
         db.ref(`matches/${matchID}/games/${gameNumber}/deleted`).set(false),
     ])
     const match = await getMatchData(matchID)
@@ -1373,10 +1423,10 @@ export async function manuallySetGameScore(matchID, gameNumber, AScore, BScore) 
     }
 }
 
-export function watchForPasswordChange(tableID, callback) {
+export function watchForPasswordChange(tableID: string, callback: (accessMarker: string) => void) {
     return subscribeToPathValue(`tables/${tableID}`, (tableValue) => {
         if (tableValue && typeof tableValue === "object") {
-            const accessRecord = tableValue as Record<string, any>
+            const accessRecord = tableValue as Partial<TableRecord>
             callback([
                 accessRecord.accessSecretMode || "",
                 accessRecord.passwordUpdatedAt || "",

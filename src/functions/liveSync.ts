@@ -239,7 +239,7 @@ export function subscribeToTableRuntime(
         },
         history: {
           ...currentState.history,
-          value: getRecentPointHistory(match as Record<string, any> | null),
+          value: getRecentPointHistory(match),
           updatedAt: new Date().toISOString(),
         },
       }
@@ -382,7 +382,7 @@ export function subscribeToTeamMatchRuntime(
         },
         history: {
           ...currentState.history,
-          value: getRecentPointHistory(match as Record<string, any> | null),
+          value: getRecentPointHistory(match),
           updatedAt: new Date().toISOString(),
         },
       }

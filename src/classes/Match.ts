@@ -1,5 +1,5 @@
 import { supportedSports } from "../functions/sports"
-import { MATCH_SCHEMA_VERSION, buildMatchSchemaPatch } from "../functions/matchSchema"
+import { MATCH_SCHEMA_VERSION, buildMatchSchemaPatch, normalizeMatchSchema } from "../functions/matchSchema"
 import { getNewPlayer } from "./Player"
 import type { Match as MatchRecord } from "../types/matches"
 
@@ -8,14 +8,17 @@ import type { Match as MatchRecord } from "../types/matches"
 export default class Match {
 
     constructor(match: Partial<MatchRecord> | null = null) {
-        if (typeof match === "object") {
-            Object.assign(this, match)
+        if (match && typeof match === "object") {
+            const normalizedMatch = normalizeMatchSchema(match as Record<string, unknown>) as MatchRecord | null
+            if (normalizedMatch) {
+                Object.assign(this, normalizedMatch)
+            }
         }
     }
 
-    getDefaultMatchSettings(sportName: string, previousMatchObj: Partial<MatchRecord> | null = null, isTeamMatch = false, scoringTypeDefault: string | null = "normal") {
+    getDefaultMatchSettings(sportName: string, previousMatchObj: Partial<MatchRecord> | null = null, isTeamMatch = false, scoringTypeDefault: string | null = "normal"): MatchRecord {
 
-        let matchSettings: Record<string, any> = {
+        let matchSettings: MatchRecord = {
             //Pregame settings
             isActive: false,
             isWarmUpStarted: false,
@@ -51,7 +54,7 @@ export default class Match {
 
             //Pickleball
             isSecondServer: true,
-            scoringType: scoringTypeDefault,
+            scoringType: scoringTypeDefault || "normal",
 
             //Team Fields for Table Only.
             isTeamMatch: isTeamMatch,
@@ -212,12 +215,12 @@ export default class Match {
             } = previousMatchObj
             matchSettings = {
                 ...matchSettings,
-                bestOf: bestOf,
-                pointsToWinGame: pointsToWinGame,
-                isDoubles: isDoubles,
-                isManualServiceMode: isManualServiceMode,
-                changeServeEveryXPoints: changeServeEveryXPoints,
-                enforceGameScore: enforceGameScore,
+                bestOf: bestOf ?? matchSettings.bestOf,
+                pointsToWinGame: pointsToWinGame ?? matchSettings.pointsToWinGame,
+                isDoubles: isDoubles ?? matchSettings.isDoubles,
+                isManualServiceMode: isManualServiceMode ?? matchSettings.isManualServiceMode,
+                changeServeEveryXPoints: changeServeEveryXPoints ?? matchSettings.changeServeEveryXPoints,
+                enforceGameScore: enforceGameScore ?? matchSettings.enforceGameScore,
                 sportName: sportName,
                 scoringType: scoringType ? scoringType : (scoringTypeDefault || "normal"),
                 warmupDurationSeconds: warmupDurationSeconds || 120,
@@ -246,7 +249,7 @@ export default class Match {
             ...buildMatchSchemaPatch(matchSettings),
         }
     }
-    createNew(sportName: string, previousMatchObj: object | null = null, isTeamMatch = false, scoringType: string | null = "normal") {
+    createNew(sportName: string, previousMatchObj: Partial<MatchRecord> | null = null, isTeamMatch = false, scoringType: string | null = "normal") {
         // createNew(bestOf, isTeamMatch=false, pointsToWinGame=11, isDoubles=false) {
         let newMatch = this.getDefaultMatchSettings(sportName, previousMatchObj, isTeamMatch, scoringType)
         return newMatch

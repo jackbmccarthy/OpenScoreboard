@@ -84,9 +84,10 @@ Run these before pushing changes:
 ```bash
 npm run typecheck
 npm run check:ts-nocheck
+npm run ci:type-baseline
 ```
 
-Project rule: do not add new `@ts-nocheck` directives under `app/` or `src/`.
+Project rule: do not add new `@ts-nocheck` directives under `app/` or `src/`. CI enforces both the typecheck baseline and the no-suppression rule together.
 
 ## Environment Variables
 

@@ -63,10 +63,41 @@ import { activateCapabilityToken, exchangeLegacyCapabilityLink, resolveCapabilit
 import { useAuth } from '@/lib/auth'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { LiveSyncStatus } from '@/lib/liveSync'
+import type {
+  Match as MatchRecord,
+  MatchPlayerKey,
+  MatchSide,
+  Player,
+  ScheduledMatch,
+  Table as TableRecord,
+  TeamMatch as TeamMatchRecord,
+} from '@/types/matches'
 
 const countryOptions = Object.entries(countries)
   .map(([code, name]) => ({ code, name }))
   .sort((a, b) => a.name.localeCompare(b.name))
+
+type SettingsDraft = {
+  bestOf: number
+  pointsToWinGame: number
+  changeServeEveryXPoints: number
+  isDoubles: boolean
+  isAInitialServer: boolean
+  isManualServiceMode: boolean
+  scoringType: string
+}
+
+type WizardDraft = {
+  playerA: Pick<Player, 'firstName' | 'lastName' | 'jerseyColor' | 'country'>
+  playerB: Pick<Player, 'firstName' | 'lastName' | 'jerseyColor' | 'country'>
+  isDoubles: boolean
+  bestOf: number
+  pointsToWinGame: number
+  changeServeEveryXPoints: number
+  scoringType: string
+  warmupDurationSeconds: number
+  sportName: string
+}
 
 function getReadableTextColor(color?: string) {
   if (!color) return '#ffffff'
@@ -98,23 +129,23 @@ function getReadableTextColor(color?: string) {
   return '#ffffff'
 }
 
-function getSideBackground(player: any, fallback: string) {
+function getSideBackground(player: Partial<Player> | null | undefined, fallback: string) {
   return player?.jerseyColor?.trim() || fallback
 }
 
-function getPlayerName(player: any, fallback: string) {
+function getPlayerName(player: Partial<Player> | null | undefined, fallback: string) {
   return player?.firstName || player?.lastName
     ? `${player.firstName || ''} ${player.lastName || ''}`.trim()
     : fallback
 }
 
-function TeamPlayerPreview({ player, fallback, textColor }: { player: any; fallback: string; textColor: string }) {
+function TeamPlayerPreview({ player, fallback, textColor }: { player: Partial<Player> | null | undefined; fallback: string; textColor: string }) {
   const hasImage = Boolean(player?.imageURL?.trim())
 
   return (
     <HStack className="min-w-0 items-center gap-2 sm:gap-3">
       {hasImage ? (
-        <Avatar src={player.imageURL} alt={fallback} className="h-10 w-10 rounded-2xl border border-white/40 sm:h-12 sm:w-12" />
+        <Avatar src={player?.imageURL || ''} alt={fallback} className="h-10 w-10 rounded-2xl border border-white/40 sm:h-12 sm:w-12" />
       ) : (
         <Box className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/25 bg-white/10 sm:h-12 sm:w-12">
           <UserIcon size={16} className="text-white/80 sm:h-auto sm:w-auto" />
@@ -141,16 +172,16 @@ function ScoreSide({
 }: {
   side: 'A' | 'B'
   isLeft: boolean
-  match: any
+  match: MatchRecord | null
   disabled?: boolean
   onAddPoint: () => void | Promise<void>
   onMinusPoint: () => void | Promise<void>
-  onEditPlayer: (playerKey: string) => void
+  onEditPlayer: (playerKey: MatchPlayerKey) => void
   onToggleServer: () => void | Promise<void>
 }) {
   const isSideA = side === 'A'
-  const primaryPlayerKey = isSideA ? 'playerA' : 'playerB'
-  const secondaryPlayerKey = isSideA ? 'playerA2' : 'playerB2'
+  const primaryPlayerKey: MatchPlayerKey = isSideA ? 'playerA' : 'playerB'
+  const secondaryPlayerKey: MatchPlayerKey = isSideA ? 'playerA2' : 'playerB2'
   const sidePlayer = match?.[primaryPlayerKey]
   const sidePlayer2 = match?.[secondaryPlayerKey]
   const gameNumber = getCurrentGameNumber(match) || 1
@@ -253,11 +284,11 @@ export default function ScoringStation({
   const [accessGranted, setAccessGranted] = useState(false)
   const [passwordInput, setPasswordInput] = useState('')
   const [passwordError, setPasswordError] = useState('')
-  const [tableInfo, setTableInfo] = useState<any>(null)
-  const [teamMatch, setTeamMatch] = useState<any>(null)
+  const [tableInfo, setTableInfo] = useState<TableRecord | null>(null)
+  const [teamMatch, setTeamMatch] = useState<TeamMatchRecord | null>(null)
   const [activeTableNumber, setActiveTableNumber] = useState(teamMatchTableNumber || '1')
   const [matchID, setMatchID] = useState('')
-  const [match, setMatch] = useState<any>(null)
+  const [match, setMatch] = useState<MatchRecord | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showMatchWizard, setShowMatchWizard] = useState(false)
   const [warmupActive, setWarmupActive] = useState(false)
@@ -267,9 +298,9 @@ export default function ScoringStation({
   const [showPlayerEditor, setShowPlayerEditor] = useState(false)
   const [showGameEndDialog, setShowGameEndDialog] = useState(false)
   const [showMatchEndDialog, setShowMatchEndDialog] = useState(false)
-  const [editingPlayerKey, setEditingPlayerKey] = useState('')
-  const [playerDraft, setPlayerDraft] = useState(getNewPlayer())
-  const [settingsDraft, setSettingsDraft] = useState({
+  const [editingPlayerKey, setEditingPlayerKey] = useState<MatchPlayerKey | ''>('')
+  const [playerDraft, setPlayerDraft] = useState<Player>(getNewPlayer())
+  const [settingsDraft, setSettingsDraft] = useState<SettingsDraft>({
     bestOf: 5,
     pointsToWinGame: 11,
     changeServeEveryXPoints: 2,
@@ -279,7 +310,7 @@ export default function ScoringStation({
     scoringType: 'normal',
   })
   const [manualGameScores, setManualGameScores] = useState<Record<number, { a: string; b: string }>>({})
-  const [wizardDraft, setWizardDraft] = useState<any>(null)
+  const [wizardDraft, setWizardDraft] = useState<WizardDraft | null>(null)
   const [copiedLink, setCopiedLink] = useState('')
   const [activeAction, setActiveAction] = useState('')
   const accessToken = searchParams.get('token')
@@ -464,7 +495,7 @@ export default function ScoringStation({
     }
   }
 
-  const syncPointFlags = async (nextMatch: any) => {
+  const syncPointFlags = async (nextMatch: MatchRecord) => {
     const gamePoint = isGamePoint(nextMatch)
     await setIsGamePoint(matchID, gamePoint)
     await setIsMatchPoint(matchID, gamePoint && isFinalGame(nextMatch))
@@ -473,7 +504,9 @@ export default function ScoringStation({
   const refreshMatch = async () => {
     if (!matchID) return null
     const refreshed = await getMatchData(matchID)
-    await syncPointFlags(refreshed)
+    if (refreshed) {
+      await syncPointFlags(refreshed)
+    }
     return refreshed
   }
 
@@ -508,7 +541,7 @@ export default function ScoringStation({
 
     const refreshed = await refreshMatch()
     if (!refreshed) return
-    const refreshedMatch = refreshed as Record<string, any>
+    const refreshedMatch = refreshed
 
     const currentGame = getCurrentGameNumber(refreshedMatch) || gameNumber
     const gameDone = isGameFinished(
@@ -562,7 +595,7 @@ export default function ScoringStation({
         await manuallySetGameScore(matchID, gameNumber, aScore, bScore)
       }
     }
-    if (!hasActiveGame(match)) {
+    if (match && !hasActiveGame(match)) {
       await updateService(matchID, settingsDraft.isAInitialServer, getCurrentGameNumber(match) || 1, 0, Number(settingsDraft.changeServeEveryXPoints), Number(settingsDraft.pointsToWinGame), match.sportName, settingsDraft.scoringType)
     }
     setShowSettings(false)
@@ -623,7 +656,7 @@ export default function ScoringStation({
     setShowMatchWizard(true)
   }
 
-  const handleStartMatchFromWizard = async (wizardData: any) => {
+  const handleStartMatchFromWizard = async (wizardData: WizardDraft) => {
     setShowMatchWizard(false)
     if (!wizardData) return
 
@@ -683,7 +716,7 @@ export default function ScoringStation({
   }
 
   const nextQueuedTableMatch = mode === 'table' && tableInfo?.scheduledMatches && typeof tableInfo.scheduledMatches === 'object'
-    ? getNextPromotableScheduledMatch(Object.entries(tableInfo.scheduledMatches as Record<string, Record<string, any>>))
+    ? getNextPromotableScheduledMatch(Object.entries(tableInfo.scheduledMatches as Record<string, ScheduledMatch>))
     : null
   const latestUndoablePointEvent = getLatestUndoablePointEvent(match)
   const recentPointHistory = getRecentPointHistory(match, 3)
@@ -814,7 +847,7 @@ export default function ScoringStation({
       && (!currentGameStarted || currentGameFinished || !hasActiveGame(match) || Boolean(match?.isInBetweenGames))
   )
   const scoringContextLabel = [match?.matchRound || match?.context?.matchRound || '', match?.eventName || match?.context?.eventName || ''].filter(Boolean).join(' • ')
-  const scoringTypeOptions = Object.entries((supportedSports[match?.sportName]?.scoringTypes || {}) as Record<string, { displayName: string }>)
+  const scoringTypeOptions = Object.entries((supportedSports[match?.sportName || '']?.scoringTypes || {}) as Record<string, { displayName: string }>)
 
   const handleCompleteAction = () => {
     if (match && isMatchFinished(match)) {
@@ -1131,7 +1164,7 @@ export default function ScoringStation({
               await manuallySetGameScore(matchID, gameNumber, aScore, bScore)
             }
           }
-          if (!hasActiveGame(match)) {
+          if (match && !hasActiveGame(match)) {
             await updateService(matchID, settings.isAInitialServer, getCurrentGameNumber(match) || 1, 0, Number(settings.changeServeEveryXPoints), Number(settings.pointsToWinGame), match.sportName, settings.scoringType)
           }
           setShowSettings(false)
@@ -1252,7 +1285,7 @@ export default function ScoringStation({
         isOpen={showMatchWizard}
         onClose={() => setShowMatchWizard(false)}
         onSave={handleStartMatchFromWizard}
-        initialDraft={wizardDraft}
+        initialDraft={wizardDraft || undefined}
         isTeamMatch={mode === 'teamMatch'}
         sportName={mode === 'table' ? tableInfo?.sportName : teamMatch?.sportName}
       />
