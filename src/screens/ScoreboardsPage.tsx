@@ -5,11 +5,15 @@ import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/ic
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import OperationToast from '@/components/realtime/OperationToast'
 import { addNewScoreboard, deleteMyScoreboard, duplicateScoreboard, getScoreboardTypesList, subscribeToMyScoreboards, updateScoreboardDetails } from '@/functions/scoreboards'
 import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
 import { createScoreboardFromTemplate, subscribeToScoreboardTemplates } from '@/functions/scoreboardTemplates'
 import SyncIndicator from '@/components/realtime/SyncIndicator'
-import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import { subscribeToPathState } from '@/lib/realtime'
+import type { LiveSyncStatus } from '@/lib/liveSync'
+import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
 type ScoreboardDraft = {
@@ -62,7 +66,8 @@ export default function ScoreboardsPage() {
   const [scoreboardTypes, setScoreboardTypes] = useState<ScoreboardTypeOption[]>([])
   const [templates, setTemplates] = useState<ScoreboardTemplateRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
+  const [syncError, setSyncError] = useState('')
   const [showScoreboardModal, setShowScoreboardModal] = useState(false)
   const [showCreateOptionsModal, setShowCreateOptionsModal] = useState(false)
   const [editingScoreboard, setEditingScoreboard] = useState<{ myScoreboardID: string; scoreboardID: string } | null>(null)
@@ -72,6 +77,7 @@ export default function ScoreboardsPage() {
   const [creationMode, setCreationMode] = useState<'scratch' | 'duplicate' | 'template'>('scratch')
   const [selectedTemplateID, setSelectedTemplateID] = useState('')
   const [selectedDuplicateID, setSelectedDuplicateID] = useState('')
+  const feedback = useOperationFeedback()
 
   useEffect(() => {
     if (authLoading) return
@@ -79,6 +85,7 @@ export default function ScoreboardsPage() {
     setScoreboardTypes(getScoreboardTypesList() as ScoreboardTypeOption[])
     const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myScoreboards`, (state) => {
       setSyncStatus(state.status)
+      setSyncError(state.error)
     })
     const unsubscribeScoreboards = subscribeToMyScoreboards((myScoreboards) => {
       setScoreboards(myScoreboards as ScoreboardEntry[])
@@ -133,6 +140,7 @@ export default function ScoreboardsPage() {
         scoreboardDraft.name.trim(),
         scoreboardDraft.type
       )
+      feedback.showSuccess('Scoreboard updated.')
     } else {
       if (creationMode === 'duplicate' && selectedDuplicateID) {
         const duplicatedID = await duplicateScoreboard(selectedDuplicateID, scoreboardDraft.name.trim())
@@ -159,6 +167,7 @@ export default function ScoreboardsPage() {
   const handleDeleteScoreboard = async () => {
     if (!pendingDeleteScoreboard) return
     await deleteMyScoreboard(pendingDeleteScoreboard.myScoreboardID)
+    feedback.showSuccess('Scoreboard archived.')
     setPendingDeleteScoreboard(null)
   }
 
@@ -199,6 +208,8 @@ export default function ScoreboardsPage() {
             <Text className="ml-1 text-white">New</Text>
           </Button>
         </HStack>
+
+        <LiveStatusAlert status={syncStatus} error={syncError} />
 
         <VStack className="gap-3">
           {scoreboards.length === 0 ? (
@@ -350,6 +361,7 @@ export default function ScoreboardsPage() {
       >
         <ScoreboardPreview web={previewScoreboard?.web} className="h-[28rem]" emptyLabel="Open this scoreboard in the editor to generate preview markup." />
       </OverlayDialog>
+      <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )
 }

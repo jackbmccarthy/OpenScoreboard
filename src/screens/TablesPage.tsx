@@ -5,14 +5,18 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
-import { createNewTable, deleteTable, getMyTables, subscribeToMyTables, updateTable } from '@/functions/tables'
+import OperationToast from '@/components/realtime/OperationToast'
+import { createNewTable, deleteTable, subscribeToMyTables, updateTable } from '@/functions/tables'
 import { getMyPlayerLists } from '@/functions/players'
 import { supportedSports } from '@/functions/sports'
-import { getMyScoreboards, subscribeToMyScoreboards } from '@/functions/scoreboards'
-import { addDynamicURL, getMyDynamicURLs, subscribeToMyDynamicURLs } from '@/functions/dynamicurls'
+import { subscribeToMyScoreboards } from '@/functions/scoreboards'
+import { addDynamicURL, subscribeToMyDynamicURLs } from '@/functions/dynamicurls'
 import { promoteNextScheduledMatch } from '@/functions/scoring'
-import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import { subscribeToPathState } from '@/lib/realtime'
+import type { LiveSyncStatus } from '@/lib/liveSync'
+import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
 type TableDraft = {
@@ -108,9 +112,11 @@ export default function TablesPage() {
   const [dynamicURLName, setDynamicURLName] = useState('')
   const [pendingDeleteTable, setPendingDeleteTable] = useState<TableRow | null>(null)
   const [copiedHref, setCopiedHref] = useState('')
-  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
+  const [syncError, setSyncError] = useState('')
   const [promotingTableID, setPromotingTableID] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all')
+  const feedback = useOperationFeedback()
 
   useEffect(() => {
     if (authLoading) return
@@ -130,6 +136,7 @@ export default function TablesPage() {
 
     const unsubscribeTableState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myTables`, (state) => {
       setSyncStatus(state.status)
+      setSyncError(state.error)
     })
     const unsubscribeTables = subscribeToMyTables((nextTables) => {
       setTables(nextTables.map(([myTableID, data]) => ({ myTableID, ...(data as Omit<TableRow, 'myTableID'>) })))
@@ -168,17 +175,13 @@ export default function TablesPage() {
     setPromotingTableID(tableID)
     try {
       await promoteNextScheduledMatch(tableID)
+      feedback.showSuccess('Promoted the next queued match.')
     } catch (error) {
       console.error('Error promoting next match:', error)
+      feedback.showError(error instanceof Error ? error.message : 'Failed to promote the next match.')
     } finally {
       setPromotingTableID('')
     }
-  }
-
-  const reloadTables = async () => {
-    const myTables = await getMyTables()
-    setTables((myTables as Array<[string, Omit<TableRow, 'myTableID'>]>).map(([myTableID, data]) => ({ myTableID, ...data })))
-    setDynamicURLs((await getMyDynamicURLs()) as DynamicURLEntry[])
   }
 
   const openNewTableModal = () => {
@@ -208,6 +211,7 @@ export default function TablesPage() {
         ...tableDraft,
         autoAdvanceDelaySeconds: Number(tableDraft.autoAdvanceDelaySeconds) || 0,
       })
+      feedback.showSuccess('Table updated.')
     } else {
       await createNewTable(
         tableDraft.tableName.trim(),
@@ -217,6 +221,7 @@ export default function TablesPage() {
         tableDraft.autoAdvanceMode,
         Number(tableDraft.autoAdvanceDelaySeconds) || 0,
       )
+      feedback.showSuccess('Table created.')
     }
 
     setShowTableModal(false)
@@ -228,6 +233,7 @@ export default function TablesPage() {
   const handleDeleteTable = async () => {
     if (!pendingDeleteTable) return
     await deleteTable(pendingDeleteTable.myTableID)
+    feedback.showSuccess('Table archived.')
     setPendingDeleteTable(null)
     // Subscription fires when data changes — no manual reload needed
   }
@@ -277,6 +283,7 @@ export default function TablesPage() {
       scoreboardID: selectedLinkCombo.combo.scoreboardID,
       tableID: selectedLinkCombo.table.tableID,
     })
+    feedback.showSuccess('Dynamic URL saved.')
 
     setShowDynamicURLSaveModal(false)
     setSelectedLinkCombo(null)
@@ -329,6 +336,8 @@ export default function TablesPage() {
             </Button>
           </HStack>
         </HStack>
+
+        <LiveStatusAlert status={syncStatus} error={syncError} />
 
         <VStack className="gap-3">
           {visibleTables.length === 0 ? (
@@ -571,6 +580,7 @@ export default function TablesPage() {
           <Input value={dynamicURLName} onChangeText={setDynamicURLName} placeholder="Dynamic URL name" />
         </LabeledField>
       </OverlayDialog>
+      <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )
 }

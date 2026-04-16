@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Avatar, Badge, Box, Button, Heading, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
 import { CopyIcon, UserIcon } from '@/components/icons'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import MatchWizardModal from './MatchWizardModal'
 import SettingsOverlay from './SettingsOverlay'
 import {
@@ -50,17 +52,17 @@ import {
   undoLastPointAction,
   watchForPasswordChange,
   createNewMatch,
-  subscribeToMatchData,
 } from '@/functions/scoring'
-import { createTeamMatchNewMatch, subscribeToTeamMatch, subscribeToTeamMatchCurrentMatch } from '@/functions/teammatches'
-import { isTableAccessRequired, subscribeToTable } from '@/functions/tables'
+import { createTeamMatchNewMatch } from '@/functions/teammatches'
+import { subscribeToTableRuntime, subscribeToTeamMatchRuntime } from '@/functions/liveSync'
+import { isTableAccessRequired } from '@/functions/tables'
 import { supportedSports } from '@/functions/sports'
 import { getNewPlayer } from '@/classes/Player'
 import countries from '@/flags/countries.json'
 import { activateCapabilityToken, exchangeLegacyCapabilityLink, resolveCapabilityLink, type CapabilityRecord } from '@/functions/accessTokens'
 import { useAuth } from '@/lib/auth'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import type { LiveSyncStatus } from '@/lib/liveSync'
 
 const countryOptions = Object.entries(countries)
   .map(([code, name]) => ({ code, name }))
@@ -285,9 +287,9 @@ export default function ScoringStation({
   const hasCapabilitySession = Boolean(accessToken || resolvedCapability)
   const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState<number | null>(null)
   const [judgeNote, setJudgeNote] = useState('')
-  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
   const [syncError, setSyncError] = useState('')
-  const [matchSyncStatus, setMatchSyncStatus] = useState<RealtimeStatus>('idle')
+  const [matchSyncStatus, setMatchSyncStatus] = useState<LiveSyncStatus>('idle')
   const [matchSyncError, setMatchSyncError] = useState('')
 
   useEffect(() => {
@@ -361,81 +363,55 @@ export default function ScoringStation({
   useEffect(() => {
     if (!accessGranted || mode !== 'table' || !tableID) return
 
-    const unsubscribeState = subscribeToPathState(`tables/${tableID}`, (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    setLoading(true)
-    const unsubscribeTable = subscribeToTable(tableID, (nextTableInfo) => {
-      setTableInfo(nextTableInfo)
-      const nextMatchID = typeof nextTableInfo?.currentMatch === 'string' ? nextTableInfo.currentMatch : ''
-      setMatchID(nextMatchID)
-      if (!nextMatchID) {
-        setMatch(null)
+    return subscribeToTableRuntime({
+      tableID,
+      token: accessToken,
+      capabilityType: 'table_scoring',
+    }, (runtimeState) => {
+      setSyncStatus(runtimeState.table.status)
+      setSyncError(runtimeState.table.error)
+      setTableInfo(runtimeState.table.value)
+      setMatchID(runtimeState.currentMatchID)
+      setMatch(runtimeState.currentMatch.value)
+      setMatchSyncStatus(runtimeState.currentMatch.status)
+      setMatchSyncError(runtimeState.currentMatch.error)
+      if (runtimeState.accessToken.value) {
+        setResolvedCapability(runtimeState.accessToken.value)
       }
-      setLoading(false)
+      if (!user && runtimeState.accessToken.status === 'unauthorized') {
+        setAccessGranted(false)
+        setPasswordError('This scoring link is invalid, expired, or has been revoked.')
+      }
+      setLoading(runtimeState.table.status === 'loading' && !runtimeState.table.value)
     })
-    return () => {
-      unsubscribeState()
-      unsubscribeTable()
-    }
-  }, [accessGranted, mode, tableID])
+  }, [accessGranted, mode, tableID, accessToken, user])
 
   useEffect(() => {
     if (!accessGranted || mode !== 'teamMatch' || !teamMatchID) return
 
-    const unsubscribeState = subscribeToPathState(`teamMatches/${teamMatchID}`, (state) => {
-      setSyncStatus(state.status)
-      setSyncError(state.error)
-    })
-    setLoading(true)
-    const unsubscribeTeamMatch = subscribeToTeamMatch(teamMatchID, (nextTeamMatch) => {
-      setTeamMatch(nextTeamMatch)
-      const currentMatches = nextTeamMatch?.currentMatches as Record<string, string> | undefined
-      const nextMatchID = currentMatches?.[activeTableNumber] || ''
-      setMatchID(nextMatchID)
-      if (!nextMatchID) {
-        setMatch(null)
+    return subscribeToTeamMatchRuntime({
+      teamMatchID,
+      tableNumber: activeTableNumber,
+      token: accessToken,
+      capabilityType: 'team_match_scoring',
+    }, (runtimeState) => {
+      setSyncStatus(runtimeState.teamMatch.status)
+      setSyncError(runtimeState.teamMatch.error)
+      setTeamMatch(runtimeState.teamMatch.value)
+      setMatchID(runtimeState.currentMatchID)
+      setMatch(runtimeState.currentMatch.value)
+      setMatchSyncStatus(runtimeState.currentMatch.status)
+      setMatchSyncError(runtimeState.currentMatch.error)
+      if (runtimeState.accessToken.value) {
+        setResolvedCapability(runtimeState.accessToken.value)
       }
-      setLoading(false)
-    })
-    return () => {
-      unsubscribeState()
-      unsubscribeTeamMatch()
-    }
-  }, [accessGranted, mode, teamMatchID, activeTableNumber])
-
-  useEffect(() => {
-    if (!accessGranted || mode !== 'teamMatch' || !teamMatchID) return
-
-    return subscribeToTeamMatchCurrentMatch(teamMatchID, activeTableNumber, (currentMatchID) => {
-      setMatchID(currentMatchID)
-      if (!currentMatchID) {
-        setMatch(null)
+      if (!user && runtimeState.accessToken.status === 'unauthorized') {
+        setAccessGranted(false)
+        setPasswordError('This scoring link is invalid, expired, or has been revoked.')
       }
+      setLoading(runtimeState.teamMatch.status === 'loading' && !runtimeState.teamMatch.value)
     })
-  }, [accessGranted, mode, teamMatchID, activeTableNumber])
-
-  useEffect(() => {
-    if (!matchID) {
-      setMatch(null)
-      setMatchSyncStatus('idle')
-      setMatchSyncError('')
-      return
-    }
-
-    const unsubscribeState = subscribeToPathState(`matches/${matchID}`, (state) => {
-      setMatchSyncStatus(state.status)
-      setMatchSyncError(state.error)
-    })
-    const unsubscribeMatch = subscribeToMatchData(matchID, (nextMatch) => {
-      setMatch(nextMatch)
-    })
-    return () => {
-      unsubscribeState()
-      unsubscribeMatch()
-    }
-  }, [matchID])
+  }, [accessGranted, mode, teamMatchID, activeTableNumber, accessToken, user])
 
   useEffect(() => {
     if (!accessGranted || mode !== 'table' || !tableID || resolvedCapability) return
@@ -920,6 +896,10 @@ export default function ScoringStation({
           {scoringContextLabel ? (
             <Text className="truncate text-xs text-slate-300">{scoringContextLabel}</Text>
           ) : null}
+          <HStack className="flex-wrap gap-2 pt-2">
+            <LiveStatusBadge status={syncStatus} prefix="Station" />
+            <LiveStatusBadge status={matchSyncStatus} prefix="Match" />
+          </HStack>
         </VStack>
         <HStack className="shrink-0 items-center gap-2">
           <Button variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10" onClick={async () => { if (!matchID) return; setActiveAction('switch'); await switchSides(matchID); setActiveAction(''); }} disabled={!matchID || activeAction === 'switch'}>
@@ -933,6 +913,11 @@ export default function ScoringStation({
           </Button>
         </HStack>
       </HStack>
+
+      <VStack className="gap-2 px-4 py-3">
+        <LiveStatusAlert status={syncStatus} error={syncError} className="bg-slate-900/80 text-white" />
+        <LiveStatusAlert status={matchSyncStatus} error={matchSyncError} className="bg-slate-900/80 text-white" />
+      </VStack>
 
       {!match ? (
         <Box className="flex min-h-0 flex-1 items-center justify-center p-6 text-white">

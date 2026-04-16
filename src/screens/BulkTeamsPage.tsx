@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react'
 import { Box, Button, HStack, Input, Spinner, Text, VStack } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { addNewTeam, deleteMyTeam, getMyTeams, subscribeToMyTeams, getTeam, updateMyTeam, updateTeam } from '@/functions/teams'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import OperationToast from '@/components/realtime/OperationToast'
+import { addNewTeam, deleteMyTeam, getMyTeams, subscribeToMyTeams, updateMyTeam, updateTeam } from '@/functions/teams'
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 import { UserIcon } from '@/components/icons'
+import { subscribeToPathState } from '@/lib/realtime'
+import type { LiveSyncStatus } from '@/lib/liveSync'
+import { useOperationFeedback } from '@/lib/useOperationFeedback'
 
 type TeamPlayers = Record<string, unknown>
 
@@ -24,13 +29,6 @@ type TeamPreview = {
 }
 
 type TeamEntry = [string, TeamPreview]
-
-type TeamRecord = {
-  teamName?: string
-  teamLogoURL?: string
-  players?: TeamPlayers
-  tags?: string[]
-}
 
 function createEmptyRow(): BulkTeamRow {
   return {
@@ -96,52 +94,42 @@ function ImagePreview({
 }
 
 export default function BulkTeamsPage() {
-  const { loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [rows, setRows] = useState<BulkTeamRow[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
+  const [syncError, setSyncError] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<{ id: string; label: string } | null>(null)
   const [viewMode, setViewMode] = useState<'form' | 'spreadsheet'>('form')
   const [spreadsheetValue, setSpreadsheetValue] = useState('')
-
-  async function loadTeams(myTeamsOverride?: TeamEntry[]) {
-    setLoading(true)
-    try {
-      const myTeams = myTeamsOverride || await getMyTeams()
-      const detailedRows = await Promise.all(
-        (myTeams as TeamEntry[]).map(async ([myTeamID, preview]) => {
-          const team = await getTeam(preview.id) as TeamRecord | null
-          return {
-            id: preview.id,
-            myTeamID,
-            teamID: preview.id,
-            teamName: team?.teamName || preview.name || '',
-            teamLogoURL: team?.teamLogoURL || '',
-            players: team?.players || {},
-            tags: team?.tags || [],
-            isNew: false,
-          }
-        })
-      )
-      setRows(detailedRows)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load teams')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const feedback = useOperationFeedback()
 
   useEffect(() => {
     if (authLoading) return
+    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myTeams`, (state) => {
+      setSyncStatus(state.status)
+      setSyncError(state.error)
+    })
     const unsubscribeTeams = subscribeToMyTeams((myTeams) => {
-      loadTeams(myTeams as TeamEntry[])
+      setRows((myTeams as TeamEntry[]).map(([myTeamID, preview]) => ({
+        id: preview.id,
+        myTeamID,
+        teamID: preview.id,
+        teamName: preview.name || '',
+        teamLogoURL: String((preview as Record<string, unknown>).teamLogoURL || ''),
+        players: ((preview as Record<string, unknown>).players || {}) as TeamPlayers,
+        tags: ((preview as Record<string, unknown>).tags || []) as string[],
+        isNew: false,
+      })))
+      setLoading(false)
     })
     return () => {
+      unsubscribeState()
       unsubscribeTeams()
     }
-  }, [authLoading])
+  }, [authLoading, user])
 
   useEffect(() => {
     setSpreadsheetValue(
@@ -164,14 +152,13 @@ export default function BulkTeamsPage() {
   const handleApplySpreadsheet = () => {
     const parsedRows = parseSpreadsheetRows(spreadsheetValue)
     setRows(parsedRows)
-    setSuccess(`Loaded ${parsedRows.length} row${parsedRows.length === 1 ? '' : 's'} from spreadsheet data.`)
     setError(null)
+    feedback.showSuccess(`Loaded ${parsedRows.length} team row${parsedRows.length === 1 ? '' : 's'}.`)
   }
 
   const handleSave = async () => {
     setSaving(true)
     setError(null)
-    setSuccess(null)
 
     try {
       const currentTeams = await getMyTeams()
@@ -204,9 +191,10 @@ export default function BulkTeamsPage() {
         }
       }
 
-      setSuccess('Bulk team changes saved.')
+      feedback.showSuccess('Bulk team changes saved.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save teams')
+      feedback.showError(err instanceof Error ? err.message : 'Failed to save teams')
     } finally {
       setSaving(false)
     }
@@ -227,6 +215,7 @@ export default function BulkTeamsPage() {
         <Text className="text-sm text-gray-600">
           Add, rename, and remove teams in one pass. Removing a row hides that team from your visible team list.
         </Text>
+        <LiveStatusAlert status={syncStatus} error={syncError} />
 
         <HStack className="gap-2">
           <Button variant={viewMode === 'form' ? 'solid' : 'outline'} onClick={() => setViewMode('form')}>
@@ -295,7 +284,6 @@ export default function BulkTeamsPage() {
         )}
 
         {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
-        {success ? <Text className="text-sm text-green-600">{success}</Text> : null}
 
         <HStack className="gap-3">
           <Button variant="outline" onClick={() => setRows((current) => [...current, createEmptyRow()])}>
@@ -315,6 +303,7 @@ export default function BulkTeamsPage() {
         message={`Remove ${pendingRemoval?.label || 'this team row'} from the pending bulk changes? This does not save until you confirm the full bulk update.`}
         confirmLabel="Remove Row"
       />
+      <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )
 }

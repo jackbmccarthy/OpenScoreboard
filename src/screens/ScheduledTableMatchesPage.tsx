@@ -4,6 +4,8 @@ import { useAuth } from '@/lib/auth'
 import { Badge, Box, Input, Select, Text, VStack, HStack, Button, Spinner, Card, CardBody } from '@/components/ui'
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 import { FormDialog, SelectField, TextAreaField, TextInputField } from '@/components/crud/FormDialog'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import OperationToast from '@/components/realtime/OperationToast'
 import {
   addScheduledMatch,
   canTransitionScheduledMatchStatus,
@@ -20,6 +22,9 @@ import {
 } from '@/functions/scoring'
 import { getMyTables, subscribeToTable } from '@/functions/tables'
 import type { ScheduledMatch, ScheduledMatchStatus } from '@/types/matches'
+import { subscribeToPathState } from '@/lib/realtime'
+import type { LiveSyncStatus } from '@/lib/liveSync'
+import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
 const statusLabelMap: Record<ScheduledMatchStatus, string> = {
@@ -58,6 +63,8 @@ export default function ScheduledTableMatchesPage() {
   const { user, loading: authLoading } = useAuth()
   const [matches, setMatches] = useState<[string, ScheduledMatch][]>([])
   const [loading, setLoading] = useState(true)
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
+  const [syncError, setSyncError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [sportName, setSportName] = useState('tableTennis')
   const [showModal, setShowModal] = useState(false)
@@ -77,6 +84,7 @@ export default function ScheduledTableMatchesPage() {
   const [bulkFeedback, setBulkFeedback] = useState('')
   const [tableOptions, setTableOptions] = useState<TableOption[]>([])
   const [bulkTargetTableID, setBulkTargetTableID] = useState('')
+  const feedback = useOperationFeedback()
 
   useEffect(() => {
     if (authLoading) return
@@ -86,7 +94,11 @@ export default function ScheduledTableMatchesPage() {
       return
     }
 
-    return subscribeToTable(tableID, (tableInfo) => {
+    const unsubscribeState = subscribeToPathState(`tables/${tableID}`, (state) => {
+      setSyncStatus(state.status)
+      setSyncError(state.error)
+    })
+    const unsubscribeTable = subscribeToTable(tableID, (tableInfo) => {
       const scheduledMatches = tableInfo?.scheduledMatches && typeof tableInfo.scheduledMatches === 'object'
         ? Object.entries(tableInfo.scheduledMatches as Record<string, ScheduledMatch>)
         : []
@@ -94,6 +106,10 @@ export default function ScheduledTableMatchesPage() {
       setSportName(typeof tableInfo?.sportName === 'string' ? tableInfo.sportName : 'tableTennis')
       setLoading(false)
     })
+    return () => {
+      unsubscribeState()
+      unsubscribeTable()
+    }
   }, [authLoading, tableID])
 
   useEffect(() => {
@@ -175,8 +191,10 @@ export default function ScheduledTableMatchesPage() {
       }
 
       setShowModal(false)
+      feedback.showSuccess(draft.scheduledMatchID ? 'Scheduled match updated.' : 'Scheduled match created.')
     } catch (error) {
       console.error('Error saving scheduled match:', error)
+      feedback.showError(error instanceof Error ? error.message : 'Failed to save scheduled match.')
     } finally {
       setIsSubmitting(false)
     }
@@ -190,9 +208,11 @@ export default function ScheduledTableMatchesPage() {
     setIsSubmitting(true)
     try {
       await deleteScheduledTableMatch(tableID, pendingDelete.scheduledMatchID)
+      feedback.showSuccess('Scheduled match removed from the queue.')
       setPendingDelete(null)
     } catch (error) {
       console.error('Error deleting scheduled match:', error)
+      feedback.showError(error instanceof Error ? error.message : 'Failed to delete the scheduled match.')
     } finally {
       setIsSubmitting(false)
     }
@@ -203,8 +223,10 @@ export default function ScheduledTableMatchesPage() {
     setIsSubmitting(true)
     try {
       await promoteNextScheduledMatch(tableID)
+      feedback.showSuccess('Promoted the next queued match.')
     } catch (error) {
       console.error('Error promoting next scheduled match:', error)
+      feedback.showError(error instanceof Error ? error.message : 'Failed to promote the next queued match.')
     } finally {
       setIsSubmitting(false)
     }
@@ -215,8 +237,10 @@ export default function ScheduledTableMatchesPage() {
     setIsSubmitting(true)
     try {
       await promoteScheduledTableMatch(tableID, scheduledMatchID)
+      feedback.showSuccess('Promoted the selected queued match.')
     } catch (error) {
       console.error('Error promoting scheduled match:', error)
+      feedback.showError(error instanceof Error ? error.message : 'Failed to promote the selected match.')
     } finally {
       setIsSubmitting(false)
     }
@@ -227,8 +251,10 @@ export default function ScheduledTableMatchesPage() {
     setIsSubmitting(true)
     try {
       await reorderScheduledTableMatch(tableID, scheduledMatchID, direction)
+      feedback.showSuccess(direction === 'up' ? 'Moved match up in the queue.' : 'Moved match down in the queue.')
     } catch (error) {
       console.error('Error reordering scheduled match:', error)
+      feedback.showError(error instanceof Error ? error.message : 'Failed to reorder the queue.')
     } finally {
       setIsSubmitting(false)
     }
@@ -239,8 +265,10 @@ export default function ScheduledTableMatchesPage() {
     setIsSubmitting(true)
     try {
       await setScheduledTableMatchStatus(tableID, scheduledMatchID, status)
+      feedback.showSuccess(`Updated match status to ${statusLabelMap[status]}.`)
     } catch (error) {
       console.error('Error updating scheduled match status:', error)
+      feedback.showError(error instanceof Error ? error.message : 'Failed to update scheduled match status.')
     } finally {
       setIsSubmitting(false)
     }
@@ -389,6 +417,8 @@ export default function ScheduledTableMatchesPage() {
             </Button>
           </HStack>
         </HStack>
+
+        <LiveStatusAlert status={syncStatus} error={syncError} />
 
         <HStack className="gap-3 items-end flex-wrap">
           <LabeledField label="Search Queue" className="flex-1 min-w-[16rem]">
@@ -619,6 +649,7 @@ export default function ScheduledTableMatchesPage() {
         onConfirm={handleDeleteScheduledMatch}
         confirmLabel="Remove Match"
       />
+      <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )
 }

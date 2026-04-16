@@ -5,12 +5,16 @@ import { PencilIcon, PlusIcon, TeamsIcon, TrashIcon } from '@/components/icons'
 import { useAuth } from '@/lib/auth'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
 import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
-import getMyTeamMatches, { addNewTeamMatch, deleteTeamMatch, getTeamMatch, subscribeToMyTeamMatches, updateTeamMatch } from '@/functions/teammatches'
+import OperationToast from '@/components/realtime/OperationToast'
+import { addNewTeamMatch, deleteTeamMatch, getTeamMatch, subscribeToMyTeamMatches, updateTeamMatch } from '@/functions/teammatches'
 import { getMyTeams } from '@/functions/teams'
 import { supportedSports } from '@/functions/sports'
 import { newTeamMatch } from '@/classes/TeamMatch'
-import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import { subscribeToPathState } from '@/lib/realtime'
+import type { LiveSyncStatus } from '@/lib/liveSync'
+import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
 type TeamMatchDraft = {
@@ -70,8 +74,10 @@ export default function TeamMatchesPage() {
   const [editingMatch, setEditingMatch] = useState<{ myTeamMatchID: string; teamMatchID: string } | null>(null)
   const [matchDraft, setMatchDraft] = useState<TeamMatchDraft>(emptyMatchDraft)
   const [pendingDeleteMatch, setPendingDeleteMatch] = useState<{ myTeamMatchID: string; name: string } | null>(null)
-  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
+  const [syncError, setSyncError] = useState('')
   const [selectedMatchDetail, setSelectedMatchDetail] = useState<TeamMatchRow | null>(null)
+  const feedback = useOperationFeedback()
 
   useEffect(() => {
     if (authLoading) return
@@ -91,6 +97,7 @@ export default function TeamMatchesPage() {
 
     const unsubscribeMatchState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myTeamMatches`, (state) => {
       setSyncStatus(state.status)
+      setSyncError(state.error)
     })
     const unsubscribeMatches = subscribeToMyTeamMatches((matches) => {
       setTeamMatches(matches as TeamMatchEntry[])
@@ -108,11 +115,6 @@ export default function TeamMatchesPage() {
       ? Object.entries(sport.scoringTypes as Record<string, { displayName: string }>)
       : []
   }, [matchDraft.sportName])
-
-  const reloadMatches = async () => {
-    const matches = await getMyTeamMatches()
-    setTeamMatches((matches || []) as TeamMatchEntry[])
-  }
 
   const openNewMatchModal = () => {
     setEditingMatch(null)
@@ -147,21 +149,22 @@ export default function TeamMatchesPage() {
 
     if (editingMatch) {
       await updateTeamMatch(editingMatch.teamMatchID, editingMatch.myTeamMatchID, payload)
+      feedback.showSuccess('Team match updated.')
     } else {
       await addNewTeamMatch(payload)
+      feedback.showSuccess('Team match created.')
     }
 
     setShowMatchModal(false)
     setEditingMatch(null)
     setMatchDraft(emptyMatchDraft)
-    await reloadMatches()
   }
 
   const handleDeleteMatch = async () => {
     if (!pendingDeleteMatch) return
     await deleteTeamMatch(pendingDeleteMatch.myTeamMatchID)
+    feedback.showSuccess('Team match archived.')
     setPendingDeleteMatch(null)
-    await reloadMatches()
   }
 
   if (loading || authLoading) {
@@ -185,6 +188,8 @@ export default function TeamMatchesPage() {
             <Text className="ml-1 text-white">New Match</Text>
           </Button>
         </HStack>
+
+        <LiveStatusAlert status={syncStatus} error={syncError} />
 
         {teamMatches.length > 0 ? (
           <VStack className="gap-3">
@@ -258,6 +263,7 @@ export default function TeamMatchesPage() {
           </Box>
         )}
       </VStack>
+      <OperationToast tone={feedback.tone} message={feedback.message} />
 
       <OverlayDialog
         isOpen={showMatchModal}

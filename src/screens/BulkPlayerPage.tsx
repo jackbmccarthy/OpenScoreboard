@@ -2,11 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { Avatar, Box, Button, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { useSearchParams } from 'react-router-dom'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import OperationToast from '@/components/realtime/OperationToast'
 import { replacePlayersInList, sortPlayers, subscribeToMyPlayerLists, subscribeToPlayerListPlayers } from '@/functions/players'
 import { v4 as uuidv4 } from 'uuid'
 import { ConfirmDialog } from '@/components/crud/ConfirmDialog'
 import countries from '@/flags/countries.json'
 import { UserIcon } from '@/components/icons'
+import { subscribeToPathState } from '@/lib/realtime'
+import type { LiveSyncStatus } from '@/lib/liveSync'
+import { useOperationFeedback } from '@/lib/useOperationFeedback'
 
 type PlayerListPreview = {
   id: string
@@ -103,7 +108,7 @@ function ImagePreview({
 }
 
 export default function BulkPlayerPage() {
-  const { loading: authLoading } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [searchParams] = useSearchParams()
   const [doneLoading, setDoneLoading] = useState(false)
   const [myPlayerLists, setMyPlayerLists] = useState<PlayerListEntry[]>([])
@@ -111,10 +116,12 @@ export default function BulkPlayerPage() {
   const [rows, setRows] = useState<PlayerRow[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
+  const [syncError, setSyncError] = useState('')
   const [pendingRemoval, setPendingRemoval] = useState<{ id: string; label: string } | null>(null)
   const [viewMode, setViewMode] = useState<'form' | 'spreadsheet'>('form')
   const [spreadsheetValue, setSpreadsheetValue] = useState('')
+  const feedback = useOperationFeedback()
 
   function loadPlayerLists(lists: PlayerListEntry[]) {
     setDoneLoading(false)
@@ -140,13 +147,18 @@ export default function BulkPlayerPage() {
 
   useEffect(() => {
     if (authLoading) return
+    const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myPlayerLists`, (state) => {
+      setSyncStatus(state.status)
+      setSyncError(state.error)
+    })
     const unsubscribePlayerLists = subscribeToMyPlayerLists((lists) => {
       loadPlayerLists((lists || []) as PlayerListEntry[])
     })
     return () => {
+      unsubscribeState()
       unsubscribePlayerLists()
     }
-  }, [authLoading, selectedPlayerListID])
+  }, [authLoading, selectedPlayerListID, user])
 
   useEffect(() => {
     if (!selectedPlayerListID) {
@@ -184,8 +196,8 @@ export default function BulkPlayerPage() {
   const handleApplySpreadsheet = () => {
     const parsedRows = parseSpreadsheetRows(spreadsheetValue)
     setRows(parsedRows)
-    setSuccess(`Loaded ${parsedRows.length} row${parsedRows.length === 1 ? '' : 's'} from spreadsheet data.`)
     setError(null)
+    feedback.showSuccess(`Loaded ${parsedRows.length} player row${parsedRows.length === 1 ? '' : 's'}.`)
   }
 
   const confirmRemoveRow = () => {
@@ -202,7 +214,6 @@ export default function BulkPlayerPage() {
 
     setSaving(true)
     setError(null)
-    setSuccess(null)
 
     try {
       const payload: Record<string, ImportedPlayer> = {}
@@ -227,9 +238,10 @@ export default function BulkPlayerPage() {
       })
 
       await replacePlayersInList(selectedPlayerListID, payload)
-      setSuccess('Bulk player changes saved.')
+      feedback.showSuccess('Bulk player changes saved.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save player changes')
+      feedback.showError(err instanceof Error ? err.message : 'Failed to save player changes')
     } finally {
       setSaving(false)
     }
@@ -250,6 +262,7 @@ export default function BulkPlayerPage() {
         <Text className="text-sm text-gray-600">
           Add rows, edit fields inline, or remove rows before saving the entire player list in one pass.
         </Text>
+        <LiveStatusAlert status={syncStatus} error={syncError} />
 
         <HStack className="gap-2">
           <Button variant={viewMode === 'form' ? 'solid' : 'outline'} onClick={() => setViewMode('form')}>
@@ -347,7 +360,6 @@ export default function BulkPlayerPage() {
         )}
 
         {error ? <Text className="text-sm text-red-600">{error}</Text> : null}
-        {success ? <Text className="text-sm text-green-600">{success}</Text> : null}
 
         <HStack className="gap-3">
           <Button variant="outline" onClick={handleAddRow}>
@@ -367,6 +379,7 @@ export default function BulkPlayerPage() {
         message={`Remove ${pendingRemoval?.label || 'this player row'} from the pending bulk changes? This does not save until you confirm the full bulk update.`}
         confirmLabel="Remove Row"
       />
+      <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )
 }

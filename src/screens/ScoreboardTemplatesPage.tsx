@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Box, Button, Card, CardBody, Heading, HStack, Input, Text, VStack, Badge } from '@/components/ui'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import OperationToast from '@/components/realtime/OperationToast'
 import {
   addScoreboardTemplate,
   createScoreboardFromTemplate,
@@ -13,6 +15,9 @@ import {
 } from '@/functions/scoreboardTemplates'
 import ScoreboardPreview from '@/components/scoreboards/ScoreboardPreview'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import { subscribeToPathState } from '@/lib/realtime'
+import type { LiveSyncStatus } from '@/lib/liveSync'
+import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
 type ScoreboardTemplateRecord = {
@@ -37,6 +42,8 @@ export default function ScoreboardTemplatesPage() {
   const { user } = useAuth()
   const [templates, setTemplates] = useState<ScoreboardTemplateRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
+  const [syncError, setSyncError] = useState('')
   const [selectedTemplate, setSelectedTemplate] = useState<ScoreboardTemplateRecord | null>(null)
   const [editingTemplate, setEditingTemplate] = useState<ScoreboardTemplateRecord | null>(null)
   const [scoreboardName, setScoreboardName] = useState('')
@@ -46,9 +53,14 @@ export default function ScoreboardTemplatesPage() {
     category: 'General',
     type: 'liveStream',
   })
+  const feedback = useOperationFeedback()
 
   useEffect(() => {
-    return subscribeToScoreboardTemplates((loadedTemplates) => {
+    const unsubscribeState = subscribeToPathState('scoreboardTemplates', (state) => {
+      setSyncStatus(state.status)
+      setSyncError(state.error)
+    })
+    const unsubscribeTemplates = subscribeToScoreboardTemplates((loadedTemplates) => {
       setTemplates(
         loadedTemplates.map((template) => ({
           id: String(template.id || ''),
@@ -65,6 +77,11 @@ export default function ScoreboardTemplatesPage() {
       )
       setLoading(false)
     })
+
+    return () => {
+      unsubscribeState()
+      unsubscribeTemplates()
+    }
   }, [])
 
   const classifyTemplate = (template: ScoreboardTemplateRecord) => {
@@ -88,11 +105,13 @@ export default function ScoreboardTemplatesPage() {
         ...editingTemplate,
         ...templateDraft,
       })
+      feedback.showSuccess('Template updated.')
     } else {
       await addScoreboardTemplate({
         ...templateDraft,
         createdBy: user?.uid || 'mylocalserver',
       })
+      feedback.showSuccess('Template created.')
     }
     setEditingTemplate(null)
     setTemplateDraft({
@@ -132,6 +151,8 @@ export default function ScoreboardTemplatesPage() {
           </HStack>
         </HStack>
 
+        <LiveStatusAlert status={syncStatus} error={syncError} />
+
         {loading ? (
           <Text>Loading templates...</Text>
         ) : (
@@ -157,7 +178,10 @@ export default function ScoreboardTemplatesPage() {
                       }}>
                         <Text className="text-white">Use Template</Text>
                       </Button>
-                      <Button variant="outline" onClick={() => duplicateScoreboardTemplate(template.id, user?.uid || 'mylocalserver')} disabled={template.isBuiltIn}>
+                      <Button variant="outline" onClick={async () => {
+                        await duplicateScoreboardTemplate(template.id, user?.uid || 'mylocalserver')
+                        feedback.showSuccess('Template duplicated.')
+                      }} disabled={template.isBuiltIn}>
                         <Text>Duplicate</Text>
                       </Button>
                       {canEditTemplate(template) ? (
@@ -177,12 +201,18 @@ export default function ScoreboardTemplatesPage() {
                         </Button>
                       ) : null}
                       {canEditTemplate(template) ? (
-                        <Button variant="outline" onClick={() => toggleScoreboardTemplateActive(template.id, !template.isActive)}>
+                        <Button variant="outline" onClick={async () => {
+                          await toggleScoreboardTemplateActive(template.id, !template.isActive)
+                          feedback.showSuccess(template.isActive ? 'Template unpublished.' : 'Template published.')
+                        }}>
                           <Text>{template.isActive ? 'Unpublish' : 'Publish'}</Text>
                         </Button>
                       ) : null}
                       {canEditTemplate(template) ? (
-                        <Button variant="outline" onClick={() => deleteScoreboardTemplate(template.id)}>
+                        <Button variant="outline" onClick={async () => {
+                          await deleteScoreboardTemplate(template.id)
+                          feedback.showSuccess('Template archived.')
+                        }}>
                           <Text>Archive</Text>
                         </Button>
                       ) : null}
@@ -251,6 +281,7 @@ export default function ScoreboardTemplatesPage() {
           </LabeledField>
         </VStack>
       </OverlayDialog>
+      <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )
 }

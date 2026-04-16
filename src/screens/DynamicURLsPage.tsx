@@ -4,13 +4,17 @@ import { Box, Button, Card, CardBody, Heading, HStack, Input, Pressable, Select,
 import { PencilIcon, PlusIcon, ScoreboardIcon, TrashIcon } from '@/components/icons'
 import OverlayDialog from '@/components/crud/OverlayDialog'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import OperationToast from '@/components/realtime/OperationToast'
 import { addDynamicURL, deleteDynamicURL, subscribeToMyDynamicURLs, updateDynamicURL } from '@/functions/dynamicurls'
 import { subscribeToMyScoreboards } from '@/functions/scoreboards'
 import { subscribeToMyTables } from '@/functions/tables'
 import { subscribeToMyTeamMatches } from '@/functions/teammatches'
 import { useAuth } from '@/lib/auth'
 import SyncIndicator from '@/components/realtime/SyncIndicator'
-import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import { subscribeToPathState } from '@/lib/realtime'
+import type { LiveSyncStatus } from '@/lib/liveSync'
+import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import LabeledField from '@/components/forms/LabeledField'
 
 type DynamicURLDraft = {
@@ -72,17 +76,20 @@ export default function DynamicURLsPage() {
   const [tables, setTables] = useState<TableEntry[]>([])
   const [teamMatches, setTeamMatches] = useState<TeamMatchEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
+  const [syncError, setSyncError] = useState('')
   const [showDynamicURLModal, setShowDynamicURLModal] = useState(false)
   const [editingDynamicURL, setEditingDynamicURL] = useState<{ myDynamicURLID: string; dynamicURLID: string } | null>(null)
   const [dynamicURLDraft, setDynamicURLDraft] = useState<DynamicURLDraft>(emptyDynamicURLDraft)
   const [pendingDeleteDynamicURL, setPendingDeleteDynamicURL] = useState<{ myDynamicURLID: string; dynamicURLID: string; name: string } | null>(null)
+  const feedback = useOperationFeedback()
 
   useEffect(() => {
     if (authLoading) return
 
     const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myDynamicURLs`, (state) => {
       setSyncStatus(state.status)
+      setSyncError(state.error)
     })
     const unsubscribeURLs = subscribeToMyDynamicURLs((urls) => {
       setDynamicURLs(urls as DynamicURLEntry[])
@@ -100,10 +107,6 @@ export default function DynamicURLsPage() {
       unsubscribeTeamMatches()
     }
   }, [authLoading, user])
-
-  const reloadDynamicURLs = async () => {
-    setShowDynamicURLModal(false)
-  }
 
   const openNewDynamicURLModal = () => {
     setEditingDynamicURL(null)
@@ -138,8 +141,10 @@ export default function DynamicURLsPage() {
 
     if (editingDynamicURL) {
       await updateDynamicURL(editingDynamicURL.myDynamicURLID, editingDynamicURL.dynamicURLID, payload)
+      feedback.showSuccess('Dynamic URL updated.')
     } else {
       await addDynamicURL(payload)
+      feedback.showSuccess('Dynamic URL created.')
     }
 
     setShowDynamicURLModal(false)
@@ -151,6 +156,7 @@ export default function DynamicURLsPage() {
   const handleDeleteDynamicURL = async () => {
     if (!pendingDeleteDynamicURL) return
     await deleteDynamicURL(pendingDeleteDynamicURL.myDynamicURLID, pendingDeleteDynamicURL.dynamicURLID)
+    feedback.showSuccess('Dynamic URL archived.')
     setPendingDeleteDynamicURL(null)
     // Subscription fires when data changes — no manual reload needed
   }
@@ -184,6 +190,8 @@ export default function DynamicURLsPage() {
             <Text className="ml-1 text-white">New Dynamic URL</Text>
           </Button>
         </HStack>
+
+        <LiveStatusAlert status={syncStatus} error={syncError} />
 
         <VStack className="gap-3">
           {dynamicURLs.length === 0 ? (
@@ -302,6 +310,7 @@ export default function DynamicURLsPage() {
         message={`Delete ${pendingDeleteDynamicURL?.name || 'this dynamic URL'}?`}
         confirmLabel="Delete"
       />
+      <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )
 }

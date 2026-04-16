@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import ConfirmDialog from '@/components/crud/ConfirmDialog'
 import OverlayDialog from '@/components/crud/OverlayDialog'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import OperationToast from '@/components/realtime/OperationToast'
 import {
   addImportedPlayer,
   addPlayerList,
@@ -18,7 +20,9 @@ import {
   updatePlayerListName,
 } from '@/functions/players'
 import SyncIndicator from '@/components/realtime/SyncIndicator'
-import { subscribeToPathState, type RealtimeStatus } from '@/lib/realtime'
+import { subscribeToPathState } from '@/lib/realtime'
+import type { LiveSyncStatus } from '@/lib/liveSync'
+import { useOperationFeedback } from '@/lib/useOperationFeedback'
 import { newImportedPlayer } from '@/classes/Player'
 import countries from '@/flags/countries.json'
 import LabeledField from '@/components/forms/LabeledField'
@@ -59,7 +63,9 @@ export default function PlayersPage() {
   const [selectedList, setSelectedList] = useState<{ myPlayerListID: string; id: string; name: string } | null>(null)
   const [players, setPlayers] = useState<PlayerEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState<RealtimeStatus>('loading')
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
+  const [syncError, setSyncError] = useState('')
+  const feedback = useOperationFeedback()
 
   const [showNewListModal, setShowNewListModal] = useState(false)
   const [showPlayersModal, setShowPlayersModal] = useState(false)
@@ -77,6 +83,7 @@ export default function PlayersPage() {
     if (authLoading) return
     const unsubscribeState = subscribeToPathState(`users/${user?.uid || 'mylocalserver'}/myPlayerLists`, (state) => {
       setSyncStatus(state.status)
+      setSyncError(state.error)
     })
     const unsubscribePlayerLists = subscribeToMyPlayerLists((lists) => {
       setPlayerLists((lists || []) as PlayerListEntry[])
@@ -108,6 +115,7 @@ export default function PlayersPage() {
     if (!newListName.trim()) return
 
     await addPlayerList(newListName.trim())
+    feedback.showSuccess('Player list created.')
     setNewListName('')
     setShowNewListModal(false)
   }
@@ -132,6 +140,7 @@ export default function PlayersPage() {
     setEditingPlayer(null)
     setPlayerDraft(emptyPlayer)
     setShowPlayerModal(false)
+    feedback.showSuccess(editingPlayer ? 'Player updated.' : 'Player added.')
   }
 
   const handleRenameList = async () => {
@@ -140,6 +149,7 @@ export default function PlayersPage() {
     await updatePlayerListName(selectedList.myPlayerListID, selectedList.id, renamedListName.trim())
     setSelectedList({ ...selectedList, name: renamedListName.trim() })
     setShowRenameListModal(false)
+    feedback.showSuccess('Player list renamed.')
   }
 
   const handleDeleteList = async () => {
@@ -151,6 +161,7 @@ export default function PlayersPage() {
       setPlayers([])
       setShowPlayersModal(false)
     }
+    feedback.showSuccess('Player list archived.')
     setPendingDeleteList(null)
   }
 
@@ -158,6 +169,7 @@ export default function PlayersPage() {
     if (!selectedList || !pendingDeletePlayer) return
 
     await deleteImportedPlayer(selectedList.id, pendingDeletePlayer.id)
+    feedback.showSuccess('Player removed.')
     setPendingDeletePlayer(null)
   }
 
@@ -198,6 +210,8 @@ export default function PlayersPage() {
             <Text className="ml-1 text-white">New List</Text>
           </Button>
         </HStack>
+
+        <LiveStatusAlert status={syncStatus} error={syncError} />
 
         <VStack space="sm">
           {playerLists.length === 0 ? (
@@ -421,6 +435,7 @@ export default function PlayersPage() {
         message={`Remove ${pendingDeletePlayer?.name || 'this player'} from the selected player list?`}
         confirmLabel="Remove"
       />
+      <OperationToast tone={feedback.tone} message={feedback.message} />
     </Box>
   )
 }

@@ -5,12 +5,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { activateCapabilityToken, resolveCapabilityLink } from '@/functions/accessTokens'
+import { subscribeToTableRuntime, subscribeToTeamMatchRuntime } from '@/functions/liveSync'
 import { runScoreboard, resetListeners } from '@/scoreboard'
-import { subscribeToTable } from '@/functions/tables'
-import { subscribeToTeamMatch, subscribeToTeamMatchCurrentMatch } from '@/functions/teammatches'
-import { getMatchScore, subscribeToMatchData } from '@/functions/scoring'
+import { getMatchScore } from '@/functions/scoring'
 import { getCombinedPlayerNames } from '@/functions/players'
 import { Box, Text, Heading, Spinner, VStack, HStack, Badge } from '@/components/ui'
+import { getLiveSyncLabel, type LiveSyncStatus } from '@/lib/liveSync'
 
 type PublicMatchSummary = {
   title: string
@@ -48,6 +48,7 @@ function buildPublicMatchSummary(match: Record<string, any> | null): PublicMatch
 export default function ScoreboardViewPage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
+  const token = searchParams.get('token')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [resolvedContext, setResolvedContext] = useState<{
@@ -62,10 +63,11 @@ export default function ScoreboardViewPage() {
   const [liveSummary, setLiveSummary] = useState<PublicMatchSummary | null>(null)
   const [lastCompletedSummary, setLastCompletedSummary] = useState<PublicMatchSummary | null>(null)
   const [teamMatchLabel, setTeamMatchLabel] = useState('')
+  const [syncStatus, setSyncStatus] = useState<LiveSyncStatus>('loading')
+  const [syncError, setSyncError] = useState('')
 
   useEffect(() => {
     // Get params from URL
-    const token = searchParams.get('token')
     const tableID = searchParams.get('tid')
     const teamMatchID = searchParams.get('tmid')
     const teamMatchTableNumber = searchParams.get('table')
@@ -124,120 +126,73 @@ export default function ScoreboardViewPage() {
 
   useEffect(() => {
     if (!resolvedContext) {
-      return
-    }
-
-    if (resolvedContext.tableID) {
-      return subscribeToTable(resolvedContext.tableID, (table) => {
-        const currentMatchID = typeof table?.currentMatch === 'string' ? table.currentMatch : ''
-        const tableName = typeof table?.tableName === 'string' ? table.tableName : ''
-        const scheduledMatches = table?.scheduledMatches && typeof table.scheduledMatches === 'object'
-          ? Object.values(table.scheduledMatches as Record<string, Record<string, any>>)
-          : []
-        const nextScheduledMatch = scheduledMatches
-          .filter((scheduledMatch) => scheduledMatch?.status !== 'active' && scheduledMatch?.status !== 'completed' && scheduledMatch?.status !== 'archived' && scheduledMatch?.status !== 'cancelled')
-          .sort((a, b) => new Date(String(a?.startTime || 0)).getTime() - new Date(String(b?.startTime || 0)).getTime())[0]
-        setTableLabel(tableName)
-        setNextScheduledLabel(nextScheduledMatch ? `${nextScheduledMatch.playerA || 'TBD'} vs ${nextScheduledMatch.playerB || 'TBD'}` : '')
-        setHasLiveAssignment(Boolean(currentMatchID))
-      })
-    }
-
-    if (resolvedContext.teamMatchID && resolvedContext.tableNumber) {
-      const unsubscribeTeamMatch = subscribeToTeamMatch(resolvedContext.teamMatchID, (teamMatch) => {
-        const tableNumberLabel = resolvedContext.tableNumber ? `Table ${resolvedContext.tableNumber}` : ''
-        const teamSummary = [teamMatch?.sportDisplayName || teamMatch?.sportName || 'Team Match', tableNumberLabel].filter(Boolean).join(' • ')
-        setTeamMatchLabel(teamSummary)
-      })
-      const unsubscribeCurrentMatch = subscribeToTeamMatchCurrentMatch(resolvedContext.teamMatchID, resolvedContext.tableNumber, (currentMatchID) => {
-        setHasLiveAssignment(Boolean(currentMatchID))
-      })
-      return () => {
-        unsubscribeTeamMatch()
-        unsubscribeCurrentMatch()
-      }
-    }
-  }, [resolvedContext])
-
-  useEffect(() => {
-    if (!resolvedContext) {
       setLiveSummary(null)
       return
     }
 
-    if (resolvedContext.tableID) {
-      return subscribeToTable(resolvedContext.tableID, (table) => {
-        const currentMatchID = typeof table?.currentMatch === 'string' ? table.currentMatch : ''
-        if (!currentMatchID) {
-          if (liveSummary) {
-            setLastCompletedSummary(liveSummary)
-          }
-          setLiveSummary(null)
-          return
+    let previousLiveSummary: PublicMatchSummary | null = null
+
+    const applyLiveSummary = (match: Record<string, any> | null, hasAssignment: boolean) => {
+      const summary = buildPublicMatchSummary(match)
+      if (summary) {
+        previousLiveSummary = summary
+        setLiveSummary(summary)
+        if (match?.isMatchStarted) {
+          setLastCompletedSummary(summary)
         }
-      })
-    }
-
-    if (resolvedContext.teamMatchID && resolvedContext.tableNumber) {
-      return subscribeToTeamMatchCurrentMatch(resolvedContext.teamMatchID, resolvedContext.tableNumber, (currentMatchID) => {
-        setHasLiveAssignment(Boolean(currentMatchID))
-      })
-    }
-  }, [resolvedContext])
-
-  useEffect(() => {
-    if (!resolvedContext) {
-      return
-    }
-
-    let unsubscribeMatch: (() => void) | undefined
-    let unsubscribeTable: (() => void) | undefined
-
-    if (resolvedContext.tableID) {
-      unsubscribeTable = subscribeToTable(resolvedContext.tableID, (table) => {
-        const currentMatchID = typeof table?.currentMatch === 'string' ? table.currentMatch : ''
-        unsubscribeMatch?.()
-        unsubscribeMatch = undefined
-        if (!currentMatchID) {
-          return
-        }
-        unsubscribeMatch = subscribeToMatchData(currentMatchID, (match) => {
-          const summary = buildPublicMatchSummary(match as Record<string, any> | null)
-          setLiveSummary(summary)
-          if ((match as Record<string, any> | null)?.isMatchStarted) {
-            setLastCompletedSummary(summary)
-          }
-        })
-      })
-    } else if (resolvedContext.teamMatchID && resolvedContext.tableNumber) {
-      const unsubscribeCurrentMatch = subscribeToTeamMatchCurrentMatch(resolvedContext.teamMatchID, resolvedContext.tableNumber, (currentMatchID) => {
-        unsubscribeMatch?.()
-        unsubscribeMatch = undefined
-        if (!currentMatchID) {
-          return
-        }
-        unsubscribeMatch = subscribeToMatchData(currentMatchID, (match) => {
-          const summary = buildPublicMatchSummary(match as Record<string, any> | null)
-          setLiveSummary(summary)
-          if ((match as Record<string, any> | null)?.isMatchStarted) {
-            setLastCompletedSummary(summary)
-          }
-        })
-      })
-      return () => {
-        unsubscribeCurrentMatch()
-        unsubscribeMatch?.()
+        return
       }
+      if (!hasAssignment && previousLiveSummary) {
+        setLastCompletedSummary(previousLiveSummary)
+      }
+      setLiveSummary(null)
     }
 
-    return () => {
-      unsubscribeTable?.()
-      unsubscribeMatch?.()
+    if (resolvedContext.tableID) {
+      return subscribeToTableRuntime({
+        tableID: resolvedContext.tableID,
+        token,
+        capabilityType: 'public_score_view',
+      }, (runtimeState) => {
+        if (runtimeState.accessToken.status === 'unauthorized') {
+          setError('This public score link is invalid or expired.')
+          setLoading(false)
+          return
+        }
+        setSyncStatus(runtimeState.table.status)
+        setSyncError(runtimeState.table.error || runtimeState.accessToken.error)
+        setTableLabel(typeof runtimeState.table.value?.tableName === 'string' ? runtimeState.table.value.tableName : '')
+        const nextScheduledMatch = runtimeState.queue.value?.find(([, scheduledMatch]) => !['active', 'completed', 'archived', 'cancelled'].includes(scheduledMatch.status || 'scheduled'))?.[1]
+        setNextScheduledLabel(nextScheduledMatch ? `${nextScheduledMatch.playerA || 'TBD'} vs ${nextScheduledMatch.playerB || 'TBD'}` : '')
+        setHasLiveAssignment(Boolean(runtimeState.currentMatchID))
+        applyLiveSummary(runtimeState.currentMatch.value as Record<string, any> | null, Boolean(runtimeState.currentMatchID))
+        setLoading(runtimeState.table.status === 'loading' && !runtimeState.table.value)
+      })
     }
-  }, [resolvedContext])
+
+    return subscribeToTeamMatchRuntime({
+      teamMatchID: resolvedContext.teamMatchID,
+      tableNumber: resolvedContext.tableNumber,
+      token,
+      capabilityType: 'public_score_view',
+    }, (runtimeState) => {
+      if (runtimeState.accessToken.status === 'unauthorized') {
+        setError('This public score link is invalid or expired.')
+        setLoading(false)
+        return
+      }
+      setSyncStatus(runtimeState.teamMatch.status)
+      setSyncError(runtimeState.teamMatch.error || runtimeState.accessToken.error)
+      const tableNumberLabel = resolvedContext.tableNumber ? `Table ${resolvedContext.tableNumber}` : ''
+      const teamSummary = [runtimeState.teamMatch.value?.sportDisplayName || runtimeState.teamMatch.value?.sportName || 'Team Match', tableNumberLabel].filter(Boolean).join(' • ')
+      setTeamMatchLabel(teamSummary)
+      setHasLiveAssignment(Boolean(runtimeState.currentMatchID))
+      applyLiveSummary(runtimeState.currentMatch.value as Record<string, any> | null, Boolean(runtimeState.currentMatchID))
+      setLoading(runtimeState.teamMatch.status === 'loading' && !runtimeState.teamMatch.value)
+    })
+  }, [resolvedContext, token])
 
   // Check if required params are present
-  const token = searchParams.get('token')
   const scoreboardID = searchParams.get('sid')
   const tableID = searchParams.get('tid')
   const teamMatchID = searchParams.get('tmid')
@@ -313,6 +268,16 @@ export default function ScoreboardViewPage() {
             {liveSummary ? (
               <Badge className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs text-emerald-100">
                 {liveSummary.statusLabel}
+              </Badge>
+            ) : null}
+            {syncStatus !== 'live' && syncStatus !== 'idle' ? (
+              <Badge className="rounded-full bg-white/10 px-3 py-1 text-xs text-white">
+                {getLiveSyncLabel(syncStatus)}
+              </Badge>
+            ) : null}
+            {syncError ? (
+              <Badge className="rounded-full bg-amber-300/20 px-3 py-1 text-xs text-amber-100">
+                {syncError}
               </Badge>
             ) : null}
             {liveSummary?.judgeLabel ? (
