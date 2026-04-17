@@ -217,25 +217,40 @@ function ScoreSide({
             Game Score
           </Text>
           <Text className="text-center font-black leading-none tracking-[-0.05em] sm:tracking-[-0.06em]" style={{ color: textColor, fontSize: 'clamp(3rem, 16vw, 6rem)' }}>{gameScore}</Text>
-          <HStack className="flex-wrap items-center justify-center gap-1 sm:gap-2">
-            {match?.isManualServiceMode ? (
-              <Button
-                variant="outline"
-                className="rounded-full px-2.5 py-1 text-[10px] sm:px-3 sm:text-xs"
-                style={servingThisSide ? { backgroundColor: textColor, color: backgroundColor } : overlayStyle}
-                onClick={onToggleServer}
-                disabled={disabled}
-              >
-                <Text className="text-[10px] sm:text-xs" style={{ color: servingThisSide ? backgroundColor : textColor }}>
-                  {servingThisSide ? 'Serving' : 'Service'}
-                </Text>
-              </Button>
-            ) : (
-              servingThisSide ? <Badge className="rounded-full px-2.5 py-1 text-[10px] sm:px-3 sm:text-xs" style={{ backgroundColor: textColor, color: backgroundColor }}>Serving</Badge> : null
-            )}
-            {match?.isGamePoint && isGamePoint(match) ? <Badge className="rounded-full bg-amber-300 px-2.5 py-1 text-[10px] text-slate-950 sm:px-3 sm:text-xs">Game Point</Badge> : null}
-            {match?.isMatchPoint && isGamePoint(match) && isFinalGame(match) ? <Badge className="rounded-full bg-rose-300 px-2.5 py-1 text-[10px] text-slate-950 sm:px-3 sm:text-xs">Match Point</Badge> : null}
-          </HStack>
+          {/* FIXED HEIGHT dedicated space for service/game/match point indicators */}
+          <Box className="min-h-[2rem] w-full flex items-center justify-center">
+            <HStack className="flex-wrap items-center justify-center gap-1 sm:gap-2">
+              {/* Always render a fixed-size placeholder for service state */}
+              <Box className="min-w-[4rem] flex items-center justify-center">
+                {match?.isManualServiceMode ? (
+                  <Button
+                    variant="outline"
+                    className="rounded-full px-2.5 py-1 text-[10px] sm:px-3 sm:text-xs"
+                    style={servingThisSide ? { backgroundColor: textColor, color: backgroundColor } : overlayStyle}
+                    onClick={onToggleServer}
+                    disabled={disabled}
+                  >
+                    <Text className="text-[10px] sm:text-xs" style={{ color: servingThisSide ? backgroundColor : textColor }}>
+                      {servingThisSide ? 'Serving' : 'Service'}
+                    </Text>
+                  </Button>
+                ) : (
+                  <Badge 
+                    className="rounded-full px-2.5 py-1 text-[10px] sm:px-3 sm:text-xs"
+                    style={{ backgroundColor: servingThisSide ? textColor : 'transparent', color: servingThisSide ? backgroundColor : 'transparent', borderColor: textColor, borderWidth: 1, borderStyle: 'solid' }}
+                  >
+                    {servingThisSide ? 'Serving' : ''}
+                  </Badge>
+                )}
+              </Box>
+              {match?.isGamePoint && isGamePoint(match) ? (
+                <Badge className="rounded-full bg-amber-300 px-2.5 py-1 text-[10px] text-slate-950 sm:px-3 sm:text-xs">Game Point</Badge>
+              ) : <Box className="min-w-[4rem]" />}
+              {match?.isMatchPoint && isGamePoint(match) && isFinalGame(match) ? (
+                <Badge className="rounded-full bg-rose-300 px-2.5 py-1 text-[10px] text-slate-950 sm:px-3 sm:text-xs">Match Point</Badge>
+              ) : <Box className="min-w-[4rem]" />}
+            </HStack>
+          </Box>
         </VStack>
 
         <VStack className="flex-[0_0_38%] justify-end gap-2 sm:gap-3">
@@ -819,18 +834,16 @@ export default function ScoringStation({
           <Text className="text-[10px] uppercase tracking-[0.2em] text-slate-400">
             {mode === 'table' ? 'Table Scoring' : 'Team Match Scoring'}
           </Text>
-          <Heading size="lg" className="truncate text-white">
-            {mode === 'table' ? tableInfo?.tableName || 'Scoring Station' : `${teamMatch?.sportDisplayName || 'Team Match'} • Table ${activeTableNumber}`}
-          </Heading>
-          {scoringContextLabel ? (
-            <Text className="truncate text-xs text-slate-300">{scoringContextLabel}</Text>
-          ) : null}
-          <HStack className="flex-wrap gap-2 pt-2">
-            <LiveStatusBadge status={syncStatus} prefix="Station" />
-            <LiveStatusBadge status={effectiveMatchSyncStatus} prefix="Match" />
+          <HStack className="items-center gap-2 min-w-0">
+            <Heading size="lg" className="truncate text-white whitespace-nowrap">
+              {mode === 'table' ? tableInfo?.tableName || 'Scoring Station' : `${teamMatch?.sportDisplayName || 'Team Match'} • Table ${activeTableNumber}`}
+            </Heading>
+            {scoringContextLabel ? (
+              <Text className="truncate text-xs text-slate-400 whitespace-nowrap">• {scoringContextLabel}</Text>
+            ) : null}
           </HStack>
         </VStack>
-        <HStack className="shrink-0 items-center gap-2">
+        <HStack className="flex-1 items-center justify-end gap-2">
           <Button variant="outline" className="border-white/20 bg-transparent text-white hover:bg-white/10" onClick={async () => { if (!matchID) return; setActiveAction('switch'); await switchSides(matchID); setActiveAction(''); }} disabled={!matchID || activeAction === 'switch'}>
             <Text className="text-white/90">Switch Sides</Text>
           </Button>
@@ -843,10 +856,16 @@ export default function ScoringStation({
         </HStack>
       </HStack>
 
-      <VStack className="gap-2 px-4 py-3">
-        <LiveStatusAlert status={syncStatus} error={syncError} className="bg-slate-900/80 text-white" />
-        <LiveStatusAlert status={effectiveMatchSyncStatus} error={effectiveMatchSyncError} className="bg-slate-900/80 text-white" />
-      </VStack>
+      {(syncStatus === 'error' || syncError) && (
+        <VStack className="gap-2 px-4 py-3">
+          <LiveStatusAlert status={syncStatus} error={syncError} className="bg-slate-900/80 text-white" />
+        </VStack>
+      )}
+      {(effectiveMatchSyncStatus === 'error' || effectiveMatchSyncError) && (
+        <VStack className="gap-2 px-4 py-3">
+          <LiveStatusAlert status={effectiveMatchSyncStatus} error={effectiveMatchSyncError} className="bg-slate-900/80 text-white" />
+        </VStack>
+      )}
 
       {(mode === 'table' && !tableInfo) || (mode === 'teamMatch' && !teamMatch) ? (
         <Box className="flex min-h-0 flex-1 items-center justify-center p-6 text-white">
@@ -876,39 +895,6 @@ export default function ScoringStation({
         </Box>
       ) : (
         <VStack className="min-h-0 flex-1 gap-0 overflow-hidden">
-          <Box className="border-b border-white/10 bg-slate-950 px-3 py-3 sm:px-4">
-            <HStack className="flex-wrap items-end gap-3">
-              {mode === 'teamMatch' ? (
-                <VStack className="min-w-[8rem] gap-1">
-                  <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Table</Text>
-                  <Select value={activeTableNumber} onValueChange={setActiveTableNumber} className="min-h-[2.75rem] bg-white text-slate-900">
-                    {teamMatchTables.map((tableNumber) => (
-                      <option key={tableNumber} value={tableNumber}>{`Table ${tableNumber}`}</option>
-                    ))}
-                  </Select>
-                </VStack>
-              ) : null}
-
-              <VStack className="gap-1">
-                <Button action="primary" className="min-h-[2.75rem] rounded-xl px-6" onClick={handleStartCurrentGame} disabled={!canStartCurrentGame || activeAction === 'start-game' || warmupActive}>
-                  {activeAction === 'start-game' ? <Spinner size="sm" /> : null}
-                  <Text className="text-white">Start Game</Text>
-                </Button>
-              </VStack>
-
-              <VStack className="gap-1">
-                <Button variant="outline" className="min-h-[2.75rem] border-white/20 bg-white text-slate-900 hover:bg-slate-100" onClick={handleCompleteAction} disabled={!matchID || (!currentGameFinished && !isMatchFinished(renderedMatch))}>
-                  <Text className="text-slate-900">Complete Match</Text>
-                </Button>
-              </VStack>
-            </HStack>
-            {effectiveMatchSyncStatus === 'stale' || effectiveMatchSyncStatus === 'conflict' ? (
-              <Box className="mt-3 rounded-2xl border border-white/10 bg-slate-900/80 px-3 py-2">
-                <LiveStatusAlert status={effectiveMatchSyncStatus} error={effectiveMatchSyncError} className="bg-transparent p-0 text-white shadow-none" />
-              </Box>
-            ) : null}
-          </Box>
-
           {warmupActive ? (
             <Box className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/95">
               <VStack className="items-center gap-6 rounded-3xl border border-white/10 bg-slate-900 p-12 shadow-2xl">
