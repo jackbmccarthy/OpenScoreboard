@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { Avatar, Badge, Box, Button, Heading, HStack, Input, Select, Spinner, Text, VStack } from '@/components/ui'
 import { CopyIcon, UserIcon } from '@/components/icons'
 import OverlayDialog from '@/components/crud/OverlayDialog'
-import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
-import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import MatchWizardModal from './MatchWizardModal'
 import SettingsOverlay from './SettingsOverlay'
+import LiveStatusAlert from '@/components/realtime/LiveStatusAlert'
+import LiveStatusBadge from '@/components/realtime/LiveStatusBadge'
 import {
   AddPoint,
   AWonRally_PB,
@@ -1098,7 +1098,6 @@ export default function ScoringStation({
         sportName={renderedMatch?.sportName}
         isDoubles={settingsDraft.isDoubles}
         activeAction={activeAction}
-        matchID={matchID}
       />
 
       <OverlayDialog
