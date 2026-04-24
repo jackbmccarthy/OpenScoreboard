@@ -141,6 +141,19 @@ export const conditionalShowFieldList = [
         }
     },
     {
+        field: "isTimeOutActive",
+        requiredFields: ["isATimeOutActive", "isBTimeOutActive"],
+        action: (matchNode: HTMLElement, value, currentMatchSettings) => {
+            if (currentMatchSettings.isATimeOutActive === true || currentMatchSettings.isBTimeOutActive === true) {
+                matchNode.style.opacity = "1";
+
+            }
+            else {
+                matchNode.style.opacity = "0";
+            }
+        }
+    },
+    {
         field: "isGame1Started",
         action: (matchNode: HTMLElement, value) => {
             if (value === true) {

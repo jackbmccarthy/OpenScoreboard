@@ -207,6 +207,27 @@ export const currentGameFieldList = [
         sample: "0",
         justify: "center"
     },
+    {
+        field: "timeOutTimerA",
+        label: "Time Out Timer A",
+        category: "Time Outs",
+        sample: "60",
+        justify: "center"
+    },
+    {
+        field: "timeOutTimerB",
+        label: "Time Out Timer B",
+        category: "Time Outs",
+        sample: "60",
+        justify: "center"
+    },
+    {
+        field: "timeOutTimer",
+        label: "Time Out Timer",
+        category: "Time Outs",
+        sample: "60",
+        justify: "center"
+    },
     //combinedAName
     {
         field: "combinedAName",

@@ -1,6 +1,69 @@
 import { getCurrentGameScore, getMatchScore } from "../match";
 import { getCombinedPlayersFormatted } from "../players";
 
+const timeoutTimerIntervals = new WeakMap<HTMLElement, number>();
+const TIMEOUT_DURATION_SECONDS = 60;
+
+function formatTimeoutTimer(startTime: string) {
+    const startTimeMs = Date.parse(startTime);
+    if (Number.isNaN(startTimeMs)) {
+        return "0";
+    }
+
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
+    const remainingSeconds = Math.max(0, TIMEOUT_DURATION_SECONDS - elapsedSeconds);
+
+    return remainingSeconds.toString();
+}
+
+function clearTimeoutTimer(matchNode: HTMLElement, displayValue = "0") {
+    const existingInterval = timeoutTimerIntervals.get(matchNode);
+    if (typeof existingInterval !== "undefined") {
+        window.clearInterval(existingInterval);
+        timeoutTimerIntervals.delete(matchNode);
+    }
+
+    matchNode.innerText = displayValue;
+}
+
+function updateTimeoutTimer(matchNode: HTMLElement, startTime: string, isActive: boolean) {
+    clearTimeoutTimer(matchNode);
+
+    if (!isActive || typeof startTime !== "string" || startTime.length === 0 || Number.isNaN(Date.parse(startTime))) {
+        return;
+    }
+
+    const renderTimer = () => {
+        matchNode.innerText = formatTimeoutTimer(startTime);
+    };
+
+    renderTimer();
+    const interval = window.setInterval(() => {
+        if (!matchNode.isConnected) {
+            window.clearInterval(interval);
+            timeoutTimerIntervals.delete(matchNode);
+            return;
+        }
+
+        renderTimer();
+    }, 1000);
+    timeoutTimerIntervals.set(matchNode, interval);
+}
+
+function updateCombinedTimeoutTimer(matchNode: HTMLElement, currentMatchSettings) {
+    if (currentMatchSettings.isATimeOutActive === true) {
+        updateTimeoutTimer(matchNode, currentMatchSettings.timeOutStartTimeA, true);
+        return;
+    }
+
+    if (currentMatchSettings.isBTimeOutActive === true) {
+        updateTimeoutTimer(matchNode, currentMatchSettings.timeOutStartTimeB, true);
+        return;
+    }
+
+    updateTimeoutTimer(matchNode, "", false);
+}
+
 
 export const currentGameFieldList = [
     {
@@ -178,6 +241,39 @@ export const currentGameFieldList = [
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
             matchNode.innerText = getMatchScore(currentMatchSettings).b || 0;
 
+        }
+    },
+    {
+        field: "timeOutTimerA",
+        label: "Time Out Timer A",
+        category: "Time Outs",
+        sample: "60",
+        justify: "center",
+        requiredFields: ["timeOutStartTimeA", "isATimeOutActive"],
+        action: (matchNode: HTMLElement, value, currentMatchSettings) => {
+            updateTimeoutTimer(matchNode, currentMatchSettings.timeOutStartTimeA, currentMatchSettings.isATimeOutActive);
+        }
+    },
+    {
+        field: "timeOutTimerB",
+        label: "Time Out Timer B",
+        category: "Time Outs",
+        sample: "60",
+        justify: "center",
+        requiredFields: ["timeOutStartTimeB", "isBTimeOutActive"],
+        action: (matchNode: HTMLElement, value, currentMatchSettings) => {
+            updateTimeoutTimer(matchNode, currentMatchSettings.timeOutStartTimeB, currentMatchSettings.isBTimeOutActive);
+        }
+    },
+    {
+        field: "timeOutTimer",
+        label: "Time Out Timer",
+        category: "Time Outs",
+        sample: "60",
+        justify: "center",
+        requiredFields: ["timeOutStartTimeA", "timeOutStartTimeB", "isATimeOutActive", "isBTimeOutActive"],
+        action: (matchNode: HTMLElement, value, currentMatchSettings) => {
+            updateCombinedTimeoutTimer(matchNode, currentMatchSettings);
         }
     },
     //combinedAName
