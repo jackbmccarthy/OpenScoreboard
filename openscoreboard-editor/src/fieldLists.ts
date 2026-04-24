@@ -263,6 +263,12 @@ export const conditionalShowFieldList = [
     {
         field: "isMatchPoint",
     },
+    {
+        field: "isATimeOutUsed",
+    },
+    {
+        field: "isBTimeOutUsed",
+    },
 ];
 export const solidColorFieldList = [
     {
