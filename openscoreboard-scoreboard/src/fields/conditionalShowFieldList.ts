@@ -105,6 +105,30 @@ export const conditionalShowFieldList = [
         }
     },
     {
+        field: "isATimeOutUsed",
+        action: (matchNode: HTMLElement, value) => {
+            if (value === true) {
+                matchNode.style.opacity = "1";
+
+            }
+            else {
+                matchNode.style.opacity = "0";
+            }
+        }
+    },
+    {
+        field: "isBTimeOutUsed",
+        action: (matchNode: HTMLElement, value) => {
+            if (value === true) {
+                matchNode.style.opacity = "1";
+
+            }
+            else {
+                matchNode.style.opacity = "0";
+            }
+        }
+    },
+    {
         field: "isBTimeOutActive",
         action: (matchNode: HTMLElement, value) => {
             if (value === true) {
