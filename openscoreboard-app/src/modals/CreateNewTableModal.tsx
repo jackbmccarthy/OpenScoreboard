@@ -1,5 +1,5 @@
 import React, { Component, useEffect, useRef, useState } from 'react';
-import { View, Input, Text, Button, Modal, FormControl, Divider, Select, Spinner, } from 'native-base';
+import { View, Input, Text, Button, Modal, FormControl, Divider, Select, Spinner, } from '../ui';
 import { ScrollView, Platform, Dimensions } from 'react-native';
 
 //import DatePicker from 'react-native-datepicker';
@@ -35,9 +35,11 @@ export default function CreateNewTableModal(props) {
 
     useEffect(() => {
         loadPlayerLists()
-        setTimeout(() => {
-            document.getElementById(tableNameInput.current.id).focus()
+        const timeout = setTimeout(() => {
+            tableNameInput.current?.focus?.()
         }, 200);
+
+        return () => clearTimeout(timeout);
 
     }, [])
 
@@ -152,4 +154,3 @@ export default function CreateNewTableModal(props) {
 
     )
 }
-

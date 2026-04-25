@@ -1,4 +1,4 @@
-import { Button, FormControl, NativeBaseProvider, TextField, View, Text, Select, Spinner } from "native-base";
+import { Button, FormControl, NativeBaseProvider, TextField, View, Text, Select, Spinner } from "./ui";
 import { useState, useEffect } from "react";
 import { newImportedPlayer } from "./classes/Player";
 import jsonFlags from './flags/countries.json'

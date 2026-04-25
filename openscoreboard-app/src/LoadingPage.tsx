@@ -1,7 +1,7 @@
 
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, View, NativeBaseProvider } from 'native-base';
+import { Text, View, NativeBaseProvider } from './ui';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { openScoreboardColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";

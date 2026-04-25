@@ -1,7 +1,7 @@
 import React, { Component, useEffect, useRef, useState } from 'react';
 import { PanResponder, TouchableOpacity } from 'react-native';
 
-import { Icon, NativeBaseProvider, View, ScrollView } from 'native-base';
+import { Icon, NativeBaseProvider, View, ScrollView } from './ui';
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import LoadingPage from './LoadingPage';
 import { getCurrentGameNumber, getCurrentMatchForTable, getMatchData, hasActiveGame, isGameFinished, isMatchFinished, subscribeToAllMatchFields, unsubscribeToAllMatchFields, watchForPasswordChange } from './functions/scoring';

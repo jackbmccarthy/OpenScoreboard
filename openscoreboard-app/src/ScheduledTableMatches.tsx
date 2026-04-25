@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Input, Button, ScrollView, FlatList, NativeBaseProvider, AddIcon, Text } from 'native-base';
+import { View, Input, Button, ScrollView, FlatList, NativeBaseProvider, AddIcon, Text } from './ui';
 import { TouchableOpacity } from 'react-native';
 
 import LoadingPage from './LoadingPage';

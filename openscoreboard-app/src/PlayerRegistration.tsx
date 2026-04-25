@@ -2,7 +2,7 @@
 
 import React, { Component, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, Share } from 'react-native';
-import { Text, Button, View, NativeBaseProvider, Spinner, FormControl, Input, } from 'native-base';
+import { Text, Button, View, NativeBaseProvider, Spinner, FormControl, Input, } from './ui';
 //import { withNavigationFocus, NavigationEvents } from 'react-navigation';
 
 

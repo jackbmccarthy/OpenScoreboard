@@ -1,10 +1,12 @@
 
 
 import React, { useEffect, useState } from 'react';
-import { Button, View, NativeBaseProvider, FlatList, AddIcon, Text } from 'native-base';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Button } from 'heroui-native/button';
+import { Card } from 'heroui-native/card';
+import { AntDesign } from '@expo/vector-icons';
 import db, { getUserPath } from '../database';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
-import { openScoreboardTheme } from "../openscoreboardtheme";
 import CreateNewTableModal from './modals/CreateNewTableModal';
 import { TableItem } from './listitems/TableItem';
 import LoadingPage from './LoadingPage';
@@ -65,7 +67,8 @@ export default function MyTables(props) {
         var tableIDList = []
         var tableList = []
         try {
-            tableIDList = Object.entries(val.val())
+            const myTables = val.val()
+            tableIDList = myTables ? Object.entries(myTables) : []
         }
         catch (err) {
             console.error(err)
@@ -117,13 +120,11 @@ export default function MyTables(props) {
 
         props.navigation.setOptions({
             headerRight: () => (
-                <NativeBaseProvider>
-                    <Button height={"100%"} width={"100%"} variant={"ghost"} onPress={() => {
+                    <Pressable onPress={() => {
                         setShowCreateTable(true)
-                    }} >
-                        <AddIcon size="xl" color={openScoreboardButtonTextColor}  ></AddIcon>
-                    </Button>
-                </NativeBaseProvider>
+                    }} style={styles.headerAction}>
+                        <AntDesign name="plus" size={22} color={openScoreboardButtonTextColor}></AntDesign>
+                    </Pressable>
 
             ),
         });
@@ -133,39 +134,43 @@ export default function MyTables(props) {
 
     if (doneLoading) {
         return (
-            <NativeBaseProvider theme={openScoreboardTheme}>
-                <View width={"100%"} height={"100%"}>
-                    <View flex={1}>
-                        {
-                            tableList.length > 0 ?
-                                <FlatList maxW={"lg"} width={"100%"} alignSelf="center"
-                                    //contentContainerStyle={{alignItems:"center", width:"100%"}}
-                                    data={tableList}
-                                    renderItem={(item) => {
-                                        return (
-                                            <TableItem index={item.index} {...props} openEditPlayerList={openEditPlayerList} openLinkModal={openLinkModal} openEditTable={openEditTable} openRegistrationModal={openRegistrationModal} {...item.item} />
-                                        )
-                                    }}
-                                >
+            <View style={styles.screen}>
+                <View style={styles.header}>
+                    <Text style={styles.eyebrow}>{i18n.t("myTables")}</Text>
+                    <Text style={styles.headline}>Court and table control</Text>
+                    <Text style={styles.headerText}>Manage active scoring stations, assign player lists, and open scoring or schedule workflows from one place.</Text>
+                </View>
+                    {
+                        tableList.length > 0 ?
+                            <FlatList
+                                contentContainerStyle={styles.listContent}
+                                data={tableList}
+                                renderItem={(item) => {
+                                    return (
+                                        <TableItem index={item.index} {...props} openEditPlayerList={openEditPlayerList} openLinkModal={openLinkModal} openEditTable={openEditTable} openRegistrationModal={openRegistrationModal} {...item.item} />
+                                    )
+                                }}
+                            >
 
-                                </FlatList>
-                                :
-                                <View justifyContent={"center"} alignItems="center">
-                                    <View>
-                                        <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noTables")}</Text>
-                                        <View padding={2}>
-                                            <Button
-                                                onPress={() => {
-                                                    setShowCreateTable(true)
-                                                }}
-                                            >
-                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
-                                            </Button>
-                                        </View>
-                                    </View>
-                                </View>
-                        }
-                    </View>
+                            </FlatList>
+                            :
+                            <View style={styles.emptyWrap}>
+                                <Card style={styles.emptyCard}>
+                                    <Card.Body style={styles.emptyBody}>
+                                        <Text style={styles.emptyTitle}>{i18n.t("noTables")}</Text>
+                                        <Text style={styles.emptyText}>Create a table or court to start scoring, scheduling matches, and sharing access.</Text>
+                                        <Button
+                                            onPress={() => {
+                                                setShowCreateTable(true)
+                                            }}
+                                            style={styles.primaryButton}
+                                        >
+                                            <Button.Label>{i18n.t("createOne")}</Button.Label>
+                                        </Button>
+                                    </Card.Body>
+                                </Card>
+                            </View>
+                    }
 
 
 
@@ -222,7 +227,6 @@ export default function MyTables(props) {
 
 
                 </View>
-            </NativeBaseProvider>
         )
     }
     else {
@@ -234,3 +238,80 @@ export default function MyTables(props) {
 
 
 }
+
+const styles = StyleSheet.create({
+    screen: {
+        flex: 1,
+        backgroundColor: "#f4f6f8",
+    },
+    header: {
+        paddingHorizontal: 16,
+        paddingTop: 18,
+        paddingBottom: 8,
+    },
+    headerAction: {
+        alignItems: "center",
+        borderRadius: 8,
+        height: 36,
+        justifyContent: "center",
+        width: 36,
+    },
+    eyebrow: {
+        color: "#2563eb",
+        fontSize: 12,
+        fontWeight: "800",
+        textTransform: "uppercase",
+    },
+    headline: {
+        color: "#111827",
+        fontSize: 28,
+        fontWeight: "800",
+        lineHeight: 34,
+        marginTop: 4,
+    },
+    headerText: {
+        color: "#4b5563",
+        fontSize: 14,
+        lineHeight: 21,
+        marginTop: 6,
+        maxWidth: 640,
+    },
+    listContent: {
+        gap: 12,
+        paddingHorizontal: 16,
+        paddingBottom: 24,
+        paddingTop: 8,
+    },
+    emptyWrap: {
+        alignItems: "center",
+        flex: 1,
+        justifyContent: "center",
+        padding: 20,
+    },
+    emptyCard: {
+        maxWidth: 520,
+        backgroundColor: "#ffffff",
+        width: "100%",
+    },
+    emptyBody: {
+        alignItems: "center",
+        backgroundColor: "#ffffff",
+        gap: 12,
+        paddingVertical: 20,
+    },
+    emptyTitle: {
+        color: "#111827",
+        fontSize: 22,
+        fontWeight: "800",
+        textAlign: "center",
+    },
+    emptyText: {
+        color: "#6b7280",
+        lineHeight: 20,
+        maxWidth: 380,
+        textAlign: "center",
+    },
+    primaryButton: {
+        minWidth: 160,
+    },
+});

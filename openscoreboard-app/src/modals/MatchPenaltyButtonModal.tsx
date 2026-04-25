@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Text, View, Modal, FormControl, Divider } from 'native-base';
+import { Button, Text, View, Modal, FormControl, Divider } from '../ui';
 import { setRedFlag, setYellowFlag } from '../functions/scoring';
 import { getCombinedPlayerNames } from '../functions/players';
 import i18n from '../translations/translate';

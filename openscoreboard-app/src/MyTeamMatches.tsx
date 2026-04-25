@@ -1,21 +1,16 @@
 
-
-
-import React, { Component, useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, ScrollView, Share } from 'react-native';
-import { Button, View, NativeBaseProvider, FlatList, Fab, AddIcon, Input, Text } from 'native-base';
-import { addNewScoreboard, getMyScoreboards, getScoreboardTypesList } from './functions/scoreboards';
+import React, { useEffect, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Button } from 'heroui-native/button';
+import { Card } from 'heroui-native/card';
+import { AntDesign } from '@expo/vector-icons';
 import { getUserPath } from '../database';
 import LoadingPage from './LoadingPage';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
-import { openScoreboardTheme } from "../openscoreboardtheme";
-
 import getMyTeamMatches from './functions/teammatches';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SelectTeamMatchTableModal } from './modals/SelectTeamMatchTableModal';
 import { TeamMatchItem } from './listitems/TeamMatchItem';
 import { NewTeamMatchModal } from './modals/NewTeamMatchModal';
-import { TableLinkModal } from './modals/TableLinkModal';
 import { TeamMatchLinkModal } from './modals/TeamMatchLinkModal';
 import { EditTeamMatchModal } from './modals/EditTeamMatchModal';
 import { DeleteTeamMatchModal } from './modals/DeleteTeamMatchModal';
@@ -98,13 +93,11 @@ export default function MyTeamMatches(props) {
     useEffect(() => {
         props.navigation.setOptions({
             headerRight: () => (
-                <NativeBaseProvider>
-                    <Button height={"100%"} width={"100%"} variant={"ghost"} onPress={() => {
+                    <Pressable onPress={() => {
                         setShowNewTeamMatchModal(true)
-                    }} >
-                        <AddIcon size="xl" color={openScoreboardButtonTextColor}  ></AddIcon>
-                    </Button>
-                </NativeBaseProvider>
+                    }} style={styles.headerAction}>
+                        <AntDesign name="plus" size={22} color={openScoreboardButtonTextColor}></AntDesign>
+                    </Pressable>
 
             ),
         });
@@ -115,48 +108,52 @@ export default function MyTeamMatches(props) {
 
     if (doneLoading) {
         return (
-            <NativeBaseProvider theme={openScoreboardTheme}>
+            <View style={styles.screen}>
+                <View style={styles.header}>
+                    <Text style={styles.eyebrow}>{i18n.t("myTeamMatches")}</Text>
+                    <Text style={styles.headline}>Team competition schedule</Text>
+                    <Text style={styles.headerText}>Track head-to-head team fixtures, open table assignment, and jump into scorekeeping when the match is ready.</Text>
+                </View>
+                    {
+                        teamMatchList.length > 0 ?
+                            <FlatList
+                                contentContainerStyle={styles.listContent}
+                                data={teamMatchList.sort((a, b) => {
+                                    return new Date(a[1].startTime) > new Date(b[1].startTime) ? -1 : 1
+                                })}
+                                keyExtractor={(item) => { return item[0] }}
+                                renderItem={(item) => {
+                                    return (
 
-                <View height={"100%"} width={"100%"}  >
-                    <View flex={1}>
-                        {
-                            teamMatchList.length > 0 ?
-                                <FlatList
-                                    data={teamMatchList.sort((a, b) => {
-                                        return new Date(a[1].startTime) > new Date(b[1].startTime) ? -1 : 1
-                                    })}
-                                    keyExtractor={(item) => { return item[0] }}
-                                    renderItem={(item) => {
-                                        return (
+                                        <TeamMatchItem {...props}
+                                            openTeamMatchEdit={openTeamMatchEdit}
+                                            openTeamMatchTableSelection={openTeamMatchTableSelection}
+                                            openDeleteTeamMatch={openDeleteTeamMatch}
+                                            {...item}></TeamMatchItem>
 
-                                            <TeamMatchItem {...props}
-                                                openTeamMatchEdit={openTeamMatchEdit}
-                                                openTeamMatchTableSelection={openTeamMatchTableSelection}
-                                                openDeleteTeamMatch={openDeleteTeamMatch}
-                                                {...item}></TeamMatchItem>
+                                    )
 
-                                        )
+                                }}
+                            ></FlatList>
+                            :
 
-                                    }}
-                                ></FlatList>
-                                :
-
-                                <View justifyContent={"center"} alignItems="center">
-                                    <View>
-                                        <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noTeamMatches")}</Text>
-                                        <View padding={2}>
-                                            <Button
-                                                onPress={() => {
-                                                    setShowNewTeamMatchModal(true)
-                                                }}
-                                            >
-                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
-                                            </Button>
-                                        </View>
-                                    </View>
-                                </View>
-                        }
-                    </View>
+                            <View style={styles.emptyWrap}>
+                                <Card style={styles.emptyCard}>
+                                    <Card.Body style={styles.emptyBody}>
+                                        <Text style={styles.emptyTitle}>{i18n.t("noTeamMatches")}</Text>
+                                        <Text style={styles.emptyText}>Create a team match to schedule a fixture, assign tables, and manage match-day scoring.</Text>
+                                        <Button
+                                            onPress={() => {
+                                                setShowNewTeamMatchModal(true)
+                                            }}
+                                            style={styles.primaryButton}
+                                        >
+                                            <Button.Label>{i18n.t("createOne")}</Button.Label>
+                                        </Button>
+                                    </Card.Body>
+                                </Card>
+                            </View>
+                    }
 
 
 
@@ -224,8 +221,6 @@ export default function MyTeamMatches(props) {
                     }
                 </View>
 
-            </NativeBaseProvider>
-
 
         )
     }
@@ -234,3 +229,80 @@ export default function MyTeamMatches(props) {
     }
 
 }
+
+const styles = StyleSheet.create({
+    screen: {
+        flex: 1,
+        backgroundColor: "#f4f6f8",
+    },
+    header: {
+        paddingHorizontal: 16,
+        paddingTop: 18,
+        paddingBottom: 8,
+    },
+    headerAction: {
+        alignItems: "center",
+        borderRadius: 8,
+        height: 36,
+        justifyContent: "center",
+        width: 36,
+    },
+    eyebrow: {
+        color: "#16a34a",
+        fontSize: 12,
+        fontWeight: "800",
+        textTransform: "uppercase",
+    },
+    headline: {
+        color: "#111827",
+        fontSize: 28,
+        fontWeight: "800",
+        lineHeight: 34,
+        marginTop: 4,
+    },
+    headerText: {
+        color: "#4b5563",
+        fontSize: 14,
+        lineHeight: 21,
+        marginTop: 6,
+        maxWidth: 640,
+    },
+    listContent: {
+        gap: 12,
+        paddingHorizontal: 16,
+        paddingBottom: 24,
+        paddingTop: 8,
+    },
+    emptyWrap: {
+        alignItems: "center",
+        flex: 1,
+        justifyContent: "center",
+        padding: 20,
+    },
+    emptyCard: {
+        backgroundColor: "#ffffff",
+        maxWidth: 520,
+        width: "100%",
+    },
+    emptyBody: {
+        alignItems: "center",
+        backgroundColor: "#ffffff",
+        gap: 12,
+        paddingVertical: 20,
+    },
+    emptyTitle: {
+        color: "#111827",
+        fontSize: 22,
+        fontWeight: "800",
+        textAlign: "center",
+    },
+    emptyText: {
+        color: "#6b7280",
+        lineHeight: 20,
+        maxWidth: 380,
+        textAlign: "center",
+    },
+    primaryButton: {
+        minWidth: 160,
+    },
+});

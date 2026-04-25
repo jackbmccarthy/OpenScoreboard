@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { Text, View, NativeBaseProvider, } from 'native-base';
+import { Text, View, NativeBaseProvider, } from './ui';
 import { openScoreboardColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import i18n from './translations/translate';

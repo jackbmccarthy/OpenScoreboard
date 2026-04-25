@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal } from 'native-base';
+import { Modal } from '../ui';
 import { EditPlayer } from '../EditPlayer';
 import i18n from '../translations/translate';
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Text, View, Modal, FormControl } from 'native-base';
+import { Button, Text, View, Modal, FormControl } from '../ui';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { resetUsedTimeOut, setUsedTimeOut, startTimeOut } from '../functions/scoring';
 import { getCombinedPlayerNames } from '../functions/players';

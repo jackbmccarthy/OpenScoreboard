@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Text, View, Modal, Spinner } from 'native-base';
+import { Button, Text, View, Modal, Spinner } from '../ui';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { archiveTeamMatch } from '../functions/teammatches';
 import i18n from '../translations/translate';

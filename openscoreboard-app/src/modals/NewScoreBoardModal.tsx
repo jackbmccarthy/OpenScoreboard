@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, View, Modal, FormControl, Input, Select, Text } from 'native-base';
+import { Button, View, Modal, FormControl, Input, Select, Text } from '../ui';
 import { addNewScoreboard, getScoreboardTypesList } from '../functions/scoreboards';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import i18n from '../translations/translate';

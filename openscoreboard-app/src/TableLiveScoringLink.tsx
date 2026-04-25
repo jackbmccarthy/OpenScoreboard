@@ -1,7 +1,7 @@
 
 
 import React, { useEffect, useState } from 'react';
-import { Button, View, NativeBaseProvider, FlatList, AddIcon, Text, Input } from 'native-base';
+import { Button, View, NativeBaseProvider, FlatList, AddIcon, Text, Input } from './ui';
 import db, { getUserPath } from '../database';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";

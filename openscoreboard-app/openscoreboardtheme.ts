@@ -1,6 +1,4 @@
-import { extendTheme } from 'native-base';
-
-export const openScoreboardTheme = extendTheme({
+export const openScoreboardTheme = {
     colors: {
         primary: {
             50: "white",
@@ -19,9 +17,8 @@ export const openScoreboardTheme = extendTheme({
             actionButton: "#ff1122",
         },
     },
-});
+};
 
 
 export const openScoreboardColor = "black"
 export const openScoreboardButtonTextColor = "white"
-

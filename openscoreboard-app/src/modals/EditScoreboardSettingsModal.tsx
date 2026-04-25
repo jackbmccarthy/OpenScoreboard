@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Text, View, Modal, FormControl, Switch, Divider, Radio, Select } from 'native-base';
+import { Button, Text, View, Modal, FormControl, Switch, Divider, Radio, Select } from '../ui';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { getScoreboardSettings, setScoreboardSettings } from '../functions/scoreboards';
 import LoadingPage from '../LoadingPage';

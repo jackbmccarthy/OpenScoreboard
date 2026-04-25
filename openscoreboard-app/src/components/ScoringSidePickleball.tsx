@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Spinner, Text, View } from 'native-base';
+import { Button, Spinner, Text, View } from '../ui';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getPlayerFormatted } from '../functions/players';

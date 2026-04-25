@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { Text, Button, View, NativeBaseProvider, } from 'native-base';
+import { Text, Button, View, NativeBaseProvider, } from './ui';
 import { signOut } from '../database';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";

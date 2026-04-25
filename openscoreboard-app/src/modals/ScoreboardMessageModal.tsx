@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Text, View, Modal, } from 'native-base';
-import { openScoreboardButtonTextColor, } from "../../openscoreboardtheme";
+import { StyleSheet, Text, View } from 'react-native';
+import { Button } from 'heroui-native/button';
+import { Dialog } from 'heroui-native/dialog';
 
 import { openBrowserAsync } from 'expo-web-browser';
 
@@ -9,14 +10,18 @@ export function ScoreboardMessageModal(props) {
 
 
     return (
-        <Modal onClose={() => { props.onClose(); }} isOpen={props.isOpen}>
-            <Modal.Content>
-                <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>{i18n.t("editScoreboard")}</Modal.Header>
-                <Modal.Body>
-                    <Text>{i18n.t("editorMessage")}</Text>
-                    <View padding={1}
-                    >
+        <Dialog isOpen={props.isOpen} onOpenChange={(open) => {
+            if (!open) {
+                props.onClose();
+            }
+        }}>
+            <Dialog.Portal>
+                <Dialog.Overlay />
+                <Dialog.Content>
+                    <Dialog.Close />
+                    <Dialog.Title>{i18n.t("editScoreboard")}</Dialog.Title>
+                    <Text style={styles.description}>{i18n.t("editorMessage")}</Text>
+                    <View style={styles.actionWrap}>
                         <Button onPress={() => {
                             let editorLink = ""
                             if (process.env.NODE_ENV === "production") {
@@ -30,16 +35,22 @@ export function ScoreboardMessageModal(props) {
 
                             openBrowserAsync(editorLink);
                         }}>
-                            <Text color={openScoreboardButtonTextColor}>{i18n.t("launchScoreboard")}</Text>
+                            <Button.Label>{i18n.t("launchScoreboard")}</Button.Label>
 
                         </Button>
-
-
                     </View>
-
-
-                </Modal.Body>
-            </Modal.Content>
-        </Modal>
+                </Dialog.Content>
+            </Dialog.Portal>
+        </Dialog>
     );
 }
+
+const styles = StyleSheet.create({
+    description: {
+        color: "#6b7280",
+        lineHeight: 20,
+    },
+    actionWrap: {
+        marginTop: 18,
+    },
+});

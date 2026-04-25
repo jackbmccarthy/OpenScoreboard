@@ -1,6 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, View, Modal, AddIcon, FormControl, Input, Text, Spinner } from 'native-base';
-import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button } from 'heroui-native/button';
+import { Dialog } from 'heroui-native/dialog';
+import { Input } from 'heroui-native/input';
+import { Spinner } from 'heroui-native/spinner';
+import { openScoreboardColor } from "../../openscoreboardtheme";
 import { addNewTeam, getTeam, updateMyTeam, updateTeam } from '../functions/teams';
 import { newImportedPlayer } from '../classes/Player';
 import { newTeam } from '../classes/Team';
@@ -29,30 +33,34 @@ export function NewTeamModal(props) {
     let firstNameRef = useRef()
 
     const onAddTeam = async () => {
+        if (!props.isEditingTeam && (!teamName || teamName.trim().length === 0)) {
+            return;
+        }
         if (props.isEditingTeam) {
             setLoadingNewTeam(true);
-            await updateTeam(props.editingTeamID, { ...editingTeam.current, teamName: teamName, teamLogoURL: teamLogoURL, players: JSON.parse(JSON.stringify(players)) });
-            await updateMyTeam(props.editingMyTeamID, teamName);
-            setLoadingNewTeam(false);
-
-            props.onClose();
+            try {
+                await updateTeam(props.editingTeamID, { ...editingTeam.current, teamName: teamName, teamLogoURL: teamLogoURL, players: JSON.parse(JSON.stringify(players)) });
+                await updateMyTeam(props.editingMyTeamID, teamName);
+                props.onClose();
+            }
+            finally {
+                setLoadingNewTeam(false);
+            }
         }
         else {
             setLoadingNewTeam(true);
-            let formattedTeam = newTeam(teamName, teamLogoURL, players);
-            await addNewTeam(formattedTeam);
-            props.onClose();
-
-            setLoadingNewTeam(false);
+            try {
+                let formattedTeam = newTeam(teamName.trim(), teamLogoURL, players);
+                await addNewTeam(formattedTeam);
+                props.onClose();
+            }
+            finally {
+                setLoadingNewTeam(false);
+            }
         }
 
     }
 
-    // useEffect(() => {
-    //     setPlayers(props.players || [])
-    //     setTeamName(props.teamName || "")
-    //     setTeamLogoURL(props.teamLogoURL || "")
-    // }, [props.teamName, props.teamLogoURL, props.players])
     useEffect(() => {
         async function loadEditTeam(teamID) {
             if (props.isEditingTeam) {
@@ -63,6 +71,7 @@ export function NewTeamModal(props) {
                 setTeamName(teamName);
                 setTeamLogoURL(teamLogoURL);
                 setPlayers(players);
+                setLoadingEditTeam(false);
 
             }
             else {
@@ -75,11 +84,13 @@ export function NewTeamModal(props) {
         }
         loadEditTeam(props.editingTeamID);
 
-    }, [props.isEditingTeam]);
+    }, [props.editingTeamID, props.isEditingTeam]);
 
     useEffect(() => {
         setTimeout(() => {
-            document.getElementById(teamNameRef.current.id).focus()
+            if (teamNameRef.current?.focus) {
+                teamNameRef.current.focus()
+            }
         }, 200);
 
 
@@ -87,8 +98,8 @@ export function NewTeamModal(props) {
 
     useEffect(() => {
         setTimeout(() => {
-            if (showAddPlayer) {
-                document.getElementById(firstNameRef.current.id).focus()
+            if (showAddPlayer && firstNameRef.current?.focus) {
+                firstNameRef.current.focus()
 
             }
 
@@ -97,144 +108,228 @@ export function NewTeamModal(props) {
 
     }, [showAddPlayer])
 
+    const resetPlayerDraft = () => {
+        setFirstName("");
+        setLastName("");
+        setImageURL("");
+    }
+
     return (
-        <Modal
+        <Dialog
+            isOpen={props.isOpen}
+            onOpenChange={(open) => {
+                if (!open) {
+                    props.onClose(false);
+                    setShowAddPlayer(false);
+                }
+            }}>
+            <Dialog.Portal>
+                <Dialog.Overlay />
+                <Dialog.Content>
+                    <Dialog.Close />
+                    <Dialog.Title>{showAddPlayer ? i18n.t("addTeamPlayer") : i18n.t("newTeam")}</Dialog.Title>
+                    <Text style={styles.description}>{showAddPlayer ? "Add a player to this roster before saving the team." : "Create or edit a team identity with logo and player roster."}</Text>
+                    {loadingEditTeam ?
+                        <View style={styles.loadingWrap}>
+                            <Spinner />
+                        </View>
+                        :
+                        <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+                            {showAddPlayer ?
+                                <View style={styles.formStack}>
+                                    <Text style={styles.label}>{i18n.t("firstName")}<Text style={styles.required}>*</Text></Text>
+                                    <Input ref={firstNameRef} value={firstName} onChangeText={setFirstName}></Input>
+                                    <Text style={styles.label}>{i18n.t("lastName")}</Text>
+                                    <Input value={lastName} onChangeText={setLastName}></Input>
+                                    <Text style={styles.label}>{i18n.t("imageURL")}</Text>
+                                    <Input value={imageURL} onChangeText={setImageURL}></Input>
 
-            onClose={() => {
-                props.onClose(false);
-                setShowAddPlayer(false);
-            }} isOpen={props.isOpen}>
-            <Modal.Content>
-                <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>{showAddPlayer ? i18n.t("addTeamPlayer") : i18n.t("newTeam")}</Modal.Header>
-                <Modal.Body>
-                    {showAddPlayer ?
-                        <FormControl>
-                            <FormControl.Label>{i18n.t("firstName")}<Text color={"red"}>*</Text></FormControl.Label>
-                            <Input ref={firstNameRef} value={firstName} onChangeText={setFirstName}></Input>
-                            <FormControl.Label>{i18n.t("lastName")}</FormControl.Label>
-                            <Input value={lastName} onChangeText={setLastName}></Input>
-                            <FormControl.Label>{i18n.t("imageURL")}</FormControl.Label>
-                            <Input value={imageURL} onChangeText={setImageURL}></Input>
-
-
-                            {/* <FormControl.Label>Country</FormControl.Label> */}
-                            <View flexDir={"row"}>
-                                <View padding={1} flex={1}>
-                                    <Button
-                                        onPress={async () => {
-                                            setPlayers({ ...players, [uuidv4()]: newImportedPlayer(firstName, lastName, imageURL, "") });
-                                            setShowAddPlayer(false);
-                                            setFirstName("");
-                                            setLastName("");
-                                            setImageURL("")
-                                        }}
-                                    >
-                                        <Text color={openScoreboardButtonTextColor}>{i18n.t("add")}</Text>
-                                    </Button>
-                                </View>
-                                <View padding={1} flex={1}>
-                                    <Button variant={"outline"}
-                                        onPress={async () => {
-                                            setShowAddPlayer(false);
-                                            setFirstName("");
-                                            setLastName("");
-                                            setImageURL("")
-                                        }}
-                                    >
-                                        <Text color={openScoreboardColor}>{i18n.t("back")}</Text>
-                                    </Button>
-                                </View>
-                            </View>
-
-                        </FormControl> :
-                        <FormControl>
-                            <FormControl.Label>{i18n.t("teamName")}</FormControl.Label>
-                            <Input
-                                onSubmitEditing={(event) => {
-                                    if (!showAddPlayer && teamName.length > 0) {
-                                        onAddTeam()
-                                    }
-                                }}
-                                ref={teamNameRef} value={teamName} onChangeText={setTeamName}></Input>
-                            <FormControl.Label>{i18n.t("teamLogoURL")}</FormControl.Label>
-                            <Input value={teamLogoURL} onChangeText={setTeamLogoURL}></Input>
-                            <FormControl.Label>{i18n.t("players")}</FormControl.Label>
-                            {players && Object.entries(players).map((player, index) => {
-                                return (
-                                    <View key={player[0]}>
-                                        <TeamPlayerItem
-                                            onUpdate={(id, player) => {
-                                                let newPlayerList = { ...players, [id]: player };
-                                                setPlayers(newPlayerList);
+                                    <View style={styles.rowButtons}>
+                                        <Button
+                                            style={styles.rowButton}
+                                            onPress={async () => {
+                                                setPlayers({ ...players, [uuidv4()]: newImportedPlayer(firstName, lastName, imageURL, "") });
+                                                setShowAddPlayer(false);
+                                                resetPlayerDraft();
                                             }}
-                                            onSave={(player) => {
-                                                let newPlayerList = { ...players, [uuidv4()]: player };
-                                                setPlayers(newPlayerList);
+                                        >
+                                            <Button.Label>{i18n.t("add")}</Button.Label>
+                                        </Button>
+                                        <Button variant={"outline"}
+                                            style={styles.rowButton}
+                                            onPress={async () => {
+                                                setShowAddPlayer(false);
+                                                resetPlayerDraft();
                                             }}
-                                            onDelete={(id) => {
-                                                let newPlayerList = { ...players };
-                                                delete newPlayerList[id]
-                                                setPlayers(newPlayerList);
-                                            }}
-                                            id={player[0]} {...player[1]}></TeamPlayerItem>
+                                        >
+                                            <Button.Label style={{ color: openScoreboardColor }}>{i18n.t("back")}</Button.Label>
+                                        </Button>
                                     </View>
-                                );
-                            })}
-                            <Button
-                                onPress={() => {
-                                    setShowAddPlayer(true);
-                                }}
-                            >
-                                <AddIcon color={openScoreboardButtonTextColor}></AddIcon>
-                            </Button>
-                        </FormControl>
+
+                                </View> :
+                                <View style={styles.formStack}>
+                                    <Text style={styles.label}>{i18n.t("teamName")}</Text>
+                                    <Input
+                                        onSubmitEditing={(event) => {
+                                            if (!showAddPlayer && teamName.length > 0) {
+                                                onAddTeam()
+                                            }
+                                        }}
+                                        ref={teamNameRef} value={teamName} onChangeText={setTeamName}></Input>
+                                    <Text style={styles.label}>{i18n.t("teamLogoURL")}</Text>
+                                    <Input value={teamLogoURL} onChangeText={setTeamLogoURL}></Input>
+                                    <View style={styles.playersHeader}>
+                                        <Text style={styles.label}>{i18n.t("players")}</Text>
+                                        <Button
+                                            isIconOnly
+                                            variant={"ghost"}
+                                            onPress={() => {
+                                                setShowAddPlayer(true);
+                                            }}
+                                        >
+                                            <Button.Label>+</Button.Label>
+                                        </Button>
+                                    </View>
+                                    {players && Object.entries(players).map((player, index) => {
+                                        return (
+                                            <View key={player[0]}>
+                                                <TeamPlayerItem
+                                                    onUpdate={(id, player) => {
+                                                        let newPlayerList = { ...players, [id]: player };
+                                                        setPlayers(newPlayerList);
+                                                    }}
+                                                    onSave={(player) => {
+                                                        let newPlayerList = { ...players, [uuidv4()]: player };
+                                                        setPlayers(newPlayerList);
+                                                    }}
+                                                    onDelete={(id) => {
+                                                        let newPlayerList = { ...players };
+                                                        delete newPlayerList[id]
+                                                        setPlayers(newPlayerList);
+                                                    }}
+                                                    id={player[0]} {...player[1]}></TeamPlayerItem>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            }
+                        </ScrollView>
                     }
-
-                </Modal.Body>
-                <Modal.Footer>
-                    <View padding={1}>
-                        <Button disabled={showAddPlayer}
+                    <View style={styles.footer}>
+                        <Pressable
+                            disabled={showAddPlayer || loadingNewTeam || teamName.trim().length === 0}
                             onPress={async () => {
-                                if (props.isEditingTeam) {
-                                    setLoadingNewTeam(true);
-                                    await updateTeam(props.editingTeamID, { ...editingTeam.current, teamName: teamName, teamLogoURL: teamLogoURL, players: JSON.parse(JSON.stringify(players)) });
-                                    await updateMyTeam(props.editingMyTeamID, teamName);
-                                    setLoadingNewTeam(false);
-
-                                    props.onClose();
-                                }
-                                else {
-                                    setLoadingNewTeam(true);
-                                    let formattedTeam = newTeam(teamName, teamLogoURL, players);
-                                    await addNewTeam(formattedTeam);
-                                    props.onClose();
-
-                                    setLoadingNewTeam(false);
-                                }
-
+                                await onAddTeam();
                             }}
+                            style={({ pressed }) => [
+                                styles.primaryAction,
+                                pressed ? styles.actionPressed : null,
+                                showAddPlayer || loadingNewTeam || teamName.trim().length === 0 ? styles.actionDisabled : null,
+                            ]}
                         >
                             {loadingNewTeam ?
                                 <Spinner></Spinner>
                                 :
-                                <Text color={openScoreboardButtonTextColor}>{props.isEditingTeam ? i18n.t("save") : i18n.t("add")}</Text>}
+                                <Text style={styles.primaryActionLabel}>{props.isEditingTeam ? i18n.t("save") : i18n.t("add")}</Text>}
 
-                        </Button>
-                    </View>
-                    <View padding={1}>
-                        <Button
-
-                            variant={"ghost"}
+                        </Pressable>
+                        <Pressable
                             onPress={() => {
                                 setShowAddPlayer(false);
                                 props.onClose(false);
                             }}
-                        ><Text>{i18n.t("close")}</Text>
-                        </Button>
+                            style={({ pressed }) => [styles.secondaryAction, pressed ? styles.actionPressed : null]}
+                        ><Text style={styles.secondaryActionLabel}>{i18n.t("close")}</Text>
+                        </Pressable>
                     </View>
-                </Modal.Footer>
-            </Modal.Content>
-        </Modal>
+                </Dialog.Content>
+            </Dialog.Portal>
+        </Dialog>
     );
 }
+
+const styles = StyleSheet.create({
+    loadingWrap: {
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 120,
+    },
+    scroll: {
+        maxHeight: 440,
+        width: "100%",
+    },
+    scrollContent: {
+        paddingTop: 8,
+    },
+    formStack: {
+        gap: 6,
+    },
+    label: {
+        color: "#374151",
+        fontSize: 13,
+        fontWeight: "600",
+        marginTop: 4,
+    },
+    description: {
+        color: "#6b7280",
+        lineHeight: 20,
+        marginBottom: 10,
+    },
+    required: {
+        color: "#dc2626",
+    },
+    rowButtons: {
+        flexDirection: "row",
+        gap: 10,
+        marginTop: 12,
+    },
+    rowButton: {
+        flex: 1,
+    },
+    playersHeader: {
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        marginTop: 4,
+    },
+    footer: {
+        flexDirection: "row",
+        gap: 10,
+        justifyContent: "flex-end",
+        marginTop: 18,
+    },
+    primaryAction: {
+        alignItems: "center",
+        backgroundColor: "#2563eb",
+        borderRadius: 10,
+        justifyContent: "center",
+        minHeight: 42,
+        minWidth: 96,
+        paddingHorizontal: 18,
+    },
+    primaryActionLabel: {
+        color: "#ffffff",
+        fontSize: 14,
+        fontWeight: "700",
+    },
+    secondaryAction: {
+        alignItems: "center",
+        backgroundColor: "#e5e7eb",
+        borderRadius: 10,
+        justifyContent: "center",
+        minHeight: 42,
+        minWidth: 96,
+        paddingHorizontal: 18,
+    },
+    secondaryActionLabel: {
+        color: "#111827",
+        fontSize: 14,
+        fontWeight: "700",
+    },
+    actionPressed: {
+        opacity: 0.8,
+    },
+    actionDisabled: {
+        opacity: 0.55,
+    },
+});

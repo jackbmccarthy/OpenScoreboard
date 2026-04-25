@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, View, Modal, AddIcon, Text } from 'native-base';
+import { Button, View, Modal, AddIcon, Text } from '../ui';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { addTeamMatchCurrentMatch, getTeamMatchCurrentMatches } from '../functions/teammatches';

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Modal } from 'native-base';
+import { View, Modal } from '../ui';
 import LoadingPage from '../LoadingPage';
 import { getMatchData } from '../functions/scoring';
 import { MatchSetup } from './MatchSetupWizard';

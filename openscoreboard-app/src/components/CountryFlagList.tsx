@@ -1,4 +1,4 @@
-import { FlatList, View, Text, Input, Divider, Image } from "native-base";
+import { FlatList, View, Text, Input, Divider, Image } from "../ui";
 import React, { useEffect, useRef, useState } from "react";
 import { TouchableOpacity } from "react-native";
 import jsonFlags from '../flags/countries.json'

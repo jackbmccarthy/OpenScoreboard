@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Text, View, Input } from 'native-base';
+import { Button, Text, View, Input } from '../ui';
 import { openScoreboardColor } from "../../openscoreboardtheme";
 import { isValidGameScore, manuallySetGameScore } from '../functions/scoring';
 import i18n from '../translations/translate';

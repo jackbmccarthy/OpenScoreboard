@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Button, AddIcon, MinusIcon } from 'native-base';
+import { View, Text, Button, AddIcon, MinusIcon } from '../ui';
 import { FontAwesome } from '@expo/vector-icons';
 
 function EditNumberItem(props) {

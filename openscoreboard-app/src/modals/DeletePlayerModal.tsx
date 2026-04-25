@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Text, View, Modal } from 'native-base';
+import { Button, Text, View, Modal } from '../ui';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import i18n from '../translations/translate';
 

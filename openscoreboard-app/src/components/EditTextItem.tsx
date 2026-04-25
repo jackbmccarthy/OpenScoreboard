@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Input, Text, Button, FormControl } from 'native-base';
+import { View, Input, Text, Button, FormControl } from '../ui';
 import { FontAwesome } from '@expo/vector-icons';
 
 export function EditTextItem(props) {

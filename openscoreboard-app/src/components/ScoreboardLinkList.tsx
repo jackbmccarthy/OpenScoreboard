@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Input, Text, Button, FormControl, ScrollView, FlatList } from 'native-base';
+import { View, Input, Text, Button, FormControl, ScrollView, FlatList } from '../ui';
 import { FontAwesome } from '@expo/vector-icons';
 import { TouchableOpacity } from 'react-native';
 import { getMyScoreboards } from '../functions/scoreboards';

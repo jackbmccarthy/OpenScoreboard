@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, NativeBaseProvider, FlatList, Divider, Text, Button } from 'native-base';
-import { TextInput } from 'react-native';
-import db from '../database';
-import { FontAwesome } from '@expo/vector-icons'
+import { FlatList, StyleSheet, View } from 'react-native';
+import { Card } from 'heroui-native/card';
+import { Separator } from 'heroui-native/separator';
 import { getArchivedMatchesForTable, getArchivedMatchesForTeamMatch } from './functions/scoring';
 import LoadingPage from './LoadingPage';
 import { ArchivedMatchItem } from './listitems/ArchivedMatchItem';
@@ -39,35 +38,29 @@ export default function ArchivedMatchList(props) {
     }, [])
     if (doneLoadingMatchList) {
         return (
-            <NativeBaseProvider>
-                <View width={"100%"} height={"100%"}>
-                    <View flex={1}></View>
-                    {
-                        archivedMatchList.length > 0 ?
-                            <FlatList
-                                data={archivedMatchList}
-                                renderItem={(item) => {
-                                    return (
-                                        <>
-                                            <ArchivedMatchItem {...item}></ArchivedMatchItem>
-                                            <Divider></Divider>
-                                        </>
-                                    )
-                                }}
-                            ></FlatList>
-                            :
-                            <View justifyContent={"center"} alignItems="center">
-                                <View>
-                                    <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noArchivedMatchesTable")}</Text>
-
-                                </View>
-                            </View>
-                    }
-
-                </View>
-
-
-            </NativeBaseProvider>
+            <View style={styles.screen}>
+                {
+                    archivedMatchList.length > 0 ?
+                        <FlatList
+                            data={archivedMatchList}
+                            contentContainerStyle={styles.listContent}
+                            ItemSeparatorComponent={() => <Separator />}
+                            renderItem={(item) => {
+                                return (
+                                    <ArchivedMatchItem {...item}></ArchivedMatchItem>
+                                )
+                            }}
+                        ></FlatList>
+                        :
+                        <View style={styles.emptyState}>
+                            <Card style={styles.emptyCard}>
+                                <Card.Body>
+                                    <Card.Title style={styles.emptyTitle}>{i18n.t("noArchivedMatchesTable")}</Card.Title>
+                                </Card.Body>
+                            </Card>
+                        </View>
+                }
+            </View>
 
         )
     }
@@ -76,3 +69,32 @@ export default function ArchivedMatchList(props) {
     }
 
 }
+
+const styles = StyleSheet.create({
+    screen: {
+        flex: 1,
+        width: "100%",
+        backgroundColor: "#f7f7f8",
+    },
+    listContent: {
+        padding: 12,
+        gap: 12,
+    },
+    emptyState: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+    },
+    emptyCard: {
+        backgroundColor: "#ffffff",
+        width: "100%",
+        maxWidth: 520,
+    },
+    emptyBody: {
+        backgroundColor: "#ffffff",
+    },
+    emptyTitle: {
+        textAlign: "center",
+    },
+});

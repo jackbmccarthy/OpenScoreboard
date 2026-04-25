@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Text, View, Input, Modal, FormControl, ChevronLeftIcon, TextField } from 'native-base';
+import { Button, Text, View, Input, Modal, FormControl, ChevronLeftIcon, TextField } from '../ui';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { addImportedPlayer, editImportedPlayer } from '../functions/players';
 import { newImportedPlayer } from '../classes/Player';
@@ -153,9 +153,11 @@ export function AddNewPlayerModal(props) {
     };
 
     useEffect(() => {
-        setTimeout(() => {
-            document.getElementById(playerFirstName.current.id).focus()
+        const timeout = setTimeout(() => {
+            playerFirstName.current?.focus?.()
         }, 200);
+
+        return () => clearTimeout(timeout);
 
     }, [])
 

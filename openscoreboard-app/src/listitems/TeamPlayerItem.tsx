@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Button, View, FormControl, Input, Text, Divider } from 'native-base';
-import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
+import { StyleSheet, Text, View } from 'react-native';
+import { Button } from 'heroui-native/button';
+import { Input } from 'heroui-native/input';
+import { Separator } from 'heroui-native/separator';
+import { openScoreboardColor } from "../../openscoreboardtheme";
 import { FontAwesome } from '@expo/vector-icons';
 import i18n from '../translations/translate';
 
@@ -18,62 +21,60 @@ export function TeamPlayerItem(props) {
         <>
             <View>
                 {isEditing ?
-                    <View alignItems={"center"} flexDirection={"row"}>
-                        <View flex={2}>
-                            <FormControl>
-                                <FormControl.Label>{i18n.t("firstName")}</FormControl.Label>
-                                <Input
-                                    onChangeText={setFirstName}
-                                    value={firstName}></Input>
-                                <FormControl.Label>{i18n.t("lastName")}</FormControl.Label>
-                                <Input
-                                    onChangeText={setLastName}
-                                    value={lastName}></Input>
-                                <FormControl.Label>{i18n.t("imageURL")}</FormControl.Label>
-                                <Input
-                                    onChangeText={setImageURL}
-                                    value={imageURL}></Input>
-
-                            </FormControl>
+                    <View style={styles.editorWrap}>
+                        <View style={styles.editorFields}>
+                            <Text style={styles.label}>{i18n.t("firstName")}</Text>
+                            <Input
+                                onChangeText={setFirstName}
+                                value={firstName}></Input>
+                            <Text style={styles.label}>{i18n.t("lastName")}</Text>
+                            <Input
+                                onChangeText={setLastName}
+                                value={lastName}></Input>
+                            <Text style={styles.label}>{i18n.t("imageURL")}</Text>
+                            <Input
+                                onChangeText={setImageURL}
+                                value={imageURL}></Input>
 
                         </View>
 
-                        <View flex={1} alignItems="center" justifyContent={"center"} padding={1}>
+                        <View style={styles.saveWrap}>
                             <Button
                                 onPress={() => {
                                     setIsEditing(false);
                                     props.onUpdate(props.id, { ...props, firstName: firstName, lastName: lastName, imageURL: imageURL });
                                 }}
                             >
-                                <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>
+                                <Button.Label>{i18n.t("save")}</Button.Label>
                             </Button>
                         </View>
                     </View>
 
                     :
                     <>
-                        <View padding={1} justifyContent="space-between" alignItems={"center"} flexDirection={"row"}>
-                            <Text>{firstName} {lastName}</Text>
-                            <View flexDir={"row"} padding={1}>
-                                <Button onPress={() => {
+                        <View style={styles.displayRow}>
+                            <View style={styles.playerCopy}>
+                                <Text style={styles.playerName}>{firstName} {lastName}</Text>
+                                <Text style={styles.playerMeta}>{imageURL?.length > 0 ? imageURL : "No player image set"}</Text>
+                            </View>
+                            <View style={styles.actionRow}>
+                                <Button isIconOnly onPress={() => {
                                     setIsEditing(true);
                                 }}>
-                                    <FontAwesome name='edit' size={24} color={openScoreboardButtonTextColor} />
+                                    <FontAwesome name='edit' size={24} color={openScoreboardColor} />
                                 </Button>
-                                <View paddingLeft={1}>
-                                    <Button backgroundColor={tappedDelete ? "#FF0000" : openScoreboardColor} onPress={() => {
-                                        if (tappedDelete) {
-                                            props.onDelete(props.id)
-                                            setTappedDelete(false)
-                                        }
-                                        else {
-                                            setTappedDelete(true)
-                                        }
+                                <Button variant={tappedDelete ? "danger" : "primary"} isIconOnly onPress={() => {
+                                    if (tappedDelete) {
+                                        props.onDelete(props.id)
+                                        setTappedDelete(false)
+                                    }
+                                    else {
+                                        setTappedDelete(true)
+                                    }
 
-                                    }}>
-                                        <FontAwesome name='trash' size={24} color={openScoreboardButtonTextColor} />
-                                    </Button>
-                                </View>
+                                }}>
+                                    <FontAwesome name='trash' size={24} color={"white"} />
+                                </Button>
                             </View>
 
                         </View>
@@ -81,8 +82,56 @@ export function TeamPlayerItem(props) {
                     </>
                 }
             </View>
-            <Divider></Divider>
+            <Separator></Separator>
         </>
 
     );
 }
+
+const styles = StyleSheet.create({
+    editorWrap: {
+        alignItems: "center",
+        flexDirection: "row",
+        gap: 12,
+        paddingVertical: 6,
+    },
+    editorFields: {
+        flex: 1,
+        gap: 6,
+    },
+    label: {
+        color: "#374151",
+        fontSize: 13,
+        fontWeight: "600",
+        marginTop: 4,
+    },
+    saveWrap: {
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    displayRow: {
+        alignItems: "center",
+        flexDirection: "row",
+        justifyContent: "space-between",
+        paddingVertical: 8,
+    },
+    playerCopy: {
+        flex: 1,
+        minWidth: 0,
+        paddingRight: 10,
+    },
+    playerName: {
+        color: "#111827",
+        fontWeight: "700",
+    },
+    playerMeta: {
+        color: "#6b7280",
+        fontSize: 12,
+        lineHeight: 17,
+        marginTop: 2,
+    },
+    actionRow: {
+        flexDirection: "row",
+        gap: 6,
+    },
+});

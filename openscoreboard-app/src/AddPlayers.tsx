@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, TouchableOpacity, } from 'react-native';
-import { ScrollView, Button, View, NativeBaseProvider, FlatList, AddIcon, Text } from 'native-base';
+import { ScrollView, Button, View, NativeBaseProvider, FlatList, AddIcon, Text } from './ui';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import { deleteImportedPlayer, getImportPlayerList } from './functions/players';

@@ -1,0 +1,72 @@
+@import 'tailwindcss';
+@import 'uniwind';
+
+@import 'heroui-native/styles';
+@source './node_modules/heroui-native/lib';
+
+:root {
+  --background: #f4f6f8;
+  --foreground: #111827;
+
+  --surface: #ffffff;
+  --surface-foreground: #111827;
+  --surface-secondary: #f9fafb;
+  --surface-secondary-foreground: #111827;
+  --surface-tertiary: #eef2f7;
+  --surface-tertiary-foreground: #111827;
+
+  --overlay: #ffffff;
+  --overlay-foreground: #111827;
+  --backdrop: rgb(15 23 42 / 0.42);
+
+  --muted: #6b7280;
+
+  --accent: #2563eb;
+  --accent-foreground: #ffffff;
+
+  --segment: #e5e7eb;
+  --segment-foreground: #111827;
+
+  --border: #d1d5db;
+  --separator: #e5e7eb;
+  --focus: #2563eb;
+  --link: #2563eb;
+
+  --default: #e5e7eb;
+  --default-foreground: #111827;
+
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+
+  --danger: #dc2626;
+  --danger-foreground: #ffffff;
+
+  --field-background: #ffffff;
+  --field-foreground: #111827;
+  --field-placeholder: #9ca3af;
+  --field-border: #d1d5db;
+  --field-radius: 0.5rem;
+  --field-border-width: 1px;
+
+  --surface-shadow: 0 10px 30px rgb(15 23 42 / 0.08);
+  --overlay-shadow: 0 18px 48px rgb(15 23 42 / 0.16);
+  --field-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+
+  --radius: 0.5rem;
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}

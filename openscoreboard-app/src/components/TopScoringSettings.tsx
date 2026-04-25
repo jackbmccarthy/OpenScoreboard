@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, View } from 'native-base';
+import { Button, View } from '../ui';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { switchSides } from '../functions/scoring';
 import { FontAwesome5, MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';

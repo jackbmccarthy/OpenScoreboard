@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Text, View, Avatar, Divider, FormControl } from 'native-base';
+import { Button, Text, View, Avatar, Divider, FormControl } from '../ui';
 import { getPlayerFormatted } from '../functions/players';
 import JerseyColorOptions from '../components/JerseyColorOptions';
 import { FontAwesome5 } from '@expo/vector-icons';

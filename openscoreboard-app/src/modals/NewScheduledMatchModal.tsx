@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Button, FormControl, Modal } from 'native-base';
+import { View, Text, Button, FormControl, Modal } from '../ui';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import { DateTimePicker } from '../components/DateTimePicker';
 import { addScheduledMatch, createNewMatch, createNewScheduledMatch, getMatchData } from '../functions/scoring';

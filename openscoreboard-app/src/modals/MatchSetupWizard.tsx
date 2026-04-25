@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Text, View, Modal, Divider, Spinner, FlatList, Select } from 'native-base';
+import { Button, Text, View, Modal, Divider, Spinner, FlatList, Select } from '../ui';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { clearPlayer, getCurrentGameNumber, getCurrentGameScore, setBestOf, setInitialMatchServer, setIsDoubles, setRoundName, start2MinuteWarmUp, startGame, stop2MinuteWarmUp, updateScheduledMatch, updateService } from '../functions/scoring';
 import { getCombinedPlayerNames, getPlayerFormatted } from '../functions/players';

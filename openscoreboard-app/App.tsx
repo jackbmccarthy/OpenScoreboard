@@ -1,7 +1,10 @@
-import React, { Component, useEffect, useState } from 'react';
+import './global.css';
+import React, { useEffect, useState } from 'react';
 import ArchivedMatchList from './src/ArchivedMatchList';
 import { createNativeStackNavigator, } from '@react-navigation/native-stack';
-import { LinkingOptions, NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer } from '@react-navigation/native';
+import { HeroUINativeProvider } from 'heroui-native/provider';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import AddPlayers from './src/AddPlayers';
 import MyTables from './src/MyTables';
 import TableScoring from './src/TableScoring';
@@ -170,7 +173,11 @@ export default function App() {
 
   return (
 
-    <ScoreboardNavigation />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <HeroUINativeProvider>
+        <ScoreboardNavigation />
+      </HeroUINativeProvider>
+    </GestureHandlerRootView>
 
 
 
@@ -178,5 +185,3 @@ export default function App() {
   );
 
 }
-
-
