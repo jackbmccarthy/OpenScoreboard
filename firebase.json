@@ -1,0 +1,32 @@
+{
+  "hosting": {
+    "site": "open-scoreboard-web",
+    "public": "firebase-build",
+    "ignore": [
+      "firebase.json",
+      "**/.*"
+    ],
+    "cleanUrls": true,
+    "trailingSlash": false,
+    "rewrites": [
+      {
+        "source": "/app/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/editor/**",
+        "destination": "/editor/index.html"
+      },
+      {
+        "source": "/scoreboard/**",
+        "destination": "/scoreboard/index.html"
+      }
+    ]
+  },
+  "emulators": {
+    "hosting": {
+      "host": "127.0.0.1",
+      "port": 5001
+    }
+  }
+}

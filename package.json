@@ -10,6 +10,7 @@
     "build:tsc": "tsc --build",
     "install:children": "npm install --prefix ./openscoreboard-app && npm install --prefix ./openscoreboard-scoreboard && npm install --prefix ./openscoreboard-editor",
     "build:prod": "dotenvx run  --env-file=./.env.production -- npm run build:app && npm run build:scoreboard && npm run build:editor ",
+    "build:firebase": "./scripts/build-firebase-hosting.sh",
     "build:app": "dotenvx run  --env-file=./.env.production -- npm run  --prefix ./openscoreboard-app build",
     "build:scoreboard": " dotenvx run  --env-file=./.env.production -- npm run  --prefix ./openscoreboard-scoreboard build",
     "build:editor": " dotenvx run  --env-file=./.env.production --  npm run  --prefix ./openscoreboard-editor build",

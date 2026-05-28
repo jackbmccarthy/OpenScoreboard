@@ -5,3 +5,10 @@ node_modules
 .env.production
 .env.development
 .expo
+.omx/
+.ddd/
+.firebase/
+firebase-build/
+openscoreboard-app/dist/
+openscoreboard-editor/dist/
+openscoreboard-scoreboard/dist/

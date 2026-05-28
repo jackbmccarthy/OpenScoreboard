@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, View, Divider, Pressable } from 'native-base';
-import { AntDesign } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import { openScoreboardColor } from "../../openscoreboardtheme";
 import { Link } from '@react-navigation/native';
 
@@ -26,7 +26,15 @@ export const HomeItem = ({ item, navigation }) => {
 
                 </View>
                 <View alignItems={"center"} justifyContent={"center"} padding={0}>
-                    <AntDesign name="arrowright" size={24} color={openScoreboardColor} />
+                    <Svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <Path
+                            d="M7 4L13 10L7 16"
+                            stroke={openScoreboardColor}
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </Svg>
                 </View>
 
 
