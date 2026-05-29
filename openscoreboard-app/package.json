@@ -28,7 +28,6 @@
     "expo-status-bar": "~3.0.8",
     "expo-web-browser": "~15.0.9",
     "firebase": "8.10.1",
-    "firebaseui": "5.0.0",
     "i18n-js": "^4.2.3",
     "native-base": "^3.4.19",
     "node-html-parser": "^6.1.1",

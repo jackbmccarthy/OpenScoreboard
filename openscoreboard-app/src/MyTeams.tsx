@@ -14,6 +14,7 @@ import { getMyTeams } from './functions/teams';
 import { NewTeamModal } from './modals/NewTeamModal';
 import { TeamItem } from './listitems/TeamItem';
 import i18n from './translations/translate';
+import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 
 export default function MyTeams(props) {
 
@@ -48,18 +49,16 @@ export default function MyTeams(props) {
     useEffect(() => {
         props.navigation.setOptions({
             headerRight: () => (
-                <NativeBaseProvider>
-                    <Button height={"100%"} width={"100%"} variant={"ghost"} onPress={() => {
+                <HeaderActions
+                    navigation={props.navigation}
+                    action={<HeaderIconButton label={i18n.t("createOne")} onPress={() => {
                         setEditingMyTeamID("")
                         setEditingTeamID("")
                         setIsEditingTeam(false)
 
                         setShowNewTeamModal(true)
-                    }} >
-                        <AddIcon size="xl" color={openScoreboardButtonTextColor} ></AddIcon>
-                    </Button>
-                </NativeBaseProvider>
-
+                    }} />}
+                />
             ),
         });
         loadTeams()

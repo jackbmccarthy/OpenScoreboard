@@ -12,6 +12,7 @@ import { DynamicURLItem } from './listitems/DynamicURLItem';
 import { EditDynamicURLModal } from './modals/EditDynamicURLModal';
 import { CreateDynamicURLModal } from './modals/CreateDynamicURLModal';
 import i18n from './translations/translate';
+import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 
 export default function MyDynamicURLs(props) {
 
@@ -43,14 +44,12 @@ export default function MyDynamicURLs(props) {
 
         props.navigation.setOptions({
             headerRight: () => (
-                <NativeBaseProvider>
-                    <Button height={"100%"} width={"100%"} variant={"ghost"} onPress={() => {
+                <HeaderActions
+                    navigation={props.navigation}
+                    action={<HeaderIconButton label={i18n.t("createOne")} onPress={() => {
                         setShowNewDynamicURLModal(true)
-                    }} >
-                        <AddIcon size="xl" color={openScoreboardButtonTextColor}  ></AddIcon>
-                    </Button>
-                </NativeBaseProvider>
-
+                    }} />}
+                />
             ),
         });
 

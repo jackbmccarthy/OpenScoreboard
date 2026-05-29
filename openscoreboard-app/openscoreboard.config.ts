@@ -1,4 +1,5 @@
 export const isLocalDatabase = process.env.EXPO_PUBLIC_USE_LOCAL_DB !== "true" ? false : true
+export const isFirebaseAuthRequired = !isLocalDatabase || process.env.EXPO_PUBLIC_REQUIRE_FIREBASE_AUTH === "true"
 export const subFolderPath = isLocalDatabase ? "/app" : ""
 export const scoreboardBaseURL = process.env.NODE_ENV === "production" ? window.location.origin : window.location.origin.replace(window.location.port, "3001")
 

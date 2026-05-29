@@ -20,6 +20,7 @@ import { TeamMatchLinkModal } from './modals/TeamMatchLinkModal';
 import { EditTeamMatchModal } from './modals/EditTeamMatchModal';
 import { DeleteTeamMatchModal } from './modals/DeleteTeamMatchModal';
 import i18n from './translations/translate';
+import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 
 export default function MyTeamMatches(props) {
 
@@ -98,14 +99,12 @@ export default function MyTeamMatches(props) {
     useEffect(() => {
         props.navigation.setOptions({
             headerRight: () => (
-                <NativeBaseProvider>
-                    <Button height={"100%"} width={"100%"} variant={"ghost"} onPress={() => {
+                <HeaderActions
+                    navigation={props.navigation}
+                    action={<HeaderIconButton label={i18n.t("createOne")} onPress={() => {
                         setShowNewTeamMatchModal(true)
-                    }} >
-                        <AddIcon size="xl" color={openScoreboardButtonTextColor}  ></AddIcon>
-                    </Button>
-                </NativeBaseProvider>
-
+                    }} />}
+                />
             ),
         });
         loadTeamMatches()
