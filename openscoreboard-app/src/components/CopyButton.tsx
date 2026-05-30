@@ -6,6 +6,13 @@ import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
 import { setStringAsync } from 'expo-clipboard';
 import i18n from '../translations/translate';
 
+function copyTextToClipboard(text, setWasCopied) {
+    setWasCopied(true)
+    setStringAsync(text)
+    setTimeout(() => {
+        setWasCopied(false)
+    }, 2000)
+}
 
 export default function CopyButton({ text }) {
     let [wasCopied, setWasCopied] = useState(false)
@@ -16,11 +23,7 @@ export default function CopyButton({ text }) {
         <View padding={1}>
             <Button
                 onPress={() => {
-                    setWasCopied(true)
-                    setStringAsync(text)
-                    setTimeout(() => {
-                        setWasCopied(false)
-                    }, 2000)
+                    copyTextToClipboard(text, setWasCopied)
                 }}
             >
                 {
@@ -31,5 +34,26 @@ export default function CopyButton({ text }) {
 
             </Button>
         </View>
+    )
+}
+
+export function CopyInputRightButton({ text }) {
+    let [wasCopied, setWasCopied] = useState(false)
+
+    return (
+        <Button
+            backgroundColor={"black"}
+            borderLeftRadius={0}
+            borderRightRadius={6}
+            height={"100%"}
+            minW={76}
+            onPress={() => {
+                copyTextToClipboard(text, setWasCopied)
+            }}
+        >
+            <Text color={openScoreboardButtonTextColor} fontSize={"sm"} fontWeight={"bold"}>
+                {wasCopied ? i18n.t("copied") : "Copy"}
+            </Text>
+        </Button>
     )
 }

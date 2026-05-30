@@ -1,183 +1,179 @@
-import React, { useState } from 'react';
-import { TouchableOpacity } from 'react-native';
-import { Text, View, Spinner, Divider, Button } from 'native-base';
-import { getMatchData, getSignificantPoints } from '../functions/scoring';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { openScoreboardColor } from "../../openscoreboardtheme";
-import i18n from '../translations/translate';
+import React from 'react';
+import { Text, View } from 'native-base';
 
-export function ArchivedMatchItem(props) {
-    const index = props.index;
-    const id = props.item[0];
-    const matchDetails = props.item[1];
+const GAME_SCORE_COLUMN_WIDTH = 44;
+const TOTAL_SCORE_COLUMN_WIDTH = 34;
 
-    let [significantPoints, setSignificantPoints] = useState()
-    let [loadingSigPoints, setLoadingSigPoints] = useState()
-
-    async function loadSigPoints(matchID) {
-        setLoadingSigPoints(true)
-        let matchSigPoints = await getSignificantPoints(matchID)
-        setSignificantPoints(matchSigPoints)
-        setLoadingSigPoints(false)
-        setSigPointsExpanded(true)
+function getWinnerSide(matchDetails) {
+    if ((matchDetails?.AScore || 0) > (matchDetails?.BScore || 0)) {
+        return "A";
     }
 
-    let [loadingAdditionalGameScores, setLoadingAdditionalGameScores] = useState(false);
-    let [loadedGamesScores, setLoadedGameScores] = useState(false);
-    let [expanded, setExpanded] = useState(false);
-    let [sigPointsExpanded, setSigPointsExpanded] = useState(false)
-    let [additionalFields, setAdditionalFields] = useState({});
+    if ((matchDetails?.BScore || 0) > (matchDetails?.AScore || 0)) {
+        return "B";
+    }
+
+    return "";
+}
+
+function getGameScores(matchDetails) {
+    if (Array.isArray(matchDetails?.gameScores)) {
+        return matchDetails.gameScores;
+    }
+
+    return [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        .filter((gameNumber) => matchDetails?.[`isGame${gameNumber}Started`] || matchDetails?.[`isGame${gameNumber}Finished`])
+        .map((gameNumber) => ({
+            gameNumber,
+            a: matchDetails?.[`game${gameNumber}AScore`] ?? 0,
+            b: matchDetails?.[`game${gameNumber}BScore`] ?? 0,
+        }));
+}
+
+function getValidDate(value) {
+    if (!value) {
+        return null;
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function formatDate(value) {
+    const date = getValidDate(value);
+    return date ? date.toLocaleDateString() : "";
+}
+
+function formatTime(value) {
+    const date = getValidDate(value);
+    return date ? date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+}
+
+function getDateLabel(matchDetails) {
+    return formatDate(matchDetails?.startTime) || formatDate(matchDetails?.archivedOn) || "Date unavailable";
+}
+
+function getTimeLabel(matchDetails) {
+    const startTime = formatTime(matchDetails?.startTime);
+    const endTime = formatTime(matchDetails?.archivedOn);
+
+    if (startTime && endTime) {
+        return `${startTime} - ${endTime}`;
+    }
+
+    if (startTime) {
+        return `Started ${startTime}`;
+    }
+
+    if (endTime) {
+        return `Archived ${endTime}`;
+    }
+
+    return "";
+}
+
+function GridCell({ children, flex, width, isHeader = false, isTotal = false, isWinner = false, align = "center" }) {
+    return (
+        <View
+            alignItems={align}
+            backgroundColor={isWinner ? "blue.700" : isHeader || isTotal ? "gray.100" : "white"}
+            borderColor={"gray.200"}
+            borderWidth={1}
+            flex={flex}
+            justifyContent={"center"}
+            minH={30}
+            paddingX={2}
+            width={width}
+        >
+            <Text
+                color={isWinner ? "white" : isHeader ? "gray.600" : "gray.900"}
+                fontSize={isHeader ? "xs" : "sm"}
+                fontWeight={isHeader || isTotal || isWinner ? "bold" : "medium"}
+                numberOfLines={1}
+            >
+                {children}
+            </Text>
+        </View>
+    );
+}
+
+function ScoreRow({ name, scores, total, side, winnerSide }) {
+    const isWinner = winnerSide === side;
 
     return (
-        <View>
-            <TouchableOpacity
+        <View flexDir={"row"} marginTop={-1}>
+            <GridCell align={"flex-start"} flex={1}>{name?.length > 0 ? name : "TBD"}</GridCell>
+            {scores.map((game) => (
+                <GridCell key={`${side}-game-${game.gameNumber}`} width={GAME_SCORE_COLUMN_WIDTH}>
+                    {side === "A" ? game.a : game.b}
+                </GridCell>
+            ))}
+            <GridCell isTotal isWinner={isWinner} width={TOTAL_SCORE_COLUMN_WIDTH}>{total ?? 0}</GridCell>
+        </View>
+    );
+}
+
+export function ArchivedMatchItem(props) {
+    const matchDetails = props.item[1];
+    const winnerSide = getWinnerSide(matchDetails);
+    const gameScores = getGameScores(matchDetails);
+    const timeLabel = getTimeLabel(matchDetails);
+
+    return (
+        <View
+            marginBottom={3}
+            width={{ base: "100%", lg: "48.5%" }}
+        >
+            <View
+                backgroundColor={"white"}
+                borderColor={"gray.200"}
+                borderRadius={8}
+                borderWidth={1}
+                padding={3}
             >
-                <View flex={1} padding={1}>
-                    <View justifyContent={"space-between"} alignItems="center" flexDirection={"row"}>
-                        <View flex={1} >
-                            <Text textAlign={"center"} fontSize={"md"}>{matchDetails["playerA"]}</Text>
-                        </View>
-                        <View>
-                            <Text textAlign={"center"} fontSize={"md"}><Text fontWeight={"bold"}>{matchDetails["AScore"]}</Text> - <Text fontWeight={"bold"}>{matchDetails["BScore"]}</Text></Text>
-                            <View padding={1}>
-
-
-
-                            </View>
-                        </View>
-                        <View flex={1} >
-                            <Text textAlign={"center"} fontSize={"md"}>{matchDetails["playerB"]}</Text>
-                        </View>
-
-                    </View>
-
-                </View>
-                <View padding={1} flexDirection={"row"} justifyContent="center" >
-                    <View>
-                        <Button
-                            onPress={async () => {
-                                if (loadedGamesScores === false) {
-                                    setLoadingAdditionalGameScores(true);
-                                    let matchInfo = await getMatchData(matchDetails.matchID);
-                                    setAdditionalFields(matchInfo);
-                                    setLoadingAdditionalGameScores(false);
-                                    setLoadedGameScores(true);
-                                    setExpanded(expanded ? false : true);
-
-                                }
-                                else {
-                                    setExpanded(expanded ? false : true);
-                                }
-
-
-                            }}
-                            variant={"ghost"}>
-                            {
-                                expanded ?
-                                    <MaterialCommunityIcons name="arrow-collapse-vertical" size={24} color={openScoreboardColor} />
-
-                                    :
-                                    <MaterialCommunityIcons name="arrow-expand-vertical" size={24} color={openScoreboardColor} />
-
-                            }
-
-                        </Button>
-
-                    </View>
-                    <View padding={1}>
-                        <Button
-                            onPress={() => {
-                                if (sigPointsExpanded) {
-                                    setSigPointsExpanded(false)
-                                }
-                                else {
-                                    loadSigPoints(matchDetails.matchID)
-                                    setSigPointsExpanded(true)
-                                }
-
-                            }}
-                            variant={"ghost"}>
-                            <MaterialCommunityIcons name="hand-clap" size={24} color={openScoreboardColor} />
-                        </Button>
-
-                    </View>
+                <View flexDir={"row"} justifyContent={"space-between"} marginBottom={2}>
+                    <Text color={"gray.900"} fontSize={"sm"} fontWeight={"bold"} numberOfLines={1}>
+                        {getDateLabel(matchDetails)}
+                    </Text>
+                    {timeLabel ? (
+                        <Text color={"gray.500"} fontSize={"xs"} fontWeight={"medium"} numberOfLines={1}>
+                            {timeLabel}
+                        </Text>
+                    ) : null}
                 </View>
 
-                <View justifyContent="center" alignItems={"center"}>
-                    {expanded ?
-
-
-                        loadingAdditionalGameScores ?
-                            <Spinner></Spinner> :
-
-                            [1, 2, 3, 4, 5, 6, 7, 8, 9].map((numb) => {
-                                if (additionalFields[`isGame${numb}Started`]) {
-                                    return (
-                                        <View width={"100%"} flex={1} key={`game${numb}`}>
-                                            <View padding={1} justifyContent={"space-evenly"} alignItems={"center"} flexDirection={"row"}>
-                                                <View padding={2}>
-                                                    <Text textAlign={"center"} fontSize={"lg"} fontWeight="bold">{additionalFields[`game${numb}AScore`]}</Text>
-                                                </View>
-                                                <View padding={2}>
-                                                    <Text>{i18n.t("game")} {numb}</Text>
-                                                </View>
-                                                <View padding={2}>
-                                                    <Text textAlign={"center"} fontSize={"lg"} fontWeight="bold">{additionalFields[`game${numb}BScore`]}</Text>
-                                                </View>
-                                            </View>
-                                            <Divider></Divider>
-                                        </View>
-                                    );
-                                }
-                            })
-
-
-
-                        : null}
-                    {sigPointsExpanded ?
-
-
-                        loadingSigPoints ?
-                            <Spinner></Spinner> :
-
-                            significantPoints.length > 0 ?
-                                <>
-                                    <Text fontWeight={"bold"} textAlign={"center"}>{i18n.t("significantPoints")}</Text>
-                                    {
-                                        significantPoints.map((sigPoint) => {
-                                            return (
-                                                <View width={"100%"} flex={1} key={sigPoint[0]}>
-                                                    <View padding={1} justifyContent={"space-evenly"} alignItems={"center"} flexDirection={"row"}>
-                                                        <View padding={2}>
-                                                            <Text textAlign={"center"} fontSize={"lg"} fontWeight="bold">{sigPoint[1].playerAScore}</Text>
-                                                        </View>
-                                                        <View padding={2}>
-                                                            <Text>{i18n.t("game")} {sigPoint[1].gameNumber} </Text>
-                                                        </View>
-                                                        <View padding={2}>
-                                                            <Text textAlign={"center"} fontSize={"lg"} fontWeight="bold">{sigPoint[1].playerBScore}</Text>
-                                                        </View>
-                                                    </View>
-                                                    <Divider></Divider>
-                                                </View>
-                                            );
-
-                                        })
-                                    }
-                                </>
-
-                                :
-                                <Text>{i18n.t("noSignificantPoints")}</Text>
-
-
-
-                        : null}
-
-
+                <View>
+                    <View flexDir={"row"}>
+                        <GridCell align={"flex-start"} flex={1} isHeader>Player</GridCell>
+                        {gameScores.map((game) => (
+                            <GridCell key={`header-game-${game.gameNumber}`} isHeader width={GAME_SCORE_COLUMN_WIDTH}>
+                                {game.gameNumber}
+                            </GridCell>
+                        ))}
+                        <GridCell isHeader width={TOTAL_SCORE_COLUMN_WIDTH}>T</GridCell>
+                    </View>
+                    <ScoreRow
+                        name={matchDetails?.playerA}
+                        scores={gameScores}
+                        side={"A"}
+                        total={matchDetails?.AScore}
+                        winnerSide={winnerSide}
+                    />
+                    <ScoreRow
+                        name={matchDetails?.playerB}
+                        scores={gameScores}
+                        side={"B"}
+                        total={matchDetails?.BScore}
+                        winnerSide={winnerSide}
+                    />
                 </View>
 
-            </TouchableOpacity>
-
+                {gameScores.length === 0 ? (
+                    <Text color={"gray.500"} fontSize={"2xs"} marginTop={2}>
+                        No game scores recorded.
+                    </Text>
+                ) : null}
+            </View>
         </View>
     );
 }

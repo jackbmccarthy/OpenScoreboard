@@ -36,7 +36,10 @@ export function TeamMatchItem(props) {
                 <View>
                     <Button
                         onPress={() => {
-                            props.navigation.navigate("ArchivedMatchList", { teamMatchID: props.item[1].id, });
+                            props.navigation.navigate("ArchivedMatchList", {
+                                teamMatchID: props.item[1].id,
+                                name: `${props.item[1].teamAName} vs ${props.item[1].teamBName}`,
+                            });
                         }}
                         variant="ghost"
 

@@ -6,7 +6,7 @@ import { getMyScoreboards } from '../functions/scoreboards';
 import { getUserPath } from '../../database';
 import LoadingPage from '../LoadingPage';
 import { scoreboardBaseURL, subFolderPath } from '../../openscoreboard.config';
-import CopyButton from './CopyButton';
+import { CopyInputRightButton } from './CopyButton';
 import i18n from '../translations/translate';
 
 
@@ -41,10 +41,11 @@ export default function ScoreboardLinkList(props) {
                 <View>
                     <FormControl>
                         <FormControl.Label>{i18n.t("default")}</FormControl.Label>
-                        <View flexDirection={"row"}>
-                            <Input flex={1} isReadOnly value={defaultScoreboardURL}></Input>
-                            <CopyButton text={defaultScoreboardURL}></CopyButton>
-                        </View>
+                        <Input
+                            isReadOnly
+                            InputRightElement={<CopyInputRightButton text={defaultScoreboardURL} />}
+                            value={defaultScoreboardURL}
+                        />
                     </FormControl>
                 </View>
                 <FlatList
@@ -61,10 +62,11 @@ export default function ScoreboardLinkList(props) {
                             <View>
                                 <FormControl>
                                     <FormControl.Label>{scoreboard.item[1]["name"]}</FormControl.Label>
-                                    <View flexDirection={"row"}>
-                                        <Input flex={1} isReadOnly value={scoreboardURL}></Input>
-                                        <CopyButton text={scoreboardURL}></CopyButton>
-                                    </View>
+                                    <Input
+                                        isReadOnly
+                                        InputRightElement={<CopyInputRightButton text={scoreboardURL} />}
+                                        value={scoreboardURL}
+                                    />
                                 </FormControl>
                             </View>
                         )

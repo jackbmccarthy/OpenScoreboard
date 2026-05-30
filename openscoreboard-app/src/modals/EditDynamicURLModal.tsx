@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, View, Modal, Text, Input, FormControl, Select, Spinner, Divider } from 'native-base';
+import { Button, View, Modal, Text, Input, FormControl, Select, Spinner } from 'native-base';
 import { getUserPath } from '../../database';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { updateDynamicURL } from '../functions/dynamicurls';
@@ -8,13 +8,42 @@ import getMyTeamMatches, { getTeamMatchCurrentMatches } from '../functions/teamm
 import { getMyScoreboards } from '../functions/scoreboards';
 import i18n from '../translations/translate';
 
+const DYNAMIC_URL_TYPES = {
+    TABLE: "table",
+    TEAM_MATCH: "teamMatch",
+};
+
+function getInitialDynamicURLType(props) {
+    return props.teammatchID && props.teammatchID.length > 0
+        ? DYNAMIC_URL_TYPES.TEAM_MATCH
+        : DYNAMIC_URL_TYPES.TABLE;
+}
+
+function FieldSection({ children, title, subtitle }) {
+    return (
+        <View
+            backgroundColor={"white"}
+            borderColor={"gray.200"}
+            borderRadius={8}
+            borderWidth={1}
+            marginBottom={3}
+            padding={4}
+        >
+            <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"}>{title}</Text>
+            {subtitle ? (
+                <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>{subtitle}</Text>
+            ) : null}
+            <View marginTop={3}>{children}</View>
+        </View>
+    );
+}
 
 export function EditDynamicURLModal(props) {
-    let [doneLoading, setDoneLoading] = useState(false);
     let [tableList, setTableList] = useState([]);
     let [teamMatchList, setTeamMatchList] = useState([]);
     let [tableNumberList, setTableNumberList] = useState([]);
 
+    let [dynamicURLType, setDynamicURLType] = useState(getInitialDynamicURLType(props));
     let [selectedTableNumber, setSelectedTableNumber] = useState("");
     let [selectedTeamMatchID, setSelectedTeamMatchID] = useState("");
     let [selectedTableID, setSelectedTableID] = useState("");
@@ -24,15 +53,25 @@ export function EditDynamicURLModal(props) {
 
     let [loadingScoreboards, setLoadingScoreboards] = useState(true)
     let [scoreboardList, setScoreboardList] = useState([])
-    useEffect(() => {
-        setSelectedTableID(props.tableID);
-        setSelectedTeamMatchID(props.teammatchID);
-        setSelectedTableNumber(props.tableNumber);
-        setSelectedScoreboardID(props.scoreboardID)
-        setURLName(props.dynamicURLName);
 
-        if (props.teammatchID && props.teammatchID.length > 0) {
-            loadTableNumbersOnTeamMatch(props.teammatchID);
+    const isTableDynamicURL = dynamicURLType === DYNAMIC_URL_TYPES.TABLE;
+    const canSave = urlName.trim().length > 0 && (
+        isTableDynamicURL
+            ? selectedTableID.length > 0
+            : selectedTeamMatchID.length > 0 && selectedTableNumber.length > 0
+    );
+
+    useEffect(() => {
+        const initialType = getInitialDynamicURLType(props);
+        setDynamicURLType(initialType);
+        setSelectedTableID(props.tableID || "");
+        setSelectedTeamMatchID(props.teammatchID || "");
+        setSelectedTableNumber(props.tableNumber || "");
+        setSelectedScoreboardID(props.scoreboardID || "")
+        setURLName(props.dynamicURLName || "");
+
+        if (initialType === DYNAMIC_URL_TYPES.TEAM_MATCH && props.teammatchID && props.teammatchID.length > 0) {
+            loadTableNumbersOnTeamMatch(props.teammatchID, props.tableNumber || "");
         }
     }, [props.id]);
 
@@ -42,8 +81,6 @@ export function EditDynamicURLModal(props) {
         let myTeamMatches = await getMyTeamMatches(getUserPath());
         setTeamMatchList(myTeamMatches);
         await loadScoreboards()
-
-
     }
 
     async function loadScoreboards() {
@@ -53,7 +90,8 @@ export function EditDynamicURLModal(props) {
         setLoadingScoreboards(false)
     }
 
-    async function loadTableNumbersOnTeamMatch(teamMatchID) {
+    async function loadTableNumbersOnTeamMatch(teamMatchID, tableNumberToKeep = "") {
+        setSelectedTableNumber(tableNumberToKeep);
         let tableNumbers = await getTeamMatchCurrentMatches(teamMatchID);
         setTableNumberList(tableNumbers);
     }
@@ -65,89 +103,129 @@ export function EditDynamicURLModal(props) {
 
     return (
         <Modal isOpen={props.isOpen} onClose={() => { props.onClose(); }}>
-            <Modal.Content>
-                <Modal.CloseButton></Modal.CloseButton>
+            <Modal.Content maxW={640} width={"92%"}>
+                <Modal.CloseButton />
                 <Modal.Header>{i18n.t("editDynamicURL")}</Modal.Header>
-                <Modal.Body>
-                    <FormControl>
-                        <View padding={1}>
-                            <FormControl.Label>{i18n.t("dynamicURLName")}</FormControl.Label>
-                            <Input value={urlName}
-                                onChangeText={setURLName}
-                            ></Input>
-                        </View>
-                        <Divider></Divider>
+                <Modal.Body backgroundColor={"gray.50"}>
+                    <FieldSection
+                        title={"Dynamic URL"}
+                        subtitle={"Edit the name and choose what kind of scoring target this link follows."}
+                    >
+                        <FormControl.Label>{i18n.t("dynamicURLName")}</FormControl.Label>
+                        <Input
+                            backgroundColor={"white"}
+                            borderColor={"gray.300"}
+                            value={urlName}
+                            onChangeText={setURLName}
+                        />
 
-                        <View padding={1}>
-                            <FormControl.Label>{i18n.t("selectTable")}</FormControl.Label>
+                        <FormControl.Label marginTop={3}>Dynamic URL Type</FormControl.Label>
+                        <Select
+                            backgroundColor={"white"}
+                            borderColor={"gray.300"}
+                            selectedValue={dynamicURLType}
+                            onValueChange={(value) => {
+                                setDynamicURLType(value);
+                                setSelectedTableID("");
+                                setSelectedTeamMatchID("");
+                                setSelectedTableNumber("");
+                                setTableNumberList([]);
+                            }}
+                        >
+                            <Select.Item label={"Table / Court"} value={DYNAMIC_URL_TYPES.TABLE} />
+                            <Select.Item label={i18n.t("teamMatch")} value={DYNAMIC_URL_TYPES.TEAM_MATCH} />
+                        </Select>
+                    </FieldSection>
+
+                    {isTableDynamicURL ? (
+                        <FieldSection
+                            title={"Table / Court"}
+                            subtitle={"Choose the table or court this dynamic URL should point to."}
+                        >
                             {tableList.length > 0 ?
                                 <Select
+                                    backgroundColor={"white"}
+                                    borderColor={"gray.300"}
                                     selectedValue={selectedTableID}
                                     onValueChange={(value) => {
                                         setSelectedTableID(value);
-                                        setSelectedTableNumber(0);
-                                        setSelectedTeamMatchID("");
                                     }}
                                 >
                                     {tableList.map((table) => {
                                         return (
-                                            <Select.Item key={table[0]} label={table[1].tableName} value={table[0]}></Select.Item>
+                                            <Select.Item key={table[0]} label={table[1].tableName} value={table[0]} />
                                         );
                                     })}
                                 </Select>
                                 :
-                                <Text>{i18n.t("noTablesCannotAssign")}</Text>}
-
-                            <View>
-                                <Text fontWeight={"bold"} textAlign="center" fontSize={"xl"}>OR</Text>
-                            </View>
-                            <FormControl.Label>{i18n.t("selectTeamMatch")}</FormControl.Label>
+                                <Text color={"gray.600"}>{i18n.t("noTablesCannotAssign")}</Text>}
+                        </FieldSection>
+                    ) : (
+                        <FieldSection
+                            title={i18n.t("teamMatch")}
+                            subtitle={"Choose the team match and table number this dynamic URL should point to."}
+                        >
                             {teamMatchList.length > 0 ?
-                                <Select selectedValue={selectedTeamMatchID}
+                                <Select
+                                    backgroundColor={"white"}
+                                    borderColor={"gray.300"}
+                                    selectedValue={selectedTeamMatchID}
                                     onValueChange={(value) => {
                                         setSelectedTeamMatchID(value);
                                         loadTableNumbersOnTeamMatch(value);
-                                        setSelectedTableID("");
                                     }}
                                 >
                                     {teamMatchList.map((teammatch) => {
                                         return (
-                                            <Select.Item key={teammatch[0]} label={`(${teammatch[1].startTime})${teammatch[1].teamAName} vs ${teammatch[1].teamBName}`} value={teammatch[1].id}></Select.Item>
+                                            <Select.Item key={teammatch[0]} label={`(${teammatch[1].startTime}) ${teammatch[1].teamAName} vs ${teammatch[1].teamBName}`} value={teammatch[1].id} />
                                         );
                                     })}
                                 </Select>
                                 :
-                                <Text>{i18n.t("noTeamMatchsCannotAssign")}</Text>}
+                                <Text color={"gray.600"}>{i18n.t("noTeamMatchsCannotAssign")}</Text>}
 
-                            <FormControl.Label>{i18n.t("selectTableNumber")}</FormControl.Label>
-                            {tableNumberList.length > 0 ?
-                                <Select selectedValue={selectedTableNumber}
-                                    onValueChange={(value) => {
-                                        setSelectedTableNumber(value);
-                                    }}
-                                >
-                                    {tableNumberList.map((tableNumber, index) => {
-                                        return (
-                                            <Select.Item key={index} label={`Table ${index}`} value={index.toString()}></Select.Item>
-                                        );
-                                    })}
-                                </Select>
-                                :
-                                <Text>{i18n.t("noTablesCannotAssign")}</Text>}
+                            {selectedTeamMatchID.length > 0 ? (
+                                <>
+                                    <FormControl.Label marginTop={3}>{i18n.t("selectTableNumber")}</FormControl.Label>
+                                    {tableNumberList.length > 0 ?
+                                        <Select
+                                            backgroundColor={"white"}
+                                            borderColor={"gray.300"}
+                                            selectedValue={selectedTableNumber}
+                                            onValueChange={(value) => {
+                                                setSelectedTableNumber(value);
+                                            }}
+                                        >
+                                            {tableNumberList.map((tableNumber, index) => {
+                                                return (
+                                                    <Select.Item key={index} label={`Table ${index}`} value={index.toString()} />
+                                                );
+                                            })}
+                                        </Select>
+                                        :
+                                        <Text color={"gray.600"}>{i18n.t("noTablesCannotAssign")}</Text>}
+                                </>
+                            ) : null}
+                        </FieldSection>
+                    )}
 
-                        </View>
-
-                        <Divider></Divider>
-                        <FormControl.Label>{i18n.t("selectScoreboard")}</FormControl.Label>
+                    <FieldSection
+                        title={i18n.t("selectScoreboard")}
+                        subtitle={"Optionally choose a specific scoreboard layout for this dynamic URL."}
+                    >
                         {scoreboardList.length > 0 ?
-                            <Select selectedValue={selectedScoreboardID}
+                            <Select
+                                backgroundColor={"white"}
+                                borderColor={"gray.300"}
+                                selectedValue={selectedScoreboardID}
                                 onValueChange={(value) => {
                                     setSelectedScoreboardID(value);
                                 }}
                             >
+                                <Select.Item label={"Default scoreboard"} value={""} />
                                 {scoreboardList.map((scoreboard, index) => {
                                     return (
-                                        <Select.Item key={index} label={scoreboard[1].name} value={scoreboard[1].id}></Select.Item>
+                                        <Select.Item key={index} label={scoreboard[1].name} value={scoreboard[1].id} />
                                     );
                                 })}
                             </Select>
@@ -155,43 +233,52 @@ export function EditDynamicURLModal(props) {
                             <>
                                 {
                                     loadingScoreboards ?
-                                        <Spinner color={openScoreboardColor}></Spinner>
+                                        <Spinner color={openScoreboardColor} />
                                         :
-                                        <Text>{i18n.t("noScoreboardsCannotAssign")}</Text>
+                                        <Text color={"gray.600"}>{i18n.t("noScoreboardsCannotAssign")}</Text>
 
                                 }
                             </>
                         }
-                    </FormControl>
-
-
+                    </FieldSection>
                 </Modal.Body>
                 <Modal.Footer>
-                    <View>
-                        <Button
-                            onPress={async () => {
-                                setLoadingNewURL(true);
-                                await updateDynamicURL(props.myID, urlName, selectedTableID, selectedTeamMatchID, selectedTableNumber, selectedScoreboardID);
-                                props.onClose(true);
-                                setLoadingNewURL(false);
-                            }}
-                        >
-                            {loadingNewURL ?
-                                <Spinner color={openScoreboardButtonTextColor}></Spinner>
-                                :
-                                <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>}
+                    <Button
+                        backgroundColor={"black"}
+                        borderRadius={8}
+                        isDisabled={!canSave || loadingNewURL}
+                        onPress={async () => {
+                            if (!canSave) {
+                                return;
+                            }
 
-                        </Button>
-                    </View>
-                    <View>
-                        <Button variant={"ghost"}
-                            onPress={() => {
-                                props.onClose();
-                            }}
-                        >
-                            <Text>{i18n.t("close")}</Text>
-                        </Button>
-                    </View>
+                            setLoadingNewURL(true);
+                            await updateDynamicURL(
+                                props.myID,
+                                urlName.trim(),
+                                isTableDynamicURL ? selectedTableID : "",
+                                isTableDynamicURL ? "" : selectedTeamMatchID,
+                                isTableDynamicURL ? "0" : selectedTableNumber,
+                                selectedScoreboardID
+                            );
+                            props.onClose(true);
+                            setLoadingNewURL(false);
+                        }}
+                    >
+                        {loadingNewURL ?
+                            <Spinner color={openScoreboardButtonTextColor} size={"sm"} /> :
+                            <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>{i18n.t("save")}</Text>}
+
+                    </Button>
+                    <Button
+                        marginLeft={2}
+                        onPress={() => {
+                            props.onClose();
+                        }}
+                        variant={"ghost"}
+                    >
+                        <Text color={"gray.700"} fontWeight={"bold"}>{i18n.t("close")}</Text>
+                    </Button>
 
                 </Modal.Footer>
             </Modal.Content>

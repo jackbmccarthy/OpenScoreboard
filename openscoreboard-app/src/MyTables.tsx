@@ -1,7 +1,7 @@
 
 
 import React, { useEffect, useState } from 'react';
-import { Button, View, NativeBaseProvider, FlatList, AddIcon, Text } from 'native-base';
+import { Button, View, NativeBaseProvider, ScrollView, Text } from 'native-base';
 import db, { getUserPath } from '../database';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
@@ -13,6 +13,8 @@ import { TableLinkModal } from './modals/TableLinkModal';
 import { EditTablePlayerListModal } from './modals/EditTablePlayerListModal';
 import i18n from './translations/translate';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
+import { getCombinedPlayerNames } from './functions/players';
+import { createNewMatch } from './functions/scoring';
 
 
 
@@ -28,6 +30,7 @@ export default function MyTables(props) {
     let [showEditModal, setShowEditModal] = useState(false)
     let [showEditPlayerListModal, setShowEditPlayerListModal] = useState(false)
     let [showRegistrationModal, setShowRegistrationModal] = useState(false)
+    let [creatingMatchTableID, setCreatingMatchTableID] = useState("")
 
     let [selectedEditTable, setSelectedEditTable] = useState({})
     let [selectedTableID, setSelectedTableID] = useState("")
@@ -60,8 +63,10 @@ export default function MyTables(props) {
     }
 
 
-    async function loadTables() {
-        setDoneLoading(false)
+    async function loadTables(showPageLoading = true) {
+        if (showPageLoading) {
+            setDoneLoading(false)
+        }
         let val = await db.ref("users" + "/" + getUserPath() + "/" + "myTables").get()
         var tableIDList = []
         var tableList = []
@@ -79,18 +84,37 @@ export default function MyTables(props) {
                     db.ref("tables/" + tableID[1] + "/password").get(),
                     db.ref("tables/" + tableID[1] + "/playerListID").get(),
                     db.ref("tables/" + tableID[1] + "/sportName").get(),
-                    db.ref("tables/" + tableID[1] + "/scoringType").get()
+                    db.ref("tables/" + tableID[1] + "/scoringType").get(),
+                    db.ref("tables/" + tableID[1] + "/currentMatch").get()
                 ])
                 let tableNameSnapShot = tableDataPromise[0]
                 let tablePasswordSnap = tableDataPromise[1]
                 let tablePlayerListIDSnap = tableDataPromise[2]
                 let tableSportName = tableDataPromise[3]
                 let tableScoringType = tableDataPromise[4]
+                let currentMatchSnap = tableDataPromise[5]
                 let tableName = tableNameSnapShot.val()
                 let password = tablePasswordSnap.val()
                 let playerListID = tablePlayerListIDSnap.val()
                 let sportName = tableSportName.val()
                 let scoringType = tableScoringType.val()
+                let currentMatchID = currentMatchSnap.val()
+                let currentMatchPreview = { playerA: "TBD", playerB: "TBD" }
+                let hasCurrentMatch = false
+
+                if (typeof currentMatchID === "string" && currentMatchID.length > 0) {
+                    const matchSnap = await db.ref(`matches/${currentMatchID}`).get()
+                    const match = matchSnap.val()
+
+                    if (match) {
+                        hasCurrentMatch = true
+                        const playerNames = getCombinedPlayerNames(match.playerA, match.playerB, match.playerA2, match.playerB2)
+                        currentMatchPreview = {
+                            playerA: playerNames.a?.length > 0 ? playerNames.a : "TBD",
+                            playerB: playerNames.b?.length > 0 ? playerNames.b : "TBD",
+                        }
+                    }
+                }
                 //let tableIDSnapShot = await db.ref(tournamentDB+"/"+tableID+"/id").get()
                 return {
                     myTableID: tableID[0],
@@ -99,7 +123,10 @@ export default function MyTables(props) {
                     password: password,
                     playerListID: playerListID,
                     sportName: sportName,
-                    scoringType: scoringType
+                    scoringType: scoringType,
+                    currentMatchID: currentMatchID,
+                    currentMatchPreview: currentMatchPreview,
+                    hasCurrentMatch: hasCurrentMatch
                 }
 
             }))
@@ -110,6 +137,26 @@ export default function MyTables(props) {
             setTableList([])
         }
         setDoneLoading(true)
+    }
+
+    async function createMatchForTable(tableInfo) {
+        try {
+            setCreatingMatchTableID(tableInfo.id)
+            await createNewMatch(
+                tableInfo.id,
+                tableInfo.sportName ? tableInfo.sportName : "tableTennis",
+                null,
+                false,
+                tableInfo.scoringType ? tableInfo.scoringType : null
+            )
+            await loadTables(false)
+        }
+        catch (err) {
+            console.error(err)
+        }
+        finally {
+            setCreatingMatchTableID("")
+        }
     }
 
     useEffect(() => {
@@ -134,37 +181,53 @@ export default function MyTables(props) {
         return (
             <NativeBaseProvider theme={openScoreboardTheme}>
                 <View width={"100%"} height={"100%"}>
-                    <View flex={1}>
-                        {
-                            tableList.length > 0 ?
-                                <FlatList maxW={"lg"} width={"100%"} alignSelf="center"
-                                    //contentContainerStyle={{alignItems:"center", width:"100%"}}
-                                    data={tableList}
-                                    renderItem={(item) => {
-                                        return (
-                                            <TableItem index={item.index} {...props} openEditPlayerList={openEditPlayerList} openLinkModal={openLinkModal} openEditTable={openEditTable} openRegistrationModal={openRegistrationModal} {...item.item} />
-                                        )
-                                    }}
+                    <ScrollView
+                        backgroundColor={"gray.50"}
+                        flex={1}
+                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 32, paddingTop: 8 }}
+                    >
+                        {tableList.length > 0 ? (
+                            <View width={"100%"} maxW={1040} alignSelf={"center"}>
+                                {tableList.map((table, index) => (
+                                    <TableItem
+                                        key={table.id || table.myTableID}
+                                        index={index}
+                                        {...props}
+                                        openEditPlayerList={openEditPlayerList}
+                                        openLinkModal={openLinkModal}
+                                        openEditTable={openEditTable}
+                                        openRegistrationModal={openRegistrationModal}
+                                        createMatchForTable={createMatchForTable}
+                                        isCreatingMatch={creatingMatchTableID === table.id}
+                                        {...table}
+                                    />
+                                ))}
+                            </View>
+                        ) : (
+                            <View flex={1} justifyContent={"center"} alignItems="center" padding={4}>
+                                <View
+                                    backgroundColor={"white"}
+                                    borderColor={"gray.200"}
+                                    borderRadius={8}
+                                    borderWidth={1}
+                                    padding={4}
+                                    width={"100%"}
+                                    maxW={420}
                                 >
-
-                                </FlatList>
-                                :
-                                <View justifyContent={"center"} alignItems="center">
-                                    <View>
-                                        <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noTables")}</Text>
-                                        <View padding={2}>
-                                            <Button
-                                                onPress={() => {
-                                                    setShowCreateTable(true)
-                                                }}
-                                            >
-                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
-                                            </Button>
-                                        </View>
+                                    <Text color={"gray.900"} fontSize={"xl"} fontWeight="bold">{i18n.t("noTables")}</Text>
+                                    <View marginTop={3}>
+                                        <Button
+                                            onPress={() => {
+                                                setShowCreateTable(true)
+                                            }}
+                                        >
+                                            <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
+                                        </Button>
                                     </View>
                                 </View>
-                        }
-                    </View>
+                            </View>
+                        )}
+                    </ScrollView>
 
 
 
@@ -212,6 +275,9 @@ export default function MyTables(props) {
                                 {...selectedEditTable}
                                 onClose={(reload) => {
                                     setShowEditPlayerListModal(false)
+                                    if (reload) {
+                                        loadTables()
+                                    }
                                 }}
                             ></EditTablePlayerListModal>
                             : null

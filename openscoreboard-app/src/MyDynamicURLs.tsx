@@ -1,7 +1,7 @@
 
 
 import React, { useEffect, useState } from 'react';
-import { Button, View, NativeBaseProvider, FlatList, Fab, AddIcon, ChevronRightIcon, Text, Divider } from 'native-base';
+import { Button, View, NativeBaseProvider, FlatList, Text } from 'native-base';
 
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
@@ -60,38 +60,48 @@ export default function MyDynamicURLs(props) {
         return (
             <NativeBaseProvider theme={openScoreboardTheme}>
                 <View height={"100%"} width={"100%"}>
-                    <View flex={1}>
+                    <View backgroundColor={"gray.50"} flex={1}>
                         {
                             dynamicURLList.length > 0 ?
-                                <FlatList maxW={"lg"} width={"100%"} alignSelf="center"
+                                <FlatList
+                                    alignSelf={"center"}
+                                    contentContainerStyle={{ paddingBottom: 32, paddingTop: 8 }}
                                     //contentContainerStyle={{alignItems:"center", width:"100%"}}
                                     data={dynamicURLList}
+                                    maxW={1040}
                                     renderItem={(item) => {
                                         return (
-                                            <>
-                                                <DynamicURLItem
-                                                    reload={() => { loadMyDynamicURLs() }}
-                                                    openEditDynamicURLModal={openEditDynamicURLModal}
-                                                    {...item} ></DynamicURLItem>
-                                                <Divider></Divider>
-                                            </>
+                                            <DynamicURLItem
+                                                reload={() => { loadMyDynamicURLs() }}
+                                                openEditDynamicURLModal={openEditDynamicURLModal}
+                                                {...item} />
 
                                         )
                                     }}
+                                    width={"100%"}
                                 >
 
                                 </FlatList>
                                 :
-                                <View justifyContent={"center"} alignItems="center">
-                                    <View>
-                                        <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noDynamicURLs")}</Text>
+                                <View flex={1} justifyContent={"center"} alignItems="center" padding={4}>
+                                    <View
+                                        backgroundColor={"white"}
+                                        borderColor={"gray.200"}
+                                        borderRadius={8}
+                                        borderWidth={1}
+                                        maxW={420}
+                                        padding={4}
+                                        width={"100%"}
+                                    >
+                                        <Text color={"gray.900"} fontSize={"xl"} fontWeight="bold">{i18n.t("noDynamicURLs")}</Text>
                                         <View padding={2}>
                                             <Button
+                                                backgroundColor={"black"}
                                                 onPress={() => {
                                                     setShowNewDynamicURLModal(true)
                                                 }}
                                             >
-                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
+                                                <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>{i18n.t("createOne")}</Text>
                                             </Button>
                                         </View>
                                     </View>

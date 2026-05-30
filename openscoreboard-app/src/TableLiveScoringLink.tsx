@@ -13,7 +13,7 @@ import { TableLinkModal } from './modals/TableLinkModal';
 import { EditTablePlayerListModal } from './modals/EditTablePlayerListModal';
 import i18n from './translations/translate';
 import { TableLiveScoringLinkItem } from './listitems/TableLiveScoringLinkItem';
-import CopyButton from './components/CopyButton';
+import { CopyInputRightButton } from './components/CopyButton';
 import { subFolderPath } from '../openscoreboard.config';
 
 
@@ -82,6 +82,12 @@ export default function TableLiveScoringLink(props) {
     }, [])
 
     if (doneLoading) {
+        const liveScoringURL = `${"https://openscoreboard.com/live-scoring?tables="}${Object.entries(selectedTables).filter(([id, isSelected]) => {
+            return isSelected
+        }).map(([id, isSelected]) => {
+            return id
+        }).join(",")}`;
+
         return (
             <NativeBaseProvider theme={openScoreboardTheme}>
                 <View width={"100%"} height={"100%"}>
@@ -91,17 +97,12 @@ export default function TableLiveScoringLink(props) {
                             {Object.entries(selectedTables).filter(([id, isSelected]) => {
                                 return isSelected
                             }).length > 0 ?
-                                <View padding={1} flexDir={"row"}>
-                                    <Input flex={1} isReadOnly value={`${"https://openscoreboard.com/live-scoring?tables="}${Object.entries(selectedTables).filter(([id, isSelected]) => {
-                                        return isSelected
-                                    }).map(([id, isSelected]) => {
-                                        return id
-                                    }).join(",")}`}></Input>
-                                    <CopyButton text={`${"https://openscoreboard.com/live-scoring?tables="}${Object.entries(selectedTables).filter(([id, isSelected]) => {
-                                        return isSelected
-                                    }).map(([id, isSelected]) => {
-                                        return id
-                                    }).join(",")}`} />
+                                <View padding={1}>
+                                    <Input
+                                        isReadOnly
+                                        InputRightElement={<CopyInputRightButton text={liveScoringURL} />}
+                                        value={liveScoringURL}
+                                    />
                                 </View>
 
                                 : null

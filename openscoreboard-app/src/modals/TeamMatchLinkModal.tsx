@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button, View, Modal, FormControl, Input, Text } from 'native-base';
 import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
-import CopyButton from '../components/CopyButton';
+import { CopyInputRightButton } from '../components/CopyButton';
 import ScoreboardLinkList from '../components/ScoreboardLinkList';
 import { subFolderPath } from '../../openscoreboard.config';
 import i18n from '../translations/translate';
@@ -29,10 +29,11 @@ export function TeamMatchLinkModal(props) {
                         <FormControl>
                             <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreKeepingURL")}</Text>
                             <Text textAlign={"center"}>{i18n.t("shareThisLink")}</Text>
-                            <View flexDirection={"row"}>
-                                <Input flex={1} isReadOnly value={scoreKeepingURL}></Input>
-                                <CopyButton text={scoreKeepingURL} />
-                            </View>
+                            <Input
+                                isReadOnly
+                                InputRightElement={<CopyInputRightButton text={scoreKeepingURL} />}
+                                value={scoreKeepingURL}
+                            />
 
                         </FormControl>
                     </View>

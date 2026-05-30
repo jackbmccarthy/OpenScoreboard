@@ -4,6 +4,7 @@ import Table from "../classes/Table";
 export async function resetTablePassword(tableID) {
   let newPassword = uuidv4()
   await db.ref("tables/" + tableID + "/password").set(newPassword)
+  return newPassword
 
 }
 
