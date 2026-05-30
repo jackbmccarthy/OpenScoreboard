@@ -2,6 +2,7 @@ import db, { getUserPath } from "../../database";
 import { getTableName, getTablePassword } from "./tables";
 import { getTeamMatch } from "./teammatches";
 import { getTeamName } from "./teams";
+import { getMyScoreboards } from "./scoreboards";
 
 export async function getMyDynamicURLs(includeName = false) {
     let myURLsSnap = await db.ref(`users/${getUserPath()}/mydynamicurls`).get()
@@ -9,6 +10,7 @@ export async function getMyDynamicURLs(includeName = false) {
     if (myURLs) {
         if (includeName) {
             let entryList = Object.entries(myURLs)
+            let scoreboards = await getMyScoreboards(getUserPath())
             let additionalInfoPromises = await Promise.all(entryList.map(async (myDynURL) => {
                 let newItem = { ...myDynURL[1] }
 
@@ -25,6 +27,11 @@ export async function getMyDynamicURLs(includeName = false) {
                     newItem["teamMatchStartTime"] = teamNames["startTime"]
                     newItem["teamAName"] = await getTeamName(newItem["teamAID"])
                     newItem["teamBName"] = await getTeamName(newItem["teamBID"])
+                }
+
+                if (newItem["scoreboardID"] && newItem["scoreboardID"].length > 0) {
+                    const selectedScoreboard = scoreboards.find((scoreboard) => scoreboard[1].id === newItem["scoreboardID"])
+                    newItem["scoreboardName"] = selectedScoreboard?.[1]?.name || ""
                 }
 
                 return [myDynURL[0], newItem]
