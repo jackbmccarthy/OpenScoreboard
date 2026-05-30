@@ -8,12 +8,12 @@ import TableScoring from './src/TableScoring';
 import MyScoreboards from './src/MyScoreboards';
 import MyTeams from './src/MyTeams';
 import MyTeamMatches from './src/MyTeamMatches';
-import { isLocalDatabase, subFolderPath } from './openscoreboard.config';
+import { isFirebaseAuthRequired, subFolderPath } from './openscoreboard.config';
 import Home from './src/Home';
 import Login from './src/Login';
 import ScheduledTableMatches from './src/ScheduledTableMatches';
 import { LinearGradient } from 'expo-linear-gradient';
-import { authStateListener } from './database';
+import { authStateListener, migrateLocalUserDataToFirebaseUser } from './database';
 import MyAccount from './src/MyAccount';
 import LoadingPage from './src/LoadingPage';
 import MyPlayerLists from './src/MyPlayerLists';
@@ -23,6 +23,7 @@ import BulkAddPlayer from './src/BulkAddPlayers';
 import PlayerRegistration from './src/PlayerRegistration';
 import i18n from './src/translations/translate';
 import TableLiveScoringLink from './src/TableLiveScoringLink';
+import { HeaderActions } from './src/components/HeaderActions';
 
 export const linkingConfig = {
   screens: {
@@ -61,33 +62,42 @@ const ScoreboardStack = createNativeStackNavigator()
 function ScoreboardNavigation() {
 
   let [doneLoading, setDoneLoading] = useState(false)
-  let [isSignedIn, setIsSignedIn] = useState(isLocalDatabase)
+  let [isSignedIn, setIsSignedIn] = useState(false)
   let [hasLoadedLogin, setHasLoadedLogin] = useState(false)
 
 
 
   useEffect(() => {
-    if (!isLocalDatabase) {
-      authStateListener((user) => {
+    if (!isFirebaseAuthRequired) {
+      setIsSignedIn(true)
+      setDoneLoading(true)
+      return
+    }
 
-        if (user) {
+    authStateListener(async (user) => {
 
+      if (user) {
+
+        try {
+          await migrateLocalUserDataToFirebaseUser(user)
           setIsSignedIn(true)
           setDoneLoading(true)
-
         }
-        else {
+        catch (err) {
+          console.error(err)
           setIsSignedIn(false)
           setDoneLoading(true)
         }
 
+      }
+      else {
+        setIsSignedIn(false)
+        setDoneLoading(true)
+      }
 
 
-      })
-    }
-    else {
-      setDoneLoading(true)
-    }
+
+    })
   }, [])
 
   if (doneLoading) {
@@ -97,7 +107,7 @@ function ScoreboardNavigation() {
       <NavigationContainer linking={{ config: linkingConfig, }}>
 
 
-        <ScoreboardStack.Navigator screenOptions={{
+        <ScoreboardStack.Navigator screenOptions={({ navigation }) => ({
           contentStyle: {
             backgroundColor: "white"
           },
@@ -114,8 +124,9 @@ function ScoreboardNavigation() {
             />)
           },
 
+          headerRight: () => <HeaderActions navigation={navigation} />,
           headerTintColor: "white"
-        }} >
+        })} >
 
 
           {
@@ -133,7 +144,7 @@ function ScoreboardNavigation() {
                 <ScoreboardStack.Screen name="ScheduledTableMatches" component={ScheduledTableMatches} options={{ title: i18n.t("scheduledMatches") }} />
                 <ScoreboardStack.Screen name="TableScoring" component={TableScoring} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="TeamMatchScoring" component={TableScoring} ></ScoreboardStack.Screen>
-                <ScoreboardStack.Screen name="MyAccount" component={MyAccount} options={{ title: i18n.t("myAccount") }} ></ScoreboardStack.Screen>
+                {isFirebaseAuthRequired ? <ScoreboardStack.Screen name="MyAccount" component={MyAccount} options={{ title: i18n.t("myAccount") }} ></ScoreboardStack.Screen> : null}
                 <ScoreboardStack.Screen name="MyPlayerLists" component={MyPlayerLists} options={{ title: i18n.t("playerLists") }} ></ScoreboardStack.Screen>
                 {/* <ScoreboardStack.Screen name="QRCodeScreen" component={QRCodeScreen}  ></ScoreboardStack.Screen> */}
                 <ScoreboardStack.Screen name="DynamicURLS" component={MyDynamicURLs} options={{ title: i18n.t("dynamicURLs") }} ></ScoreboardStack.Screen>
@@ -178,5 +189,3 @@ export default function App() {
   );
 
 }
-
-

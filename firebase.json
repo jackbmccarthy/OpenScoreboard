@@ -10,6 +10,142 @@
     "trailingSlash": false,
     "rewrites": [
       {
+        "source": "/login",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/login/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/account",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/account/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/myaccount",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/myaccount/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/tables",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/tables/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/archivedmatches",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/archivedmatches/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/addplayers",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/addplayers/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/scoreboards",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/scoreboards/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/teams",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/teams/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/teammatches",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/teammatches/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/scheduledtablematches",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/scheduledtablematches/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/playerlists",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/playerlists/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/dynamicurls",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/dynamicurls/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/bulkplayer",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/bulkplayer/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/tablelivescoring",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/tablelivescoring/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/scoring",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/scoring/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/teamscoring",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/teamscoring/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/playerregistration",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/playerregistration/**",
+        "destination": "/app/index.html"
+      },
+      {
         "source": "/app/**",
         "destination": "/app/index.html"
       },

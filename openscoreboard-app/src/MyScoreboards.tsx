@@ -13,6 +13,7 @@ import { ScoreboardItem } from './listitems/ScoreboardItem';
 import { ScoreboardMessageModal } from './modals/ScoreboardMessageModal';
 import { EditScoreboardSettingsModal } from './modals/EditScoreboardSettingsModal';
 import i18n from './translations/translate';
+import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 
 
 export default function MyScoreboards(props) {
@@ -45,14 +46,12 @@ export default function MyScoreboards(props) {
     useEffect(() => {
         props.navigation.setOptions({
             headerRight: () => (
-                <NativeBaseProvider>
-                    <Button height={"100%"} width={"100%"} variant={"ghost"} onPress={() => {
+                <HeaderActions
+                    navigation={props.navigation}
+                    action={<HeaderIconButton label={i18n.t("createOne")} onPress={() => {
                         setShowNewScoreboardModal(true)
-                    }} >
-                        <AddIcon size="xl" color={openScoreboardButtonTextColor} ></AddIcon>
-                    </Button>
-                </NativeBaseProvider>
-
+                    }} />}
+                />
             ),
         });
         getScoreboards()

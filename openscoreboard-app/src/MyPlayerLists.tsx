@@ -9,6 +9,7 @@ import LoadingPage from './LoadingPage';
 import { AddPlayerListModal } from './modals/AddPlayerListModal';
 import { PlayerListItem } from './listitems/PlayerListItem';
 import i18n from './translations/translate';
+import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 
 export default function MyPlayerLists(props) {
     let [doneLoading, setDoneLoading] = useState(false)
@@ -28,14 +29,12 @@ export default function MyPlayerLists(props) {
 
         props.navigation.setOptions({
             headerRight: () => (
-                <NativeBaseProvider>
-                    <Button height={"100%"} width={"100%"} variant={"ghost"} onPress={() => {
+                <HeaderActions
+                    navigation={props.navigation}
+                    action={<HeaderIconButton label={i18n.t("createOne")} onPress={() => {
                         setShowNewPlayerList(true)
-                    }} >
-                        <AddIcon size="xl" color={openScoreboardButtonTextColor}  ></AddIcon>
-                    </Button>
-                </NativeBaseProvider>
-
+                    }} />}
+                />
             ),
         });
         loadMyPlayerList()
