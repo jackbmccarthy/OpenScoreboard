@@ -8,8 +8,7 @@ const HEADER_TEXT = "#ffffff";
 const HEADER_BORDER = "rgba(255, 255, 255, 0.28)";
 const HEADER_FILL = "rgba(255, 255, 255, 0.14)";
 
-function getInitials() {
-    const user = getCurrentUser();
+function getInitials(user) {
     const label = user?.displayName || user?.email || "Account";
     const parts = label.split(/[ @._-]+/).filter(Boolean);
 
@@ -20,8 +19,7 @@ function getInitials() {
     return label.slice(0, 2).toUpperCase();
 }
 
-function AccountAvatar() {
-    const user = getCurrentUser();
+function AccountAvatar({ user }) {
     const [hasPhotoError, setHasPhotoError] = React.useState(false);
     const photoURL = user?.photoURL?.trim();
 
@@ -41,7 +39,7 @@ function AccountAvatar() {
 
     return (
         <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{getInitials()}</Text>
+            <Text style={styles.avatarText}>{getInitials(user)}</Text>
         </View>
     );
 }
@@ -67,15 +65,23 @@ export function HeaderIconButton({ label, onPress }) {
 
 export function HeaderActions({ navigation, action = null }) {
     const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+    const currentUser = getCurrentUser();
+    const shouldShowAccountMenu = isFirebaseAuthRequired && Boolean(currentUser);
 
-    if (!action && !isFirebaseAuthRequired) {
+    React.useEffect(() => {
+        if (!shouldShowAccountMenu) {
+            setIsMenuOpen(false);
+        }
+    }, [shouldShowAccountMenu]);
+
+    if (!action && !shouldShowAccountMenu) {
         return null;
     }
 
     return (
         <View style={styles.wrap}>
             {action}
-            {isFirebaseAuthRequired ? (
+            {shouldShowAccountMenu ? (
                 <View>
                     <Pressable
                         accessibilityRole="button"
@@ -86,7 +92,7 @@ export function HeaderActions({ navigation, action = null }) {
                             (hovered || pressed || isMenuOpen) ? styles.activeButton : null,
                         ]}
                     >
-                        <AccountAvatar />
+                        <AccountAvatar user={currentUser} />
                     </Pressable>
                     {isMenuOpen ? (
                         <View style={styles.accountMenu}>
