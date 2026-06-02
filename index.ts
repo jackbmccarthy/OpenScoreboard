@@ -6,6 +6,7 @@ import  addEditorRoutes   from "./routes/addEditorRoutes";
 import  addAppRoutes   from "./routes/addAppRoutes";
 import  addHomeRoutes   from "./routes/addHomeRoutes";
 import  addScoreboardRoutes   from "./routes/addScoreboardRoutes";
+import  addMaintenanceRoutes   from "./routes/addMaintenanceRoutes";
 
 
 function startServer(databaseName, databasePath, port=process.env.PORT ? parseInt(process.env.PORT):8080, ) {
@@ -28,6 +29,7 @@ function startServer(databaseName, databasePath, port=process.env.PORT ? parseIn
       maxAge: 30,     // Keep logs of last 30 days
       noWait: false   // Data changes wait for log to be written
     },
+    ipc: 'socket' as any,
     authentication: {
       enabled: false,
       allowUserSignup: false,
@@ -35,6 +37,7 @@ function startServer(databaseName, databasePath, port=process.env.PORT ? parseIn
       defaultAdminPassword: 'tabletennis'
     },
     plugins:[ 
+      addMaintenanceRoutes,
       addEditorRoutes, 
       addAppRoutes,  
       addScoreboardRoutes, 
@@ -45,4 +48,3 @@ function startServer(databaseName, databasePath, port=process.env.PORT ? parseIn
 return server
 }
 export default startServer
-

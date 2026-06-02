@@ -1,3 +1,20 @@
+function setVisible(matchNode: HTMLElement, isVisible: boolean) {
+    if (isVisible) {
+        matchNode.style.display = matchNode.dataset.osbVisibleDisplay || "flex";
+        matchNode.style.opacity = "1";
+        matchNode.style.visibility = "visible";
+    }
+    else {
+        const currentDisplay = window.getComputedStyle(matchNode).display;
+        if (currentDisplay && currentDisplay !== "none") {
+            matchNode.dataset.osbVisibleDisplay = currentDisplay;
+        }
+
+        matchNode.style.display = "none";
+        matchNode.style.opacity = "0";
+    }
+}
+
 export const conditionalShowFieldList = [
     {
         field: "isACurrentlyServing",
@@ -95,49 +112,31 @@ export const conditionalShowFieldList = [
     {
         field: "isATimeOutActive",
         action: (matchNode: HTMLElement, value) => {
-            if (value === true) {
-                matchNode.style.opacity = "1";
-
-            }
-            else {
-                matchNode.style.opacity = "0";
-            }
+            setVisible(matchNode, value === true);
         }
     },
     {
         field: "isATimeOutUsed",
         action: (matchNode: HTMLElement, value) => {
-            if (value === true) {
-                matchNode.style.opacity = "1";
-
-            }
-            else {
-                matchNode.style.opacity = "0";
-            }
+            setVisible(matchNode, value === true);
         }
     },
     {
         field: "isBTimeOutUsed",
         action: (matchNode: HTMLElement, value) => {
-            if (value === true) {
-                matchNode.style.opacity = "1";
-
-            }
-            else {
-                matchNode.style.opacity = "0";
-            }
+            setVisible(matchNode, value === true);
         }
     },
     {
         field: "isBTimeOutActive",
         action: (matchNode: HTMLElement, value) => {
-            if (value === true) {
-                matchNode.style.opacity = "1";
-
-            }
-            else {
-                matchNode.style.opacity = "0";
-            }
+            setVisible(matchNode, value === true);
+        }
+    },
+    {
+        field: "isTimeOutActive",
+        action: (matchNode: HTMLElement, value) => {
+            setVisible(matchNode, value === true);
         }
     },
     {

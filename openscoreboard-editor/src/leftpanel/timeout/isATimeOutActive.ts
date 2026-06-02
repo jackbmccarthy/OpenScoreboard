@@ -3,12 +3,14 @@ export function isATimeOutActive(editor: grapesjs.default.Editor) {
     editor.Components.addType('isATimeOutActive', {
         model: {
             defaults: {
+                components: "Time Out",
                 style: {
                     width: "100%",
                     height: "100%",
                     display: "flex",
                     "flex-direction": "row",
                     "align-items": "center",
+                    "justify-content": "center",
                 },
                 dragMode: "absolute",
                 resizable: true,

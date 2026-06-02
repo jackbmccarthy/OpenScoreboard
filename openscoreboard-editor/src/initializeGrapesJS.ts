@@ -7,7 +7,8 @@ import { loadFixedContainerBlocks } from './plugins/loadFixedContainerBlocks';
 import { removeUnwantedButtons } from './plugins/removeUnwantedButtons';
 import { addTopBarButtons } from './plugins/addTopBarButtons';
 import { loadBorderStyles } from './plugins/loadBorderStyles';
-import loadTemplatesPlugin from './templates';
+import { loadAnimationStyles } from './plugins/loadAnimationStyles';
+import { loadTextOverflowStyles } from './plugins/loadTextOverflowStyles';
 import { textFieldList, currentGameFieldList, teamFieldList, solidColorFieldList, courtSideGameFieldList, imageFieldList } from './fieldLists';
 import { addIsMatchOrGamePoint } from './plugins/addIsMatchOrGamePoint';
 import { addFlagPenalties } from './plugins/addFlagPenalties';
@@ -18,8 +19,45 @@ import { connectToLiveTTScoreboardDB } from './plugins/connectToLiveTTScoreboard
 import { loadImageBlocks } from './leftpanel/loadImageBlocks';
 import { loadSolidColorBlocks } from './leftpanel/loadSolidColorBlocks';
 import { loadTextBlocks } from './leftpanel/loadTextBlocks';
+import { applyBlockIcons } from './blockIcons';
+import { loadGoogleFonts } from './editorFonts';
+import { installUnsavedChangesPrompt } from './plugins/installUnsavedChangesPrompt';
+
+async function loadSavedScoreboardProject(editor: grapesjs.default.Editor) {
+    try {
+        const projectData = await editor.Storage.load();
+
+        if (projectData && Object.keys(projectData).length > 0) {
+            editor.loadProjectData(projectData);
+        }
+
+        editor.clearDirtyCount();
+    } catch (error) {
+        console.error("Failed to load saved scoreboard project", error);
+    }
+}
 
 export function initializeGrapesJS(scoreboardID:string|null) {
+
+    const plugins = [
+        exportPlugin,
+        bgPlugin,
+        connectToLiveTTScoreboardDB,
+        loadGoogleFonts,
+        loadBorderStyles,
+        loadTextOverflowStyles,
+        loadAnimationStyles,
+        removeUnwantedButtons,
+        addTopBarButtons,
+        loadFixedContainerBlocks,
+        basicBlocks,
+        addServiceIconBlocks,
+        addIsMatchOrGamePoint,
+        addFlagPenalties,
+        addTimeOuts,
+        addCourtSideService,
+        addIsGameStartedFields
+    ];
 
     const editor = grapesjs.init({
         container: '#gjs2',
@@ -68,26 +106,10 @@ export function initializeGrapesJS(scoreboardID:string|null) {
             options: {
                 remote: { key: scoreboardID },
             },
-            autoload: true,
+            autoload: false,
             autosave: false
         },
-        plugins: [
-           // loadTemplatesPlugin,
-            exportPlugin,
-            bgPlugin,
-            connectToLiveTTScoreboardDB,
-            loadBorderStyles,
-            removeUnwantedButtons,
-            addTopBarButtons,
-            loadFixedContainerBlocks,
-            basicBlocks,
-            addServiceIconBlocks,
-            addIsMatchOrGamePoint,
-            addFlagPenalties,
-            addTimeOuts,
-            addCourtSideService,
-            addIsGameStartedFields
-        ],
+        plugins,
         pluginsOpts: {
             [exportPlugin]: { /* options */ },
             [bgPlugin]: {},
@@ -97,16 +119,25 @@ export function initializeGrapesJS(scoreboardID:string|null) {
         }
     });
 
+    window.openScoreboardEditor = editor;
     editor.UndoManager.start();
+    installUnsavedChangesPrompt(editor);
+
+    if (import.meta.env.DEV) {
+        import('./templates')
+            .then(({ default: loadTemplatesPlugin }) => loadTemplatesPlugin(editor))
+            .catch((error) => console.error('Failed to load test scoreboard templates', error));
+    }
 
     loadTextBlocks(editor, [...currentGameFieldList, ...textFieldList, ...teamFieldList, ...courtSideGameFieldList]);
     loadSolidColorBlocks(editor, [...solidColorFieldList]);
     loadImageBlocks(editor, [...imageFieldList]);
+    applyBlockIcons(editor);
 
 
     editor.on("load", async () => {
         editor.Panels.removePanel("devices-c");
-        editor.loadProjectData(await editor.Storage.load());
+        await loadSavedScoreboardProject(editor);
         editor.on("asset:upload:response", (response) => {
             console.log(response);
         });
@@ -117,4 +148,3 @@ export function initializeGrapesJS(scoreboardID:string|null) {
         });
     });
 }
-

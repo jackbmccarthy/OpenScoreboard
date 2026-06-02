@@ -18,6 +18,7 @@ export function loadTextBlocks(editor, fieldList) {
                         flex: 1,
                         height: "100%",
                         width: "100%",
+                        "min-width": "0",
                         display: "flex",
                         "justify-content": item.justify,
                         "align-items": "center"

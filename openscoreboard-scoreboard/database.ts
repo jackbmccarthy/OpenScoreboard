@@ -3,7 +3,7 @@ import firebase from 'firebase';
 
 
 let db;
-const isLocalDatabase = import.meta.env.VITE_IS_LOCAL_DATABASE !== "true" ? false : true
+const isLocalDatabase = import.meta.env.VITE_IS_LOCAL_DATABASE !== "false"
 if (typeof window !== "undefined" && isLocalDatabase) {
     db = new AceBaseClient({ 
         host: window.location.hostname, 
