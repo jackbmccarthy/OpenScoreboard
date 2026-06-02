@@ -4,6 +4,8 @@ import { addScoreboardSettingListeners, getScoreboardSettings} from './addScoreb
 import { dynamicURLListener } from './dynamicurls';
 import { runAllListeners } from './runAllListeners';
 import { addCSS } from './addCSS';
+import { addScoreboardAnimationStyles, initializeAlwaysOnViewAnimations } from './animations/scoreboardAnimations';
+import { getWithAceBaseRepair } from './repairLocalAceBaseNode';
 
 export let listenerRemovalList:{ (): void; }[] = []
 
@@ -21,9 +23,16 @@ const addToListenerList = (removeFunc:{():void}) =>{
     listenerRemovalList.push(removeFunc)
 }
 
+const initializeViewAnimations = (root: HTMLElement | null) => {
+    window.requestAnimationFrame(() => {
+        initializeAlwaysOnViewAnimations(root || document);
+    });
+}
+
 
 async function runScoreboard(scoreboardID:string|null, tableID:string|null=null, teamMatchID:string|null=null, tableNumber:string|null=null, ) {
     let root = document.getElementById("gjs");
+    addScoreboardAnimationStyles();
     await getScoreboardSettings(scoreboardID)
     addScoreboardSettingListeners(scoreboardID, root)
     let isInitialRun = true;
@@ -31,6 +40,7 @@ async function runScoreboard(scoreboardID:string|null, tableID:string|null=null,
         // Loading the default scoreboard
         root.innerHTML = defaultScoreboard.html
         document.head.appendChild(document.createElement("style")).innerHTML = defaultScoreboard.css;
+        initializeViewAnimations(root);
         if (isInitialRun) {
             runAllListeners(isInitialRun,tableID, teamMatchID, tableNumber, resetListeners, addToListenerList);
             isInitialRun = false;
@@ -40,10 +50,18 @@ async function runScoreboard(scoreboardID:string|null, tableID:string|null=null,
         }
     }
     else {
+        await Promise.all([
+            getWithAceBaseRepair(db, `/scoreboards/${scoreboardID}/web/html`),
+            getWithAceBaseRepair(db, `/scoreboards/${scoreboardID}/web/css`),
+        ]).catch((error) => {
+            console.warn("Failed to verify scoreboard web nodes before listener setup.", error);
+        });
+
         db.ref(`/scoreboards/${scoreboardID}/web/html`).on("value", (html) => {
             let newHTML = html.val();
             if (typeof newHTML === "string" && root !== null) {
                 root.innerHTML = newHTML;
+                initializeViewAnimations(root);
 
                 if (isInitialRun) {
                     runAllListeners(isInitialRun, tableID, teamMatchID, tableNumber ,resetListeners, addToListenerList);
@@ -64,6 +82,7 @@ async function runScoreboard(scoreboardID:string|null, tableID:string|null=null,
             let newCSS = css.val();
             if (typeof newCSS === "string") {
                 addCSS(newCSS);
+                initializeViewAnimations(root);
             }
 
         });
@@ -117,6 +136,3 @@ else if(dynamicURLID !== null && dynamicURLID.length > 0 ){
 else{
 
 }
-
-
-

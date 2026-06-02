@@ -1,6 +1,5 @@
-
-export function isBTimeOutActive(editor: grapesjs.default.Editor) {
-    editor.Components.addType('isBTimeOutActive', {
+export function isTimeOutActive(editor: grapesjs.default.Editor) {
+    editor.Components.addType('isTimeOutActive', {
         model: {
             defaults: {
                 components: "Time Out",
@@ -15,16 +14,15 @@ export function isBTimeOutActive(editor: grapesjs.default.Editor) {
                 dragMode: "absolute",
                 resizable: true,
 
-                attributes: { class: "isBTimeOutActive", },
+                attributes: { class: "isTimeOutActive", },
             }
         }
     });
 
-    editor.BlockManager.add("isBTimeOutActive", {
-        // media: `<img src="${defaultServiceIconSVG}" />`,
-        label: 'Time Out B',
+    editor.BlockManager.add("isTimeOutActive", {
+        label: 'Time Out Active',
         attributes: { class: 'fa fa-text' },
-        content: { type: 'isBTimeOutActive', dmode: "absolute" },
+        content: { type: 'isTimeOutActive', dmode: "absolute" },
         category: "Time Outs",
     });
 }

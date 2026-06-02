@@ -1,4 +1,37 @@
 import { getBroadcastChannelName } from "./getBroadcastChannelName";
+import { runAnimatedFieldAction } from "./animations/scoreboardAnimations";
+
+const fieldUpdateEventName = "open-scoreboard-field-update";
+
+function hasField(data, field) {
+    return data && Object.prototype.hasOwnProperty.call(data, field);
+}
+
+function hasAllRequiredFields(currentMatchSettings, requiredFields) {
+    return requiredFields.every((field) => hasField(currentMatchSettings, field));
+}
+
+function createFieldUpdateHandler(callback) {
+    let lastSignature = "";
+    let lastHandledAt = 0;
+
+    return (data) => {
+        const signature = JSON.stringify(data);
+        const now = Date.now();
+
+        if (signature === lastSignature && now - lastHandledAt < 50) {
+            return;
+        }
+
+        lastSignature = signature;
+        lastHandledAt = now;
+        callback(data);
+    };
+}
+
+function isTimeoutField(fieldName: string) {
+    return fieldName.toLowerCase().includes("timeout");
+}
 
 
 export function addCurrentGameFieldListeners(fieldList) {
@@ -11,28 +44,65 @@ export function addCurrentGameFieldListeners(fieldList) {
         for (const matchNode of existingNodes) {
 
             if (item.requiredFields) {
-                for (const field of item.requiredFields) {
-                    let bc = new BroadcastChannel(field+getBroadcastChannelName())
-                    bc.onmessage = (event) => {
-                        currentMatchSettings = { ...currentMatchSettings, ...event.data };
-                        if (typeof item.action === "function") {
-                            if (Object.keys(currentMatchSettings).length === item.requiredFields.length)
-                                item.action(matchNode, null, currentMatchSettings)
+                const handleFieldUpdate = createFieldUpdateHandler((data) => {
+                    const relevantData = item.requiredFields.reduce((updates, field) => {
+                        if (hasField(data, field)) {
+                            updates[field] = data[field];
+                        }
+
+                        return updates;
+                    }, {});
+
+                    if (Object.keys(relevantData).length === 0) {
+                        return;
+                    }
+
+                    currentMatchSettings = { ...currentMatchSettings, ...relevantData };
+                    if (typeof item.action === "function" && hasAllRequiredFields(currentMatchSettings, item.requiredFields)) {
+                        if (isTimeoutField(item.field)) {
+                            console.log("OpenScoreboard timeout action", item.field, currentMatchSettings);
+                        }
+                        runAnimatedFieldAction(matchNode as HTMLElement, item.action, null, currentMatchSettings, item.field)
+                    }
+                });
+
+                window.addEventListener(fieldUpdateEventName, (event: CustomEvent) => {
+                    handleFieldUpdate(event.detail);
+                });
+
+                if (typeof BroadcastChannel !== "undefined") {
+                    for (const field of item.requiredFields) {
+                        let bc = new BroadcastChannel(field+getBroadcastChannelName())
+                        bc.onmessage = (event) => {
+                            handleFieldUpdate(event.data);
                         }
                     }
                 }
             }
             else {
-                let bc = new BroadcastChannel(item.field+getBroadcastChannelName())
-                bc.onmessage = (event) => {
-                    if (event.data && typeof event.data[item.field] !== "undefined") {
+                const handleFieldUpdate = createFieldUpdateHandler((data) => {
+                    if (hasField(data, item.field)) {
                         const fieldName = item.field
-                        const value = event.data[item.field]
+                        const value = data[item.field]
                         if (typeof item.action === "function") {
-                            item.action(matchNode, value)
+                            if (isTimeoutField(fieldName)) {
+                                console.log("OpenScoreboard timeout action", fieldName, value);
+                            }
+                            runAnimatedFieldAction(matchNode as HTMLElement, item.action, value, undefined, fieldName)
                         }
 
 
+                    }
+                });
+
+                window.addEventListener(fieldUpdateEventName, (event: CustomEvent) => {
+                    handleFieldUpdate(event.detail);
+                });
+
+                if (typeof BroadcastChannel !== "undefined") {
+                    let bc = new BroadcastChannel(item.field+getBroadcastChannelName())
+                    bc.onmessage = (event) => {
+                        handleFieldUpdate(event.data);
                     }
                 }
 

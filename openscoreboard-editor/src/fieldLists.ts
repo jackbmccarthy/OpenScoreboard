@@ -264,6 +264,15 @@ export const conditionalShowFieldList = [
         field: "isMatchPoint",
     },
     {
+        field: "isATimeOutActive",
+    },
+    {
+        field: "isBTimeOutActive",
+    },
+    {
+        field: "isTimeOutActive",
+    },
+    {
         field: "isATimeOutUsed",
     },
     {

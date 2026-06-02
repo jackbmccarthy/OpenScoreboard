@@ -2,6 +2,7 @@
 import legacy from '@vitejs/plugin-legacy'
 
 export default {
+  envDir: '..',
   server: {
     port:3002,
     strictPort:true,

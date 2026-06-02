@@ -8,10 +8,11 @@ import { courtSideGameFieldList } from "./fields/courtSideGameFieldList";
 import { solidColorFieldList } from "./fields/solidColorFieldList";
 import { conditionalShowFieldList } from "./fields/conditionalShowFieldList";
 import { teamFieldList } from "./fields/teamFieldList";
+import { timeOutTimerFieldList } from "./fields/timeOutTimerFieldList";
 import { updateCurrentMatch, updateTeamAID, updateTeamAScore, updateTeamBID, updateTeamBScore, updateTeamMatch } from './teamUpdates';
 
 export async function runAllListeners(isInitialRun: boolean, tableID: string | null = null, teamMatchID: string | null = null, tableNumber: string| null = null, resetListeners: { (): void }, addToListenerList: { (data: { (): void }): void }) {
-    addCurrentGameFieldListeners([...currentGameFieldList, ...courtSideGameFieldList, ...textFieldList, ...teamFieldList, ...solidColorFieldList, ...conditionalShowFieldList, ...imageFieldList]);
+    addCurrentGameFieldListeners([...currentGameFieldList, ...courtSideGameFieldList, ...textFieldList, ...teamFieldList, ...solidColorFieldList, ...conditionalShowFieldList, ...timeOutTimerFieldList, ...imageFieldList]);
 
     if (tableID !== null && tableID.length > 0) {
         console.log(isInitialRun)
