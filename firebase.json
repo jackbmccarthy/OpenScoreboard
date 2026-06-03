@@ -146,6 +146,14 @@
         "destination": "/app/index.html"
       },
       {
+        "source": "/teammanager",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/teammanager/**",
+        "destination": "/app/index.html"
+      },
+      {
         "source": "/app/**",
         "destination": "/app/index.html"
       },

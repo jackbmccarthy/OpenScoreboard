@@ -12,8 +12,18 @@ export default async function getMyTeamMatches(userID) {
     myTeamMatches = myTeamMatches.val()
     if (typeof myTeamMatches === "object" && myTeamMatches !== null) {
         return await Promise.all(Object.entries(myTeamMatches).map(async ([id, item]) => {
-            let teamMatchScores = await getTeamMatchTeamScore(item.id)
-            return [id, { ...item, teamAScore: teamMatchScores.a, teamBScore: teamMatchScores.b }]
+            const teamMatch = await getTeamMatch(item.id) || {}
+            let teamMatchScores = {
+                a: teamMatch.teamAScore || 0,
+                b: teamMatch.teamBScore || 0,
+            }
+            return [id, {
+                ...teamMatch,
+                ...item,
+                currentMatches: teamMatch.currentMatches || {},
+                teamAScore: teamMatchScores.a,
+                teamBScore: teamMatchScores.b,
+            }]
         }))
     }
     else {
@@ -31,6 +41,11 @@ export async function createTeamMatchNewMatch(teamMatchID, tableNumber, sportNam
 
 export async function getTeamMatch(teamMatchID) {
     let pushedTeam = await db.ref(`teamMatches/${teamMatchID}`).get()
+    return pushedTeam.val()
+}
+
+export async function getMyTeamMatch(myTeamMatchID) {
+    let pushedTeam = await db.ref(`users/${getUserPath()}/myTeamMatches/${myTeamMatchID}`).get()
     return pushedTeam.val()
 }
 
@@ -65,14 +80,16 @@ export async function addNewTeamMatch(teamMatch) {
 }
 
 export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
-    let pushedTeam = await db.ref(`teamMatches/${teamMatchID}`).set(teamMatch)
-    await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches/" + myTeamMatchID).push({
+    await db.ref(`teamMatches/${teamMatchID}`).set(teamMatch)
+    await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches/" + myTeamMatchID).update({
         id: teamMatchID,
         teamAName: await getTeamName(teamMatch.teamAID),
         teamBName: await getTeamName(teamMatch.teamBID),
-        startTime: teamMatch.startTime
+        startTime: teamMatch.startTime,
+        sportName: teamMatch.sportName,
+        sportDisplayName: supportedSports[teamMatch.sportName]?.displayName || "",
+        scoringType: teamMatch.scoringType || "",
     })
-    return pushedTeam.val()
 }
 
 export async function getImportTeamMembersList(player, teamMatchID) {

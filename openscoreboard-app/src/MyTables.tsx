@@ -8,9 +8,7 @@ import { openScoreboardTheme } from "../openscoreboardtheme";
 import CreateNewTableModal from './modals/CreateNewTableModal';
 import { TableItem } from './listitems/TableItem';
 import LoadingPage from './LoadingPage';
-import { TableEditModal } from './modals/TableEditModal';
 import { TableLinkModal } from './modals/TableLinkModal';
-import { EditTablePlayerListModal } from './modals/EditTablePlayerListModal';
 import i18n from './translations/translate';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 import { getCombinedPlayerNames } from './functions/players';
@@ -25,14 +23,9 @@ export default function MyTables(props) {
     let [tableList, setTableList] = useState([])
     let [doneLoading, setDoneLoading] = useState(false)
     let [showCreateTable, setShowCreateTable] = useState(false)
-    let [selectedNewEventType, setSelectedNewEventType] = useState(false)
     let [showLinkModal, setShowLinkModal] = useState(false)
-    let [showEditModal, setShowEditModal] = useState(false)
-    let [showEditPlayerListModal, setShowEditPlayerListModal] = useState(false)
-    let [showRegistrationModal, setShowRegistrationModal] = useState(false)
     let [creatingMatchTableID, setCreatingMatchTableID] = useState("")
 
-    let [selectedEditTable, setSelectedEditTable] = useState({})
     let [selectedTableID, setSelectedTableID] = useState("")
     let [selectedTableIndex, setSelectedTableIndex] = useState(0)
     const openLinkModal = (tableID, tableIndex) => {
@@ -42,24 +35,6 @@ export default function MyTables(props) {
     }
     const closeLinkModal = () => {
         setShowLinkModal(false)
-    }
-
-    const openEditTable = (tableInfo) => {
-        setSelectedEditTable({ ...tableInfo })
-        setShowEditModal(true)
-    }
-    const openEditPlayerList = (tableInfo) => {
-        setSelectedEditTable({ ...tableInfo })
-        setShowEditPlayerListModal(true)
-    }
-
-    const openRegistrationModal = (tableID: string, tableIndex: number) => {
-        setSelectedTableID(tableID)
-        setSelectedTableIndex(tableIndex)
-        setShowRegistrationModal(true)
-    }
-    const closeRegistrationModal = () => {
-        setShowRegistrationModal(false)
     }
 
 
@@ -175,6 +150,11 @@ export default function MyTables(props) {
         });
 
         loadTables()
+        const unsubscribe = props.navigation.addListener("focus", () => {
+            loadTables(false)
+        })
+
+        return unsubscribe
     }, [])
 
     if (doneLoading) {
@@ -193,10 +173,7 @@ export default function MyTables(props) {
                                         key={table.id || table.myTableID}
                                         index={index}
                                         {...props}
-                                        openEditPlayerList={openEditPlayerList}
                                         openLinkModal={openLinkModal}
-                                        openEditTable={openEditTable}
-                                        openRegistrationModal={openRegistrationModal}
                                         createMatchForTable={createMatchForTable}
                                         isCreatingMatch={creatingMatchTableID === table.id}
                                         {...table}
@@ -258,33 +235,6 @@ export default function MyTables(props) {
                             :
                             null
                     }
-
-                    {
-                        showEditModal ?
-                            <TableEditModal isOpen={showEditModal}
-                                {...selectedEditTable} onClose={(reload) => {
-                                    setShowEditModal(false)
-                                    if (reload) {
-                                        loadTables()
-                                    }
-                                }} ></TableEditModal> : null
-                    }
-                    {
-                        showEditPlayerListModal ?
-                            <EditTablePlayerListModal isOpen={showEditPlayerListModal}
-                                {...selectedEditTable}
-                                onClose={(reload) => {
-                                    setShowEditPlayerListModal(false)
-                                    if (reload) {
-                                        loadTables()
-                                    }
-                                }}
-                            ></EditTablePlayerListModal>
-                            : null
-                    }
-
-
-
 
                 </View>
             </NativeBaseProvider>

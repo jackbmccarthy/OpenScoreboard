@@ -6,6 +6,7 @@ import { newImportedPlayer } from '../classes/Player';
 import { newTeam } from '../classes/Team';
 import { v4 as uuidv4 } from 'uuid';
 import { TeamPlayerItem } from '../listitems/TeamPlayerItem';
+import TeamLogoPreview from '../components/TeamLogoPreview';
 import i18n from '../translations/translate';
 
 export function NewTeamModal(props) {
@@ -32,7 +33,7 @@ export function NewTeamModal(props) {
         if (props.isEditingTeam) {
             setLoadingNewTeam(true);
             await updateTeam(props.editingTeamID, { ...editingTeam.current, teamName: teamName, teamLogoURL: teamLogoURL, players: JSON.parse(JSON.stringify(players)) });
-            await updateMyTeam(props.editingMyTeamID, teamName);
+            await updateMyTeam(props.editingMyTeamID, teamName, teamLogoURL);
             setLoadingNewTeam(false);
 
             props.onClose();
@@ -159,6 +160,18 @@ export function NewTeamModal(props) {
                                 ref={teamNameRef} value={teamName} onChangeText={setTeamName}></Input>
                             <FormControl.Label>{i18n.t("teamLogoURL")}</FormControl.Label>
                             <Input value={teamLogoURL} onChangeText={setTeamLogoURL}></Input>
+                            {teamLogoURL.trim().length > 0 ? (
+                                <View
+                                    backgroundColor={"gray.50"}
+                                    borderColor={"gray.200"}
+                                    borderRadius={8}
+                                    borderWidth={1}
+                                    marginTop={3}
+                                    padding={3}
+                                >
+                                    <TeamLogoPreview logoURL={teamLogoURL} teamName={teamName} size={76} label={"Logo preview"} />
+                                </View>
+                            ) : null}
                             <FormControl.Label>{i18n.t("players")}</FormControl.Label>
                             {players && Object.entries(players).map((player, index) => {
                                 return (
@@ -199,7 +212,7 @@ export function NewTeamModal(props) {
                                 if (props.isEditingTeam) {
                                     setLoadingNewTeam(true);
                                     await updateTeam(props.editingTeamID, { ...editingTeam.current, teamName: teamName, teamLogoURL: teamLogoURL, players: JSON.parse(JSON.stringify(players)) });
-                                    await updateMyTeam(props.editingMyTeamID, teamName);
+                                    await updateMyTeam(props.editingMyTeamID, teamName, teamLogoURL);
                                     setLoadingNewTeam(false);
 
                                     props.onClose();

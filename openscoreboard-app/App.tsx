@@ -24,6 +24,10 @@ import PlayerRegistration from './src/PlayerRegistration';
 import i18n from './src/translations/translate';
 import TableLiveScoringLink from './src/TableLiveScoringLink';
 import { HeaderActions } from './src/components/HeaderActions';
+import TeamEditor from './src/TeamEditor';
+import TeamMatchEditor from './src/TeamMatchEditor';
+import TeamMatchPublicView from './src/TeamMatchPublicView';
+import TableEditor from './src/TableEditor';
 
 export const linkingConfig = {
   screens: {
@@ -37,6 +41,15 @@ export const linkingConfig = {
     PlayerRegistration: {
       path: subFolderPath + "/playerregistration/:playerListID/:password",
     },
+    TeamManager: {
+      path: subFolderPath + "/teammanager/:teamID/:password",
+    },
+    TeamMatchPublicView: {
+      path: subFolderPath + "/teammatches/view/:teamMatchID",
+      parse: {
+        embed: (embed) => embed === true || embed === "true",
+      },
+    },
     Login: subFolderPath + "/login",
     Home: {
       path: subFolderPath + "/",
@@ -46,7 +59,10 @@ export const linkingConfig = {
         AddPlayers: subFolderPath + "/addplayers",
         MyScoreboards: subFolderPath + "/scoreboards",
         MyTeams: subFolderPath + "/teams",
+        TeamEditor: subFolderPath + "/teams/:myTeamID/edit/:teamID",
+        TableEditor: subFolderPath + "/tables/:myTableID/manage/:tableID",
         MyTeamMatches: subFolderPath + "/teammatches",
+        TeamMatchEditor: subFolderPath + "/teammatches/:myTeamMatchID/edit/:teamMatchID",
         ScheduledTableMatches: subFolderPath + "/scheduledtablematches",
         //QRCodeScreen:subFolderPath+"/qrcode",
         BulkAddPlayer: subFolderPath + "/bulkplayer"
@@ -58,6 +74,10 @@ export const linkingConfig = {
 }
 console.log(linkingConfig)
 const ScoreboardStack = createNativeStackNavigator()
+
+function isEmbeddedRoute(route) {
+  return route?.params?.embed === true || route?.params?.embed === "true"
+}
 
 function ScoreboardNavigation() {
 
@@ -136,11 +156,19 @@ function ScoreboardNavigation() {
               <ScoreboardStack.Group navigationKey={isSignedIn === true ? "user" : "guest"}>
                 <ScoreboardStack.Screen name="Home" component={Home} options={{ title: "Open Scoreboard" }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name={"MyTables"} component={MyTables} options={{ title: i18n.t("myTables") }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="TableEditor" component={TableEditor} options={{ title: "Manage Table/Court" }} />
                 <ScoreboardStack.Screen name="ArchivedMatchList" component={ArchivedMatchList} options={{ title: i18n.t("archivedMatches") }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="AddPlayers" component={AddPlayers} options={{ title: i18n.t("managePlayers") }} />
                 <ScoreboardStack.Screen name="MyScoreboards" component={MyScoreboards} options={{ title: i18n.t("myScoreboards") }} />
                 <ScoreboardStack.Screen name="MyTeams" component={MyTeams} options={{ title: i18n.t("myTeams") }} />
+                <ScoreboardStack.Screen name="TeamEditor" component={TeamEditor} options={{ title: "Edit Team" }} />
                 <ScoreboardStack.Screen name="MyTeamMatches" component={MyTeamMatches} options={{ title: i18n.t("myTeamMatches") }} />
+                <ScoreboardStack.Screen name="TeamMatchEditor" component={TeamMatchEditor} options={{ title: i18n.t("editTeamMatch") }} />
+                <ScoreboardStack.Screen
+                  name="TeamMatchPublicView"
+                  component={TeamMatchPublicView}
+                  options={({ route }) => ({ title: i18n.t("teamMatch"), headerShown: !isEmbeddedRoute(route) })}
+                />
                 <ScoreboardStack.Screen name="ScheduledTableMatches" component={ScheduledTableMatches} options={{ title: i18n.t("scheduledMatches") }} />
                 <ScoreboardStack.Screen name="TableScoring" component={TableScoring} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="TeamMatchScoring" component={TableScoring} ></ScoreboardStack.Screen>
@@ -149,7 +177,8 @@ function ScoreboardNavigation() {
                 {/* <ScoreboardStack.Screen name="QRCodeScreen" component={QRCodeScreen}  ></ScoreboardStack.Screen> */}
                 <ScoreboardStack.Screen name="DynamicURLS" component={MyDynamicURLs} options={{ title: i18n.t("dynamicURLs") }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="BulkAddPlayer" component={BulkAddPlayer} options={{ title: "Bulk Add Player" }} ></ScoreboardStack.Screen>
-                <ScoreboardStack.Screen name="PlayerRegistration" component={PlayerRegistration} options={{ title: i18n.t("playerRegistrationScreen") }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="PlayerRegistration" component={PlayerRegistration} options={{ headerShown: false }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="TeamManager" component={TeamEditor} options={{ headerShown: false }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="TableLiveScoringLink" component={TableLiveScoringLink} options={{ title: i18n.t("tableLiveScoring") }} ></ScoreboardStack.Screen>
 
               </ScoreboardStack.Group>
@@ -161,6 +190,12 @@ function ScoreboardNavigation() {
                 <ScoreboardStack.Screen name="TableScoring" component={TableScoring} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="TeamMatchScoring" component={TableScoring} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="PlayerRegistration" component={PlayerRegistration} options={{ headerShown: false }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="TeamManager" component={TeamEditor} options={{ headerShown: false }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen
+                  name="TeamMatchPublicView"
+                  component={TeamMatchPublicView}
+                  options={({ route }) => ({ title: i18n.t("teamMatch"), headerShown: !isEmbeddedRoute(route) })}
+                />
               </>
 
 

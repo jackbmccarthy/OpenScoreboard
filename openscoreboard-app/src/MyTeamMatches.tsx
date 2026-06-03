@@ -2,6 +2,7 @@
 
 
 import React, { Component, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { ActivityIndicator, Dimensions, Image, ScrollView, Share } from 'react-native';
 import { Button, View, NativeBaseProvider, FlatList, Fab, AddIcon, Input, Text } from 'native-base';
 import { addNewScoreboard, getMyScoreboards, getScoreboardTypesList } from './functions/scoreboards';
@@ -17,8 +18,6 @@ import { TeamMatchItem } from './listitems/TeamMatchItem';
 import { NewTeamMatchModal } from './modals/NewTeamMatchModal';
 import { TableLinkModal } from './modals/TableLinkModal';
 import { TeamMatchLinkModal } from './modals/TeamMatchLinkModal';
-import { EditTeamMatchModal } from './modals/EditTeamMatchModal';
-import { DeleteTeamMatchModal } from './modals/DeleteTeamMatchModal';
 import i18n from './translations/translate';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 
@@ -28,10 +27,6 @@ export default function MyTeamMatches(props) {
     let [doneLoading, setDoneLoading] = useState(false)
     let [showNewTeamMatchModal, setShowNewTeamMatchModal] = useState(false)
     let [showTeamMatchTableModal, setShowTeamMatchTableModal] = useState(false)
-    let [showDeleteTeamMatchModel, setShowDeleteTeamMatchModal] = useState(false)
-    let [deleteTeamMatchMyID, setDeleteTeamMatchMyID] = useState("")
-
-    let [showTeamMatchEditModal, setShowTeamMatchEditModal] = useState(false)
     let [showLinkModal, setShowLinkModal] = useState(false)
     let [selectedTeamMatchID, setSelectedTeamMatchID] = useState("")
     let [selectedTeamMatchIndex, setSelectedTeamMatchIndex] = useState(0)
@@ -45,18 +40,22 @@ export default function MyTeamMatches(props) {
         setSelectedTeamMatchIndex(teamMatchIndex)
         setShowTeamMatchTableModal(true)
     }
-    const openTeamMatchEdit = (teamMatchID, teamMatchIndex) => {
-
-        setSelectedTeamMatchID(teamMatchID)
-        setSelectedTeamMatchIndex(teamMatchIndex)
-        setShowTeamMatchEditModal(true)
+    const openTeamMatchEdit = (teamMatchID, myTeamMatchID) => {
+        props.navigation.navigate("TeamMatchEditor", {
+            teamMatchID,
+            myTeamMatchID,
+        })
     }
     const closeTeamMatchTableSelection = () => {
         setShowTeamMatchTableModal(true)
     }
 
     const openTeamMatchLink = (teamMatchID, tableID, sportName, scoringType) => {
+        const teamMatchIndex = teamMatchList.findIndex((teamMatch) => teamMatch[1]?.id === teamMatchID);
         setSelectedTeamMatchID(teamMatchID)
+        if (teamMatchIndex >= 0) {
+            setSelectedTeamMatchIndex(teamMatchIndex)
+        }
         setSelectedTableID(tableID)
         setTeamSportName(sportName)
         setTeamScoringType(scoringType)
@@ -80,22 +79,6 @@ export default function MyTeamMatches(props) {
         setDoneLoading(true)
     }
 
-    async function openDeleteTeamMatch(myTeamMatchID) {
-        setDeleteTeamMatchMyID(myTeamMatchID)
-        setShowDeleteTeamMatchModal(true)
-    }
-    async function hideDeleteTeamMatch(reload = false) {
-        setShowDeleteTeamMatchModal(false)
-        setDeleteTeamMatchMyID("")
-
-        if (reload) {
-            loadTeamMatches()
-        }
-
-
-
-    }
-
     useEffect(() => {
         props.navigation.setOptions({
             headerRight: () => (
@@ -111,6 +94,12 @@ export default function MyTeamMatches(props) {
 
 
     }, [])
+
+    useFocusEffect(
+        React.useCallback(() => {
+            loadTeamMatches()
+        }, [])
+    )
 
     if (doneLoading) {
         return (
@@ -129,9 +118,11 @@ export default function MyTeamMatches(props) {
                                         return (
 
                                             <TeamMatchItem {...props}
+                                                goToKeepScore={goToKeepScore}
+                                                openTeamMatchLink={openTeamMatchLink}
                                                 openTeamMatchEdit={openTeamMatchEdit}
                                                 openTeamMatchTableSelection={openTeamMatchTableSelection}
-                                                openDeleteTeamMatch={openDeleteTeamMatch}
+                                                reloadTeamMatches={loadTeamMatches}
                                                 {...item}></TeamMatchItem>
 
                                         )
@@ -186,39 +177,14 @@ export default function MyTeamMatches(props) {
                     }
 
                     {
-                        showTeamMatchEditModal ?
-                            <EditTeamMatchModal isOpen={showTeamMatchEditModal}
-                                tableID={selectedTableID}
-                                {...teamMatchList[selectedTeamMatchIndex][1]}
-                                onClose={(reload) => {
-                                    setShowTeamMatchEditModal(false)
-                                    if (reload) {
-                                        loadTeamMatches()
-                                    }
-                                }} isTeamMatch={true}  ></EditTeamMatchModal>
-
-                            : null
-                    }
-                    {
                         showLinkModal ?
                             <TeamMatchLinkModal isOpen={showLinkModal}
                                 tableID={selectedTableID}
                                 {...teamMatchList[selectedTeamMatchIndex][1]}
                                 onClose={() => {
                                     setShowLinkModal(false)
-                                    setShowTeamMatchTableModal(true)
                                 }} isTeamMatch={true}  ></TeamMatchLinkModal>
 
-                            : null
-                    }
-                    {
-                        showDeleteTeamMatchModel ?
-                            <DeleteTeamMatchModal
-                                isOpen={showDeleteTeamMatchModel}
-                                onClose={hideDeleteTeamMatch}
-                                allTeamMatches={teamMatchList}
-                                deleteTeamMatchMyID={deleteTeamMatchMyID}
-                            ></DeleteTeamMatchModal>
                             : null
                     }
                 </View>

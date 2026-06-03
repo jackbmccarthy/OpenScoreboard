@@ -97,9 +97,9 @@ export function EditScoreboardSettingsModal(props) {
                     <View padding={1} alignItems="center" flexDirection={"row"}>
                         <View flex={1} padding={1}>
                             <Button
-                                onPress={() => {
+                                onPress={async () => {
                                     setLoadingScoreboardSettings(true)
-                                    setScoreboardSettings(props.scoreboardID, showDuringActiveMatch, showDuringTimeOuts, showInBetweenGames, alwaysShow)
+                                    await setScoreboardSettings(props.scoreboardID, showDuringActiveMatch, showDuringTimeOuts, showInBetweenGames, alwaysShow)
                                     setLoadingScoreboardSettings(false)
                                     props.onClose()
                                 }}

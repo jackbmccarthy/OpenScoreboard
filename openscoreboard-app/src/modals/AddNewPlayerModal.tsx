@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Text, View, Input, Modal, FormControl, ChevronLeftIcon, TextField } from 'native-base';
+import { Button, Text, View, Input, Modal, FormControl, TextField } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { addImportedPlayer, editImportedPlayer } from '../functions/players';
 import { newImportedPlayer } from '../classes/Player';
-import CountryFlagList from '../components/CountryFlagList';
+import CountrySelect from '../components/CountrySelect';
 import jsonFlags from '../flags/countries.json'
 import i18n from '../translations/translate';
 
@@ -53,10 +53,7 @@ export function AddNewPlayerModal(props) {
     let [lastName, setLastName] = useState("");
     let [imageURL, setImageURL] = useState("");
     let [country, setCountry] = useState("");
-    let [allCountries, setAllCountries] = useState({});
     let [isBulkAdd, setIsBulkAdd] = useState(false)
-
-    let [showCountrySelection, setShowCountrySelection] = useState(false);
 
     let [csvValue, setCSVValue] = useState("")
     let [doneLoading, setDoneLoading] = useState(false)
@@ -135,15 +132,6 @@ export function AddNewPlayerModal(props) {
 
     }
 
-    useEffect(() => {
-        async function getCountryNames() {
-            let flagList = jsonFlags;
-            setAllCountries(flagList);
-        }
-        getCountryNames();
-
-    }, []);
-
     const resetPlayerFields = () => {
         setFirstName("");
         setLastName("");
@@ -211,85 +199,57 @@ export function AddNewPlayerModal(props) {
 
 
 
-                        {showCountrySelection ?
+                        {isBulkAdd ?
                             <>
-                                <View>
-                                    <Button padding={1} justifyContent={"flex-start"} variant={"ghost"} onPress={() => {
-                                        setShowCountrySelection(false);
-                                    }}>
-                                        <View alignItems={"center"} flexDirection={"row"}>
-                                            <ChevronLeftIcon></ChevronLeftIcon>
-                                            <Text>{i18n.t("back")}</Text>
-                                        </View>
+                                <FormControl isInvalid={csvError.length > 0}>
+                                    <FormControl.Label>{i18n.t("csvOrder")}</FormControl.Label>
 
-                                    </Button>
-                                </View>
-                                <CountryFlagList onSelection={(countryCode) => {
-                                    setCountry(countryCode);
-                                    setShowCountrySelection(false);
-                                }}></CountryFlagList>
+                                    <FormControl.ErrorMessage>{csvError}</FormControl.ErrorMessage>
+
+                                    <TextField
+                                        multiline
+                                        placeholder="Paste CSV Values"
+                                        onChangeText={(text) => {
+                                            setCSVValue(text)
+                                        }}
+                                    ></TextField>
+                                </FormControl>
+
+
                             </>
+                            : <>
+                                <FormControl.Label>
+                                    {i18n.t("firstName")}
+                                </FormControl.Label>
+                                <Input ref={playerFirstName} value={firstName}
+                                    onChangeText={(text) => {
+                                        setFirstName(text);
+                                    }}
+                                ></Input>
 
+                                <FormControl.Label>
+                                    {i18n.t("lastName")}
+                                </FormControl.Label>
+                                <Input value={lastName}
+                                    onChangeText={(text) => {
+                                        setLastName(text);
+                                    }}
+                                ></Input>
 
-                            :
-                            <>
-                                {isBulkAdd ?
-                                    <>
-                                        <FormControl isInvalid={csvError.length > 0}>
-                                            <FormControl.Label>{i18n.t("csvOrder")}</FormControl.Label>
-
-                                            <FormControl.ErrorMessage>{csvError}</FormControl.ErrorMessage>
-
-                                            <TextField
-                                                multiline
-                                                placeholder="Paste CSV Values"
-                                                onChangeText={(text) => {
-                                                    setCSVValue(text)
-                                                }}
-                                            ></TextField>
-                                        </FormControl>
-
-
-                                    </>
-                                    : <>
-                                        <FormControl.Label>
-                                            {i18n.t("firstName")}
-                                        </FormControl.Label>
-                                        <Input ref={playerFirstName} value={firstName}
-                                            onChangeText={(text) => {
-                                                setFirstName(text);
-                                            }}
-                                        ></Input>
-
-                                        <FormControl.Label>
-                                            {i18n.t("lastName")}
-                                        </FormControl.Label>
-                                        <Input value={lastName}
-                                            onChangeText={(text) => {
-                                                setLastName(text);
-                                            }}
-                                        ></Input>
-
-                                        <FormControl.Label>
-                                            {i18n.t("imageURL")}
-                                        </FormControl.Label>
-                                        <Input value={imageURL}
-                                            onChangeText={(text) => {
-                                                setImageURL(text);
-                                            }}
-                                        ></Input>
-                                        <FormControl.Label>
-                                            {i18n.t("country")}
-                                        </FormControl.Label>
-                                        <Button onPress={() => {
-                                            setShowCountrySelection(true);
-                                        }}>
-                                            <Text color={openScoreboardButtonTextColor}>{country.length > 0 ? allCountries[country.toUpperCase()] : "Select Country"}</Text>
-                                        </Button>
-                                    </>
-                                }
-
-                            </>}
+                                <FormControl.Label>
+                                    {i18n.t("imageURL")}
+                                </FormControl.Label>
+                                <Input value={imageURL}
+                                    onChangeText={(text) => {
+                                        setImageURL(text);
+                                    }}
+                                ></Input>
+                                <FormControl.Label>
+                                    {i18n.t("country")}
+                                </FormControl.Label>
+                                <CountrySelect value={country} onChange={setCountry} />
+                            </>
+                        }
 
                     </FormControl>
                 </Modal.Body>

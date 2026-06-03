@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, Button, View } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
-import { Ionicons, FontAwesome5, MaterialCommunityIcons, AntDesign } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supportedSports } from '../functions/sports';
 
 function MatchPlayerPreview({ label, name }) {
@@ -133,36 +133,16 @@ export function TableItem(props) {
                     />
                 )}
                 <TableAction
-                    label={"Players"}
-                    icon={(color) => <FontAwesome5 name="users" size={18} color={color} />}
+                    label={"Manage"}
+                    icon={(color) => <Ionicons name="settings-outline" size={19} color={color} />}
                     onPress={() => {
-                        props.openEditPlayerList(props);
-                    }}
-                />
-                <TableAction
-                    label={"History"}
-                    icon={(color) => <FontAwesome5 name="history" size={18} color={color} />}
-                    onPress={() => {
-                        props.navigation.navigate("ArchivedMatchList", { tableID: props.id, name: props.tableName });
-                    }}
-                />
-                <TableAction
-                    label={"Schedule"}
-                    icon={(color) => <AntDesign name="calendar" size={18} color={color} />}
-                    onPress={() => {
-                        props.navigation.navigate("ScheduledTableMatches", {
+                        props.navigation.navigate("TableEditor", {
                             tableID: props.id,
+                            myTableID: props.myTableID,
                             name: props.tableName,
                             sportName: props.sportName,
                             scoringType: props.scoringType,
                         });
-                    }}
-                />
-                <TableAction
-                    label={"Settings"}
-                    icon={(color) => <Ionicons name="settings-outline" size={19} color={color} />}
-                    onPress={() => {
-                        props.openEditTable(props);
                     }}
                 />
                 <TableAction

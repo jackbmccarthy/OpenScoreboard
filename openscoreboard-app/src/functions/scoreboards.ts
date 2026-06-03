@@ -7,7 +7,20 @@ export async function getMyScoreboards(userID,) {
     let myScoreboardsSnap = await db.ref("users" + "/" + userID + "/" + "myScoreboards").get()
     let myScoreboards = myScoreboardsSnap.val()
     if (myScoreboards !== null && typeof myScoreboards === "object") {
-        return Object.entries(myScoreboards)
+        return Promise.all(Object.entries(myScoreboards).map(async ([id, data]) => {
+            const scoreboardID = data["id"]
+            const scoreboardSnap = await db.ref(`scoreboards/${scoreboardID}`).get()
+            const scoreboard = scoreboardSnap.val() || {}
+
+            return [id, {
+                ...data,
+                alwaysShow: scoreboard.alwaysShow,
+                showDuringActiveMatch: scoreboard.showDuringActiveMatch,
+                showDuringTimeOuts: scoreboard.showDuringTimeOuts,
+                showInBetweenGames: scoreboard.showInBetweenGames,
+                type: scoreboard.type || data["type"],
+            }]
+        }))
     }
     else {
         return []

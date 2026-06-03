@@ -10,6 +10,7 @@ export function newTeam(name, teamLogoURL, players = {}) {
     return {
         teamName: name,
         teamLogoURL: teamLogoURL,
-        players: players
+        players: players,
+        teamManagerPassword: uuidv4()
     }
 }

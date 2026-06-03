@@ -2,8 +2,9 @@
 
 
 import React, { Component, useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, ScrollView, Share } from 'react-native';
-import { Button, View, NativeBaseProvider, FlatList, Fab, AddIcon, Select, Text } from 'native-base';
+import { useFocusEffect } from '@react-navigation/native';
+import { ActivityIndicator, Dimensions, Image, Share, useWindowDimensions } from 'react-native';
+import { Button, View, NativeBaseProvider, ScrollView, Fab, AddIcon, Select, Text } from 'native-base';
 import { addNewScoreboard, getMyScoreboards, getScoreboardTypesList } from './functions/scoreboards';
 import { getUserPath } from '../database';
 import LoadingPage from './LoadingPage';
@@ -24,6 +25,8 @@ export default function MyTeams(props) {
     let [isEditingTeam, setIsEditingTeam] = useState(false)
     let [editingTeamID, setEditingTeamID] = useState("")
     let [editingMyTeamID, setEditingMyTeamID] = useState("")
+    const { width } = useWindowDimensions()
+    const useTwoColumns = width >= 760
 
     async function loadTeams() {
         setDoneLoading(false)
@@ -33,10 +36,10 @@ export default function MyTeams(props) {
     }
 
     const openEditTeam = (teamID, myTeamID) => {
-        setEditingTeamID(teamID)
-        setEditingMyTeamID(myTeamID)
-        setIsEditingTeam(true)
-        setShowNewTeamModal(true)
+        props.navigation.navigate("TeamEditor", {
+            teamID,
+            myTeamID,
+        })
     }
     const closeEditTeam = () => {
         setIsEditingTeam(false)
@@ -61,10 +64,13 @@ export default function MyTeams(props) {
                 />
             ),
         });
-        loadTeams()
-
-
     }, [])
+
+    useFocusEffect(
+        React.useCallback(() => {
+            loadTeams()
+        }, [])
+    )
 
     if (doneLoading) {
         return (
@@ -73,21 +79,34 @@ export default function MyTeams(props) {
                     <View flex={1}>
                         {
                             teamList.length > 0 ?
-                                <FlatList
-                                    data={teamList}
-                                    keyExtractor={(item) => { return item[0] }}
-                                    renderItem={(item) => {
-                                        return <TeamItem
-                                            onDelete={(deletedMyTeamID) => {
-                                                setTeamList([...teamList.filter((myTeam) => {
-                                                    return myTeam[0] !== deletedMyTeamID
-                                                })])
-                                            }}
-                                            openEditTeam={openEditTeam}
-                                            closeEditTeam={closeEditTeam}
-                                            {...item} ></TeamItem>
-                                    }}
-                                ></FlatList>
+                                <ScrollView>
+                                    <View
+                                        alignSelf={"center"}
+                                        flexDirection={"row"}
+                                        flexWrap={"wrap"}
+                                        maxWidth={1180}
+                                        paddingY={2}
+                                        width={"100%"}
+                                    >
+                                        {teamList.map((team, index) => {
+                                            return (
+                                                <View key={team[0]} width={useTwoColumns ? "50%" : "100%"}>
+                                                    <TeamItem
+                                                        item={team}
+                                                        index={index}
+                                                        onDelete={(deletedMyTeamID) => {
+                                                            setTeamList([...teamList.filter((myTeam) => {
+                                                                return myTeam[0] !== deletedMyTeamID
+                                                            })])
+                                                        }}
+                                                        openEditTeam={openEditTeam}
+                                                        closeEditTeam={closeEditTeam}
+                                                    />
+                                                </View>
+                                            )
+                                        })}
+                                    </View>
+                                </ScrollView>
                                 :
                                 <View justifyContent={"center"} alignItems="center">
                                     <View>

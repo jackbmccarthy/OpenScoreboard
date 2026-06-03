@@ -1,7 +1,9 @@
 
 
 import React, { useEffect, useState } from 'react';
-import { Text, Button, View, NativeBaseProvider, FlatList, AddIcon, } from 'native-base';
+import { useFocusEffect } from '@react-navigation/native';
+import { useWindowDimensions } from 'react-native';
+import { Text, Button, View, NativeBaseProvider, ScrollView, } from 'native-base';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import { getMyPlayerLists } from './functions/players';
@@ -15,6 +17,8 @@ export default function MyPlayerLists(props) {
     let [doneLoading, setDoneLoading] = useState(false)
     let [myPlayerLists, setMyPlayerLists] = useState([])
     let [showNewPlayerList, setShowNewPlayerList] = useState(false)
+    const { width } = useWindowDimensions()
+    const useTwoColumns = width >= 760
 
     async function loadMyPlayerList() {
         setDoneLoading(false)
@@ -37,10 +41,13 @@ export default function MyPlayerLists(props) {
                 />
             ),
         });
-        loadMyPlayerList()
-
-
     }, [])
+
+    useFocusEffect(
+        React.useCallback(() => {
+            loadMyPlayerList()
+        }, [])
+    )
 
     if (doneLoading) {
         return (
@@ -50,19 +57,34 @@ export default function MyPlayerLists(props) {
                     <View flex={1}>
                         {
                             myPlayerLists.length > 0 ?
-                                <FlatList
-                                    data={myPlayerLists}
-                                    renderItem={(item) => {
-                                        return <PlayerListItem
-                                            onDelete={(myPlayerListID) => {
-                                                let newList = myPlayerLists.filter((playerList) => {
-                                                    return playerList[0] !== myPlayerListID
-                                                })
-                                                setMyPlayerLists(newList)
-                                            }}
-                                            {...props} {...item}></PlayerListItem>
-                                    }}
-                                ></FlatList>
+                                <ScrollView>
+                                    <View
+                                        alignSelf={"center"}
+                                        flexDirection={"row"}
+                                        flexWrap={"wrap"}
+                                        maxWidth={1180}
+                                        paddingY={2}
+                                        width={"100%"}
+                                    >
+                                        {myPlayerLists.map((playerList, index) => {
+                                            return (
+                                                <View key={playerList[0]} width={useTwoColumns ? "50%" : "100%"}>
+                                                    <PlayerListItem
+                                                        item={playerList}
+                                                        index={index}
+                                                        onDelete={(myPlayerListID) => {
+                                                            let newList = myPlayerLists.filter((playerList) => {
+                                                                return playerList[0] !== myPlayerListID
+                                                            })
+                                                            setMyPlayerLists(newList)
+                                                        }}
+                                                        {...props}
+                                                    />
+                                                </View>
+                                            )
+                                        })}
+                                    </View>
+                                </ScrollView>
                                 :
                                 <View justifyContent={"center"} alignItems="center">
                                     <View>

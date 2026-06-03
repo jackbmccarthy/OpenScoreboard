@@ -3,6 +3,7 @@ import { Button, View, FormControl, Input, Text, Divider } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { FontAwesome } from '@expo/vector-icons';
 import i18n from '../translations/translate';
+import CountrySelect, { getCountryName } from '../components/CountrySelect';
 
 export function TeamPlayerItem(props) {
 
@@ -13,6 +14,7 @@ export function TeamPlayerItem(props) {
     let [firstName, setFirstName] = useState(props.firstName);
     let [lastName, setLastName] = useState(props.lastName);
     let [imageURL, setImageURL] = useState(props.imageURL)
+    let [country, setCountry] = useState(props.country || "")
 
     return (
         <>
@@ -33,6 +35,8 @@ export function TeamPlayerItem(props) {
                                 <Input
                                     onChangeText={setImageURL}
                                     value={imageURL}></Input>
+                                <FormControl.Label>{i18n.t("country")}</FormControl.Label>
+                                <CountrySelect value={country} onChange={setCountry} />
 
                             </FormControl>
 
@@ -42,7 +46,7 @@ export function TeamPlayerItem(props) {
                             <Button
                                 onPress={() => {
                                     setIsEditing(false);
-                                    props.onUpdate(props.id, { ...props, firstName: firstName, lastName: lastName, imageURL: imageURL });
+                                    props.onUpdate(props.id, { ...props, firstName: firstName, lastName: lastName, imageURL: imageURL, country: country });
                                 }}
                             >
                                 <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>
@@ -53,7 +57,12 @@ export function TeamPlayerItem(props) {
                     :
                     <>
                         <View padding={1} justifyContent="space-between" alignItems={"center"} flexDirection={"row"}>
-                            <Text>{firstName} {lastName}</Text>
+                            <View>
+                                <Text>{firstName} {lastName}</Text>
+                                {country ? (
+                                    <Text color={"gray.600"} fontSize={"xs"}>{getCountryName(country)}</Text>
+                                ) : null}
+                            </View>
                             <View flexDir={"row"} padding={1}>
                                 <Button onPress={() => {
                                     setIsEditing(true);

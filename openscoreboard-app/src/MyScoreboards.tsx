@@ -1,8 +1,8 @@
 
 
 import React, { Component, useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, ScrollView, Share } from 'react-native';
-import { Button, View, NativeBaseProvider, FlatList, Fab, AddIcon, Text } from 'native-base';
+import { ActivityIndicator, Dimensions, Image, Share, useWindowDimensions } from 'react-native';
+import { Button, View, NativeBaseProvider, ScrollView, Fab, AddIcon, Text } from 'native-base';
 import { deleteMyScoreboard, getMyScoreboards } from './functions/scoreboards';
 import { getUserPath } from '../database';
 import LoadingPage from './LoadingPage';
@@ -27,6 +27,8 @@ export default function MyScoreboards(props) {
     let [selectedScoreboardID, setSelectedScoreboardID] = useState("")
     let [selectedScoreboardIndex, setSelectedScoreboardIndex] = useState(0)
     let [showScoreboardSettings, setShowScoreboardSettings] = useState(false)
+    const { width } = useWindowDimensions()
+    const useTwoColumns = width >= 760
 
     const openScoreboardSettings = (scoreboardID, index) => {
         setSelectedScoreboardID(scoreboardID)
@@ -66,28 +68,38 @@ export default function MyScoreboards(props) {
                     <View flex={1}>
                         {
                             scoreboardList.length > 0 ?
-                                <View flex={1}>
-                                    <FlatList
-                                        data={scoreboardList}
-                                        keyExtractor={(item) => { return item[0] }}
-                                        renderItem={(item) => {
-                                            return <ScoreboardItem
-
-                                                openScoreboardSettings={openScoreboardSettings}
-                                                onSelect={(url) => {
-                                                    setScoreboardLink(url)
-                                                    setShowScoreboardMessage(true)
-                                                }}
-                                                onDelete={async (myScoreboardID) => {
-                                                    deleteMyScoreboard(myScoreboardID)
-                                                    setScoreboardList([...scoreboardList].filter((scoreboard) => {
-                                                        return scoreboard[0] !== myScoreboardID
-                                                    }))
-                                                }}
-                                                {...item} ></ScoreboardItem>
-                                        }}
-                                    ></FlatList>
-                                </View>
+                                <ScrollView>
+                                    <View
+                                        alignSelf={"center"}
+                                        flexDirection={"row"}
+                                        flexWrap={"wrap"}
+                                        maxWidth={1180}
+                                        paddingY={2}
+                                        width={"100%"}
+                                    >
+                                        {scoreboardList.map((scoreboard, index) => {
+                                            return (
+                                                <View key={scoreboard[0]} width={useTwoColumns ? "50%" : "100%"}>
+                                                    <ScoreboardItem
+                                                        item={scoreboard}
+                                                        index={index}
+                                                        openScoreboardSettings={openScoreboardSettings}
+                                                        onSelect={(url) => {
+                                                            setScoreboardLink(url)
+                                                            setShowScoreboardMessage(true)
+                                                        }}
+                                                        onDelete={async (myScoreboardID) => {
+                                                            deleteMyScoreboard(myScoreboardID)
+                                                            setScoreboardList([...scoreboardList].filter((scoreboard) => {
+                                                                return scoreboard[0] !== myScoreboardID
+                                                            }))
+                                                        }}
+                                                    />
+                                                </View>
+                                            )
+                                        })}
+                                    </View>
+                                </ScrollView>
                                 :
                                 <View justifyContent={"center"} alignItems="center">
                                     <View>
@@ -124,6 +136,7 @@ export default function MyScoreboards(props) {
                                 {...scoreboardList[selectedScoreboardIndex]}
                                 isOpen={showScoreboardSettings} onClose={() => {
                                     setShowScoreboardSettings(false)
+                                    getScoreboards()
                                 }} ></EditScoreboardSettingsModal>
                             : null
                     }

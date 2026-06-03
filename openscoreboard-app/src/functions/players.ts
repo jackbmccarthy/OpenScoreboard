@@ -1,10 +1,21 @@
 import db, { getUserPath } from "../../database"
 
 import { v4 as uuidv4 } from 'uuid';
+import { defaultPlayerRegistrationFields } from "../registrationFields";
+
+function nowTimestamp() {
+    return new Date().toISOString()
+}
+
+async function touchPlayerList(playerListID) {
+    await db.ref(`playerLists/${playerListID}/modifiedOn`).set(nowTimestamp())
+}
 
 export async function resetPlayerListPassword(playerListID) {
     let newPassword = uuidv4()
     await db.ref("playerLists/" + playerListID + "/password").set(newPassword)
+    await touchPlayerList(playerListID)
+    return newPassword
 
 }
 
@@ -94,6 +105,18 @@ export async function getImportPlayerList(playerListID) {
 
 }
 
+export async function getPlayerListDetails(playerListID) {
+    let playerListRef = db.ref(`playerLists/${playerListID}`)
+    let playerListSnapshot = await playerListRef.get()
+    let playerList = playerListSnapshot.val()
+
+    if (playerList) {
+        return playerList
+    }
+
+    return {}
+}
+
 export async function getPlayerListName(playerListID) {
     let playerListRef = db.ref(`playerLists/${playerListID}/playerListName`)
     let playerListSnapshot = await playerListRef.get()
@@ -108,27 +131,98 @@ export async function getPlayerListName(playerListID) {
 
 }
 
+export async function updatePlayerListDetails(playerListID, details) {
+    const updates = {
+        ...details,
+        modifiedOn: nowTimestamp(),
+    }
+
+    await db.ref(`playerLists/${playerListID}`).update(updates)
+
+    if (typeof details.playerListName === "string") {
+        const myPlayerListsSnap = await db.ref(`users/${getUserPath()}/myPlayerLists`).get()
+        const myPlayerLists = myPlayerListsSnap.val()
+
+        if (myPlayerLists && typeof myPlayerLists === "object") {
+            const matchingUserList = Object.entries(myPlayerLists).find(([, data]) => data["id"] === playerListID)
+            if (matchingUserList) {
+                await db.ref(`users/${getUserPath()}/myPlayerLists/${matchingUserList[0]}`).update({
+                    playerListName: details.playerListName,
+                    modifiedOn: updates.modifiedOn,
+                })
+            }
+        }
+    }
+}
+
+export async function updateImportedPlayers(playerListID, players) {
+    await db.ref(`playerLists/${playerListID}/players`).set(players)
+    await touchPlayerList(playerListID)
+}
+
+function withArchivedMetadata(players) {
+    const timestamp = nowTimestamp()
+    return Object.entries(players || {}).reduce((archivedPlayers, [playerID, player]) => {
+        archivedPlayers[playerID] = {
+            ...player,
+            archivedOn: timestamp,
+        }
+        return archivedPlayers
+    }, {})
+}
+
+export async function updateImportedPlayersWithArchived(playerListID, players, archivedPlayers = {}) {
+    const archivedPayload = withArchivedMetadata(archivedPlayers)
+    await db.ref(`playerLists/${playerListID}/players`).set(players)
+
+    if (Object.keys(archivedPayload).length > 0) {
+        await db.ref(`playerLists/${playerListID}/archivedPlayers`).update(archivedPayload)
+    }
+
+    await touchPlayerList(playerListID)
+}
+
 export async function addImportedPlayer(playerListID, playerSettings) {
 
     let playerListRef = await db.ref(`playerLists/${playerListID}/players`).push({ ...playerSettings })
+    await touchPlayerList(playerListID)
     return playerListRef.key
 
 }
 export async function editImportedPlayer(playerListID, playerID, playerSettings) {
     let playerListRef = db.ref(`playerLists/${playerListID}/players/${playerID}`)
     await playerListRef.update({ ...playerSettings })
+    await touchPlayerList(playerListID)
 
 }
 
 export async function deleteImportedPlayer(playerListID, playerID) {
     let playerListRef = db.ref(`playerLists/${playerListID}/players/${playerID}`)
     await playerListRef.remove()
+    await touchPlayerList(playerListID)
 
+}
+
+export async function archiveImportedPlayers(playerListID, playerIDs) {
+    const playerListSnapshot = await db.ref(`playerLists/${playerListID}/players`).get()
+    const players = playerListSnapshot.val() || {}
+    const archivedPlayers = {}
+    const activePlayers = { ...players }
+
+    playerIDs.forEach((playerID) => {
+        if (activePlayers[playerID]) {
+            archivedPlayers[playerID] = activePlayers[playerID]
+            delete activePlayers[playerID]
+        }
+    })
+
+    await updateImportedPlayersWithArchived(playerListID, activePlayers, archivedPlayers)
 }
 
 export async function updateSinglePlayerInList(playerListID, playerID, playerSettings) {
     let updatePlayerListRef = db.ref(`playerLists/${playerListID}/players/${playerID}`)
     let updatePlayerListSnapshot = await updatePlayerListRef.set(playerSettings)
+    await touchPlayerList(playerListID)
     let updatedPlayer = updatePlayerListSnapshot.val()
     return updatedPlayer
 }
@@ -143,14 +237,18 @@ export function sortPlayers(playerValues) {
 }
 
 export async function addPlayerList(name) {
+    const timestamp = nowTimestamp()
 
     let playerListRef = await db.ref(`playerLists`).push({
         playerListName: name,
         players: {},
-        password: uuidv4()
+        password: uuidv4(),
+        registrationFields: defaultPlayerRegistrationFields,
+        createdOn: timestamp,
+        modifiedOn: timestamp
 
     })
-    await db.ref(`users/${getUserPath()}/myPlayerLists/`).push({ id: playerListRef.key, playerListName: name })
+    await db.ref(`users/${getUserPath()}/myPlayerLists/`).push({ id: playerListRef.key, playerListName: name, createdOn: timestamp, modifiedOn: timestamp })
 }
 
 export function watchForPlayerListPasswordChange(playerListID, callback) {
@@ -168,10 +266,18 @@ export async function getMyPlayerLists() {
     let myPlayerLists = myPlayerListsSnap.val()
     if (myPlayerLists !== null) {
         return Promise.all(Object.entries(myPlayerLists).map(async ([id, data]) => {
-            console.log(`playerLists/${data["id"]}/password`)
-            let passwordRef = db.ref(`playerLists/${data["id"]}/password`)
-            let passwordSnap = await passwordRef.get()
-            return [id, { ...data, password: passwordSnap.val() }]
+            const playerListID = data["id"]
+            const playerListSnap = await db.ref(`playerLists/${playerListID}`).get()
+            const playerList = playerListSnap.val() || {}
+            const players = playerList.players && typeof playerList.players === "object" ? playerList.players : {}
+            const playerCount = Object.values(players).filter((player) => player !== null && typeof player !== "undefined").length
+
+            return [id, {
+                ...data,
+                password: playerList.password,
+                playerCount,
+                modifiedOn: playerList.modifiedOn || data["modifiedOn"] || playerList.createdOn || data["createdOn"] || null,
+            }]
         }))
     }
     else {
