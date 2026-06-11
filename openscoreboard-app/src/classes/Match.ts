@@ -14,6 +14,8 @@ export default class Match {
     }
 
     getDefaultMatchSettings(sportName, previousMatchObj = null, isTeamMatch = false, scoringTypeDefault = "normal") {
+        const resolvedSportName = sportName || previousMatchObj?.sportName || "tableTennis";
+        const resolvedScoringTypeDefault = scoringTypeDefault !== undefined ? scoringTypeDefault : previousMatchObj?.scoringType || "normal";
 
         let matchSettings = {
             //Pregame settings
@@ -47,10 +49,14 @@ export default class Match {
             enforceGameScore: true,
             changeServeEveryXPoints: 2,
             pointsToWinGame: 11,
+            initialServerPlayerField: "",
+            initialReceiverPlayerField: "",
+            currentServerPlayerField: "",
+            currentReceiverPlayerField: "",
 
             //Pickleball
             isSecondServer: true,
-            scoringType: scoringTypeDefault,
+            scoringType: resolvedScoringTypeDefault,
 
             //Team Fields for Table Only.
             isTeamMatch: isTeamMatch,
@@ -156,29 +162,39 @@ export default class Match {
             playerA2: getNewPlayer(),
             playerB2: getNewPlayer(),
 
-            sportName: sportName
+            sportName: resolvedSportName
 
 
 
         }
         if (previousMatchObj) {
 
-            const { bestOf, pointsToWinGame, isDoubles, isManualServiceMode, changeServeEveryXPoints, enforceGameScore, scoringType } = previousMatchObj
+            const previousMatchSettings = {}
+            const settingKeysToCarryForward = [
+                "bestOf",
+                "pointsToWinGame",
+                "isDoubles",
+                "isManualServiceMode",
+                "changeServeEveryXPoints",
+                "enforceGameScore",
+            ]
+
+            settingKeysToCarryForward.forEach((key) => {
+                if (previousMatchObj[key] !== undefined) {
+                    previousMatchSettings[key] = previousMatchObj[key]
+                }
+            })
+
             matchSettings = {
                 ...matchSettings,
-                bestOf: bestOf,
-                pointsToWinGame: pointsToWinGame,
-                isDoubles: isDoubles,
-                isManualServiceMode: isManualServiceMode,
-                changeServeEveryXPoints: changeServeEveryXPoints,
-                enforceGameScore: enforceGameScore,
-                sportName: sportName,
-                scoringType: scoringType ? scoringType : scoringTypeDefault
+                ...previousMatchSettings,
+                sportName: resolvedSportName,
+                scoringType: previousMatchObj.scoringType !== undefined ? previousMatchObj.scoringType : resolvedScoringTypeDefault
             }
         }
         else {
-            const defaultOptions = supportedSports[sportName]?.defaults
-            const scoringTypeSettings = supportedSports[sportName]?.scoringTypes ? supportedSports[sportName]?.scoringTypes[scoringTypeDefault] : null
+            const defaultOptions = supportedSports[resolvedSportName]?.defaults
+            const scoringTypeSettings = supportedSports[resolvedSportName]?.scoringTypes ? supportedSports[resolvedSportName]?.scoringTypes[resolvedScoringTypeDefault] : null
             if (scoringTypeSettings && scoringTypeSettings.defaults) {
                 matchSettings = { ...matchSettings, ...defaultOptions, ...scoringTypeSettings.defaults }
             }
@@ -189,7 +205,7 @@ export default class Match {
         }
         return matchSettings
     }
-    createNew(sportName: string, previousMatchObj: object = null, isTeamMatch: boolean = false, scoringType: string = "normal") {
+    createNew(sportName: string = "tableTennis", previousMatchObj: object = null, isTeamMatch: boolean = false, scoringType: string = "normal") {
         // createNew(bestOf, isTeamMatch=false, pointsToWinGame=11, isDoubles=false) {
         let newMatch = this.getDefaultMatchSettings(sportName, previousMatchObj, isTeamMatch, scoringType)
         return newMatch

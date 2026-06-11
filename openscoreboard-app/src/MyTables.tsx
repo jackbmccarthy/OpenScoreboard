@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { Button, View, NativeBaseProvider, ScrollView, Text } from 'native-base';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import db, { getUserPath } from '../database';
-import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
+import { openScoreboardButtonTextColor, openScoreboardColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import CreateNewTableModal from './modals/CreateNewTableModal';
 import { TableItem } from './listitems/TableItem';
@@ -166,6 +167,45 @@ export default function MyTables(props) {
                         flex={1}
                         contentContainerStyle={{ flexGrow: 1, paddingBottom: 32, paddingTop: 8 }}
                     >
+                        <View width={"100%"} maxW={1040} alignSelf={"center"}>
+                            <View
+                                alignItems={"center"}
+                                backgroundColor={"white"}
+                                borderColor={"gray.200"}
+                                borderRadius={8}
+                                borderWidth={1}
+                                flexDirection={"row"}
+                                marginX={3}
+                                marginY={2}
+                                padding={3}
+                            >
+                                <View
+                                    alignItems={"center"}
+                                    backgroundColor={"blue.50"}
+                                    borderRadius={999}
+                                    height={38}
+                                    justifyContent={"center"}
+                                    marginRight={3}
+                                    width={38}
+                                >
+                                    <MaterialCommunityIcons name="monitor-eye" size={20} color={openScoreboardColor} />
+                                </View>
+                                <View flex={1} paddingRight={3}>
+                                    <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"}>Production scorekeeper monitor</Text>
+                                    <Text color={"gray.600"} fontSize={"xs"} marginTop={0.5}>
+                                        View live scoring kiosks and block duplicate scorekeepers.
+                                    </Text>
+                                </View>
+                                <Button
+                                    backgroundColor={openScoreboardColor}
+                                    borderRadius={8}
+                                    onPress={() => props.navigation.navigate("ScorekeeperSessions")}
+                                >
+                                    <Text color={openScoreboardButtonTextColor} fontSize={"sm"} fontWeight={"bold"}>Open</Text>
+                                </Button>
+                            </View>
+                        </View>
+
                         {tableList.length > 0 ? (
                             <View width={"100%"} maxW={1040} alignSelf={"center"}>
                                 {tableList.map((table, index) => (

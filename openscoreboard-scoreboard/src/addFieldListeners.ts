@@ -11,6 +11,18 @@ function hasAllRequiredFields(currentMatchSettings, requiredFields) {
     return requiredFields.every((field) => hasField(currentMatchSettings, field));
 }
 
+function getListenerFields(item) {
+    if (Array.isArray(item.listenerFields)) {
+        return item.listenerFields;
+    }
+
+    if (Array.isArray(item.requiredFields)) {
+        return item.requiredFields;
+    }
+
+    return null;
+}
+
 function createFieldUpdateHandler(callback) {
     let lastSignature = "";
     let lastHandledAt = 0;
@@ -42,10 +54,11 @@ export function addCurrentGameFieldListeners(fieldList) {
         let existingNodes = document.getElementsByClassName(item.field);
         //console.log(existingNodes)
         for (const matchNode of existingNodes) {
+            const listenerFields = getListenerFields(item);
 
-            if (item.requiredFields) {
+            if (listenerFields) {
                 const handleFieldUpdate = createFieldUpdateHandler((data) => {
-                    const relevantData = item.requiredFields.reduce((updates, field) => {
+                    const relevantData = listenerFields.reduce((updates, field) => {
                         if (hasField(data, field)) {
                             updates[field] = data[field];
                         }
@@ -58,7 +71,8 @@ export function addCurrentGameFieldListeners(fieldList) {
                     }
 
                     currentMatchSettings = { ...currentMatchSettings, ...relevantData };
-                    if (typeof item.action === "function" && hasAllRequiredFields(currentMatchSettings, item.requiredFields)) {
+                    const requiredFields = Array.isArray(item.requiredFields) ? item.requiredFields : [];
+                    if (typeof item.action === "function" && hasAllRequiredFields(currentMatchSettings, requiredFields)) {
                         if (isTimeoutField(item.field)) {
                             console.log("OpenScoreboard timeout action", item.field, currentMatchSettings);
                         }
@@ -71,7 +85,7 @@ export function addCurrentGameFieldListeners(fieldList) {
                 });
 
                 if (typeof BroadcastChannel !== "undefined") {
-                    for (const field of item.requiredFields) {
+                    for (const field of listenerFields) {
                         let bc = new BroadcastChannel(field+getBroadcastChannelName())
                         bc.onmessage = (event) => {
                             handleFieldUpdate(event.data);

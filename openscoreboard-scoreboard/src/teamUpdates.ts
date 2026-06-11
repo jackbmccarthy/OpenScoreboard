@@ -1,6 +1,7 @@
 import db from '../database';
 import { conditionalShowFieldList } from './fields/conditionalShowFieldList';
 import { courtSideGameFieldList } from './fields/courtSideGameFieldList';
+import { courtSideViewFieldList } from './fields/courtSideViewFieldList';
 import { currentGameFieldList } from './fields/currentGameFieldList';
 import { imageFieldList } from './fields/imageFieldList';
 import { solidColorFieldList } from './fields/solidColorFieldList';
@@ -101,6 +102,7 @@ function getFieldListenerKeys(matchValues) {
         solidColorFieldList,
         textFieldList,
         timeOutTimerFieldList,
+        courtSideViewFieldList,
     ];
 
     for (const field of extraMatchListenerFields) {
@@ -114,6 +116,12 @@ function getFieldListenerKeys(matchValues) {
 
         if (Array.isArray(item.requiredFields)) {
             for (const field of item.requiredFields) {
+                keys.add(field);
+            }
+        }
+
+        if (Array.isArray(item.listenerFields)) {
+            for (const field of item.listenerFields) {
                 keys.add(field);
             }
         }

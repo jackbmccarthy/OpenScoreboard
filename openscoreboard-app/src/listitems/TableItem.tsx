@@ -3,6 +3,7 @@ import { Text, Button, View } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supportedSports } from '../functions/sports';
+import { getUserPath } from '../../database';
 
 function MatchPlayerPreview({ label, name }) {
     return (
@@ -118,6 +119,7 @@ export function TableItem(props) {
                                 password: props.password,
                                 sportName: props.sportName ? props.sportName : "tableTennis",
                                 scoringType: props.scoringType ? props.scoringType : null,
+                                ownerID: getUserPath() || "",
                             });
                         }}
                     />

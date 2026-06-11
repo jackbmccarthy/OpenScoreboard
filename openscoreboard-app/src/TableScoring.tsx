@@ -1,7 +1,7 @@
 import React, { Component, useEffect, useRef, useState } from 'react';
 import { PanResponder, TouchableOpacity } from 'react-native';
 
-import { Icon, NativeBaseProvider, View, ScrollView } from 'native-base';
+import { NativeBaseProvider, View } from 'native-base';
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import LoadingPage from './LoadingPage';
 import { getCurrentGameNumber, getCurrentMatchForTable, getMatchData, hasActiveGame, isGameFinished, isMatchFinished, subscribeToAllMatchFields, unsubscribeToAllMatchFields, watchForPasswordChange } from './functions/scoring';
@@ -26,6 +26,7 @@ import Unauthorized from './Unauthorized';
 import { getTablePassword } from './functions/tables';
 import { ScoringSidePickleball } from './components/ScoringSidePickleball';
 import Match from './classes/Match';
+import { getScorekeeperTargetFromRoute, startScorekeeperSession } from './functions/scorekeeperSessions';
 
 
 export default function TableScoring(props) {
@@ -39,14 +40,17 @@ export default function TableScoring(props) {
     let matchIDRef = useRef("")
     let activeListeners = useRef([])
     let teamMatchIDRef = useRef(props.route.params.teamMatchID)
-    let isTeamMatchRef = useRef(props.route.params.isTeamMatch)
+    let isTeamMatchRef = useRef(props.route.params.isTeamMatch === true || props.route.params.isTeamMatch === "true")
     let teamMatchTableNumber = useRef(props.route.params.tableNumber)
+    let scorekeeperSessionCleanupRef = useRef(null)
 
     let [doneLoading, setDoneLoading] = useState(false)
     let [matchSettings, setMatchSettings] = useState({})
     let [currentMatchExists, setCurrentMatchExists] = useState(null)
     let fieldLoadedCount = useRef(0)
     let matchSettingsCount = useRef(0)
+    let pendingMatchUpdatesRef = useRef({})
+    let pendingMatchUpdateFrameRef = useRef(null)
 
 
     let [unAuthorized, setUnAuthorized] = useState(false)
@@ -64,9 +68,91 @@ export default function TableScoring(props) {
     let [showMatchSetupWizard, setShowMatchSetupWizard] = useState(false)
     let [showEndOfMatchOptions, setShowEndOfMatchOptions] = useState(false)
 
+    const cancelPendingMatchFieldFlush = () => {
+        if (!pendingMatchUpdateFrameRef.current) {
+            return
+        }
+
+        const pendingFlush = pendingMatchUpdateFrameRef.current
+        if (pendingFlush.type === "raf" && typeof cancelAnimationFrame === "function") {
+            cancelAnimationFrame(pendingFlush.id)
+        }
+        else {
+            clearTimeout(pendingFlush.id)
+        }
+        pendingMatchUpdateFrameRef.current = null
+    }
+
+    const flushPendingMatchFieldUpdates = () => {
+        pendingMatchUpdateFrameRef.current = null
+        const pendingUpdates = pendingMatchUpdatesRef.current
+        pendingMatchUpdatesRef.current = {}
+
+        setMatchSettings((previousState) => {
+            let hasChange = false
+            const nextState = previousState ? { ...previousState } : {}
+
+            Object.entries(pendingUpdates).forEach(([key, value]) => {
+                if (nextState[key] !== value) {
+                    nextState[key] = value
+                    hasChange = true
+                }
+            })
+
+            return hasChange ? nextState : previousState
+        })
+    }
+
+    const queueMatchFieldUpdate = (key, value) => {
+        pendingMatchUpdatesRef.current = {
+            ...pendingMatchUpdatesRef.current,
+            [key]: value,
+        }
+
+        if (pendingMatchUpdateFrameRef.current) {
+            return
+        }
+
+        if (typeof requestAnimationFrame === "function") {
+            pendingMatchUpdateFrameRef.current = {
+                id: requestAnimationFrame(flushPendingMatchFieldUpdates),
+                type: "raf",
+            }
+        }
+        else {
+            pendingMatchUpdateFrameRef.current = {
+                id: setTimeout(flushPendingMatchFieldUpdates, 0),
+                type: "timeout",
+            }
+        }
+    }
+
+    const detachActiveListeners = () => {
+        activeListeners.current.forEach(offFunc => {
+            if (typeof offFunc === "function") {
+                offFunc()
+            }
+        });
+        activeListeners.current = []
+        cancelPendingMatchFieldFlush()
+        pendingMatchUpdatesRef.current = {}
+    }
+
+    const stopScorekeeperSession = () => {
+        if (typeof scorekeeperSessionCleanupRef.current === "function") {
+            scorekeeperSessionCleanupRef.current()
+            scorekeeperSessionCleanupRef.current = null
+        }
+    }
+
     useEffect(() => {
+        if (isTeamMatchRef.current) {
+            return () => {}
+        }
+
         let unSub = watchForPasswordChange(props.route.params.tableID, (password) => {
             if (!isTeamMatchRef.current && password !== props.route.params.password) {
+                stopScorekeeperSession()
                 setUnAuthorized(true)
                 setDoneLoading(false)
             }
@@ -75,21 +161,14 @@ export default function TableScoring(props) {
     }, [])
 
 
-    const SportScoring = (matchProps) => {
+    const renderSportScoring = (matchProps) => {
+        const isSwitched = matchProps?.isSwitched;
 
-        const [isSwitched, setIsSwitched] = useState(matchProps.isSwitched)
-
-
-        useEffect(() => {
-            if (isSwitched !== matchProps.isSwitched) {
-                setIsSwitched(matchProps.isSwitched)
-            }
-        }, [matchProps.isSwitched])
         switch (props.route.params.sportName) {
             case "pickleball":
-                if (matchSettings) {
+                if (matchProps) {
                     return (
-                        <View flexDirection={"row"} width="100%" flex={1}>
+                        <View flexDirection={"row"} width="100%" flex={1} minHeight={0} overflow={"hidden"}>
                             {
                                 isSwitched ?
                                     <ScoringSidePickleball matchID={matchIDRef.current}
@@ -97,12 +176,12 @@ export default function TableScoring(props) {
 
                                         openPlayerModal={openPlayerModal}
 
-                                        isA={false} {...matchSettings}></ScoringSidePickleball> :
+                                        isA={false} {...matchProps}></ScoringSidePickleball> :
                                     <ScoringSidePickleball matchID={matchIDRef.current}
                                         openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                         openPlayerModal={openPlayerModal}
-                                        isA={true} {...matchSettings}></ScoringSidePickleball>
+                                        isA={true} {...matchProps}></ScoringSidePickleball>
                             }
                             {
                                 isSwitched ?
@@ -110,13 +189,13 @@ export default function TableScoring(props) {
                                         openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                         openPlayerModal={openPlayerModal}
-                                        isA={true} {...matchSettings}></ScoringSidePickleball>
+                                        isA={true} {...matchProps}></ScoringSidePickleball>
                                     :
                                     <ScoringSidePickleball matchID={matchIDRef.current}
                                         openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                         openPlayerModal={openPlayerModal}
-                                        isA={false} {...matchSettings}></ScoringSidePickleball>
+                                        isA={false} {...matchProps}></ScoringSidePickleball>
                             }
                         </View>
                     )
@@ -126,34 +205,34 @@ export default function TableScoring(props) {
 
             default:
                 return (
-                    <View flexDirection={"row"} width="100%" flex={1}>
+                    <View flexDirection={"row"} width="100%" flex={1} minHeight={0} overflow={"hidden"}>
                         {
-                            matchSettings?.isSwitched ?
+                            isSwitched ?
                                 <ScoringSide matchID={matchIDRef.current}
                                     openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                     openPlayerModal={openPlayerModal}
 
-                                    isA={false} {...matchSettings}></ScoringSide> :
+                                    isA={false} {...matchProps}></ScoringSide> :
                                 <ScoringSide matchID={matchIDRef.current}
                                     openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                     openPlayerModal={openPlayerModal}
-                                    isA={true} {...matchSettings}></ScoringSide>
+                                    isA={true} {...matchProps}></ScoringSide>
                         }
                         {
-                            matchSettings?.isSwitched ?
+                            isSwitched ?
                                 <ScoringSide matchID={matchIDRef.current}
                                     openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                     openPlayerModal={openPlayerModal}
-                                    isA={true} {...matchSettings}></ScoringSide>
+                                    isA={true} {...matchProps}></ScoringSide>
                                 :
                                 <ScoringSide matchID={matchIDRef.current}
                                     openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                     openPlayerModal={openPlayerModal}
-                                    isA={false} {...matchSettings}></ScoringSide>
+                                    isA={false} {...matchProps}></ScoringSide>
                         }
                         {/* <ScoringSide isA={true} {...matchSettings}></ScoringSide>
         <ScoringSide isA={false} {...matchSettings}></ScoringSide> */}
@@ -167,14 +246,19 @@ export default function TableScoring(props) {
 
 
     async function loadTableScoring(tableId) {
+        detachActiveListeners()
+        fieldLoadedCount.current = 0
+        matchSettingsCount.current = 0
+        setDoneLoading(false)
 
-        let password = await getTablePassword(tableId)
+        if (!isTeamMatchRef.current) {
+            let password = await getTablePassword(tableId)
 
-
-        if (!isTeamMatchRef.current && password !== props.route.params.password) {
-            setUnAuthorized(true)
-            setDoneLoading(false)
-            return
+            if (password !== props.route.params.password) {
+                setUnAuthorized(true)
+                setDoneLoading(false)
+                return
+            }
         }
 
 
@@ -189,7 +273,7 @@ export default function TableScoring(props) {
         matchIDRef.current = currentMatchID
         if (typeof currentMatchID === "string" && currentMatchID.length > 0) {
             setCurrentMatchExists(true)
-            let matchData = await getMatchData(currentMatchID)
+            let matchData = await getMatchData(currentMatchID) || {}
             setMatchSettings({ ...matchData })
             matchSettingsCount.current = Object.keys(matchData).length
 
@@ -223,40 +307,90 @@ export default function TableScoring(props) {
 
             //Adds listeners for each individual field, to save data on updates
             let allFieldListeners = await subscribeToAllMatchFields(currentMatchID, (value, key) => {
-                setMatchSettings((previousState) => {
-                    if (previousState && previousState[key] !== value) {
-
-                        return { ...previousState, [key]: value }
-                    }
-                    else {
-                        return previousState
-                    }
-                })
+                queueMatchFieldUpdate(key, value)
                 fieldLoadedCount.current = fieldLoadedCount.current + 1
 
-                if (doneLoading === false && fieldLoadedCount.current >= matchSettingsCount.current) {
+                if (fieldLoadedCount.current >= matchSettingsCount.current) {
                     setDoneLoading(true)
                 }
 
             })
             activeListeners.current = allFieldListeners
+            if (matchSettingsCount.current === 0) {
+                setDoneLoading(true)
+            }
             return matchData
         }
         else {
+            setMatchSettings({})
             setCurrentMatchExists(false)
             setDoneLoading(true)
         }
 
     }
+
+    function getScorekeeperSessionSnapshot() {
+        return {
+            currentMatchID: matchIDRef.current || "",
+            scoringName: decodeURI(props.route.params.name || ""),
+            scoringType: props.route.params.scoringType || "",
+            sportName: props.route.params.sportName || "",
+            tableID: props.route.params.tableID || "",
+            tableNumber: teamMatchTableNumber.current || "",
+            teamMatchID: teamMatchIDRef.current || "",
+        }
+    }
+
+    async function handleScorekeeperCommand(command) {
+        switch (command?.type) {
+            case "block":
+            case "blocked":
+            case "disconnect":
+            case "kick":
+                stopScorekeeperSession()
+                setUnAuthorized(true)
+                setDoneLoading(false)
+                return
+
+            case "reload":
+            case "reload-current-match":
+                await loadTableScoring(props.route.params.tableID)
+                return
+
+            default:
+                return
+        }
+    }
+
     useEffect(() => {
+        let isMounted = true
 
+        loadTableScoring(props.route.params.tableID)
 
-        let matchInitialValues = loadTableScoring(props.route.params.tableID)
+        getScorekeeperTargetFromRoute(props.route.params).then((scorekeeperTarget) => {
+            if (!isMounted || !scorekeeperTarget) {
+                return
+            }
+
+            startScorekeeperSession(scorekeeperTarget, getScorekeeperSessionSnapshot, handleScorekeeperCommand).then((cleanup) => {
+                if (!isMounted) {
+                    cleanup()
+                    return
+                }
+
+                scorekeeperSessionCleanupRef.current = cleanup
+            }).catch((err) => {
+                console.error("[scorekeeperSessions] unable to start scoring session", err)
+            })
+        }).catch((err) => {
+            console.error("[scorekeeperSessions] unable to resolve scoring session target", err)
+        })
+
         return () => {
+            isMounted = false
 
-            activeListeners.current.forEach(offFunc => {
-                offFunc()
-            });
+            detachActiveListeners()
+            stopScorekeeperSession()
 
         }
     }, [])
@@ -334,7 +468,7 @@ export default function TableScoring(props) {
     if (doneLoading) {
         return (
             <NativeBaseProvider theme={openScoreboardTheme}>
-                <View flex={1} height={"100%"} width="100%">
+                <View flex={1} height={"100%"} minHeight={0} width="100%" overflow={"hidden"} backgroundColor={"gray.900"}>
                     <TopScoringSettings
                         openPenaltyModal={openPenaltyModal}
                         openTimeOutModal={openTimeOutModal}
@@ -345,7 +479,7 @@ export default function TableScoring(props) {
                         {...props}
                         matchID={matchIDRef.current}
                     ></TopScoringSettings>
-                    <SportScoring {...matchSettings}></SportScoring>
+                    {renderSportScoring(matchSettings)}
 
                     {
                         showEndOfMatchOptions ?

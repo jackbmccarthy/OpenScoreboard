@@ -213,6 +213,10 @@ function inferBlockIcon(id: string, label: string, category: string): BlockIcon 
         return { badge, name: "canvas", tone: "layout" };
     }
 
+    if (searchText.includes("court side") && searchText.includes("view")) {
+        return { badge, name: "canvas", tone: "layout" };
+    }
+
     if (searchText.includes("aspect ratio") || /\b\d+\s*[:x]\s*\d+\b/.test(searchText)) {
         return { badge, name: "canvas", tone: "layout" };
     }
@@ -341,6 +345,10 @@ function getBlockDescription(id: string, label: string, category: string, icon: 
 
     if (source.includes("column container")) {
         return "Layout container that stacks child elements vertically. Drop fields inside it to build a scoreboard section.";
+    }
+
+    if (source.includes("court side") && source.includes("view")) {
+        return "Court-side-aware container for custom content. Drop A/B fields, flags, images, or accents inside it and they will follow the court-side switching settings.";
     }
 
     if (source.includes("aspect ratio") || /\b\d+\s*[:x]\s*\d+\b/.test(source)) {

@@ -17,7 +17,8 @@
     "dev:app": "dotenvx run  --env-file=./.env.development -- npm start  --prefix ./openscoreboard-app",
     "dev:scoreboard": " dotenvx run  --env-file=./.env.development -- npm run  --prefix ./openscoreboard-scoreboard dev",
     "dev:editor": " dotenvx run  --env-file=./.env.development --  npm run  --prefix ./openscoreboard-editor dev",
-    "dev": "concurrently --kill-others  \"npm start\" \"npm run dev:app\" \"npm run dev:scoreboard\" \"npm run dev:editor\""
+    "dev": "concurrently --kill-others  \"npm start\" \"npm run dev:app\" \"npm run dev:scoreboard\" \"npm run dev:editor\"",
+    "stop:dev": "pkill -f \"OpenScoreboard/node_modules/.bin/concurrently --kill-others\"; pkill -f \"OpenScoreboard/node_modules/.bin/ts-node server.ts\"; pkill -f \"OpenScoreboard/openscoreboard-app/node_modules/.bin/expo start --web --port 3000\"; pkill -f \"OpenScoreboard/openscoreboard-scoreboard/node_modules/.bin/vite\"; pkill -f \"OpenScoreboard/openscoreboard-editor/node_modules/.bin/vite\"; true"
   },
   "keywords": [],
   "author": "Jack McCarthy",

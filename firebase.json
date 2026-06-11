@@ -1,4 +1,7 @@
 {
+  "database": {
+    "rules": "database.rules.json"
+  },
   "hosting": {
     "site": "open-scoreboard-web",
     "public": "firebase-build",
@@ -119,6 +122,14 @@
       },
       {
         "source": "/tablelivescoring/**",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/scorekeeper-sessions",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/scorekeeper-sessions/**",
         "destination": "/app/index.html"
       },
       {

@@ -5,16 +5,15 @@ import { CopyInputRightButton } from '../components/CopyButton';
 import ScoreboardLinkList from '../components/ScoreboardLinkList';
 import { subFolderPath } from '../../openscoreboard.config';
 import i18n from '../translations/translate';
+import { getUserPath } from '../../database';
 
 export function TeamMatchLinkModal(props) {
 
     let [showScoringURL, setShowScoringURL] = useState(false);
     let [showScoreboardURL, setScoreboardURL] = useState(false);
 
-
-
-
-    const scoreKeepingURL = `${window.location.origin}${subFolderPath}/teamscoring/teammatch/true/${props.id}/${props.tableID}/?name=${encodeURI(`Table ${props.tableID}`)}&sportName=${props.sportName}&scoringType=${props.scoringType}`;
+    const ownerID = props.ownerID || getUserPath() || "";
+    const scoreKeepingURL = `${window.location.origin}${subFolderPath}/teamscoring/teammatch/true/${props.id}/${props.tableID}/?name=${encodeURI(`Table ${props.tableID}`)}&sportName=${props.sportName}&scoringType=${props.scoringType}&ownerID=${encodeURIComponent(ownerID)}`;
 
 
 

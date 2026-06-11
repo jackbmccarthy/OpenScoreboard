@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Text, View, Input } from 'native-base';
-import { openScoreboardColor } from "../../openscoreboardtheme";
 import { isValidGameScore, manuallySetGameScore } from '../functions/scoring';
 import i18n from '../translations/translate';
 
@@ -16,6 +15,22 @@ export function EditGameScoreItem(props) {
     useEffect(() => {
         setBScore(props[`game${props.gameNumber}BScore`] || 0);
     }, [props[`game${props.gameNumber}BScore`]]);
+
+    const parsedAScore = parseInt(`${AScore}`);
+    const parsedBScore = parseInt(`${BScore}`);
+    const canSave = scoreChanged
+        && !isNaN(parsedAScore)
+        && !isNaN(parsedBScore)
+        && isValidGameScore(props.enforceGameScore, parsedAScore, parsedBScore, props.pointsToWinGame);
+
+    async function saveGameScore() {
+        if (!canSave) {
+            return;
+        }
+
+        await manuallySetGameScore(props.matchID, props.gameNumber, parsedAScore, parsedBScore);
+        setScoreChanged(false);
+    }
 
     return (
         <>
@@ -42,19 +57,6 @@ export function EditGameScoreItem(props) {
                         }}
                     ></Input>
                 </View>
-                <View flex={1} padding={1}>
-                    <Button
-                        onPress={() => {
-                            if (isValidGameScore(props.enforceGameScore, AScore, BScore, props.pointsToWinGame)) {
-                                manuallySetGameScore(props.matchID, props.gameNumber, AScore, BScore);
-                                setScoreChanged(false);
-                            }
-                        }}
-                        backgroundColor={scoreChanged && !isNaN(parseInt(BScore)) && !isNaN(parseInt(AScore)) && isValidGameScore(props.enforceGameScore, AScore, BScore, props.pointsToWinGame) ? openScoreboardColor : "gray.300"}
-                        disabled={!scoreChanged || isNaN(parseInt(BScore)) || isNaN(parseInt(AScore)) || !isValidGameScore(props.enforceGameScore, AScore, BScore, props.pointsToWinGame)}>
-                        <Text>{i18n.t("save")}</Text>
-                    </Button>
-                </View>
                 <View flex={1}>
                     <Input fontSize={"2xl"} keyboardType='numeric'
                         leftElement={<View justifyContent={"center"} flex={2} alignItems={"center"} backgroundColor={"gray.300"} padding={1}>
@@ -77,6 +79,24 @@ export function EditGameScoreItem(props) {
                     ></Input>
                 </View>
             </View>
+            {scoreChanged ? (
+                <View alignItems={"center"} marginTop={2} marginBottom={3}>
+                    <Button
+                        backgroundColor={canSave ? "#16A34A" : "gray.300"}
+                        borderRadius={10}
+                        disabled={!canSave}
+                        minWidth={150}
+                        onPress={saveGameScore}
+                        paddingX={5}
+                        _disabled={{ opacity: 0.7 }}
+                        _pressed={{ backgroundColor: canSave ? "#15803D" : "gray.300" }}
+                    >
+                        <Text color={canSave ? "white" : "gray.700"} fontWeight={"bold"}>
+                            {canSave ? i18n.t("save") : "Invalid Score"}
+                        </Text>
+                    </Button>
+                </View>
+            ) : null}
         </>
 
     );
