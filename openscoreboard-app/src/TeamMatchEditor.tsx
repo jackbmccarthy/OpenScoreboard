@@ -6,11 +6,13 @@ import { openScoreboardButtonTextColor, openScoreboardColor, openScoreboardTheme
 import { subFolderPath } from '../openscoreboard.config';
 import { CopyInputRightButton } from './components/CopyButton';
 import { DateTimePicker } from './components/DateTimePicker';
+import { ScorekeeperSessionsPanel } from './components/ScorekeeperSessionsPanel';
 import LoadingPage from './LoadingPage';
 import { TeamMatchLinkModal } from './modals/TeamMatchLinkModal';
 import { addTeamMatchCurrentMatch, archiveTeamMatch, getMyTeamMatch, getTeamMatch, updateTeamMatch } from './functions/teammatches';
 import { getMyTeams } from './functions/teams';
 import { supportedSports } from './functions/sports';
+import { getTeamMatchScorekeeperTarget } from './functions/scorekeeperSessions';
 import i18n from './translations/translate';
 
 function toScore(value) {
@@ -205,6 +207,7 @@ export default function TeamMatchEditor(props) {
 
     const teamAName = getTeamName(teamSelectionList, teamAID, "Team A");
     const teamBName = getTeamName(teamSelectionList, teamBID, "Team B");
+    const ownerID = teamMatch.ownerID || getUserPath() || "";
     const sportDisplayName = supportedSports[selectedSport]?.displayName || selectedSport || "Team match";
     const publicViewURL = typeof window === "undefined" ? "" : `${window.location.origin}${subFolderPath}/teammatches/view/${teamMatchID}`;
     const publicEmbedURL = publicViewURL ? `${publicViewURL}?embed=true` : "";
@@ -231,6 +234,7 @@ export default function TeamMatchEditor(props) {
                 currentMatches: currentMatches || {},
                 sportName: selectedSport,
                 scoringType: selectedScoringType || "",
+                ownerID,
             };
 
             await updateTeamMatch(teamMatchID, myTeamMatchID, nextTeamMatch);
@@ -425,6 +429,7 @@ export default function TeamMatchEditor(props) {
                                         name: "Table " + tableNumber,
                                         sportName: selectedSport,
                                         scoringType: selectedScoringType,
+                                        ownerID,
                                     });
                                 }}
                                 onLinks={() => {
@@ -455,6 +460,33 @@ export default function TeamMatchEditor(props) {
                                 onPress={addTable}
                             />
                         </View>
+                    </Section>
+
+                    <Section title={"Scorekeeper sessions"}>
+                        <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
+                            Monitor the scorekeeping pages currently open for each team-match table.
+                        </Text>
+                        {sortedTables.length > 0 ? sortedTables.map(([tableNumber]) => (
+                            <View key={`scorekeeper-session-${tableNumber}`} marginTop={4}>
+                                <ScorekeeperSessionsPanel
+                                    target={getTeamMatchScorekeeperTarget(teamMatchID, tableNumber, `Table ${tableNumber}`, ownerID)}
+                                    title={`Table ${tableNumber}`}
+                                />
+                            </View>
+                        )) : (
+                            <View
+                                alignItems={"center"}
+                                backgroundColor={"gray.50"}
+                                borderColor={"gray.200"}
+                                borderRadius={8}
+                                borderStyle={"dashed"}
+                                borderWidth={1}
+                                marginTop={3}
+                                padding={5}
+                            >
+                                <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"}>Add a table to monitor scorekeepers.</Text>
+                            </View>
+                        )}
                     </Section>
 
                     <Section title={"History"}>
@@ -533,6 +565,7 @@ export default function TeamMatchEditor(props) {
                     scoringType={selectedScoringType}
                     sportName={selectedSport}
                     tableID={selectedTableID}
+                    ownerID={ownerID}
                     teamAName={teamAName}
                     teamBName={teamBName}
                     teamMatchID={teamMatchID}

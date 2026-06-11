@@ -46,6 +46,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.12.9",
+    "babel-preset-expo": "~54.0.11",
     "cross-env": "^7.0.3",
     "webpack-bundle-analyzer": "^4.8.0"
   },

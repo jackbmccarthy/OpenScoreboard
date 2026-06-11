@@ -33,7 +33,9 @@ export default async function getMyTeamMatches(userID) {
 }
 
 export async function createTeamMatchNewMatch(teamMatchID, tableNumber, sportName, previousMatchObj, scoringType) {
-    let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, true, scoringType))
+    const resolvedSportName = sportName || previousMatchObj?.sportName || "tableTennis"
+    const resolvedScoringType = scoringType !== undefined ? scoringType : previousMatchObj?.scoringType || "normal"
+    let newMatch = await db.ref(`matches`).push(new Match().createNew(resolvedSportName, previousMatchObj, true, resolvedScoringType))
     let currentMatchKey = await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).set(newMatch.key)
     return newMatch.key
 }
@@ -65,41 +67,57 @@ export async function getTeamMatchCurrentMatch(teamMatchID, tableNumber) {
 
 export async function addNewTeamMatch(teamMatch) {
 
-    let pushedTeamMatch = await db.ref(`teamMatches`).push(teamMatch)
+    const ownerID = getUserPath()
+    const nextTeamMatch = {
+        ...teamMatch,
+        ownerID: teamMatch.ownerID || ownerID,
+    }
+    let pushedTeamMatch = await db.ref(`teamMatches`).push(nextTeamMatch)
     let preview = {
         id: pushedTeamMatch.key,
-        teamAName: await getTeamName(teamMatch.teamAID),
-        teamBName: await getTeamName(teamMatch.teamBID),
-        startTime: teamMatch.startTime,
-        sportName: teamMatch.sportName,
-        sportDisplayName: supportedSports[teamMatch.sportName].displayName,
-        scoringType: teamMatch.scoringType
+        ownerID,
+        teamAName: await getTeamName(nextTeamMatch.teamAID),
+        teamBName: await getTeamName(nextTeamMatch.teamBID),
+        startTime: nextTeamMatch.startTime,
+        sportName: nextTeamMatch.sportName,
+        sportDisplayName: supportedSports[nextTeamMatch.sportName].displayName,
+        scoringType: nextTeamMatch.scoringType
     }
 
     await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches").push(preview)
 }
 
 export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
-    await db.ref(`teamMatches/${teamMatchID}`).set(teamMatch)
+    const ownerID = teamMatch.ownerID || getUserPath()
+    const nextTeamMatch = {
+        ...teamMatch,
+        ownerID,
+    }
+    await db.ref(`teamMatches/${teamMatchID}`).set(nextTeamMatch)
     await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches/" + myTeamMatchID).update({
         id: teamMatchID,
-        teamAName: await getTeamName(teamMatch.teamAID),
-        teamBName: await getTeamName(teamMatch.teamBID),
-        startTime: teamMatch.startTime,
-        sportName: teamMatch.sportName,
-        sportDisplayName: supportedSports[teamMatch.sportName]?.displayName || "",
-        scoringType: teamMatch.scoringType || "",
+        ownerID,
+        teamAName: await getTeamName(nextTeamMatch.teamAID),
+        teamBName: await getTeamName(nextTeamMatch.teamBID),
+        startTime: nextTeamMatch.startTime,
+        sportName: nextTeamMatch.sportName,
+        sportDisplayName: supportedSports[nextTeamMatch.sportName]?.displayName || "",
+        scoringType: nextTeamMatch.scoringType || "",
     })
 }
 
 export async function getImportTeamMembersList(player, teamMatchID) {
     let teamMatch = await getTeamMatch(teamMatchID)
+    if (!teamMatch) {
+        return []
+    }
+
     if (player === "playerA" || player === "playerA2") {
 
         let ATeam = await getTeam(teamMatch.teamAID)
 
         if (ATeam) {
-            return Object.entries(ATeam.players)
+            return Object.entries(ATeam.players || {})
         }
         else {
             return []
@@ -109,7 +127,7 @@ export async function getImportTeamMembersList(player, teamMatchID) {
     else {
         let BTeam = await getTeam(teamMatch.teamBID)
         if (BTeam) {
-            return Object.entries(BTeam.players)
+            return Object.entries(BTeam.players || {})
         }
         else {
             return []

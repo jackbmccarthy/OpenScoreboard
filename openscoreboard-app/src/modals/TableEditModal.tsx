@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, View, Modal, Text, Spinner, Input } from 'native-base';
 import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
-import db from '../../database';
+import db, { getUserPath } from '../../database';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { deleteTable, resetTablePassword } from '../functions/tables';
 import i18n from '../translations/translate';
@@ -55,7 +55,8 @@ export function TableEditModal(props) {
     let [resettingPassword, setResettingPassword] = useState(false);
     let [statusMessage, setStatusMessage] = useState("");
 
-    const scoreKeepingURL = `${window.location.origin}${subFolderPath}/scoring/table/${props.id}/${tableName}/${accessPassword}?sportName=${props.sportName}&scoringType=${props.scoringType}`;
+    const ownerID = props.ownerID || getUserPath() || "";
+    const scoreKeepingURL = `${window.location.origin}${subFolderPath}/scoring/table/${props.id}/${tableName}/${accessPassword}?sportName=${props.sportName}&scoringType=${props.scoringType}&ownerID=${encodeURIComponent(ownerID)}`;
 
     useEffect(() => {
         setDoneLoading(true);

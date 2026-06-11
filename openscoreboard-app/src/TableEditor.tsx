@@ -6,7 +6,9 @@ import { openScoreboardButtonTextColor, openScoreboardColor, openScoreboardTheme
 import { subFolderPath } from '../openscoreboard.config';
 import LoadingPage from './LoadingPage';
 import { CopyInputRightButton } from './components/CopyButton';
+import { ScorekeeperSessionsPanel } from './components/ScorekeeperSessionsPanel';
 import { getMyPlayerLists } from './functions/players';
+import { getTableScorekeeperTarget } from './functions/scorekeeperSessions';
 import { deleteTable, resetTablePassword, setPlayerListToTable } from './functions/tables';
 import { supportedSports } from './functions/sports';
 import i18n from './translations/translate';
@@ -109,12 +111,14 @@ export default function TableEditor(props) {
     const tableDisplayName = tableName || "Table";
     const sportDisplayName = supportedSports[sportName]?.displayName || sportName || "Table Tennis";
     const encodedTableName = encodeURIComponent(tableDisplayName);
+    const ownerID = getUserPath() || "";
     const scoreKeepingURL = typeof window === "undefined" || !tableID
         ? ""
-        : `${window.location.origin}${subFolderPath}/scoring/table/${tableID}/${encodedTableName}/${accessPassword}?sportName=${sportName || "tableTennis"}&scoringType=${scoringType || ""}`;
+        : `${window.location.origin}${subFolderPath}/scoring/table/${tableID}/${encodedTableName}/${accessPassword}?sportName=${sportName || "tableTennis"}&scoringType=${scoringType || ""}&ownerID=${encodeURIComponent(ownerID)}`;
     const playerRegistrationURL = typeof window === "undefined" || !playerListID
         ? ""
         : `${window.location.origin}${subFolderPath}/playerregistration/${playerListID}/${selectedPlayerListPassword}`;
+    const scorekeeperTarget = getTableScorekeeperTarget(tableID, tableDisplayName, ownerID);
 
     function setSelectedPlayerList(nextPlayerListID, playerLists = myPlayerLists) {
         setPlayerListID(nextPlayerListID || "");
@@ -316,6 +320,14 @@ export default function TableEditor(props) {
                                         <Text color={"gray.900"} fontWeight={"bold"}>{i18n.t("resetShareAccess")}</Text>
                                     </Button>
                                 )}
+                            </Section>
+
+                            <Section
+                                icon={<MaterialCommunityIcons name="monitor-eye" size={18} color={openScoreboardColor} />}
+                                title={"Scorekeeper sessions"}
+                                subtitle={"See scoring pages currently open for this table and send kiosk controls."}
+                            >
+                                <ScorekeeperSessionsPanel target={scorekeeperTarget} title={""} />
                             </Section>
 
                             <Section

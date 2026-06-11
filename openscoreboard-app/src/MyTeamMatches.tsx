@@ -69,7 +69,8 @@ export default function MyTeamMatches(props) {
             tableNumber: tableNumber,
             name: "Table " + tableNumber,
             sportName: sportName,
-            scoringType: scoringType
+            scoringType: scoringType,
+            ownerID: getUserPath() || "",
         })
     }
 

@@ -28,6 +28,7 @@ import TeamEditor from './src/TeamEditor';
 import TeamMatchEditor from './src/TeamMatchEditor';
 import TeamMatchPublicView from './src/TeamMatchPublicView';
 import TableEditor from './src/TableEditor';
+import ScorekeeperSessions from './src/ScorekeeperSessions';
 
 export const linkingConfig = {
   screens: {
@@ -63,6 +64,7 @@ export const linkingConfig = {
         TableEditor: subFolderPath + "/tables/:myTableID/manage/:tableID",
         MyTeamMatches: subFolderPath + "/teammatches",
         TeamMatchEditor: subFolderPath + "/teammatches/:myTeamMatchID/edit/:teamMatchID",
+        ScorekeeperSessions: subFolderPath + "/scorekeeper-sessions",
         ScheduledTableMatches: subFolderPath + "/scheduledtablematches",
         //QRCodeScreen:subFolderPath+"/qrcode",
         BulkAddPlayer: subFolderPath + "/bulkplayer"
@@ -164,6 +166,7 @@ function ScoreboardNavigation() {
                 <ScoreboardStack.Screen name="TeamEditor" component={TeamEditor} options={{ title: "Edit Team" }} />
                 <ScoreboardStack.Screen name="MyTeamMatches" component={MyTeamMatches} options={{ title: i18n.t("myTeamMatches") }} />
                 <ScoreboardStack.Screen name="TeamMatchEditor" component={TeamMatchEditor} options={{ title: i18n.t("editTeamMatch") }} />
+                <ScoreboardStack.Screen name="ScorekeeperSessions" component={ScorekeeperSessions} options={{ title: "Scorekeeper Sessions" }} />
                 <ScoreboardStack.Screen
                   name="TeamMatchPublicView"
                   component={TeamMatchPublicView}

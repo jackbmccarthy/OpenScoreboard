@@ -5,6 +5,146 @@ import { getCombinedPlayerNames } from './players';
 
 
 
+async function updatePickleballServiceState(matchID, isACurrentlyServing, isSecondServer, servicePlayerUpdates = {}) {
+    await db.ref(`matches/${matchID}`).update({
+        isACurrentlyServing,
+        isSecondServer,
+        ...servicePlayerUpdates,
+    })
+}
+
+function getPartnerPlayerField(playerField) {
+    switch (playerField) {
+        case "playerA":
+            return "playerA2"
+        case "playerA2":
+            return "playerA"
+        case "playerB":
+            return "playerB2"
+        case "playerB2":
+            return "playerB"
+        default:
+            return ""
+    }
+}
+
+function getServicePlayerUpdates(currentServerPlayerField = "", currentReceiverPlayerField = "", transition = "same-server") {
+    switch (transition) {
+        case "same-server":
+            return {
+                currentServerPlayerField,
+                currentReceiverPlayerField: getPartnerPlayerField(currentReceiverPlayerField) || currentReceiverPlayerField,
+            }
+        case "second-server":
+            return {
+                currentServerPlayerField: getPartnerPlayerField(currentServerPlayerField) || currentServerPlayerField,
+                currentReceiverPlayerField: getPartnerPlayerField(currentReceiverPlayerField) || currentReceiverPlayerField,
+            }
+        case "side-out":
+            return {
+                currentServerPlayerField: currentReceiverPlayerField,
+                currentReceiverPlayerField: currentServerPlayerField,
+            }
+        default:
+            return {}
+    }
+}
+
+function getServerPlayerFieldForSide(isAServing, isSecondServer = false) {
+    if (isAServing) {
+        return isSecondServer ? "playerA2" : "playerA"
+    }
+
+    return isSecondServer ? "playerB2" : "playerB"
+}
+
+function getDefaultReceiverPlayerFieldForSide(isAServing, isSecondServer = false) {
+    if (isAServing) {
+        return isSecondServer ? "playerB2" : "playerB"
+    }
+
+    return isSecondServer ? "playerA2" : "playerA"
+}
+
+function isPlayerFieldOnSide(playerField, isASide) {
+    return isASide ? playerField === "playerA" || playerField === "playerA2" : playerField === "playerB" || playerField === "playerB2"
+}
+
+function getServiceTurnCount(combinedPoints, serveChangePoints, pointsToWinGame) {
+    const safeCombinedPoints = Number.isFinite(Number(combinedPoints)) ? Math.max(0, Number(combinedPoints)) : 0
+    const safeServeChangePoints = Number(serveChangePoints) > 0 ? Number(serveChangePoints) : 1
+    const safePointsToWinGame = Number(pointsToWinGame) > 1 ? Number(pointsToWinGame) : 11
+    const pointsAtDeuce = (safePointsToWinGame - 1) * 2
+
+    if (safeCombinedPoints >= pointsAtDeuce) {
+        return Math.floor(pointsAtDeuce / safeServeChangePoints) + (safeCombinedPoints - pointsAtDeuce)
+    }
+
+    return Math.floor(safeCombinedPoints / safeServeChangePoints)
+}
+
+function getRotatedServicePlayerFields(initialServerPlayerField, initialReceiverPlayerField, rotationCount) {
+    let currentServerPlayerField = initialServerPlayerField
+    let currentReceiverPlayerField = initialReceiverPlayerField
+
+    for (let rotationIndex = 0; rotationIndex < rotationCount; rotationIndex++) {
+        const previousServerPlayerField = currentServerPlayerField
+        currentServerPlayerField = currentReceiverPlayerField
+        currentReceiverPlayerField = getPartnerPlayerField(previousServerPlayerField) || previousServerPlayerField
+    }
+
+    return {
+        currentServerPlayerField,
+        currentReceiverPlayerField,
+    }
+}
+
+function getTableTennisServicePlayerFields(initialServerPlayerField, initialReceiverPlayerField, gameNumber, combinedPoints, serveChangePoints, pointsToWinGame) {
+    const gameServiceOffset = Math.max(0, (Number(gameNumber) || 1) - 1)
+    const serviceTurnCount = gameServiceOffset + getServiceTurnCount(combinedPoints, serveChangePoints, pointsToWinGame)
+
+    return getRotatedServicePlayerFields(initialServerPlayerField, initialReceiverPlayerField, serviceTurnCount)
+}
+
+async function updateTableTennisServiceState(matchID, isACurrentlyServing, serviceContext: any = {}) {
+    const matchSnapshot = await db.ref(`matches/${matchID}`).get()
+    const match = matchSnapshot.val() || {}
+    const initialServerIsA = typeof serviceContext.isAInitialServer === "boolean" ? serviceContext.isAInitialServer : match.isAInitialServer === true
+    const initialServerPlayerField = isPlayerFieldOnSide(match.initialServerPlayerField, initialServerIsA) ?
+        match.initialServerPlayerField
+        : getServerPlayerFieldForSide(initialServerIsA, false)
+    const initialReceiverPlayerField = isPlayerFieldOnSide(match.initialReceiverPlayerField, !initialServerIsA) ?
+        match.initialReceiverPlayerField
+        : getDefaultReceiverPlayerFieldForSide(initialServerIsA, false)
+    const servicePlayerFields = getTableTennisServicePlayerFields(
+        initialServerPlayerField,
+        initialReceiverPlayerField,
+        serviceContext.gameNumber,
+        serviceContext.combinedPoints,
+        serviceContext.changeServeEveryXPoints,
+        serviceContext.pointsToWinGame
+    )
+    await db.ref(`matches/${matchID}`).update({
+        isACurrentlyServing,
+        currentServerPlayerField: servicePlayerFields.currentServerPlayerField,
+        currentReceiverPlayerField: servicePlayerFields.currentReceiverPlayerField,
+    })
+}
+
+async function updateServicePlayers(matchID, servicePlayerUpdates: any = {}) {
+    const updates: any = {}
+    if (typeof servicePlayerUpdates.currentServerPlayerField === "string") {
+        updates.currentServerPlayerField = servicePlayerUpdates.currentServerPlayerField
+    }
+    if (typeof servicePlayerUpdates.currentReceiverPlayerField === "string") {
+        updates.currentReceiverPlayerField = servicePlayerUpdates.currentReceiverPlayerField
+    }
+
+    if (Object.keys(updates).length > 0) {
+        await db.ref(`matches/${matchID}`).update(updates)
+    }
+}
+
 export async function AddPoint(matchID, gameNumber, AorB) {
 
     let pointUpdateRef = db.ref(`matches/${matchID}/game${gameNumber}${AorB}Score`)
@@ -30,14 +170,27 @@ export async function updateService(matchID, isAInitialServer, gameNumber, combi
 
     switch (sportName) {
         case "tableTennis":
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
+            await updateTableTennisServiceState(
+                matchID,
+                isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame),
+                {
+                    changeServeEveryXPoints,
+                    combinedPoints,
+                    gameNumber,
+                    isAInitialServer,
+                    pointsToWinGame,
+                }
+            )
 
             break;
         case "pickleball":
-            //This function is not used in pickleball, only when creating a new game. 
-            // Also setting this to isSecondServer:true
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
-            db.ref(`matches/${matchID}/isSecondServer`).set(true)
+            // Pickleball rally actions manage server progression after the game starts.
+            // Doubles games begin on second server: 0-0-2.
+            await updatePickleballServiceState(
+                matchID,
+                isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame),
+                true
+            )
             break;
         default:
             db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing(isAInitialServer, gameNumber, combinedPoints, changeServeEveryXPoints, pointsToWinGame))
@@ -155,13 +308,15 @@ export async function unsubscribeToAllMatchFields(matchID, match) {
 }
 
 export async function createNewMatch(tableID, sportName, previousMatchObj = null, isTeamMatch = null, scoringType = null) {
-    let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName, previousMatchObj, isTeamMatch, scoringType))
+    const resolvedSportName = sportName || previousMatchObj?.sportName || "tableTennis"
+    const resolvedScoringType = scoringType !== undefined ? scoringType : previousMatchObj?.scoringType || "normal"
+    let newMatch = await db.ref(`matches`).push(new Match().createNew(resolvedSportName, previousMatchObj, isTeamMatch, resolvedScoringType))
     let currentMatchKey = await db.ref(`tables/${tableID}/currentMatch`).set(newMatch.key)
     return newMatch.key
 }
 
 export async function createNewScheduledMatch(sportName) {
-    let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName))
+    let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName || "tableTennis"))
     return newMatch.key
 }
 
@@ -447,6 +602,29 @@ export async function setInitialMatchServer(matchID, isAInitialServer) {
     await db.ref(`matches/${matchID}/isAInitialServer`).set(isAInitialServer)
 }
 
+export async function setInitialServerPlayerField(matchID, playerField) {
+    await db.ref(`matches/${matchID}`).update({
+        initialServerPlayerField: playerField,
+        currentServerPlayerField: playerField,
+    })
+}
+
+export async function setInitialReceiverPlayerField(matchID, playerField) {
+    await db.ref(`matches/${matchID}`).update({
+        initialReceiverPlayerField: playerField,
+        currentReceiverPlayerField: playerField,
+    })
+}
+
+export async function resetDoublesServicePlayerFields(matchID) {
+    await db.ref(`matches/${matchID}`).update({
+        initialServerPlayerField: "",
+        initialReceiverPlayerField: "",
+        currentServerPlayerField: "",
+        currentReceiverPlayerField: "",
+    })
+}
+
 export function isGamePoint(match) {
     let { pointsToWinGame, } = match
 
@@ -561,7 +739,12 @@ export async function startTimeOut(matchID, AorB) {
     await db.ref(`matches/${matchID}/is${AorB}TimeOutActive`).set(true)
 }
 
-export async function setServerManually(matchID, isAServing) {
+export async function setServerManually(matchID, isAServing, isSecondServer = null) {
+    if (typeof isSecondServer === "boolean") {
+        await updatePickleballServiceState(matchID, isAServing, isSecondServer)
+        return
+    }
+
     await db.ref(`matches/${matchID}/isACurrentlyServing`).set(isAServing)
 }
 
@@ -657,57 +840,56 @@ export async function getPointsToWinGameForTable(tableID) {
 }
 
 
-export async function BWonRally_PB(matchID, gameNumber, isACurrentlyServing, isSecondServer, isDoubles, isRallyScoring = false, pointsToWin, BScore) {
+export async function BWonRally_PB(matchID, gameNumber, isACurrentlyServing, isSecondServer, isDoubles, isRallyScoring = false, pointsToWin, BScore, updateServiceState = true, servicePlayers: any = {}) {
+    const currentServerPlayerField = servicePlayers?.currentServerPlayerField || ""
+    const currentReceiverPlayerField = servicePlayers?.currentReceiverPlayerField || ""
+
     if (isRallyScoring) {
         if (pointsToWin - 1 === parseInt(BScore) && isACurrentlyServing) {
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
-            if (isDoubles) {
-                db.ref(`matches/${matchID}/isSecondServer`).set(BScore % 2 === 0 ? false : true)
-
-            }
-            else {
-                db.ref(`matches/${matchID}/isSecondServer`).set(false)
-
+            if (updateServiceState) {
+                await updatePickleballServiceState(matchID, false, isDoubles ? BScore % 2 !== 0 : false, isDoubles ? getServicePlayerUpdates(currentServerPlayerField, currentReceiverPlayerField, "side-out") : {})
             }
             return BScore
         }
         else {
 
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
             let newScoreB = await AddPoint(matchID, gameNumber, "B")
-            if (isDoubles) {
-                if (newScoreB % 2 === 0) {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
-                }
-                else {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
-                }
-            }
-            else {
-                db.ref(`matches/${matchID}/isSecondServer`).set(false)
-
+            if (updateServiceState) {
+                await updatePickleballServiceState(
+                    matchID,
+                    false,
+                    isDoubles ? newScoreB % 2 !== 0 : false,
+                    isDoubles ? getServicePlayerUpdates(currentServerPlayerField, currentReceiverPlayerField, isACurrentlyServing ? "side-out" : "same-server") : {}
+                )
             }
 
             return newScoreB
         }
     } else {
         if (!isACurrentlyServing) {
-            return await AddPoint(matchID, gameNumber, "B")
+            const newScoreB = await AddPoint(matchID, gameNumber, "B")
+            if (updateServiceState && isDoubles) {
+                await updateServicePlayers(matchID, getServicePlayerUpdates(currentServerPlayerField, currentReceiverPlayerField, "same-server"))
+            }
+            return newScoreB
         }
 
         else {
+            if (!updateServiceState) {
+                return false
+            }
+
             if (isDoubles) {
                 if (isSecondServer) {
-                    db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
-                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                    await updatePickleballServiceState(matchID, false, false, getServicePlayerUpdates(currentServerPlayerField, currentReceiverPlayerField, "side-out"))
 
                 }
                 else {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
+                    await updatePickleballServiceState(matchID, true, true, getServicePlayerUpdates(currentServerPlayerField, currentReceiverPlayerField, "second-server"))
                 }
             }
             else {
-                db.ref(`matches/${matchID}/isACurrentlyServing`).set(false)
+                await updatePickleballServiceState(matchID, false, false)
             }
 
         }
@@ -716,33 +898,28 @@ export async function BWonRally_PB(matchID, gameNumber, isACurrentlyServing, isS
     return false
 }
 
-export async function AWonRally_PB(matchID, gameNumber, isACurrentlyServing, isSecondServer, isDoubles, isRallyScoring = false, pointsToWin, AScore) {
+export async function AWonRally_PB(matchID, gameNumber, isACurrentlyServing, isSecondServer, isDoubles, isRallyScoring = false, pointsToWin, AScore, updateServiceState = true, servicePlayers: any = {}) {
+    const currentServerPlayerField = servicePlayers?.currentServerPlayerField || ""
+    const currentReceiverPlayerField = servicePlayers?.currentReceiverPlayerField || ""
+
     if (isRallyScoring) {
         if (pointsToWin - 1 === parseInt(AScore) && !isACurrentlyServing) {
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
-            if (isDoubles) {
-                db.ref(`matches/${matchID}/isSecondServer`).set(AScore % 2 === 0 ? false : true)
-            }
-            else {
-                db.ref(`matches/${matchID}/isSecondServer`).set(false)
+            if (updateServiceState) {
+                await updatePickleballServiceState(matchID, true, isDoubles ? AScore % 2 !== 0 : false, isDoubles ? getServicePlayerUpdates(currentServerPlayerField, currentReceiverPlayerField, "side-out") : {})
             }
 
             return AScore
         }
         else {
 
-            db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
             let newScoreA = await AddPoint(matchID, gameNumber, "A")
-            if (isDoubles) {
-                if (newScoreA % 2 === 0) {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
-                }
-                else {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
-                }
-            }
-            else {
-                db.ref(`matches/${matchID}/isSecondServer`).set(false)
+            if (updateServiceState) {
+                await updatePickleballServiceState(
+                    matchID,
+                    true,
+                    isDoubles ? newScoreA % 2 !== 0 : false,
+                    isDoubles ? getServicePlayerUpdates(currentServerPlayerField, currentReceiverPlayerField, isACurrentlyServing ? "same-server" : "side-out") : {}
+                )
             }
 
             return newScoreA
@@ -753,21 +930,28 @@ export async function AWonRally_PB(matchID, gameNumber, isACurrentlyServing, isS
     }
     else {
         if (isACurrentlyServing) {
-            return await AddPoint(matchID, gameNumber, "A")
+            const newScoreA = await AddPoint(matchID, gameNumber, "A")
+            if (updateServiceState && isDoubles) {
+                await updateServicePlayers(matchID, getServicePlayerUpdates(currentServerPlayerField, currentReceiverPlayerField, "same-server"))
+            }
+            return newScoreA
         }
         else {
+            if (!updateServiceState) {
+                return false
+            }
+
             if (isDoubles) {
                 if (isSecondServer) {
-                    db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
-                    db.ref(`matches/${matchID}/isSecondServer`).set(false)
+                    await updatePickleballServiceState(matchID, true, false, getServicePlayerUpdates(currentServerPlayerField, currentReceiverPlayerField, "side-out"))
 
                 }
                 else {
-                    db.ref(`matches/${matchID}/isSecondServer`).set(true)
+                    await updatePickleballServiceState(matchID, false, true, getServicePlayerUpdates(currentServerPlayerField, currentReceiverPlayerField, "second-server"))
                 }
             }
             else {
-                db.ref(`matches/${matchID}/isACurrentlyServing`).set(true)
+                await updatePickleballServiceState(matchID, true, false)
             }
 
         }

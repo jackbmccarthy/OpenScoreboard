@@ -5,6 +5,7 @@ import { CopyInputRightButton } from '../components/CopyButton';
 import ScoreboardLinkList from '../components/ScoreboardLinkList';
 import { subFolderPath } from '../../openscoreboard.config';
 import i18n from '../translations/translate';
+import { getUserPath } from '../../database';
 //import QRCodeButton from '../components/QRCodeButton';
 
 export function TableLinkModal(props) {
@@ -19,7 +20,8 @@ export function TableLinkModal(props) {
 
     }
     else {
-        scoreKeepingURL = `${window.location.origin}${subFolderPath}/scoring/table/${props.id}/${props.tableName}/${props.password}?sportName=${props.sportName}&scoringType=${props.scoringType}`
+        const ownerID = props.ownerID || getUserPath() || "";
+        scoreKeepingURL = `${window.location.origin}${subFolderPath}/scoring/table/${props.id}/${props.tableName}/${props.password}?sportName=${props.sportName}&scoringType=${props.scoringType}&ownerID=${encodeURIComponent(ownerID)}`
     }
 
 

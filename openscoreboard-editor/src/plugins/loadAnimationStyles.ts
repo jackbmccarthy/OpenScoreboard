@@ -119,6 +119,8 @@ const conditionalBlockTypes = new Set([
 const viewAnimationComponentTypes = new Set([
     'rowContainer',
     'columnContainer',
+    'courtSideAView',
+    'courtSideBView',
     'wrapper',
     'body',
     ...gameScoreContainerTypes,

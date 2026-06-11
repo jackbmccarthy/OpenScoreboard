@@ -16,6 +16,8 @@ export function MatchFinishedModal(props) {
     let [showScheduledMatches, setShowScheduledMatches] = useState(false)
     let [scheduledMatches, setScheduledMatches] = useState([])
     const { playerA, playerA2, playerB, playerB2 } = props;
+    const sportName = props.sportName || props.route?.params?.sportName || "tableTennis";
+    const scoringType = props.scoringType !== undefined ? props.scoringType : props.route?.params?.scoringType || "normal";
 
     let playerScore = getMatchScore(props);
 
@@ -103,13 +105,13 @@ export function MatchFinishedModal(props) {
                                             setLoadingNewMatch(true);
                                             if (props.isTeamMatch === true) {
                                                 await archiveMatchForTeamMatch(props.teamMatchID, props.tableNumber, props.matchID, props)
-                                                let newTeamMatchMatchKey = await createTeamMatchNewMatch(props.teamMatchID, props.tableNumber, props.sportName, JSON.parse(JSON.stringify(props)), props.scoringType)
+                                                let newTeamMatchMatchKey = await createTeamMatchNewMatch(props.teamMatchID, props.tableNumber, sportName, JSON.parse(JSON.stringify({ ...props, sportName, scoringType })), scoringType)
                                                 await props.onNewMatchCreation(newTeamMatchMatchKey);
 
                                             }
                                             else {
                                                 await archiveMatchForTable(props.tableID, props.matchID, props);
-                                                let newMatchKey = await createNewMatch(props.tableID, props.sportName, JSON.parse(JSON.stringify(props)), false, props.scoringType);
+                                                let newMatchKey = await createNewMatch(props.tableID, sportName, JSON.parse(JSON.stringify({ ...props, sportName, scoringType })), false, scoringType);
                                                 await props.onNewMatchCreation(newMatchKey);
                                             }
 

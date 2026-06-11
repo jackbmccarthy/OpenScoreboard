@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Text, View, FormControl, Input, Spinner, FlatList } from 'native-base';
+import { Button, Text, View, FormControl, Input, Spinner, FlatList, Modal } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../openscoreboardtheme";
 import { updateCurrentPlayer } from './functions/scoring';
 import { getImportPlayerList, sortPlayers } from './functions/players';
@@ -36,6 +36,140 @@ export function EditPlayer(props) {
         setSelectedImportPlayer(player);
         setShowImportPlayerConfirmation(true);
     };
+
+    const hasJerseyColor = typeof jerseyColor === "string" && jerseyColor.trim().length > 0;
+
+    function resetJerseyColorToCurrentPlayer() {
+        const currentPlayer = props[props.player];
+        setJerseyColor(currentPlayer?.jerseyColor || "");
+    }
+
+    function renderJerseyColorSummary() {
+        return (
+            <View
+                alignItems={"center"}
+                backgroundColor={"gray.50"}
+                borderColor={"gray.200"}
+                borderRadius={8}
+                borderWidth={1}
+                flexDirection={"row"}
+                marginBottom={2}
+                padding={2}
+            >
+                <View
+                    alignItems={"center"}
+                    backgroundColor={hasJerseyColor ? jerseyColor : "white"}
+                    borderColor={hasJerseyColor ? "gray.300" : "gray.200"}
+                    borderRadius={999}
+                    borderStyle={hasJerseyColor ? "solid" : "dashed"}
+                    borderWidth={1}
+                    height={34}
+                    justifyContent={"center"}
+                    marginRight={3}
+                    width={34}
+                >
+                    <Ionicons name={hasJerseyColor ? "shirt" : "shirt-outline"} size={17} color={hasJerseyColor ? "white" : "gray"} />
+                </View>
+                <View flex={1}>
+                    <Text color={"gray.500"} fontSize={"2xs"} fontWeight={"bold"} textTransform={"uppercase"}>
+                        {i18n.t("jerseyColor")}
+                    </Text>
+                    <Text color={"gray.900"} fontSize={"sm"} fontWeight={"bold"} numberOfLines={1}>
+                        {hasJerseyColor ? "Color selected" : "No jersey color"}
+                    </Text>
+                </View>
+                <Button
+                    borderColor={"blue.200"}
+                    borderRadius={8}
+                    minHeight={34}
+                    onPress={() => setShowColorPalette(true)}
+                    paddingX={3}
+                    variant={"outline"}
+                >
+                    <Text color={openScoreboardColor} fontSize={"xs"} fontWeight={"bold"}>
+                        Change
+                    </Text>
+                </Button>
+            </View>
+        );
+    }
+
+    function renderJerseyColorPicker({ showSaveActions = false } = {}) {
+        function closeColorPicker() {
+            if (showSaveActions) {
+                resetJerseyColorToCurrentPlayer();
+            }
+            setShowColorPalette(false);
+        }
+
+        return (
+            <Modal isOpen={showColorPalette} onClose={closeColorPicker}>
+                <Modal.Content maxWidth={420} width={"92%"}>
+                    <Modal.CloseButton />
+                    <Modal.Header>{i18n.t("jerseyColor")}</Modal.Header>
+                    <Modal.Body>
+                        <JerseyColorOptions color={jerseyColor} onSelect={(color) => {
+                            setJerseyColor(color);
+                        }} />
+                    </Modal.Body>
+                    <Modal.Footer>
+                        <Button
+                            marginRight={2}
+                            onPress={() => {
+                                setJerseyColor("");
+                            }}
+                            variant={"ghost"}
+                        >
+                            <Text color={"gray.700"} fontWeight={"bold"}>
+                                Clear
+                            </Text>
+                        </Button>
+                        {showSaveActions ? (
+                            <>
+                                <Button
+                                    marginRight={2}
+                                    onPress={closeColorPicker}
+                                    variant={"ghost"}
+                                >
+                                    <Text color={"gray.700"} fontWeight={"bold"}>
+                                        {i18n.t("back")}
+                                    </Text>
+                                </Button>
+                                <Button
+                                    backgroundColor={openScoreboardColor}
+                                    borderRadius={8}
+                                    onPress={async () => {
+                                        setLoadingSave(true);
+                                        await updateCurrentPlayer(props.matchID, props.player, { ...props[props.player], isImported: true, jerseyColor: jerseyColor });
+                                        setLoadingSave(false);
+                                        setShowColorPalette(false);
+                                        if (typeof props.updateMatchPlayer === "function") {
+                                            props.updateMatchPlayer(props.player, { ...props[props.player], isImported: true, jerseyColor: jerseyColor });
+                                        }
+                                    }}
+                                >
+                                    {loadingSave ?
+                                        <Spinner color={openScoreboardButtonTextColor}></Spinner>
+                                        :
+                                        <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>}
+                                </Button>
+                            </>
+                        ) : (
+                            <Button
+                                backgroundColor={openScoreboardColor}
+                                borderRadius={8}
+                                onPress={() => setShowColorPalette(false)}
+                            >
+                                <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>
+                                    Done
+                                </Text>
+                            </Button>
+                        )}
+                    </Modal.Footer>
+                </Modal.Content>
+            </Modal>
+        );
+    }
 
     function resetPlayerView() {
         setJerseyColor("")
@@ -92,9 +226,8 @@ export function EditPlayer(props) {
                         <FormControl.Label>{i18n.t("lastName")}</FormControl.Label>
                         <Input defaultValue={lastName} onChangeText={setLastName}></Input>
                         <FormControl.Label>{i18n.t("jerseyColor")}</FormControl.Label>
-                        <JerseyColorOptions color={jerseyColor} onSelect={(color) => {
-                            setJerseyColor(color);
-                        }}></JerseyColorOptions>
+                        {renderJerseyColorSummary()}
+                        {renderJerseyColorPicker()}
 
                         {/* <FormControl.Label>Country</FormControl.Label> */}
                         <View flexDir={"row"}>
@@ -157,9 +290,8 @@ export function EditPlayer(props) {
                             </Text>
                             <ImportPlayerItem  {...selectedImportPlayer}></ImportPlayerItem>
                             <FormControl.Label>{i18n.t("jerseyColor")}</FormControl.Label>
-                            <JerseyColorOptions color={jerseyColor} onSelect={(color) => {
-                                setJerseyColor(color);
-                            }}></JerseyColorOptions>
+                            {renderJerseyColorSummary()}
+                            {renderJerseyColorPicker()}
                             <View flex={1} padding={1} flexDirection={"row"}>
                                 <View flex={1} padding={1}>
                                     <Button
@@ -269,48 +401,14 @@ export function EditPlayer(props) {
                         </View>
                         <View padding={1} >
                             <Button variant={"ghost"} onPress={() => {
-                                setShowColorPalette(true)
-                            }}>
-                                <Ionicons name="color-palette" size={24} color={openScoreboardColor} />
-                            </Button>
-                        </View>
-                        <View padding={1} >
-                            <Button variant={"ghost"} onPress={() => {
                                 setShowImportedPlayer(false);
                             }}>
                                 <FontAwesome name='edit' size={24} color={openScoreboardColor} />
                             </Button>
                         </View>
                     </View>
-                    {showColorPalette ?
-                        <View>
-                            <JerseyColorOptions color={jerseyColor} onSelect={(color) => {
-                                setJerseyColor(color);
-                            }}></JerseyColorOptions>
-                            <View flexDirection={"row"} alignItems="center">
-                                <View flex={1} padding={1}>
-                                    <Button
-                                        onPress={() => {
-                                            updateCurrentPlayer(props.matchID, props.player, { ...props[props.player], isImported: true, jerseyColor: jerseyColor })
-                                            setShowColorPalette(false)
-                                        }}
-                                    >
-                                        <Text color={openScoreboardButtonTextColor}>{i18n.t("save")}</Text>
-                                    </Button>
-                                </View>
-                                <View flex={1} padding={1}>
-                                    <Button
-                                        onPress={() => {
-                                            setShowColorPalette(false)
-                                        }}
-                                        variant={"ghost"}>
-                                        <Text>{i18n.t("back")}</Text>
-                                    </Button>
-                                </View>
-                            </View>
-                        </View>
-                        : null
-                    }
+                    {renderJerseyColorSummary()}
+                    {renderJerseyColorPicker({ showSaveActions: true })}
 
                 </View>
             );
