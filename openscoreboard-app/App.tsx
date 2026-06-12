@@ -17,6 +17,7 @@ import { authStateListener, migrateLocalUserDataToFirebaseUser } from './databas
 import MyAccount from './src/MyAccount';
 import LoadingPage from './src/LoadingPage';
 import MyPlayerLists from './src/MyPlayerLists';
+import VerifyEmail from './src/VerifyEmail';
 //import QRCodeScreen from './src/QRCode';
 import MyDynamicURLs from './src/MyDynamicURLs';
 import BulkAddPlayer from './src/BulkAddPlayers';
@@ -54,6 +55,7 @@ export const linkingConfig = {
         embed: (embed) => embed === true || embed === "true",
       },
     },
+    VerifyEmail: subFolderPath + "/verify-email",
     Login: subFolderPath + "/login",
     Home: {
       path: subFolderPath + "/",
@@ -91,8 +93,29 @@ function ScoreboardNavigation() {
 
   let [doneLoading, setDoneLoading] = useState(false)
   let [isSignedIn, setIsSignedIn] = useState(false)
+  let [needsEmailVerification, setNeedsEmailVerification] = useState(false)
   let [hasLoadedLogin, setHasLoadedLogin] = useState(false)
 
+
+  function isUnverifiedPasswordUser(user) {
+    return user?.emailVerified === false &&
+      user?.providerData?.some((provider) => provider?.providerId === "password")
+  }
+
+  async function handleEmailVerified(user) {
+    try {
+      await migrateLocalUserDataToFirebaseUser(user)
+      setIsSignedIn(true)
+      setNeedsEmailVerification(false)
+      setDoneLoading(true)
+    }
+    catch (err) {
+      console.error(err)
+      setIsSignedIn(false)
+      setNeedsEmailVerification(false)
+      setDoneLoading(true)
+    }
+  }
 
 
   useEffect(() => {
@@ -102,24 +125,33 @@ function ScoreboardNavigation() {
       return
     }
 
-    authStateListener(async (user) => {
+    return authStateListener(async (user) => {
 
       if (user) {
+        if (isUnverifiedPasswordUser(user)) {
+          setIsSignedIn(false)
+          setNeedsEmailVerification(true)
+          setDoneLoading(true)
+          return
+        }
 
         try {
           await migrateLocalUserDataToFirebaseUser(user)
           setIsSignedIn(true)
+          setNeedsEmailVerification(false)
           setDoneLoading(true)
         }
         catch (err) {
           console.error(err)
           setIsSignedIn(false)
+          setNeedsEmailVerification(false)
           setDoneLoading(true)
         }
 
       }
       else {
         setIsSignedIn(false)
+        setNeedsEmailVerification(false)
         setDoneLoading(true)
       }
 
@@ -196,6 +228,19 @@ function ScoreboardNavigation() {
               </ScoreboardStack.Group>
 
             </>
+              : needsEmailVerification ? <>
+                <ScoreboardStack.Group navigationKey={"verify-email"}>
+                  <ScoreboardStack.Screen
+                    name="VerifyEmail"
+                    options={{
+                      headerRight: () => null,
+                      title: "Verify Email",
+                    }}
+                  >
+                    {(screenProps) => <VerifyEmail {...screenProps} onVerified={handleEmailVerified} />}
+                  </ScoreboardStack.Screen>
+                </ScoreboardStack.Group>
+              </>
 
               : <>
                 <ScoreboardStack.Screen name="Login" component={Login} />

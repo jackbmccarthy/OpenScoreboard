@@ -48,7 +48,8 @@ export async function loginToFirebase(email, password) {
             result.success = false
             result.error = true
             result.errorMessage = "You must first verify your email address."
-            await firebase.auth().signOut()
+            result.user = firebase.auth().currentUser
+            setActiveAuthProvider(firebase.auth.EmailAuthProvider.PROVIDER_ID)
         }
         else {
             setActiveAuthProvider(firebase.auth.EmailAuthProvider.PROVIDER_ID)
@@ -127,14 +128,14 @@ export async function registerToFirebase(email, password) {
         error: false,
         success: true,
         errorMessage: "",
-        user: {}
+        user: {},
+        isEmailVerified: false
     }
     try {
         let res = await firebase.auth().createUserWithEmailAndPassword(email, password)
         await res.user.sendEmailVerification()
         result.user = firebase.auth().currentUser
-        await firebase.auth().signOut()
-        setActiveAuthProvider("")
+        setActiveAuthProvider(firebase.auth.EmailAuthProvider.PROVIDER_ID)
         return result
     } catch (err) {
         result.error = true
@@ -167,7 +168,7 @@ export async function signOut() {
     }
 
     setActiveAuthProvider("")
-    firebase.auth().signOut()
+    return firebase.auth().signOut()
 }
 
 export function setActiveAuthProvider(providerId) {
