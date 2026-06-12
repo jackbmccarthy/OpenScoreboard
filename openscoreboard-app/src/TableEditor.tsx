@@ -394,7 +394,22 @@ export default function TableEditor(props) {
                                     <PageAction
                                         isPrimary
                                         icon={(color) => <AntDesign name="calendar" size={18} color={color} />}
-                                        label={"Schedule"}
+                                        label={"Scheduling Manager"}
+                                        onPress={() => {
+                                            props.navigation.navigate("SchedulingManager", {
+                                                sourceType: "table",
+                                                sourceID: tableID,
+                                                tableID,
+                                                name: tableDisplayName,
+                                                playerListID,
+                                                sportName,
+                                                scoringType,
+                                            });
+                                        }}
+                                    />
+                                    <PageAction
+                                        icon={(color) => <MaterialCommunityIcons name="calendar-edit" size={18} color={color} />}
+                                        label={"Manual schedule"}
                                         onPress={() => {
                                             props.navigation.navigate("ScheduledTableMatches", {
                                                 tableID,

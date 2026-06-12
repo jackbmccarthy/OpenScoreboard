@@ -29,6 +29,9 @@ import TeamMatchEditor from './src/TeamMatchEditor';
 import TeamMatchPublicView from './src/TeamMatchPublicView';
 import TableEditor from './src/TableEditor';
 import ScorekeeperSessions from './src/ScorekeeperSessions';
+import SchedulingManager from './src/SchedulingManager';
+import MyCompetitions from './src/MyCompetitions';
+import CompetitionEditor from './src/CompetitionEditor';
 
 export const linkingConfig = {
   screens: {
@@ -64,6 +67,9 @@ export const linkingConfig = {
         TableEditor: subFolderPath + "/tables/:myTableID/manage/:tableID",
         MyTeamMatches: subFolderPath + "/teammatches",
         TeamMatchEditor: subFolderPath + "/teammatches/:myTeamMatchID/edit/:teamMatchID",
+        SchedulingManager: subFolderPath + "/scheduling/:sourceType/:sourceID",
+        MyCompetitions: subFolderPath + "/scoreboards/brackets-groups",
+        CompetitionEditor: subFolderPath + "/scoreboards/brackets-groups/:competitionID/edit",
         ScorekeeperSessions: subFolderPath + "/scorekeeper-sessions",
         ScheduledTableMatches: subFolderPath + "/scheduledtablematches",
         //QRCodeScreen:subFolderPath+"/qrcode",
@@ -166,6 +172,9 @@ function ScoreboardNavigation() {
                 <ScoreboardStack.Screen name="TeamEditor" component={TeamEditor} options={{ title: "Edit Team" }} />
                 <ScoreboardStack.Screen name="MyTeamMatches" component={MyTeamMatches} options={{ title: i18n.t("myTeamMatches") }} />
                 <ScoreboardStack.Screen name="TeamMatchEditor" component={TeamMatchEditor} options={{ title: i18n.t("editTeamMatch") }} />
+                <ScoreboardStack.Screen name="SchedulingManager" component={SchedulingManager} options={{ title: "Scheduling Manager" }} />
+                <ScoreboardStack.Screen name="MyCompetitions" component={MyCompetitions} options={{ title: "Brackets & Groups" }} />
+                <ScoreboardStack.Screen name="CompetitionEditor" component={CompetitionEditor} options={{ title: "Edit Competition Graphic" }} />
                 <ScoreboardStack.Screen name="ScorekeeperSessions" component={ScorekeeperSessions} options={{ title: "Scorekeeper Sessions" }} />
                 <ScoreboardStack.Screen
                   name="TeamMatchPublicView"

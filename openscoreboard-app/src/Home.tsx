@@ -200,6 +200,13 @@ export default function Home(props) {
 
         },
         {
+            route: "MyCompetitions",
+            title: "Brackets & Groups",
+            description: "Create bracket and round-robin graphics that can be linked to scheduled match results.",
+            options: ["Competition graphics", "Linked tables", "Live results"],
+
+        },
+        {
             route: "DynamicURLS",
             title: i18n.t("dynamicURLs"),
             description: i18n.t("dynamicURLDescription"),

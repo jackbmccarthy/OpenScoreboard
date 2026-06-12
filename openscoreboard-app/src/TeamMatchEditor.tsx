@@ -364,6 +364,31 @@ export default function TeamMatchEditor(props) {
                         </View>
                     </Section>
 
+                    <Section title={"Scheduling"}>
+                        <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
+                            Generate team-match schedules from roster formats, then push selected matches to this team match.
+                        </Text>
+                        <View flexDirection={"row"} flexWrap={"wrap"} marginTop={2}>
+                            <PageAction
+                                isPrimary
+                                icon={(color) => <MaterialCommunityIcons name="calendar-multiselect" size={20} color={color} />}
+                                label={"Scheduling Manager"}
+                                onPress={() => {
+                                    props.navigation.navigate("SchedulingManager", {
+                                        sourceType: "teamMatch",
+                                        sourceID: teamMatchID,
+                                        teamMatchID,
+                                        myTeamMatchID,
+                                        teamAID,
+                                        teamBID,
+                                        sportName: selectedSport,
+                                        scoringType: selectedScoringType,
+                                    });
+                                }}
+                            />
+                        </View>
+                    </Section>
+
                     <Section title={"Match settings"}>
                         <FormControl marginTop={3}>
                             <FormControl.Label>{i18n.t("teamA")}</FormControl.Label>
