@@ -187,6 +187,8 @@ function isConditionalViewBlock(id: string, label: string, category: string) {
 
 function isNumericDataBlock(searchText: string) {
     return searchText.includes("score")
+        || searchText.includes("rating")
+        || searchText.includes("ranking")
         || searchText.includes("timer")
         || searchText.includes("duration")
         || searchText.includes("countdown")

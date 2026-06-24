@@ -33,6 +33,7 @@ mkdir -p "$OUTPUT_DIR"
 copy_dist "$ROOT_DIR/openscoreboard-app/dist" "$OUTPUT_DIR/app"
 copy_dist "$ROOT_DIR/openscoreboard-editor/dist" "$OUTPUT_DIR/editor"
 copy_dist "$ROOT_DIR/openscoreboard-scoreboard/dist" "$OUTPUT_DIR/scoreboard"
+copy_dist "$ROOT_DIR/openscoreboard-scoreboard/dist-brackets" "$OUTPUT_DIR/brackets"
 
 cat > "$OUTPUT_DIR/index.html" <<'HTML'
 <!doctype html>

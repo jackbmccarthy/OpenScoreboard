@@ -6,6 +6,9 @@ export const defaultPlayerRegistrationFields = {
     country: true,
     jerseyColor: false,
     imageURL: false,
+    gender: false,
+    rating: false,
+    ranking: false,
 };
 
 export const playerRegistrationFieldOptions = [
@@ -31,6 +34,24 @@ export const playerRegistrationFieldOptions = [
         key: "jerseyColor",
         label: "Jersey color",
         description: "Optional color metadata for scoring and display workflows.",
+        locked: false,
+    },
+    {
+        key: "gender",
+        label: "Gender",
+        description: "Optional one-character gender metadata for grouping, filtering, and future competition formats.",
+        locked: false,
+    },
+    {
+        key: "rating",
+        label: "Rating",
+        description: "Optional numeric rating for seeding and sorting player lists.",
+        locked: false,
+    },
+    {
+        key: "ranking",
+        label: "Ranking",
+        description: "Optional numeric ranking for seeding and sorting player lists.",
         locked: false,
     },
 ];

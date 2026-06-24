@@ -2,9 +2,10 @@ import React, { Component, useEffect, useRef, useState } from 'react';
 import { PanResponder, TouchableOpacity } from 'react-native';
 
 import { NativeBaseProvider, View } from 'native-base';
+import db from '../database';
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import LoadingPage from './LoadingPage';
-import { getCurrentGameNumber, getCurrentMatchForTable, getMatchData, hasActiveGame, isGameFinished, isMatchFinished, subscribeToAllMatchFields, unsubscribeToAllMatchFields, watchForPasswordChange } from './functions/scoring';
+import { abandonMatch, createNewMatch, getCurrentGameNumber, getCurrentMatchForTable, getMatchData, hasActiveGame, isGameFinished, isMatchFinished, subscribeToAllMatchFields, unassignedCurrentMatchForTable, unsubscribeToAllMatchFields, watchForPasswordChange } from './functions/scoring';
 import TableNewMatchModal from './modals/TableNewMatchModal';
 
 import { ScoringSide } from './components/ScoringSide';
@@ -21,12 +22,14 @@ import { MatchSetupWizard } from './modals/MatchSetupWizard';
 import { InBetweenGamesModal } from './modals/InBetweenGamesModal';
 import { GameWonConfirmationModal } from './modals/GameWonConfirmationModal';
 import { MatchFinishedModal } from './modals/MatchFinishedModal';
-import { addWinToTeamMatchTeamScore, getTeamMatchCurrentMatch } from './functions/teammatches';
+import { addWinToTeamMatchTeamScore, createTeamMatchNewMatch, getTeamMatchCurrentMatch, removeTeamMatchCurrentMatch } from './functions/teammatches';
 import Unauthorized from './Unauthorized';
-import { getTablePassword } from './functions/tables';
+import { getTableInfo, getTablePassword, isPendingScheduledTableMatch, setScheduledTableMatchToCurrentMatch, sortScheduledTableMatches } from './functions/tables';
 import { ScoringSidePickleball } from './components/ScoringSidePickleball';
 import Match from './classes/Match';
 import { getScorekeeperTargetFromRoute, startScorekeeperSession } from './functions/scorekeeperSessions';
+import { resetScheduledMatchForSource } from './functions/scheduling';
+import { KioskQueueScreen } from './components/KioskQueueScreen';
 
 
 export default function TableScoring(props) {
@@ -41,11 +44,12 @@ export default function TableScoring(props) {
     let activeListeners = useRef([])
     let teamMatchIDRef = useRef(props.route.params.teamMatchID)
     let isTeamMatchRef = useRef(props.route.params.isTeamMatch === true || props.route.params.isTeamMatch === "true")
+    let parentTeamMatchIDRef = useRef(props.route.params.teamMatchID || "")
     let teamMatchTableNumber = useRef(props.route.params.tableNumber)
     let scorekeeperSessionCleanupRef = useRef(null)
 
     let [doneLoading, setDoneLoading] = useState(false)
-    let [matchSettings, setMatchSettings] = useState({})
+    let [matchSettings, setMatchSettings] = useState<any>({})
     let [currentMatchExists, setCurrentMatchExists] = useState(null)
     let fieldLoadedCount = useRef(0)
     let matchSettingsCount = useRef(0)
@@ -66,7 +70,12 @@ export default function TableScoring(props) {
     let [showEndOfGameModal, setShowEndOfGameModal] = useState(false)
     let [showAdvanceSettingsModal, setShowAdvanceSettingsModal] = useState(false)
     let [showMatchSetupWizard, setShowMatchSetupWizard] = useState(false)
+    let [setupWizardPreferScheduledMatches, setSetupWizardPreferScheduledMatches] = useState(true)
     let [showEndOfMatchOptions, setShowEndOfMatchOptions] = useState(false)
+    let [isKioskMode, setIsKioskMode] = useState(false)
+    let [kioskQueue, setKioskQueue] = useState<any[]>([])
+    let [startingKioskMatch, setStartingKioskMatch] = useState(false)
+    let [kioskStatusMessage, setKioskStatusMessage] = useState("")
 
     const cancelPendingMatchFieldFlush = () => {
         if (!pendingMatchUpdateFrameRef.current) {
@@ -175,12 +184,14 @@ export default function TableScoring(props) {
                                         openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                         openPlayerModal={openPlayerModal}
+                                        lockPlayerEditing={isKioskMode}
 
                                         isA={false} {...matchProps}></ScoringSidePickleball> :
                                     <ScoringSidePickleball matchID={matchIDRef.current}
                                         openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                         openPlayerModal={openPlayerModal}
+                                        lockPlayerEditing={isKioskMode}
                                         isA={true} {...matchProps}></ScoringSidePickleball>
                             }
                             {
@@ -189,12 +200,14 @@ export default function TableScoring(props) {
                                         openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                         openPlayerModal={openPlayerModal}
+                                        lockPlayerEditing={isKioskMode}
                                         isA={true} {...matchProps}></ScoringSidePickleball>
                                     :
                                     <ScoringSidePickleball matchID={matchIDRef.current}
                                         openGameWonConfirmationModal={openGameWonConfirmationModal}
 
                                         openPlayerModal={openPlayerModal}
+                                        lockPlayerEditing={isKioskMode}
                                         isA={false} {...matchProps}></ScoringSidePickleball>
                             }
                         </View>
@@ -208,30 +221,34 @@ export default function TableScoring(props) {
                     <View flexDirection={"row"} width="100%" flex={1} minHeight={0} overflow={"hidden"}>
                         {
                             isSwitched ?
-                                <ScoringSide matchID={matchIDRef.current}
+                            <ScoringSide matchID={matchIDRef.current}
                                     openGameWonConfirmationModal={openGameWonConfirmationModal}
 
-                                    openPlayerModal={openPlayerModal}
+                                openPlayerModal={openPlayerModal}
+                                lockPlayerEditing={isKioskMode}
 
                                     isA={false} {...matchProps}></ScoringSide> :
-                                <ScoringSide matchID={matchIDRef.current}
+                            <ScoringSide matchID={matchIDRef.current}
                                     openGameWonConfirmationModal={openGameWonConfirmationModal}
 
-                                    openPlayerModal={openPlayerModal}
+                                openPlayerModal={openPlayerModal}
+                                lockPlayerEditing={isKioskMode}
                                     isA={true} {...matchProps}></ScoringSide>
                         }
                         {
                             isSwitched ?
-                                <ScoringSide matchID={matchIDRef.current}
+                            <ScoringSide matchID={matchIDRef.current}
                                     openGameWonConfirmationModal={openGameWonConfirmationModal}
 
-                                    openPlayerModal={openPlayerModal}
+                                openPlayerModal={openPlayerModal}
+                                lockPlayerEditing={isKioskMode}
                                     isA={true} {...matchProps}></ScoringSide>
                                 :
-                                <ScoringSide matchID={matchIDRef.current}
+                            <ScoringSide matchID={matchIDRef.current}
                                     openGameWonConfirmationModal={openGameWonConfirmationModal}
 
-                                    openPlayerModal={openPlayerModal}
+                                openPlayerModal={openPlayerModal}
+                                lockPlayerEditing={isKioskMode}
                                     isA={false} {...matchProps}></ScoringSide>
                         }
                         {/* <ScoringSide isA={true} {...matchSettings}></ScoringSide>
@@ -245,14 +262,19 @@ export default function TableScoring(props) {
     }
 
 
-    async function loadTableScoring(tableId) {
+    async function loadTableScoring(tableId, options: any = {}) {
+        const preferScheduledMatches = options?.preferScheduledMatches !== false
         detachActiveListeners()
         fieldLoadedCount.current = 0
         matchSettingsCount.current = 0
         setDoneLoading(false)
 
         if (!isTeamMatchRef.current) {
-            let password = await getTablePassword(tableId)
+            const [password, tableInfo] = await Promise.all([
+                getTablePassword(tableId),
+                getTableInfo(tableId),
+            ])
+            setIsKioskMode(tableInfo?.tableMode === "kiosk")
 
             if (password !== props.route.params.password) {
                 setUnAuthorized(true)
@@ -274,6 +296,7 @@ export default function TableScoring(props) {
         if (typeof currentMatchID === "string" && currentMatchID.length > 0) {
             setCurrentMatchExists(true)
             let matchData = await getMatchData(currentMatchID) || {}
+            parentTeamMatchIDRef.current = matchData.teamMatchID || teamMatchIDRef.current || ""
             setMatchSettings({ ...matchData })
             matchSettingsCount.current = Object.keys(matchData).length
 
@@ -285,6 +308,7 @@ export default function TableScoring(props) {
                 else {
                     switch (getCurrentGameNumber(matchData)) {
                         case 1:
+                            setSetupWizardPreferScheduledMatches(preferScheduledMatches)
                             setShowMatchSetupWizard(true)
                             break;
 
@@ -396,6 +420,34 @@ export default function TableScoring(props) {
     }, [])
 
     useEffect(() => {
+        if (isTeamMatchRef.current || !props.route.params.tableID) {
+            return
+        }
+
+        const tableModeRef = db.ref(`tables/${props.route.params.tableID}/tableMode`)
+        const scheduledMatchesRef = db.ref(`tables/${props.route.params.tableID}/scheduledMatches`)
+        const handleTableMode = (snapshot) => {
+            setIsKioskMode(snapshot.val() === "kiosk")
+        }
+        const handleScheduledMatches = (snapshot) => {
+            const scheduledMatches = snapshot.val()
+            const queue = scheduledMatches && typeof scheduledMatches === "object" ?
+                sortScheduledTableMatches(Object.entries(scheduledMatches))
+                    .filter(([, match]: any) => isPendingScheduledTableMatch(match))
+                : []
+            setKioskQueue(queue)
+        }
+
+        tableModeRef.on("value", handleTableMode)
+        scheduledMatchesRef.on("value", handleScheduledMatches)
+
+        return () => {
+            tableModeRef.off("value", handleTableMode)
+            scheduledMatchesRef.off("value", handleScheduledMatches)
+        }
+    }, [props.route.params.tableID])
+
+    useEffect(() => {
 
     }, [
         matchSettings["isGame1Finished"],
@@ -413,6 +465,9 @@ export default function TableScoring(props) {
 
 
     const openPlayerModal = (player) => {
+        if (isKioskMode) {
+            return
+        }
         setEditPlayer(player)
         setShowEditPlayer(true)
     }
@@ -451,17 +506,118 @@ export default function TableScoring(props) {
     const openAdvanceSettingsModal = () => {
         setShowAdvanceSettingsModal(true)
     }
-    const openSetupWizard = () => {
+    const openSetupWizard = (options: any = {}) => {
+        setSetupWizardPreferScheduledMatches(options?.preferScheduledMatches !== false)
         setShowMatchSetupWizard(true)
     }
 
-    const onNewMatchCreation = async (matchID) => {
+    const onNewMatchCreation = async (matchID, options: any = {}) => {
         await unsubscribeToAllMatchFields(matchIDRef.current, matchSettings)
         // let matchData = await getMatchData(matchID)
         // matchIDRef.current = matchID
         // setMatchSettings(matchData)
         // subscribeToAllMatchFields(matchIDRef.current, matchData)
-        loadTableScoring(props.route.params.tableID)
+        await loadTableScoring(props.route.params.tableID, options)
+    }
+
+    const abandonCurrentMatch = async () => {
+        const currentMatchID = matchIDRef.current
+        const sportName = matchSettings.sportName || props.route.params.sportName || "tableTennis"
+        const scoringType = matchSettings.scoringType !== undefined ? matchSettings.scoringType : props.route.params.scoringType || "normal"
+
+        await abandonMatch(currentMatchID)
+
+        if (matchSettings.scheduledMatchID) {
+            const scheduledSourceType = matchSettings.scheduledSourceType || (isTeamMatchRef.current ? "teamMatch" : "table")
+            const scheduledSourceID = matchSettings.scheduledSourceID || (isTeamMatchRef.current ? teamMatchIDRef.current : props.route.params.tableID)
+            await resetScheduledMatchForSource(
+                scheduledSourceType,
+                scheduledSourceID,
+                matchSettings.scheduledMatchID,
+                currentMatchID,
+            )
+        }
+
+        if (isKioskMode && !isTeamMatchRef.current) {
+            if (matchSettings.teamMatchID) {
+                await removeTeamMatchCurrentMatch(
+                    matchSettings.teamMatchID,
+                    matchSettings.teamMatchTableNumber || "1"
+                )
+            }
+            await unassignedCurrentMatchForTable(props.route.params.tableID)
+            setShowAdvanceSettingsModal(false)
+            await loadTableScoring(props.route.params.tableID, { preferScheduledMatches: false })
+            return
+        }
+
+        let nextMatchID
+        if (isTeamMatchRef.current) {
+            nextMatchID = await createTeamMatchNewMatch(
+                teamMatchIDRef.current,
+                teamMatchTableNumber.current,
+                sportName,
+                null,
+                scoringType,
+            )
+        }
+        else {
+            nextMatchID = await createNewMatch(
+                props.route.params.tableID,
+                sportName,
+                null,
+                false,
+                scoringType,
+            )
+        }
+
+        setShowAdvanceSettingsModal(false)
+        await onNewMatchCreation(nextMatchID, { preferScheduledMatches: true })
+        openSetupWizard({ preferScheduledMatches: true })
+    }
+
+    const activeTeamMatchID = matchSettings.teamMatchID || parentTeamMatchIDRef.current || teamMatchIDRef.current || ""
+    const isTeamMatchContext = isTeamMatchRef.current || activeTeamMatchID.length > 0
+
+    async function startNextKioskMatch() {
+        const nextScheduledMatch = kioskQueue[0]
+        const scheduledMatchID = nextScheduledMatch?.[0]
+        const scheduledMatch = nextScheduledMatch?.[1] || {}
+        if (!scheduledMatchID || !scheduledMatch.matchID || !scheduledMatch.playerA?.trim() || !scheduledMatch.playerB?.trim()) {
+            return
+        }
+
+        setStartingKioskMatch(true)
+        setKioskStatusMessage("")
+        try {
+            await setScheduledTableMatchToCurrentMatch(
+                props.route.params.tableID,
+                scheduledMatch.matchID,
+                scheduledMatchID
+            )
+            await loadTableScoring(props.route.params.tableID, { preferScheduledMatches: false })
+        }
+        catch (error) {
+            setKioskStatusMessage(error instanceof Error ? error.message : "This match could not be started.")
+        }
+        finally {
+            setStartingKioskMatch(false)
+        }
+    }
+
+    if (doneLoading && isKioskMode && currentMatchExists === false) {
+        return (
+            <NativeBaseProvider theme={openScoreboardTheme}>
+                <KioskQueueScreen
+                    isStarting={startingKioskMatch}
+                    nextMatch={kioskQueue[0] || null}
+                    onContinue={startNextKioskMatch}
+                    queueCount={kioskQueue.length}
+                    statusMessage={kioskStatusMessage}
+                    tableName={decodeURI(props.route.params.name || "")}
+                />
+            </NativeBaseProvider>
+        )
     }
 
 
@@ -490,9 +646,13 @@ export default function TableScoring(props) {
                                 onClose={() => { setShowEndOfMatchOptions(false) }}
                                 {...matchSettings}
                                 {...props}
-                                isTeamMatch={isTeamMatchRef.current}
+                                isTeamMatch={isTeamMatchContext}
+                                isTeamMatchSource={isTeamMatchRef.current}
+                                parentTeamMatchID={activeTeamMatchID}
                                 tableNumber={teamMatchTableNumber.current}
-                                teamMatchID={teamMatchIDRef.current}></MatchFinishedModal>
+                                teamMatchTableNumber={matchSettings.teamMatchTableNumber}
+                                isKioskMode={isKioskMode}
+                                teamMatchID={activeTeamMatchID}></MatchFinishedModal>
                             : null
                     }
 
@@ -508,10 +668,12 @@ export default function TableScoring(props) {
                                 matchID={matchIDRef.current}
                                 {...matchSettings}
                                 isOpen={showMatchSetupWizard}
+                                preferScheduledMatches={setupWizardPreferScheduledMatches}
                                 {...props}
                                 player={editPlayer}
                                 setEditPlayer={setEditPlayer}
                                 onClose={() => { setShowMatchSetupWizard(false) }}
+                                isKioskMode={isKioskMode}
                                 isTeamMatch={isTeamMatchRef.current}
                                 tableNumber={teamMatchTableNumber.current}
                                 teamMatchID={teamMatchIDRef.current}
@@ -550,7 +712,7 @@ export default function TableScoring(props) {
 
                             : null
                     }
-                    {currentMatchExists === false ?
+                    {currentMatchExists === false && !isKioskMode ?
                         <TableNewMatchModal
                             onClose={() => {
                                 setCurrentMatchExists(true)
@@ -583,23 +745,23 @@ export default function TableScoring(props) {
                                 isOpen={showGameWonConfirmationModal}
                                 {...matchSettings}
                                 {...props}
-                                isTeamMatch={isTeamMatchRef.current}
+                                isTeamMatch={isTeamMatchContext}
                                 tableNumber={teamMatchTableNumber.current}
-                                teamMatchID={teamMatchIDRef.current} ></GameWonConfirmationModal>
+                                teamMatchID={activeTeamMatchID} ></GameWonConfirmationModal>
                             : null
                     }
 
                     {
-                        showEditPlayer ?
+                        showEditPlayer && !isKioskMode ?
                             <EditPlayerModal
                                 matchID={matchIDRef.current}
                                 player={editPlayer}
                                 isOpen={showEditPlayer}
                                 onClose={closePlayerModal}
                                 {...matchSettings}
-                                {...props} isTeamMatch={isTeamMatchRef.current}
+                                {...props} isTeamMatch={isTeamMatchContext}
                                 tableNumber={teamMatchTableNumber.current}
-                                teamMatchID={teamMatchIDRef.current}></EditPlayerModal>
+                                teamMatchID={activeTeamMatchID}></EditPlayerModal>
                             : null
                     }
 
@@ -608,6 +770,8 @@ export default function TableScoring(props) {
                         showAdvanceSettingsModal ?
                             <AdvanceSettingsModal {...matchSettings}
                                 {...props}
+                                abandonCurrentMatch={abandonCurrentMatch}
+                                isKioskMode={isKioskMode}
                                 matchID={matchIDRef.current}
                                 onClose={() => setShowAdvanceSettingsModal(false)}
                                 isOpen={showAdvanceSettingsModal}

@@ -11,11 +11,20 @@ function validateCSV(csvString: string) {
     const rows = csvString.split('\n');
 
     for (let i = 0; i < rows.length; i++) {
-        const columns = rows[i].split(',');
+        const row = rows[i].trim();
+        if (!row) {
+            continue;
+        }
+
+        const columns = row.split(',');
+        const firstColumn = `${columns[0] || ""}`.trim().toLowerCase().replace(/\s+/g, "");
+        if (i === 0 && firstColumn === "firstname") {
+            continue;
+        }
 
         // Check if the CSV row has the correct number of columns
-        if (columns.length !== 4) {
-            return `Error: Row ${i + 1} does not have exactly 4 columns.`;
+        if (![4, 8].includes(columns.length)) {
+            return `Error: Row ${i + 1} must have either 4 columns or 8 columns.`;
         }
 
         // Check if the first and second columns have length less than 60
@@ -30,7 +39,7 @@ function validateCSV(csvString: string) {
 
         // Check if the fourth column has a valid value from a predefined array
         const validValues = Object.keys(jsonFlags); // Define your array of valid values
-        if (!validValues.includes(columns[3].toUpperCase())) {
+        if (columns[3] && !validValues.includes(columns[3].toUpperCase())) {
             return `Error: Row ${i + 1}, Column 4 does not have a valid value.`;
         }
     }
@@ -41,6 +50,15 @@ function validateCSV(csvString: string) {
 function isValidImageUrl(url: string) {
     const urlRegex = /^(ftp|http|https):\/\/[^ "]+$/;
     return url === '' || url.match(urlRegex);
+}
+
+function normalizeGender(value = "") {
+    return `${value || ""}`.trim().slice(0, 1).toUpperCase();
+}
+
+function normalizeNumberField(value) {
+    const parsedValue = parseInt(`${value || ""}`, 10);
+    return Number.isNaN(parsedValue) ? "" : parsedValue;
 }
 
 
@@ -69,9 +87,21 @@ export default function BulkAddPlayer() {
     async function onSubmit() {
         if (validateCSV(csvValue) === true) {
             let splitCSV = csvValue.split("\n")
+                .map((row) => row.trim())
+                .filter(Boolean)
+                .filter((row, index) => !(index === 0 && row.split(",")[0]?.trim().toLowerCase().replace(/\s+/g, "") === "firstname"));
             let playerList = splitCSV.map((player) => {
                 let playerSplit = player.split(",")
-                return newImportedPlayer(playerSplit[0], playerSplit[1], playerSplit[2], playerSplit[3])
+                return newImportedPlayer(
+                    playerSplit[0],
+                    playerSplit[1],
+                    playerSplit[2],
+                    playerSplit[3],
+                    playerSplit[4] || "",
+                    normalizeGender(playerSplit[5]),
+                    normalizeNumberField(playerSplit[6]),
+                    normalizeNumberField(playerSplit[7])
+                )
             })
             playerList.forEach(async (newPlayer) => {
                 let playerID = await addImportedPlayer(selectedPlayerListID, newPlayer);
@@ -120,7 +150,7 @@ export default function BulkAddPlayer() {
                 </FormControl>
 
                 <Button onPress={async () => {
-                    if (selectedPlayerListID.length > 0 && !loadPlayerLists) {
+                    if (selectedPlayerListID.length > 0 && !loadingPlayers) {
                         setLoadingPlayers(true)
                         await onSubmit()
                         setLoadingPlayers(false)
@@ -143,4 +173,3 @@ export default function BulkAddPlayer() {
 
     )
 }
-

@@ -125,6 +125,14 @@
         "destination": "/app/index.html"
       },
       {
+        "source": "/scheduling",
+        "destination": "/app/index.html"
+      },
+      {
+        "source": "/scheduling/**",
+        "destination": "/app/index.html"
+      },
+      {
         "source": "/scorekeeper-sessions",
         "destination": "/app/index.html"
       },

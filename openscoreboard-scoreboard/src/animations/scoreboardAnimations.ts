@@ -69,6 +69,21 @@ const currentScoreFields = [
     'courtSideBMatchScore',
 ];
 
+const playerDetailFields = [
+    'genderA',
+    'genderB',
+    'genderA2',
+    'genderB2',
+    'ratingA',
+    'ratingB',
+    'ratingA2',
+    'ratingB2',
+    'rankingA',
+    'rankingB',
+    'rankingA2',
+    'rankingB2',
+];
+
 const viewTriggerFieldGroups: Record<string, string[]> = {
     'score-fields': [
         ...currentScoreFields,
@@ -88,6 +103,7 @@ const viewTriggerFieldGroups: Record<string, string[]> = {
         'courtSideCombinedAName',
         'courtSideCombinedBName',
     ],
+    'player-detail-fields': playerDetailFields,
     'team-fields': [
         'teamAName',
         'teamBName',
@@ -95,6 +111,8 @@ const viewTriggerFieldGroups: Record<string, string[]> = {
         'teamBScore',
         'teamLogoURLA',
         'teamLogoURLB',
+        'teamJerseyColorA',
+        'teamJerseyColorB',
     ],
     'status-fields': [
         'isGamePoint',
@@ -142,6 +160,8 @@ const viewTriggerFieldGroups: Record<string, string[]> = {
     'color-fields': [
         'jerseyColorA',
         'jerseyColorB',
+        'teamJerseyColorA',
+        'teamJerseyColorB',
     ],
 };
 

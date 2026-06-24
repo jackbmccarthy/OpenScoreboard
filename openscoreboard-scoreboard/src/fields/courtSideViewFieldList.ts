@@ -1,5 +1,7 @@
 import { getCurrentGameScore, getMatchScore } from "../match";
 import { getCombinedPlayersFormatted } from "../players";
+import { hasPairedPlayerImages, setOptionalImageSource } from "./optionalImage";
+import { hasPairedCountryFlags, setCountryFlagSource } from "./countryFlag";
 
 type CourtSide = "A" | "B";
 type MatchSide = "A" | "B";
@@ -74,14 +76,7 @@ function setVisible(view: HTMLElement, selector: string, isVisible: boolean) {
 
 function setImage(view: HTMLElement, selector: string, src: string) {
     view.querySelectorAll<HTMLImageElement>(selector).forEach((element) => {
-        if (src.length > 0) {
-            element.style.height = "100%";
-            element.src = src;
-        }
-        else {
-            element.style.height = "0px";
-            element.removeAttribute("src");
-        }
+        setOptionalImageSource(element, src);
     });
 }
 
@@ -90,6 +85,8 @@ function updatePlayerFields(view: HTMLElement, currentMatchSettings, side: Match
     const doublesPlayer = getPlayer(currentMatchSettings, side, true);
     const country = player?.country?.toLowerCase?.() || "";
     const imageURL = player?.imageURL || "";
+    const shouldShowCountry = hasPairedCountryFlags(currentMatchSettings?.playerA, currentMatchSettings?.playerB);
+    const shouldShowImage = hasPairedPlayerImages(currentMatchSettings?.playerA, currentMatchSettings?.playerB);
 
     setText(view, ".playerA, .playerB", getPlayerName(player));
     setText(view, ".playerA2, .playerB2", getPlayerName(doublesPlayer));
@@ -103,8 +100,10 @@ function updatePlayerFields(view: HTMLElement, currentMatchSettings, side: Match
         element.style.backgroundColor = player?.jerseyColor || "transparent";
     });
 
-    setImage(view, ".countryA, .countryB", country.length > 0 ? `flags/${country}.png` : "");
-    setImage(view, ".imageURLA, .imageURLB", imageURL);
+    view.querySelectorAll<HTMLImageElement>(".countryA, .countryB").forEach((element) => {
+        setCountryFlagSource(element, shouldShowCountry ? country : "");
+    });
+    setImage(view, ".imageURLA, .imageURLB", shouldShowImage ? imageURL : "");
 }
 
 function updateScoreFields(view: HTMLElement, currentMatchSettings, side: MatchSide) {

@@ -1,22 +1,51 @@
+import { hasPairedPlayerImages, setOptionalImageSource } from "./optionalImage";
+import { hasPairedCountryFlags, setCountryFlagSource } from "./countryFlag";
+
 export const imageFieldList = [
     {
         field: "countryA",
         label: "Country Flag A",
         category: "Flags",
+        listenerFields: ["playerA", "playerB"],
+        requiredFields: ["playerA", "playerB"],
+        action: (matchNode: HTMLImageElement, _value, currentMatchSettings) => {
+            setCountryFlagSource(
+                matchNode,
+                hasPairedCountryFlags(currentMatchSettings?.playerA, currentMatchSettings?.playerB) ?
+                    currentMatchSettings?.playerA?.country
+                    : ""
+            );
+        }
     },
     {
         field: "countryB",
         label: "Country Flag B",
         category: "Flags",
+        listenerFields: ["playerA", "playerB"],
+        requiredFields: ["playerA", "playerB"],
+        action: (matchNode: HTMLImageElement, _value, currentMatchSettings) => {
+            setCountryFlagSource(
+                matchNode,
+                hasPairedCountryFlags(currentMatchSettings?.playerA, currentMatchSettings?.playerB) ?
+                    currentMatchSettings?.playerB?.country
+                    : ""
+            );
+        }
     },
     {
         field: "imageURLA",
         label: "Player Image A",
         category: "Player Images",
         sample: "0",
-        action: (matchNode: HTMLElement, value) => {
-            matchNode.style.backgroundColor = value["playerA"].jerseyColor || "transparent";
-
+        listenerFields: ["playerA", "playerB"],
+        requiredFields: ["playerA", "playerB"],
+        action: (matchNode: HTMLImageElement, _value, currentMatchSettings) => {
+            setOptionalImageSource(
+                matchNode,
+                hasPairedPlayerImages(currentMatchSettings?.playerA, currentMatchSettings?.playerB) ?
+                    currentMatchSettings?.playerA?.imageURL
+                    : ""
+            );
         }
     },
     {
@@ -24,9 +53,15 @@ export const imageFieldList = [
         label: "Player Image B",
         category: "Player Images",
         sample: "",
-        action: (matchNode: HTMLElement, value) => {
-            matchNode.style.backgroundColor = value["playerB"].jerseyColor || "blue";
-
+        listenerFields: ["playerA", "playerB"],
+        requiredFields: ["playerA", "playerB"],
+        action: (matchNode: HTMLImageElement, _value, currentMatchSettings) => {
+            setOptionalImageSource(
+                matchNode,
+                hasPairedPlayerImages(currentMatchSettings?.playerA, currentMatchSettings?.playerB) ?
+                    currentMatchSettings?.playerB?.imageURL
+                    : ""
+            );
         }
     },
     {
@@ -34,8 +69,8 @@ export const imageFieldList = [
         label: "Team A Logo URL",
         category: "Teams",
         sample: "",
-        action: (matchNode: HTMLElement, value) => {
-            matchNode.src = value;
+        action: (matchNode: HTMLImageElement, value) => {
+            setOptionalImageSource(matchNode, value);
         }
         // justify: "center"
     },
@@ -44,8 +79,8 @@ export const imageFieldList = [
         label: "Team B Logo URL",
         category: "Teams",
         sample: "",
-        action: (matchNode: HTMLElement, value) => {
-            matchNode.src = value;
+        action: (matchNode: HTMLImageElement, value) => {
+            setOptionalImageSource(matchNode, value);
         }
         // justify: "center"
     },

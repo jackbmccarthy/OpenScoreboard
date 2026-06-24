@@ -1,4 +1,6 @@
 import { getCurrentGameScore, getMatchScore } from "../match";
+import { setPairedPlayerImageSources } from "./optionalImage";
+import { setPairedCountryFlagSources } from "./countryFlag";
 import { getCombinedPlayersFormatted } from "../players";
 
 
@@ -187,7 +189,8 @@ export const currentGameFieldList = [
         category: "Player Names",
         sample: "Combined Player A",
         justify: "flex-start",
-        requiredFields: ["playerA", "playerA2"],
+        listenerFields: ["playerA", "playerA2", "playerB"],
+        requiredFields: ["playerA", "playerA2", "playerB"],
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
             //console.log("combined A", value, currentMatchSettings)
             matchNode.innerText = getCombinedPlayersFormatted(currentMatchSettings.playerA, currentMatchSettings.playerA2);
@@ -197,30 +200,8 @@ export const currentGameFieldList = [
                 jerseyAEl.style.backgroundColor = currentMatchSettings["playerA"].jerseyColor || "transparent";
             });
 
-            Array.from(document.getElementsByClassName("countryA") as HTMLCollectionOf<HTMLElement>).forEach((countryAEl) => {
-                ////console.log("updating from combinedB")
-                const countryAFlag = `flags/${currentMatchSettings["playerA"].country.toLowerCase()}.png`;
-                if (currentMatchSettings["playerA"].country?.length > 0) {
-                    countryAEl.style.height = "100%";
-                    countryAEl.src = countryAFlag;
-                }
-                else {
-                    countryAEl.style.height = "0px";
-                }
-                ;
-            });
-            Array.from(document.getElementsByClassName("imageURLA") as HTMLCollectionOf<HTMLElement>).forEach((imageAEl) => {
-                ////console.log("updating from combinedB")
-                const AImage = currentMatchSettings["playerA"].imageURL;
-                if (AImage && AImage.length > 0) {
-                    imageAEl.style.height = "100%";
-                    imageAEl.src = AImage;
-                }
-                else {
-                    imageAEl.style.height = "0px";
-                }
-
-            });
+            setPairedCountryFlagSources(document, currentMatchSettings.playerA, currentMatchSettings.playerB);
+            setPairedPlayerImageSources(document, currentMatchSettings.playerA, currentMatchSettings.playerB);
         }
     },
     {
@@ -229,7 +210,8 @@ export const currentGameFieldList = [
         category: "Player Names",
         sample: "Combined Player B",
         justify: "flex-start",
-        requiredFields: ["playerB", "playerB2"],
+        listenerFields: ["playerA", "playerB", "playerB2"],
+        requiredFields: ["playerA", "playerB", "playerB2"],
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
             matchNode.innerText = getCombinedPlayersFormatted(currentMatchSettings.playerB, currentMatchSettings.playerB2);
             Array.from(document.getElementsByClassName("jerseyColorB") as HTMLCollectionOf<HTMLElement>).forEach((jerseyBEl) => {
@@ -237,29 +219,8 @@ export const currentGameFieldList = [
                 jerseyBEl.style.backgroundColor = currentMatchSettings["playerB"].jerseyColor || "transparent";
             });
 
-            Array.from(document.getElementsByClassName("countryB") as HTMLCollectionOf<HTMLElement>).forEach((countryBEl) => {
-
-                const countryBFlag = `flags/${currentMatchSettings["playerB"].country.toLowerCase()}.png`;
-                if (currentMatchSettings["playerB"].country?.length > 0) {
-                    countryBEl.style.height = "100%";
-                    countryBEl.src = countryBFlag;
-                }
-                else {
-                    countryBEl.style.height = "0px";
-                }
-            });
-
-            Array.from(document.getElementsByClassName("imageURLB") as HTMLCollectionOf<HTMLElement>).forEach((imageBEl) => {
-                //console.log("updating from combinedB")
-                const BImage = currentMatchSettings["playerB"].imageURL;
-                if (BImage && BImage.length > 0) {
-                    imageBEl.style.height = "100%";
-                    imageBEl.src = BImage;
-                }
-                else {
-                    imageBEl.style.height = "0px";
-                }
-            });
+            setPairedCountryFlagSources(document, currentMatchSettings.playerA, currentMatchSettings.playerB);
+            setPairedPlayerImageSources(document, currentMatchSettings.playerA, currentMatchSettings.playerB);
         }
     },
     {

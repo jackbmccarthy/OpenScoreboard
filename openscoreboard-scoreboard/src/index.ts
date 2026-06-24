@@ -6,6 +6,8 @@ import { runAllListeners } from './runAllListeners';
 import { addCSS } from './addCSS';
 import { addScoreboardAnimationStyles, initializeAlwaysOnViewAnimations } from './animations/scoreboardAnimations';
 import { getWithAceBaseRepair } from './repairLocalAceBaseNode';
+import { hideEmptyImages } from './fields/optionalImage';
+import { hideInitialCountryFlags } from './fields/countryFlag';
 
 export let listenerRemovalList:{ (): void; }[] = []
 
@@ -39,6 +41,8 @@ async function runScoreboard(scoreboardID:string|null, tableID:string|null=null,
     if (scoreboardID === null && root !== null) {
         // Loading the default scoreboard
         root.innerHTML = defaultScoreboard.html
+        hideEmptyImages(root);
+        hideInitialCountryFlags(root);
         document.head.appendChild(document.createElement("style")).innerHTML = defaultScoreboard.css;
         initializeViewAnimations(root);
         if (isInitialRun) {
@@ -61,6 +65,8 @@ async function runScoreboard(scoreboardID:string|null, tableID:string|null=null,
             let newHTML = html.val();
             if (typeof newHTML === "string" && root !== null) {
                 root.innerHTML = newHTML;
+                hideEmptyImages(root);
+                hideInitialCountryFlags(root);
                 initializeViewAnimations(root);
 
                 if (isInitialRun) {

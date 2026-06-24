@@ -2,6 +2,18 @@ import { getBroadcastChannelName } from "./getBroadcastChannelName";
 import { runAnimatedFieldAction } from "./animations/scoreboardAnimations";
 
 const fieldUpdateEventName = "open-scoreboard-field-update";
+let fieldListenerRemovalList: Array<() => void> = [];
+
+function resetFieldListeners() {
+    fieldListenerRemovalList.forEach((removeListener) => {
+        removeListener();
+    });
+    fieldListenerRemovalList = [];
+}
+
+function addFieldListenerRemoval(removeListener: () => void) {
+    fieldListenerRemovalList.push(removeListener);
+}
 
 function hasField(data, field) {
     return data && Object.prototype.hasOwnProperty.call(data, field);
@@ -47,6 +59,7 @@ function isTimeoutField(fieldName: string) {
 
 
 export function addCurrentGameFieldListeners(fieldList) {
+    resetFieldListeners();
     console.log("current field list", fieldList)
 
     for (const item of fieldList) {
@@ -80,16 +93,24 @@ export function addCurrentGameFieldListeners(fieldList) {
                     }
                 });
 
-                window.addEventListener(fieldUpdateEventName, (event: CustomEvent) => {
-                    handleFieldUpdate(event.detail);
+                const handleWindowFieldUpdate = (event: Event) => {
+                    handleFieldUpdate((event as CustomEvent).detail);
+                };
+                window.addEventListener(fieldUpdateEventName, handleWindowFieldUpdate);
+                addFieldListenerRemoval(() => {
+                    window.removeEventListener(fieldUpdateEventName, handleWindowFieldUpdate);
                 });
 
                 if (typeof BroadcastChannel !== "undefined") {
                     for (const field of listenerFields) {
-                        let bc = new BroadcastChannel(field+getBroadcastChannelName())
+                        const bc = new BroadcastChannel(field + getBroadcastChannelName())
                         bc.onmessage = (event) => {
                             handleFieldUpdate(event.data);
                         }
+                        addFieldListenerRemoval(() => {
+                            bc.onmessage = null;
+                            bc.close();
+                        });
                     }
                 }
             }
@@ -109,15 +130,23 @@ export function addCurrentGameFieldListeners(fieldList) {
                     }
                 });
 
-                window.addEventListener(fieldUpdateEventName, (event: CustomEvent) => {
-                    handleFieldUpdate(event.detail);
+                const handleWindowFieldUpdate = (event: Event) => {
+                    handleFieldUpdate((event as CustomEvent).detail);
+                };
+                window.addEventListener(fieldUpdateEventName, handleWindowFieldUpdate);
+                addFieldListenerRemoval(() => {
+                    window.removeEventListener(fieldUpdateEventName, handleWindowFieldUpdate);
                 });
 
                 if (typeof BroadcastChannel !== "undefined") {
-                    let bc = new BroadcastChannel(item.field+getBroadcastChannelName())
+                    const bc = new BroadcastChannel(item.field + getBroadcastChannelName())
                     bc.onmessage = (event) => {
                         handleFieldUpdate(event.data);
                     }
+                    addFieldListenerRemoval(() => {
+                        bc.onmessage = null;
+                        bc.close();
+                    });
                 }
 
             }

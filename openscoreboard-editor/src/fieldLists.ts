@@ -1,3 +1,89 @@
+const playerMetadataTextFields = [
+    {
+        field: "genderA",
+        label: "Player A Gender",
+        category: "Player Details",
+        sample: "M",
+        justify: "center"
+    },
+    {
+        field: "genderB",
+        label: "Player B Gender",
+        category: "Player Details",
+        sample: "F",
+        justify: "center"
+    },
+    {
+        field: "genderA2",
+        label: "Player A2 Gender",
+        category: "Player Details",
+        sample: "M",
+        justify: "center"
+    },
+    {
+        field: "genderB2",
+        label: "Player B2 Gender",
+        category: "Player Details",
+        sample: "F",
+        justify: "center"
+    },
+    {
+        field: "ratingA",
+        label: "Player A Rating",
+        category: "Player Details",
+        sample: 2000,
+        justify: "center"
+    },
+    {
+        field: "ratingB",
+        label: "Player B Rating",
+        category: "Player Details",
+        sample: 1950,
+        justify: "center"
+    },
+    {
+        field: "ratingA2",
+        label: "Player A2 Rating",
+        category: "Player Details",
+        sample: 1850,
+        justify: "center"
+    },
+    {
+        field: "ratingB2",
+        label: "Player B2 Rating",
+        category: "Player Details",
+        sample: 1800,
+        justify: "center"
+    },
+    {
+        field: "rankingA",
+        label: "Player A Ranking",
+        category: "Player Details",
+        sample: 1,
+        justify: "center"
+    },
+    {
+        field: "rankingB",
+        label: "Player B Ranking",
+        category: "Player Details",
+        sample: 2,
+        justify: "center"
+    },
+    {
+        field: "rankingA2",
+        label: "Player A2 Ranking",
+        category: "Player Details",
+        sample: 3,
+        justify: "center"
+    },
+    {
+        field: "rankingB2",
+        label: "Player B2 Ranking",
+        category: "Player Details",
+        sample: 4,
+        justify: "center"
+    },
+];
 
 export const textFieldList = [
     {
@@ -28,6 +114,7 @@ export const textFieldList = [
         sample: "Player A2",
         justify: "flex-start"
     },
+    ...playerMetadataTextFields,
     {
         field: "game1AScore",
         label: "Player A G1 Score",
@@ -154,6 +241,13 @@ export const textFieldList = [
         label: "Player B G9 Score",
         category: "Game Scores",
         sample: 0,
+        justify: "center"
+    },
+    {
+        field: "eventName",
+        label: "Event Name",
+        category: "Match",
+        sample: "Open Singles",
         justify: "center"
     },
     {
@@ -291,6 +385,18 @@ export const solidColorFieldList = [
         label: "Jersey Color B",
         category: "Jersey Color",
         sample: "blue",
+    },
+    {
+        field: "teamJerseyColorA",
+        label: "Team A Jersey Color",
+        category: "Jersey Color",
+        sample: "#0055FF",
+    },
+    {
+        field: "teamJerseyColorB",
+        label: "Team B Jersey Color",
+        category: "Jersey Color",
+        sample: "#D62828",
     },
 ];
 

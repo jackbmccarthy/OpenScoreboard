@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { Avatar, Button, Checkbox, FormControl, Input, Modal, NativeBaseProvider, ScrollView, Spinner, Text, View } from 'native-base';
+import { Avatar, Button, Checkbox, FlatList, FormControl, Input, Modal, NativeBaseProvider, Pressable, ScrollView, Select, Spinner, Text, View } from 'native-base';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { openScoreboardButtonTextColor, openScoreboardColor, openScoreboardTheme } from "../openscoreboardtheme";
 import {
@@ -59,6 +59,15 @@ function csvEscape(value) {
     return stringValue;
 }
 
+function normalizeGender(value = "") {
+    return `${value || ""}`.trim().slice(0, 1).toUpperCase();
+}
+
+function normalizeNumberField(value) {
+    const parsedValue = parseInt(`${value || ""}`, 10);
+    return Number.isNaN(parsedValue) ? "" : parsedValue;
+}
+
 function parseCSVLine(line) {
     const values = [];
     let current = "";
@@ -89,8 +98,53 @@ function parseCSVLine(line) {
 }
 
 function playerMatchesSearch(player, searchText) {
-    const searchable = `${player.firstName || ""} ${player.lastName || ""} ${player.country || ""}`.toLowerCase();
+    const searchable = [
+        player.firstName || "",
+        player.lastName || "",
+        player.country || "",
+        player.gender || "",
+        player.rating || "",
+        player.ranking || "",
+    ].join(" ").toLowerCase();
     return searchable.includes(searchText.trim().toLowerCase());
+}
+
+function playerMatchesFilters(player, filters) {
+    const genderMatches = !filters.gender || normalizeGender(player.gender) === normalizeGender(filters.gender);
+    const ratingValue = Number(player.rating);
+    const rankingValue = Number(player.ranking);
+    const minRating = filters.minRating ? Number(filters.minRating) : null;
+    const maxRanking = filters.maxRanking ? Number(filters.maxRanking) : null;
+
+    return genderMatches
+        && (minRating === null || (!Number.isNaN(ratingValue) && ratingValue >= minRating))
+        && (maxRanking === null || (!Number.isNaN(rankingValue) && rankingValue <= maxRanking));
+}
+
+function sortPlayerEntries(playerEntries, sortField) {
+    const sortedEntries = [...playerEntries];
+
+    sortedEntries.sort(([, playerA], [, playerB]) => {
+        if (sortField === "ratingDesc") {
+            return (Number(playerB.rating) || 0) - (Number(playerA.rating) || 0);
+        }
+
+        if (sortField === "ratingAsc") {
+            return (Number(playerA.rating) || 0) - (Number(playerB.rating) || 0);
+        }
+
+        if (sortField === "rankingAsc") {
+            return (Number(playerA.ranking) || Number.MAX_SAFE_INTEGER) - (Number(playerB.ranking) || Number.MAX_SAFE_INTEGER);
+        }
+
+        if (sortField === "rankingDesc") {
+            return (Number(playerB.ranking) || 0) - (Number(playerA.ranking) || 0);
+        }
+
+        return getPlayerDisplayName(playerA).localeCompare(getPlayerDisplayName(playerB));
+    });
+
+    return sortedEntries;
 }
 
 function normalizeDuplicateText(value = "") {
@@ -113,18 +167,36 @@ function getPlayerDisplayName(player = {}) {
 }
 
 function parseImportPlayers(importValue) {
-    return importValue
+    const rows = importValue
         .split("\n")
         .map((line) => line.trim())
         .filter((line) => line.length > 0)
-        .map(parseCSVLine)
-        .filter((row, index) => index !== 0 || row[0]?.trim().toLowerCase() !== "firstname")
-        .map((row) => newImportedPlayer(
-            row[0] || "",
-            row[1] || "",
-            row[2] || "",
-            row[3]?.toLowerCase() || "",
-        ));
+        .map(parseCSVLine);
+    const header = rows[0] || [];
+    const headerMap = header.reduce((map, value, index) => {
+        map[`${value || ""}`.trim().toLowerCase()] = index;
+        return map;
+    }, {});
+    const hasHeader = typeof headerMap.firstname !== "undefined" || typeof headerMap["first name"] !== "undefined";
+    const getColumn = (row, index, ...headers) => {
+        const headerName = headers.find((name) => typeof headerMap[name] !== "undefined");
+        if (headerName) {
+            return row[headerMap[headerName]] || "";
+        }
+
+        return hasHeader ? "" : row[index] || "";
+    };
+
+    return (hasHeader ? rows.slice(1) : rows).map((row) => newImportedPlayer(
+        getColumn(row, 0, "firstname", "first name", "first"),
+        getColumn(row, 1, "lastname", "last name", "last"),
+        getColumn(row, 2, "imageurl", "image url", "image"),
+        getColumn(row, 3, "country")?.toLowerCase() || "",
+        getColumn(row, 4, "jerseycolor", "jersey color"),
+        normalizeGender(getColumn(row, 5, "gender")),
+        normalizeNumberField(getColumn(row, 6, "rating")),
+        normalizeNumberField(getColumn(row, 7, "ranking", "rank")),
+    ));
 }
 
 function RegistrationFieldSetting({ option, isChecked, onChange }) {
@@ -253,6 +325,27 @@ function PlayerCard({ player, isEditing, draft, onEdit, onDelete, onDraftChange,
                     <Text color={"gray.600"} fontSize={"sm"} marginTop={1} numberOfLines={1}>
                         {getCountryName(player.country) || "No country set"}
                     </Text>
+                    <View flexDirection={"row"} flexWrap={"wrap"} marginTop={2}>
+                        {[
+                            player.gender ? `Gender ${player.gender}` : "",
+                            player.rating !== "" && typeof player.rating !== "undefined" ? `Rating ${player.rating}` : "",
+                            player.ranking !== "" && typeof player.ranking !== "undefined" ? `Ranking ${player.ranking}` : "",
+                        ].filter(Boolean).map((detail) => (
+                            <View
+                                key={detail}
+                                backgroundColor={"gray.50"}
+                                borderColor={"gray.200"}
+                                borderRadius={999}
+                                borderWidth={1}
+                                marginRight={2}
+                                marginTop={1}
+                                paddingX={2}
+                                paddingY={1}
+                            >
+                                <Text color={"gray.700"} fontSize={"2xs"} fontWeight={"bold"}>{detail}</Text>
+                            </View>
+                        ))}
+                    </View>
                 </View>
                 {!isEditing ? (
                     <Button
@@ -287,6 +380,20 @@ function PlayerCard({ player, isEditing, draft, onEdit, onDelete, onDraftChange,
                         <FormControl.Label>{i18n.t("country")}</FormControl.Label>
                         <CountrySelect value={draft.country || ""} onChange={(value) => onDraftChange("country", value)} />
                     </FormControl>
+                    <View flexDirection={"row"} flexWrap={"wrap"} justifyContent={"space-between"}>
+                        <FormControl marginTop={2} width={{ base: "100%", md: "32%" }}>
+                            <FormControl.Label>Gender</FormControl.Label>
+                            <Input maxLength={1} value={draft.gender || ""} onChangeText={(value) => onDraftChange("gender", normalizeGender(value))} />
+                        </FormControl>
+                        <FormControl marginTop={2} width={{ base: "100%", md: "32%" }}>
+                            <FormControl.Label>Rating</FormControl.Label>
+                            <Input keyboardType={"numeric"} value={`${draft.rating || ""}`} onChangeText={(value) => onDraftChange("rating", normalizeNumberField(value))} />
+                        </FormControl>
+                        <FormControl marginTop={2} width={{ base: "100%", md: "32%" }}>
+                            <FormControl.Label>Ranking</FormControl.Label>
+                            <Input keyboardType={"numeric"} value={`${draft.ranking || ""}`} onChangeText={(value) => onDraftChange("ranking", normalizeNumberField(value))} />
+                        </FormControl>
+                    </View>
                     <View flexDirection={"row"} flexWrap={"wrap"} marginTop={3}>
                         <Button backgroundColor={openScoreboardColor} onPress={onSave}>
                             <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>{i18n.t("save")}</Text>
@@ -322,6 +429,7 @@ function BulkEditRow({ playerID, player, selected, onChange, onToggleSelected })
             borderBottomColor={"gray.200"}
             borderBottomWidth={1}
             flexDirection={"row"}
+            minHeight={64}
             paddingY={2}
         >
             <View alignItems={"center"} minWidth={54} paddingRight={2}>
@@ -344,6 +452,15 @@ function BulkEditRow({ playerID, player, selected, onChange, onToggleSelected })
             <View flex={1} minWidth={180}>
                 <CountrySelect value={player.country || ""} onChange={(value) => onChange(playerID, "country", value)} />
             </View>
+            <View minWidth={90} paddingLeft={2}>
+                <Input maxLength={1} value={player.gender || ""} onChangeText={(value) => onChange(playerID, "gender", normalizeGender(value))} />
+            </View>
+            <View minWidth={110} paddingLeft={2}>
+                <Input keyboardType={"numeric"} value={`${player.rating || ""}`} onChangeText={(value) => onChange(playerID, "rating", normalizeNumberField(value))} />
+            </View>
+            <View minWidth={110} paddingLeft={2}>
+                <Input keyboardType={"numeric"} value={`${player.ranking || ""}`} onChangeText={(value) => onChange(playerID, "ranking", normalizeNumberField(value))} />
+            </View>
         </View>
     );
 }
@@ -359,8 +476,13 @@ export default function AddPlayers(props) {
     const [modifiedOn, setModifiedOn] = useState(null);
     const [registrationFields, setRegistrationFields] = useState(normalizePlayerRegistrationFields());
     const [resettingRegistrationAccess, setResettingRegistrationAccess] = useState(false);
+    const [showSelfRegistration, setShowSelfRegistration] = useState(false);
     const [showAddNewPlayer, setShowAddNewPlayer] = useState(false);
     const [searchText, setSearchText] = useState("");
+    const [sortField, setSortField] = useState("name");
+    const [genderFilter, setGenderFilter] = useState("");
+    const [minRatingFilter, setMinRatingFilter] = useState("");
+    const [maxRankingFilter, setMaxRankingFilter] = useState("");
     const [editingPlayerID, setEditingPlayerID] = useState("");
     const [editingDraft, setEditingDraft] = useState({});
     const [savingDetails, setSavingDetails] = useState(false);
@@ -405,12 +527,18 @@ export default function AddPlayers(props) {
     }, [props.navigation, playerListID]);
 
     const filteredPlayers = useMemo(() => {
-        if (!searchText.trim()) {
-            return playerList;
-        }
+        const filters = {
+            gender: genderFilter,
+            maxRanking: maxRankingFilter,
+            minRating: minRatingFilter,
+        };
+        const filteredList = playerList
+            .filter(([, player]) => !searchText.trim() || playerMatchesSearch(player, searchText))
+            .filter(([, player]) => playerMatchesFilters(player, filters));
 
-        return playerList.filter(([, player]) => playerMatchesSearch(player, searchText));
-    }, [playerList, searchText]);
+        return sortPlayerEntries(filteredList, sortField);
+    }, [genderFilter, maxRankingFilter, minRatingFilter, playerList, searchText, sortField]);
+    const bulkPlayerEntries = useMemo(() => Object.entries(bulkPlayers), [bulkPlayers]);
 
     const registrationURL = getRegistrationURL(playerListID, password);
 
@@ -527,12 +655,16 @@ export default function AddPlayers(props) {
 
     const exportPlayers = () => {
         const rows = [
-            ["firstName", "lastName", "imageURL", "country"],
+            ["firstName", "lastName", "imageURL", "country", "jerseyColor", "gender", "rating", "ranking"],
             ...playerList.map(([, player]) => [
                 player.firstName || "",
                 player.lastName || "",
                 player.imageURL || "",
                 player.country || "",
+                player.jerseyColor || "",
+                player.gender || "",
+                player.rating || "",
+                player.ranking || "",
             ]),
         ];
         const csv = rows.map((row) => row.map(csvEscape).join(",")).join("\n");
@@ -668,59 +800,95 @@ export default function AddPlayers(props) {
                                 onChangeText={setDescription}
                             />
                         </FormControl>
-                        <FormControl marginTop={3}>
-                            <FormControl.Label>Registration link</FormControl.Label>
-                            <Input
-                                backgroundColor={"white"}
-                                borderColor={"gray.300"}
-                                color={"gray.900"}
-                                isReadOnly
-                                InputRightElement={<CopyInputRightButton text={registrationURL} />}
-                                value={registrationURL}
-                            />
-                        </FormControl>
                         <View
-                            alignItems={"center"}
-                            flexDirection={"row"}
-                            flexWrap={"wrap"}
-                            justifyContent={"space-between"}
-                            marginTop={3}
+                            borderColor={"gray.200"}
+                            borderRadius={8}
+                            borderWidth={1}
+                            marginTop={4}
+                            overflow={"hidden"}
                         >
-                            <Text color={"gray.600"} flex={1} fontSize={"sm"} minWidth={260} paddingRight={3}>
-                                Reset this link if the current URL should no longer allow public registrations.
-                            </Text>
-                            <Button
-                                backgroundColor={"white"}
-                                borderColor={"red.200"}
-                                borderRadius={8}
-                                borderWidth={1}
-                                isDisabled={resettingRegistrationAccess}
-                                onPress={resetRegistrationAccess}
-                                variant={"outline"}
+                            <Pressable
+                                accessibilityLabel={`${showSelfRegistration ? "Collapse" : "Expand"} self registration settings`}
+                                accessibilityRole={"button"}
+                                backgroundColor={showSelfRegistration ? "gray.50" : "white"}
+                                onPress={() => setShowSelfRegistration((isOpen) => !isOpen)}
+                                padding={3}
+                                _hover={{ backgroundColor: "gray.50" }}
+                                _pressed={{ backgroundColor: "gray.100" }}
                             >
-                                {resettingRegistrationAccess ? (
-                                    <Spinner color={"red.700"} />
-                                ) : (
-                                    <Text color={"red.700"} fontWeight={"bold"}>Reset registration link</Text>
-                                )}
-                            </Button>
-                        </View>
-                        <View marginTop={4}>
-                            <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"}>Registration form fields</Text>
-                            <Text color={"gray.600"} fontSize={"sm"} marginTop={1} marginBottom={3}>
-                                Choose which player details the public registration page should request.
-                            </Text>
-                            <View flexDirection={"row"} flexWrap={"wrap"}>
-                                {playerRegistrationFieldOptions.map((option) => (
-                                    <View key={option.key} paddingRight={useTwoColumns ? 2 : 0} width={useTwoColumns ? "50%" : "100%"}>
-                                        <RegistrationFieldSetting
-                                            option={option}
-                                            isChecked={registrationFields[option.key] === true}
-                                            onChange={updateRegistrationField}
-                                        />
+                                <View alignItems={"center"} flexDirection={"row"}>
+                                    <View flex={1} paddingRight={3}>
+                                        <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"}>Self registration</Text>
+                                        <Text color={"gray.600"} fontSize={"sm"} marginTop={0.5}>
+                                            Share a public link and choose which player details to collect.
+                                        </Text>
                                     </View>
-                                ))}
-                            </View>
+                                    <MaterialCommunityIcons
+                                        color={"#4B5563"}
+                                        name={showSelfRegistration ? "chevron-up" : "chevron-down"}
+                                        size={24}
+                                    />
+                                </View>
+                            </Pressable>
+
+                            {showSelfRegistration ? (
+                                <View borderColor={"gray.200"} borderTopWidth={1} padding={3}>
+                                    <FormControl>
+                                        <FormControl.Label>Registration link</FormControl.Label>
+                                        <Input
+                                            backgroundColor={"white"}
+                                            borderColor={"gray.300"}
+                                            color={"gray.900"}
+                                            isReadOnly
+                                            InputRightElement={<CopyInputRightButton text={registrationURL} />}
+                                            value={registrationURL}
+                                        />
+                                    </FormControl>
+                                    <View
+                                        alignItems={"center"}
+                                        flexDirection={"row"}
+                                        flexWrap={"wrap"}
+                                        justifyContent={"space-between"}
+                                        marginTop={3}
+                                    >
+                                        <Text color={"gray.600"} flex={1} fontSize={"sm"} minWidth={260} paddingRight={3}>
+                                            Reset this link if the current URL should no longer allow public registrations.
+                                        </Text>
+                                        <Button
+                                            backgroundColor={"white"}
+                                            borderColor={"red.200"}
+                                            borderRadius={8}
+                                            borderWidth={1}
+                                            isDisabled={resettingRegistrationAccess}
+                                            onPress={resetRegistrationAccess}
+                                            variant={"outline"}
+                                        >
+                                            {resettingRegistrationAccess ? (
+                                                <Spinner color={"red.700"} />
+                                            ) : (
+                                                <Text color={"red.700"} fontWeight={"bold"}>Reset registration link</Text>
+                                            )}
+                                        </Button>
+                                    </View>
+                                    <View marginTop={4}>
+                                        <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"}>Registration form fields</Text>
+                                        <Text color={"gray.600"} fontSize={"sm"} marginTop={1} marginBottom={3}>
+                                            Choose which player details the public registration page should request.
+                                        </Text>
+                                        <View flexDirection={"row"} flexWrap={"wrap"}>
+                                            {playerRegistrationFieldOptions.map((option) => (
+                                                <View key={option.key} paddingRight={useTwoColumns ? 2 : 0} width={useTwoColumns ? "50%" : "100%"}>
+                                                    <RegistrationFieldSetting
+                                                        option={option}
+                                                        isChecked={registrationFields[option.key] === true}
+                                                        onChange={updateRegistrationField}
+                                                    />
+                                                </View>
+                                            ))}
+                                        </View>
+                                    </View>
+                                </View>
+                            ) : null}
                         </View>
                     </View>
 
@@ -737,10 +905,22 @@ export default function AddPlayers(props) {
                                 <FormControl>
                                     <FormControl.Label>Search players</FormControl.Label>
                                     <Input
-                                        placeholder="Search by player name"
+                                        placeholder="Search by name, country, gender, rating, or ranking"
                                         value={searchText}
                                         onChangeText={setSearchText}
                                     />
+                                </FormControl>
+                            </View>
+                            <View minWidth={190} paddingRight={3} marginTop={{ base: 3, md: 0 }}>
+                                <FormControl>
+                                    <FormControl.Label>Sort</FormControl.Label>
+                                    <Select selectedValue={sortField} onValueChange={setSortField}>
+                                        <Select.Item label="Name" value="name" />
+                                        <Select.Item label="Rating high to low" value="ratingDesc" />
+                                        <Select.Item label="Rating low to high" value="ratingAsc" />
+                                        <Select.Item label="Ranking low to high" value="rankingAsc" />
+                                        <Select.Item label="Ranking high to low" value="rankingDesc" />
+                                    </Select>
                                 </FormControl>
                             </View>
                             <View flexDirection={"row"} flexWrap={"wrap"} marginTop={4}>
@@ -761,6 +941,38 @@ export default function AddPlayers(props) {
                                 </Button>
                             </View>
                         </View>
+                        <View flexDirection={"row"} flexWrap={"wrap"} marginTop={3}>
+                            <View minWidth={120} paddingRight={2} width={{ base: "100%", md: "18%" }}>
+                                <FormControl>
+                                    <FormControl.Label>Gender</FormControl.Label>
+                                    <Input maxLength={1} value={genderFilter} onChangeText={(value) => setGenderFilter(normalizeGender(value))} />
+                                </FormControl>
+                            </View>
+                            <View minWidth={140} paddingRight={2} width={{ base: "100%", md: "22%" }}>
+                                <FormControl>
+                                    <FormControl.Label>Min rating</FormControl.Label>
+                                    <Input keyboardType={"numeric"} value={minRatingFilter} onChangeText={(value) => setMinRatingFilter(`${normalizeNumberField(value)}`)} />
+                                </FormControl>
+                            </View>
+                            <View minWidth={140} paddingRight={2} width={{ base: "100%", md: "22%" }}>
+                                <FormControl>
+                                    <FormControl.Label>Max ranking</FormControl.Label>
+                                    <Input keyboardType={"numeric"} value={maxRankingFilter} onChangeText={(value) => setMaxRankingFilter(`${normalizeNumberField(value)}`)} />
+                                </FormControl>
+                            </View>
+                            <View justifyContent={"flex-end"} marginTop={{ base: 3, md: 0 }}>
+                                <Button
+                                    onPress={() => {
+                                        setGenderFilter("");
+                                        setMinRatingFilter("");
+                                        setMaxRankingFilter("");
+                                    }}
+                                    variant={"ghost"}
+                                >
+                                    <Text color={"gray.700"} fontWeight={"bold"}>Clear filters</Text>
+                                </Button>
+                            </View>
+                        </View>
 
                         {showImport ? (
                             <View
@@ -773,7 +985,7 @@ export default function AddPlayers(props) {
                             >
                                 <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"}>Import players</Text>
                                 <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                                    Paste CSV rows as firstName,lastName,imageURL,country.
+                                    Paste CSV rows as firstName,lastName,imageURL,country,jerseyColor,gender,rating,ranking. Header rows are supported.
                                 </Text>
                                 <Input
                                     marginTop={3}
@@ -837,24 +1049,40 @@ export default function AddPlayers(props) {
                                     </View>
                                 </View>
                                 <ScrollView horizontal marginTop={2}>
-                                    <View minWidth={820} width={"100%"}>
+                                    <View minWidth={1180} width={"100%"}>
                                         <View flexDirection={"row"} paddingBottom={2}>
                                             <Text color={"gray.500"} fontSize={"xs"} fontWeight={"bold"} minWidth={54} paddingRight={2} textTransform={"uppercase"}>Select</Text>
                                             <Text color={"gray.500"} flex={1} fontSize={"xs"} fontWeight={"bold"} minWidth={130} paddingRight={2} textTransform={"uppercase"}>{i18n.t("firstName")}</Text>
                                             <Text color={"gray.500"} flex={1} fontSize={"xs"} fontWeight={"bold"} minWidth={130} paddingRight={2} textTransform={"uppercase"}>{i18n.t("lastName")}</Text>
                                             <Text color={"gray.500"} flex={1.4} fontSize={"xs"} fontWeight={"bold"} minWidth={180} paddingRight={2} textTransform={"uppercase"}>{i18n.t("imageURL")}</Text>
                                             <Text color={"gray.500"} flex={1} fontSize={"xs"} fontWeight={"bold"} minWidth={180} textTransform={"uppercase"}>{i18n.t("country")}</Text>
+                                            <Text color={"gray.500"} fontSize={"xs"} fontWeight={"bold"} minWidth={90} paddingLeft={2} textTransform={"uppercase"}>Gender</Text>
+                                            <Text color={"gray.500"} fontSize={"xs"} fontWeight={"bold"} minWidth={110} paddingLeft={2} textTransform={"uppercase"}>Rating</Text>
+                                            <Text color={"gray.500"} fontSize={"xs"} fontWeight={"bold"} minWidth={110} paddingLeft={2} textTransform={"uppercase"}>Ranking</Text>
                                         </View>
-                                        {Object.entries(bulkPlayers).map(([playerID, player]) => (
-                                            <BulkEditRow
-                                                key={playerID}
-                                                playerID={playerID}
-                                                player={player}
-                                                selected={bulkSelectedPlayerIDs.includes(playerID)}
-                                                onChange={updateBulkPlayer}
-                                                onToggleSelected={toggleBulkSelectedPlayer}
-                                            />
-                                        ))}
+                                        <FlatList
+                                            data={bulkPlayerEntries}
+                                            extraData={bulkSelectedPlayerIDs}
+                                            initialNumToRender={18}
+                                            keyExtractor={(item: any) => item?.[0]}
+                                            maxHeight={620}
+                                            maxToRenderPerBatch={18}
+                                            nestedScrollEnabled
+                                            removeClippedSubviews
+                                            renderItem={({ item }: any) => {
+                                                const [playerID, player] = item;
+                                                return (
+                                                    <BulkEditRow
+                                                        playerID={playerID}
+                                                        player={player}
+                                                        selected={bulkSelectedPlayerIDs.includes(playerID)}
+                                                        onChange={updateBulkPlayer}
+                                                        onToggleSelected={toggleBulkSelectedPlayer}
+                                                    />
+                                                );
+                                            }}
+                                            windowSize={9}
+                                        />
                                     </View>
                                 </ScrollView>
                                 <View flexDirection={"row"} marginTop={3}>

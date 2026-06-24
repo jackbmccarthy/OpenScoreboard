@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Image } from 'react-native';
-import { Button, FormControl, Input, NativeBaseProvider, ScrollView, Spinner, Text, View } from 'native-base';
+import { Button, FormControl, Input, NativeBaseProvider, ScrollView, Select, Spinner, Text, View } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor, openScoreboardTheme } from "../openscoreboardtheme";
 import JerseyColorOptions from './components/JerseyColorOptions';
 import CountrySelect from './components/CountrySelect';
@@ -22,6 +22,9 @@ export default function PlayerRegistration({ route }) {
     const [lastName, setLastName] = useState("");
     const [country, setCountry] = useState("");
     const [imageURL, setImageURL] = useState("");
+    const [gender, setGender] = useState("");
+    const [rating, setRating] = useState("");
+    const [ranking, setRanking] = useState("");
     const [unauthorized, setUnAuthorized] = useState(false);
     const [playerListExists, setPlayerListExists] = useState(false);
     const [doneLoading, setDoneLoading] = useState(false);
@@ -73,7 +76,19 @@ export default function PlayerRegistration({ route }) {
         setLastName("");
         setCountry("");
         setImageURL("");
+        setGender("");
+        setRating("");
+        setRanking("");
     };
+
+    function normalizeGender(value = "") {
+        return `${value || ""}`.trim().slice(0, 1).toUpperCase();
+    }
+
+    function normalizeNumberField(value) {
+        const parsedValue = parseInt(`${value || ""}`, 10);
+        return Number.isNaN(parsedValue) ? "" : parsedValue;
+    }
 
     const registerPlayer = async () => {
         setLoadingPlayer(true);
@@ -85,6 +100,9 @@ export default function PlayerRegistration({ route }) {
                 registrationFields.imageURL ? imageURL.trim() : "",
                 registrationFields.country ? country : "",
                 registrationFields.jerseyColor ? selectedColor : "",
+                registrationFields.gender ? normalizeGender(gender) : "",
+                registrationFields.rating ? normalizeNumberField(rating) : "",
+                registrationFields.ranking ? normalizeNumberField(ranking) : "",
             ));
             setShowSuccess(true);
         }
@@ -210,6 +228,48 @@ export default function PlayerRegistration({ route }) {
                                                     type="text"
                                                     value={imageURL}
                                                     onChangeText={setImageURL}
+                                                />
+                                            </FormControl>
+                                        ) : null}
+
+                                        {registrationFields.gender ? (
+                                            <FormControl marginTop={3}>
+                                                <FormControl.Label>Gender</FormControl.Label>
+                                                <Select
+                                                    accessibilityLabel="Select gender"
+                                                    placeholder="Select gender"
+                                                    selectedValue={gender || "__none__"}
+                                                    onValueChange={(value) => setGender(value === "__none__" ? "" : normalizeGender(value))}
+                                                >
+                                                    <Select.Item label="Prefer not to say" value="__none__" />
+                                                    <Select.Item label="Male" value="M" />
+                                                    <Select.Item label="Female" value="F" />
+                                                    <Select.Item label="Non-binary / X" value="X" />
+                                                    <Select.Item label="Other" value="O" />
+                                                </Select>
+                                            </FormControl>
+                                        ) : null}
+
+                                        {registrationFields.rating ? (
+                                            <FormControl marginTop={3}>
+                                                <FormControl.Label>Rating</FormControl.Label>
+                                                <Input
+                                                    keyboardType={"numeric"}
+                                                    placeholder="Rating"
+                                                    value={rating}
+                                                    onChangeText={(value) => setRating(`${normalizeNumberField(value)}`)}
+                                                />
+                                            </FormControl>
+                                        ) : null}
+
+                                        {registrationFields.ranking ? (
+                                            <FormControl marginTop={3}>
+                                                <FormControl.Label>Ranking</FormControl.Label>
+                                                <Input
+                                                    keyboardType={"numeric"}
+                                                    placeholder="Ranking"
+                                                    value={ranking}
+                                                    onChangeText={(value) => setRanking(`${normalizeNumberField(value)}`)}
                                                 />
                                             </FormControl>
                                         ) : null}

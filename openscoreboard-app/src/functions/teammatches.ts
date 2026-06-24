@@ -11,8 +11,12 @@ export default async function getMyTeamMatches(userID) {
     let myTeamMatches = await db.ref("users" + "/" + userID + "/" + "myTeamMatches").get()
     myTeamMatches = myTeamMatches.val()
     if (typeof myTeamMatches === "object" && myTeamMatches !== null) {
-        return await Promise.all(Object.entries(myTeamMatches).map(async ([id, item]) => {
+        const matches = await Promise.all(Object.entries(myTeamMatches).map(async ([id, item]: any) => {
             const teamMatch = await getTeamMatch(item.id) || {}
+            if (teamMatch.competitionID) {
+                await db.ref(`users/${userID}/myTeamMatches/${id}`).remove()
+                return null
+            }
             let teamMatchScores = {
                 a: teamMatch.teamAScore || 0,
                 b: teamMatch.teamBScore || 0,
@@ -25,6 +29,7 @@ export default async function getMyTeamMatches(userID) {
                 teamBScore: teamMatchScores.b,
             }]
         }))
+        return matches.filter(Boolean)
     }
     else {
         return []
@@ -60,12 +65,16 @@ export async function addTeamMatchCurrentMatch(teamMatchID, tableNumber) {
 
 }
 
+export async function removeTeamMatchCurrentMatch(teamMatchID, tableNumber) {
+    await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).set("")
+}
+
 export async function getTeamMatchCurrentMatch(teamMatchID, tableNumber) {
     let pushedTeam = await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).get()
     return pushedTeam.val()
 }
 
-export async function addNewTeamMatch(teamMatch) {
+export async function addNewTeamMatch(teamMatch, options: any = {}) {
 
     const ownerID = getUserPath()
     const nextTeamMatch = {
@@ -73,6 +82,13 @@ export async function addNewTeamMatch(teamMatch) {
         ownerID: teamMatch.ownerID || ownerID,
     }
     let pushedTeamMatch = await db.ref(`teamMatches`).push(nextTeamMatch)
+    if (options.addToMyTeamMatches === false) {
+        return {
+            myTeamMatchID: "",
+            teamMatchID: pushedTeamMatch.key,
+        }
+    }
+
     let preview = {
         id: pushedTeamMatch.key,
         ownerID,
@@ -84,7 +100,12 @@ export async function addNewTeamMatch(teamMatch) {
         scoringType: nextTeamMatch.scoringType
     }
 
-    await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches").push(preview)
+    const myTeamMatchRef = await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches").push(preview)
+
+    return {
+        myTeamMatchID: myTeamMatchRef.key,
+        teamMatchID: pushedTeamMatch.key,
+    }
 }
 
 export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
@@ -117,7 +138,14 @@ export async function getImportTeamMembersList(player, teamMatchID) {
         let ATeam = await getTeam(teamMatch.teamAID)
 
         if (ATeam) {
-            return Object.entries(ATeam.players || {})
+            return Object.entries(ATeam.players || {}).map(([playerID, player]: any) => [
+                playerID,
+                {
+                    ...player,
+                    jerseyColor: player?.jerseyColor || ATeam.teamJerseyColor || "",
+                    teamJerseyColor: ATeam.teamJerseyColor || "",
+                },
+            ])
         }
         else {
             return []
@@ -127,7 +155,14 @@ export async function getImportTeamMembersList(player, teamMatchID) {
     else {
         let BTeam = await getTeam(teamMatch.teamBID)
         if (BTeam) {
-            return Object.entries(BTeam.players || {})
+            return Object.entries(BTeam.players || {}).map(([playerID, player]: any) => [
+                playerID,
+                {
+                    ...player,
+                    jerseyColor: player?.jerseyColor || BTeam.teamJerseyColor || "",
+                    teamJerseyColor: BTeam.teamJerseyColor || "",
+                },
+            ])
         }
         else {
             return []
@@ -135,6 +170,21 @@ export async function getImportTeamMembersList(player, teamMatchID) {
 
     }
 
+}
+
+export async function getTeamJerseyColorForMatchPlayer(player, teamMatchID) {
+    let teamMatch = await getTeamMatch(teamMatchID)
+    if (!teamMatch) {
+        return ""
+    }
+
+    const teamID = player === "playerA" || player === "playerA2" ? teamMatch.teamAID : teamMatch.teamBID
+    if (!teamID) {
+        return ""
+    }
+
+    const team = await getTeam(teamID)
+    return team?.teamJerseyColor || ""
 }
 
 export async function archiveMatchForTeamMatch(teamMatchID, tableNumber, matchID, matchSettings = null) {
@@ -158,9 +208,45 @@ export async function archiveMatchForTeamMatch(teamMatchID, tableNumber, matchID
         archivedOn: new Date().toISOString()
     }
 
+    const existingArchiveSnapshot = await db.ref(`teamMatches/${teamMatchID}/archivedMatches`).get()
+    const existingArchive = Object.entries(existingArchiveSnapshot.val() || {}).find(([, item]: any) => {
+        return item?.matchID === matchID
+    })
+    if (existingArchive) {
+        return existingArchive[0]
+    }
+
     let currentMatchSnapShot = await db.ref(`teamMatches/${teamMatchID}/archivedMatches`).push(archivedMatch)
     return currentMatchSnapShot.key
 
+}
+
+export async function recordTeamMatchPlayerResult(teamMatchID, matchID, winningSide) {
+    if (!teamMatchID || !matchID || (winningSide !== "A" && winningSide !== "B")) {
+        return false
+    }
+
+    const resultRef = db.ref(`teamMatches/${teamMatchID}/completedPlayerMatches/${matchID}`)
+    const existingResult = await resultRef.get()
+    if (existingResult.exists()) {
+        return false
+    }
+
+    const result = await resultRef.transaction((currentValue) => {
+        if (currentValue !== null) {
+            return
+        }
+
+        return {
+            completedOn: new Date().toISOString(),
+            winningSide,
+        }
+    })
+    if (!result.committed) {
+        return false
+    }
+    await addWinToTeamMatchTeamScore(teamMatchID, winningSide)
+    return true
 }
 
 export async function archiveTeamMatch(myTeamMatchID) {
@@ -183,13 +269,10 @@ export async function getTeamMatchTeamScore(teamMatchID,) {
 
 }
 export async function addWinToTeamMatchTeamScore(teamMatchID, AorB) {
-    let scores = await getTeamMatchTeamScore(teamMatchID)
-    if (AorB === "A") {
-        await db.ref(`teamMatches/${teamMatchID}/teamAScore`).set(parseInt(scores.a) + 1)
-    }
-    else {
-        await db.ref(`teamMatches/${teamMatchID}/teamBScore`).set(parseInt(scores.b) + 1)
-    }
+    const scoreField = AorB === "A" ? "teamAScore" : "teamBScore"
+    await db.ref(`teamMatches/${teamMatchID}/${scoreField}`).transaction((currentScore) => {
+        return (Number(currentScore) || 0) + 1
+    })
     let teamAScore = await db.ref(`teamMatches/${teamMatchID}/teamAScore`).get()
     let teamBScore = await db.ref(`teamMatches/${teamMatchID}/teamBScore`).get()
     return {

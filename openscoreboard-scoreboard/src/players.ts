@@ -31,7 +31,7 @@ function getPlayerPartialName(player:Player){
 
 function getPlayerFullName(player:Player){
     let firstName = player && player.firstNameInitial === true ? player.firstName[0] : player.firstName;
-    let lastName = player && player.lastNameInitial === true ? player.firstName[0] : player.lastName;
+    let lastName = player && player.lastNameInitial === true ? player.lastName[0] : player.lastName;
     return `${firstName} ${lastName}` ;
 
 }

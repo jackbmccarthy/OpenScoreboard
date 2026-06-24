@@ -283,11 +283,12 @@ export async function subscribeToAllMatchFields(matchID, callback) {
     for (const key in match) {
         let matchRef = db.ref(`matches/${matchID}/${key}`)
         matchRef.on("value", (snapShot) => {
-            if (typeof snapShot.val()["value"] !== "undefined") {
-                callback(snapShot.val()["value"], key)
+            const snapshotValue = snapShot.val()
+            if (snapshotValue !== null && typeof snapshotValue === "object" && typeof snapshotValue["value"] !== "undefined") {
+                callback(snapshotValue["value"], key)
             }
             else {
-                callback(snapShot.val(), key)
+                callback(snapshotValue, key)
             }
 
 
@@ -318,6 +319,23 @@ export async function createNewMatch(tableID, sportName, previousMatchObj = null
 export async function createNewScheduledMatch(sportName) {
     let newMatch = await db.ref(`matches`).push(new Match().createNew(sportName || "tableTennis"))
     return newMatch.key
+}
+
+export async function abandonMatch(matchID) {
+    if (!matchID) {
+        return
+    }
+
+    await db.ref(`matches/${matchID}`).update({
+        abandonedOn: new Date().toISOString(),
+        isAbandoned: true,
+        isActive: false,
+        isInBetweenGames: false,
+        showEndOfMatchOptions: false,
+        showGameWonConfirmationModal: false,
+        showInBetweenGamesModal: false,
+        showMatchSetupWizard: false,
+    })
 }
 
 

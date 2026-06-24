@@ -75,7 +75,7 @@ export function addScoreboardSettingListeners(scoreboardID, rootNode) {
                 // }
                 if (getShowDuringActiveMatch(scoreboardID) && (typeof event.data["isMatchStarted"] !== "undefined" || typeof event.data["isInBetweenGames"] !== "undefined")) {
                     console.log(currentContext["isMatchStarted"] && !currentContext["isInBetweenGames"], currentContext["isMatchStarted"], !currentContext["isInBetweenGames"])
-                    if (typeof currentContext["isMatchStarted"] !== 'undefined' && typeof !currentContext["isInBetweenGames"] !== "undefined") {
+                    if (typeof currentContext["isMatchStarted"] !== "undefined" && typeof currentContext["isInBetweenGames"] !== "undefined") {
                         if (currentContext["isMatchStarted"] && !currentContext["isInBetweenGames"]) {
                             animateScoreboardFadeIn(rootNode)
                         }

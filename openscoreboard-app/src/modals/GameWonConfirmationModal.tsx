@@ -4,6 +4,7 @@ import { openScoreboardButtonTextColor, openScoreboardColor } from "../../opensc
 import { endGame, getCurrentGameNumber, getCurrentGameScore, getMatchScore, isFinalGame, isGamePoint, isMatchFinished, MinusPoint, setIsGamePoint, setIsMatchPoint, updateService } from '../functions/scoring';
 import { getCombinedPlayerNames } from '../functions/players';
 import { addWinToTeamMatchTeamScore } from '../functions/teammatches';
+import { updateScheduledMatchScoresForSource } from '../functions/scheduling';
 import i18n from '../translations/translate';
 
 export function GameWonConfirmationModal(props) {
@@ -35,6 +36,21 @@ export function GameWonConfirmationModal(props) {
         }
     }
 
+    function getFinishedGameScores(match) {
+        return Array.from({ length: 9 }).reduce((scores, _, index) => {
+            const gameIndex = index + 1;
+            if (match[`isGame${gameIndex}Finished`] !== true) {
+                return scores;
+            }
+
+            scores.push({
+                a: Number(match[`game${gameIndex}AScore`]) || 0,
+                b: Number(match[`game${gameIndex}BScore`]) || 0,
+            });
+            return scores;
+        }, []);
+    }
+
     return (
         <Modal isOpen={props.isOpen}>
             <Modal.Content>
@@ -56,7 +72,6 @@ export function GameWonConfirmationModal(props) {
 
                     }
 
-
                 </Modal.Body>
                 <Modal.Footer>
                     <View flex={1} padding={1}>
@@ -64,9 +79,23 @@ export function GameWonConfirmationModal(props) {
                             onPress={async () => {
                                 setLoadingConfirmGame(true);
                                 let updatedGameValues = await endGame(props.matchID, gameNumber);
-                                if (props.isTeamMatch) {
-                                    if (isMatchFinished({ ...props, ...updatedGameValues })) {
-                                        let finalScore = getMatchScore({ ...props, ...updatedGameValues })
+                                const updatedMatch = { ...props, ...updatedGameValues };
+                                const matchFinished = isMatchFinished(updatedMatch);
+                                if (props.scheduledMatchID) {
+                                    const nextMatchScore = getMatchScore(updatedMatch);
+                                    await updateScheduledMatchScoresForSource(
+                                        props.scheduledSourceType || "table",
+                                        props.scheduledSourceID || props.tableID,
+                                        props.scheduledMatchID,
+                                        props.matchID,
+                                        nextMatchScore.a,
+                                        nextMatchScore.b,
+                                        { gameScores: getFinishedGameScores(updatedMatch), isComplete: matchFinished }
+                                    );
+                                }
+                                if (props.isTeamMatch && !props.scheduledMatchID) {
+                                    if (matchFinished) {
+                                        let finalScore = getMatchScore(updatedMatch)
                                         if (finalScore.a > finalScore.b) {
                                             await addWinToTeamMatchTeamScore(props.teamMatchID, "A")
                                         }
@@ -79,7 +108,7 @@ export function GameWonConfirmationModal(props) {
                                 }
                                 props.onClose();
                                 setLoadingConfirmGame(false);
-                                props.openAfterGamePrompt({ ...props, ...updatedGameValues });
+                                props.openAfterGamePrompt(updatedMatch);
                             }}
                         >
                             {loadingConfirmGame ?

@@ -1,5 +1,8 @@
-// vite.config.js
 import legacy from '@vitejs/plugin-legacy'
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const rootDir = fileURLToPath(new URL('.', import.meta.url))
 
 export default {
   envDir: '..',
@@ -17,5 +20,14 @@ export default {
     }),
   ],
   base:"/scoreboard/",
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(rootDir, 'index.html'),
+        brackets: resolve(rootDir, 'brackets/index.html'),
+        groups: resolve(rootDir, 'groups/index.html'),
+      },
+    },
+  },
   
 }
