@@ -200,17 +200,17 @@ export default function Home(props) {
 
         },
         {
-            route: "MyCompetitions",
-            title: "Brackets & Groups",
-            description: "Create bracket and round-robin graphics that can be linked to scheduled match results.",
-            options: ["Competition graphics", "Linked tables", "Live results"],
-
-        },
-        {
             route: "DynamicURLS",
             title: i18n.t("dynamicURLs"),
             description: i18n.t("dynamicURLDescription"),
             options: ["Reusable URLs", "Swap assigned matches", "Email links"],
+
+        },
+        {
+            route: "MyBracketGroupStyles",
+            title: "Dynamic Brackets & Groups",
+            description: "Create stable bracket and round-robin display URLs that can swap competitions and styles without changing your stream setup.",
+            options: ["Stable URLs", "Competition links", "Reusable styles"],
 
         }
     ]
@@ -225,24 +225,34 @@ export default function Home(props) {
         })
     }
 
-    const account = isFirebaseAuthRequired ? [
-
+    const competitions = [
         {
-            route: "MyAccount",
-            title: i18n.t("accountSettings"),
-            description: i18n.t("accountSettingsDescription"),
-            options: ["Profile", "Sign out"],
+            route: "MyCompetitions",
+            title: "My Competitions",
+            description: "Create brackets and round-robin groups, then link scheduled table matches so results update automatically.",
+            options: ["Brackets", "Round robin groups", "Scheduled matches"],
 
         },
+    ]
+
+    const account = [
+        ...(isFirebaseAuthRequired ? [
+            {
+                route: "MyAccount",
+                title: i18n.t("accountSettings"),
+                description: i18n.t("accountSettingsDescription"),
+                options: ["Profile", "Sign out"],
+
+            },
+        ] : []),
         {
-            route: "",
-            title: `${i18n.t("tutorials")}(${i18n.t("comingSoon")})`,
-            description: i18n.t("tutorialsDescription"),
-            disabled: true,
-            options: ["Guides", "Examples"],
+            route: "Tutorials",
+            title: "Documentation",
+            description: "Learn how each Open Scoreboard feature works and when to use it.",
+            options: ["Documentation", "Feature guides", "Workflows"],
 
         },
-    ] : []
+    ]
 
 
     return (
@@ -266,6 +276,12 @@ export default function Home(props) {
                         navigation={props.navigation}
                     />
                     <HomeSection
+                        title={"Competitions"}
+                        description={"Build competition structures that can drive bracket and group displays."}
+                        items={competitions}
+                        navigation={props.navigation}
+                    />
+                    <HomeSection
                         title={i18n.t("scoreboardsOverlays")}
                         description={"Design and publish graphics for streams, venues, and remote viewers."}
                         items={scoreboards}
@@ -273,7 +289,7 @@ export default function Home(props) {
                     />
                     {account.length ? (
                         <HomeSection
-                            title={i18n.t("account")}
+                            title={"Account & Help"}
                             description={"Manage your account and help resources."}
                             items={account}
                             navigation={props.navigation}

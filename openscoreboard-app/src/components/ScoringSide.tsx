@@ -372,6 +372,7 @@ export function ScoringSide(props) {
                 <View flexShrink={0}>
                     <View padding={isCompact ? 0.5 : 1}>
                         <ScoringGradientButton
+                            disabled={props.lockPlayerEditing === true}
                             onPress={() => {
                                 if (props.isA) {
                                     props.openPlayerModal("playerA");
@@ -397,6 +398,7 @@ export function ScoringSide(props) {
                     {props.isDoubles === true ?
                         <View padding={isCompact ? 0.5 : 1}>
                             <ScoringGradientButton
+                                disabled={props.lockPlayerEditing === true}
                                 onPress={() => {
                                     if (props.isA) {
                                         props.openPlayerModal("playerA2");

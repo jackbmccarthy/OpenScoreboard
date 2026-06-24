@@ -1,21 +1,39 @@
 
 
 
-import React, { Component, useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Dimensions, Image, Share, useWindowDimensions } from 'react-native';
-import { Button, View, NativeBaseProvider, ScrollView, Fab, AddIcon, Select, Text } from 'native-base';
-import { addNewScoreboard, getMyScoreboards, getScoreboardTypesList } from './functions/scoreboards';
+import { useWindowDimensions } from 'react-native';
+import { Button, Input, View, NativeBaseProvider, ScrollView, Text } from 'native-base';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getUserPath } from '../database';
 import LoadingPage from './LoadingPage';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
-import { openBrowserAsync } from 'expo-web-browser';
 import { getMyTeams } from './functions/teams';
+import { subscribeToTeamCompetitionIndex } from './functions/teamCompetitions';
 import { NewTeamModal } from './modals/NewTeamModal';
 import { TeamItem } from './listitems/TeamItem';
 import i18n from './translations/translate';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
+
+function getTeamName(team = {}) {
+    return team.teamName || team.name || "Unnamed team";
+}
+
+function getPlayerSearchText(players = {}) {
+    return Object.values(players || {}).map((player: any) => {
+        return [
+            player?.firstName || "",
+            player?.lastName || "",
+            player?.name || "",
+        ].filter(Boolean).join(" ");
+    }).join(" ");
+}
+
+function getCompetitionTitle(competition = {}) {
+    return competition?.data?.title || competition?.title || "";
+}
 
 export default function MyTeams(props) {
 
@@ -25,8 +43,31 @@ export default function MyTeams(props) {
     let [isEditingTeam, setIsEditingTeam] = useState(false)
     let [editingTeamID, setEditingTeamID] = useState("")
     let [editingMyTeamID, setEditingMyTeamID] = useState("")
+    let [teamSearch, setTeamSearch] = useState("")
+    let [teamCompetitionMap, setTeamCompetitionMap] = useState<any>({})
     const { width } = useWindowDimensions()
     const useTwoColumns = width >= 760
+    const teamIDs = useMemo(() => {
+        return teamList.map(([, team]: any) => team?.id).filter(Boolean);
+    }, [teamList]);
+    const teamIDKey = teamIDs.join("|");
+    const filteredTeamList = useMemo(() => {
+        const searchText = teamSearch.trim().toLowerCase();
+        if (!searchText) {
+            return teamList;
+        }
+
+        return teamList.filter(([, team]: any) => {
+            const linkedCompetitions = teamCompetitionMap[team?.id] || [];
+            const searchableText = [
+                getTeamName(team),
+                getPlayerSearchText(team?.players),
+                linkedCompetitions.map(getCompetitionTitle).join(" "),
+            ].join(" ").toLowerCase();
+
+            return searchableText.includes(searchText);
+        });
+    }, [teamCompetitionMap, teamList, teamSearch]);
 
     async function loadTeams() {
         setDoneLoading(false)
@@ -39,6 +80,11 @@ export default function MyTeams(props) {
         props.navigation.navigate("TeamEditor", {
             teamID,
             myTeamID,
+        })
+    }
+    const openCompetition = (competitionID) => {
+        props.navigation.navigate("CompetitionEditor", {
+            competitionID,
         })
     }
     const closeEditTeam = () => {
@@ -72,6 +118,15 @@ export default function MyTeams(props) {
         }, [])
     )
 
+    useEffect(() => {
+        if (!doneLoading || teamIDs.length === 0) {
+            setTeamCompetitionMap({});
+            return;
+        }
+
+        return subscribeToTeamCompetitionIndex(teamIDs, setTeamCompetitionMap);
+    }, [doneLoading, teamIDKey])
+
     if (doneLoading) {
         return (
             <NativeBaseProvider theme={openScoreboardTheme}>
@@ -82,16 +137,56 @@ export default function MyTeams(props) {
                                 <ScrollView>
                                     <View
                                         alignSelf={"center"}
+                                        maxWidth={1180}
+                                        paddingX={3}
+                                        paddingTop={4}
+                                        width={"100%"}
+                                    >
+                                        <View marginBottom={4}>
+                                            <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"}>
+                                                Manage your teams
+                                            </Text>
+                                            <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
+                                                These are the teams saved to your account. Open a team to edit its roster, manager link, jersey color, and competition access.
+                                            </Text>
+                                        </View>
+                                        <Input
+                                            backgroundColor={"white"}
+                                            borderColor={"gray.300"}
+                                            borderRadius={8}
+                                            InputLeftElement={(
+                                                <View marginLeft={3}>
+                                                    <MaterialCommunityIcons name="magnify" size={20} color={"#6B7280"} />
+                                                </View>
+                                            )}
+                                            onChangeText={setTeamSearch}
+                                            placeholder={"Search teams, roster players, or competitions"}
+                                            value={teamSearch}
+                                        />
+                                        <Text color={"gray.500"} fontSize={"xs"} marginTop={2}>
+                                            Search by team name, roster player, or linked competition. Showing {filteredTeamList.length} of {teamList.length} team{teamList.length === 1 ? "" : "s"}.
+                                        </Text>
+                                    </View>
+                                    <View
+                                        alignSelf={"center"}
                                         flexDirection={"row"}
                                         flexWrap={"wrap"}
                                         maxWidth={1180}
                                         paddingY={2}
                                         width={"100%"}
                                     >
-                                        {teamList.map((team, index) => {
+                                        {filteredTeamList.length === 0 ? (
+                                            <View alignItems={"center"} padding={6} width={"100%"}>
+                                                <Text color={"gray.700"} fontSize={"md"} fontWeight={"bold"}>No teams match your search.</Text>
+                                                <Button marginTop={3} onPress={() => setTeamSearch("")} variant={"outline"}>
+                                                    <Text color={"blue.700"} fontWeight={"bold"}>Clear search</Text>
+                                                </Button>
+                                            </View>
+                                        ) : filteredTeamList.map((team, index) => {
                                             return (
                                                 <View key={team[0]} width={useTwoColumns ? "50%" : "100%"}>
                                                     <TeamItem
+                                                        competitions={teamCompetitionMap[team?.[1]?.id] || []}
                                                         item={team}
                                                         index={index}
                                                         onDelete={(deletedMyTeamID) => {
@@ -99,6 +194,7 @@ export default function MyTeams(props) {
                                                                 return myTeam[0] !== deletedMyTeamID
                                                             })])
                                                         }}
+                                                        onOpenCompetition={openCompetition}
                                                         openEditTeam={openEditTeam}
                                                         closeEditTeam={closeEditTeam}
                                                     />

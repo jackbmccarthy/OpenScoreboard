@@ -5,7 +5,7 @@ class Table {
 * @param tableName The name of the Table
 * 
 */
-  constructor(tableName, creatorID, playerListID, sportName, scoringType = "") {
+  constructor(tableName, creatorID, playerListID, sportName, scoringType = "", tableMode = "standard") {
     this.tableName = tableName
     this.creatorID = creatorID;
     this.id = uuidv4();
@@ -17,6 +17,8 @@ class Table {
     this.playerListID = playerListID
     this.sportName = sportName,
       this.scoringType = scoringType
+    this.tableMode = tableMode === "kiosk" ? "kiosk" : "standard"
+    this.nextQueuePosition = 0
   }
 
 }

@@ -12,17 +12,34 @@ import { timeOutTimerFieldList } from "./fields/timeOutTimerFieldList";
 import { courtSideViewFieldList } from "./fields/courtSideViewFieldList";
 import { updateCurrentMatch, updateTeamAID, updateTeamAScore, updateTeamBID, updateTeamBScore, updateTeamMatch } from './teamUpdates';
 
+let currentTableMatchListenerRemoval: (() => void) | null = null;
+
+function resetCurrentTableMatchListener() {
+    if (currentTableMatchListenerRemoval) {
+        currentTableMatchListenerRemoval();
+        currentTableMatchListenerRemoval = null;
+    }
+}
+
 export async function runAllListeners(isInitialRun: boolean, tableID: string | null = null, teamMatchID: string | null = null, tableNumber: string| null = null, resetListeners: { (): void }, addToListenerList: { (data: { (): void }): void }) {
+    if (isInitialRun) {
+        resetCurrentTableMatchListener();
+    }
+
     addCurrentGameFieldListeners([...currentGameFieldList, ...courtSideGameFieldList, ...textFieldList, ...teamFieldList, ...solidColorFieldList, ...conditionalShowFieldList, ...timeOutTimerFieldList, ...imageFieldList, ...courtSideViewFieldList]);
 
     if (tableID !== null && tableID.length > 0) {
         console.log(isInitialRun)
         if (isInitialRun) {
 
-            let currentMatchRef = db.ref(`tables/${tableID}/currentMatch`);
-            currentMatchRef.on("value", (snapshot) => {
+            const currentMatchRef = db.ref(`tables/${tableID}/currentMatch`);
+            const handleCurrentMatch = (snapshot) => {
                 updateCurrentMatch(snapshot, isInitialRun, resetListeners, addToListenerList)
-            });
+            };
+            currentMatchRef.on("value", handleCurrentMatch);
+            currentTableMatchListenerRemoval = () => {
+                currentMatchRef.off("value", handleCurrentMatch);
+            };
 
         }
         else {
@@ -92,6 +109,12 @@ export async function runAllListeners(isInitialRun: boolean, tableID: string | n
         });
         Array.from(document.getElementsByClassName("teamLogoURLB") as HTMLCollectionOf<HTMLElement>).forEach((teamScoreNode) => {
             teamScoreNode.style.display = "none";
+        });
+        Array.from(document.getElementsByClassName("teamJerseyColorA") as HTMLCollectionOf<HTMLElement>).forEach((teamColorNode) => {
+            teamColorNode.style.display = "none";
+        });
+        Array.from(document.getElementsByClassName("teamJerseyColorB") as HTMLCollectionOf<HTMLElement>).forEach((teamColorNode) => {
+            teamColorNode.style.display = "none";
         });
     }
 

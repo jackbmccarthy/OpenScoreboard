@@ -353,6 +353,7 @@ export function ScoringSidePickleball(props) {
                 <View flexShrink={0} display={"flex"} justifyContent={"center"} flexDir={"row"} flexWrap={"wrap"}>
                     <View minWidth={150} maxWidth={300} flex={1} padding={1}>
                         <ScoringGradientButton
+                            disabled={props.lockPlayerEditing === true}
                             onPress={() => {
                                 if (props.isA) {
                                     props.openPlayerModal("playerA");
@@ -373,6 +374,7 @@ export function ScoringSidePickleball(props) {
                     <View minWidth={150} maxWidth={300} flex={1} padding={1}>
                         {props.isDoubles === true ?
                             <ScoringGradientButton
+                                disabled={props.lockPlayerEditing === true}
                                 onPress={() => {
                                     if (props.isA) {
                                         props.openPlayerModal("playerA2");

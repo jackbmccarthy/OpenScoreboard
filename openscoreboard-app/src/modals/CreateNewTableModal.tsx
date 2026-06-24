@@ -16,12 +16,14 @@ import i18n from '../translations/translate';
 
 export default function CreateNewTableModal(props) {
 
-    //let [tableName, setTableName] = useState("")
+    let [tableName, setTableName] = useState("")
+    let [tableNameError, setTableNameError] = useState("")
     let [isLoadingTable, setIsLoadingTable] = useState(false)
     let [myPlayerLists, setMyPlayerLists] = useState([])
     let [selectedPlayerListID, setSelectedPlayerListID] = useState("")
     let [selectedSport, setSelectedSport] = useState("tableTennis")
     let [selectedScoringType, setSelectedScoringType] = useState("")
+    let [tableMode, setTableMode] = useState("standard")
 
     let tableNameInput = useRef<HTMLInputElement>()
 
@@ -50,8 +52,19 @@ export default function CreateNewTableModal(props) {
                 <Modal.Body>
                     <FormControl >
                         <FormControl.Label>{i18n.t("tableName")}</FormControl.Label>
-                        <Input ref={tableNameInput}
+                        <Input
+                            ref={tableNameInput}
+                            value={tableName}
+                            onChangeText={(text) => {
+                                setTableName(text)
+                                if (text.trim()) {
+                                    setTableNameError("")
+                                }
+                            }}
                         />
+                        {tableNameError ? (
+                            <Text color={"red.600"} fontSize={"sm"} marginTop={1}>{tableNameError}</Text>
+                        ) : null}
 
                         {
 
@@ -118,6 +131,21 @@ export default function CreateNewTableModal(props) {
 
                                 : null
                         }
+
+                        <FormControl.Label>Table mode</FormControl.Label>
+                        <Select selectedValue={tableMode} onValueChange={setTableMode}>
+                            <Select.Item
+                                label={"Standard - manual and scheduled matches"}
+                                value={"standard"}
+                            />
+                            <Select.Item
+                                label={"Kiosk - scheduled matches only"}
+                                value={"kiosk"}
+                            />
+                        </Select>
+                        <Text color={"gray.500"} fontSize={"xs"} marginTop={1}>
+                            Kiosk tables wait for administrators to queue matches and enforce that queue order.
+                        </Text>
                     </FormControl>
 
 
@@ -127,15 +155,24 @@ export default function CreateNewTableModal(props) {
                 <Modal.Footer>
                     <View padding={2} >
                         <Button onPress={async () => {
-                            console.log(tableNameInput.current.value)
+                            const cleanTableName = tableName.trim()
+                            if (!cleanTableName) {
+                                setTableNameError("Table name is required.")
+                                return
+                            }
 
+                            try {
+                                setIsLoadingTable(true)
+                                await createNewTable(cleanTableName, selectedPlayerListID, selectedSport, selectedScoringType, tableMode)
+                                setTableName("")
+                                setIsLoadingTable(false)
+                                props.onClose(true)
+                            } catch (error) {
+                                setTableNameError(error instanceof Error ? error.message : "Unable to create table.")
+                                setIsLoadingTable(false)
+                            }
 
-                            setIsLoadingTable(true)
-                            await createNewTable(tableNameInput.current.value, selectedPlayerListID, selectedSport, selectedScoringType)
-                            setIsLoadingTable(false)
-                            props.onClose(true)
-
-                        }} >
+                        }} isDisabled={!tableName.trim() || isLoadingTable}>
                             {
                                 isLoadingTable ?
                                     <Spinner></Spinner> :
@@ -152,4 +189,3 @@ export default function CreateNewTableModal(props) {
 
     )
 }
-

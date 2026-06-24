@@ -1,5 +1,36 @@
 import { updateInnerText } from "./updateInnerText";
+import { setPairedPlayerImageSources } from "./optionalImage";
+import { setPairedCountryFlagSources } from "./countryFlag";
 
+function createPlayerMetadataField(field, label, sample, playerField, metadataField) {
+    return {
+        field,
+        label,
+        category: "Player Details",
+        sample,
+        justify: "center",
+        listenerFields: [playerField],
+        requiredFields: [playerField],
+        action: (matchNode: HTMLElement, value, currentMatchSettings) => {
+            matchNode.innerText = `${currentMatchSettings?.[playerField]?.[metadataField] || ""}`;
+        }
+    };
+}
+
+const playerMetadataTextFields = [
+    createPlayerMetadataField("genderA", "Player A Gender", "M", "playerA", "gender"),
+    createPlayerMetadataField("genderB", "Player B Gender", "F", "playerB", "gender"),
+    createPlayerMetadataField("genderA2", "Player A2 Gender", "M", "playerA2", "gender"),
+    createPlayerMetadataField("genderB2", "Player B2 Gender", "F", "playerB2", "gender"),
+    createPlayerMetadataField("ratingA", "Player A Rating", 2000, "playerA", "rating"),
+    createPlayerMetadataField("ratingB", "Player B Rating", 1950, "playerB", "rating"),
+    createPlayerMetadataField("ratingA2", "Player A2 Rating", 1850, "playerA2", "rating"),
+    createPlayerMetadataField("ratingB2", "Player B2 Rating", 1800, "playerB2", "rating"),
+    createPlayerMetadataField("rankingA", "Player A Ranking", 1, "playerA", "ranking"),
+    createPlayerMetadataField("rankingB", "Player B Ranking", 2, "playerB", "ranking"),
+    createPlayerMetadataField("rankingA2", "Player A2 Ranking", 3, "playerA2", "ranking"),
+    createPlayerMetadataField("rankingB2", "Player B2 Ranking", 4, "playerB2", "ranking"),
+];
 
 export const textFieldList = [
     {
@@ -8,33 +39,19 @@ export const textFieldList = [
         category: "Player Names",
         sample: "Player A",
         justify: "flex-start",
-        action: (matchNode: HTMLElement, value) => {
-            matchNode.innerText = value.firstName;
+        listenerFields: ["playerA", "playerB"],
+        requiredFields: ["playerA", "playerB"],
+        action: (matchNode: HTMLElement, _value, currentMatchSettings) => {
+            const playerA = currentMatchSettings?.playerA || {};
+            const playerB = currentMatchSettings?.playerB || {};
+            matchNode.innerText = playerA.firstName || "";
             const jerseyAElements = document.getElementsByClassName("jerseyColorA");
             for (const jerseyAEl of jerseyAElements) {
-                jerseyAEl.style.backgroundColor = value.jerseyColor || "transparent";
+                jerseyAEl.style.backgroundColor = playerA.jerseyColor || "transparent";
             }
 
-            Array.from(document.getElementsByClassName("countryA") as HTMLCollectionOf<HTMLElement>).forEach((countryAEl) => {
-                const countryAFlag = `flags/${value.country.toLowerCase()}.png`;
-                if (countryAFlag) {
-                    countryAEl.style.height = "100%";
-                    countryAEl.src = countryAFlag;
-                }
-                else {
-                    countryAEl.style.height = "0px";
-                }
-            });
-            Array.from(document.getElementsByClassName("imageURLA") as HTMLCollectionOf<HTMLElement>).forEach((imageAEl) => {
-                const AImage = value.imageURL;
-                if (AImage && AImage.length > 0) {
-                    imageAEl.style.height = "100%";
-                    imageAEl.src = AImage;
-                }
-                else {
-                    imageAEl.style.height = "0px";
-                }
-            });
+            setPairedCountryFlagSources(document, playerA, playerB);
+            setPairedPlayerImageSources(document, playerA, playerB);
         }
     },
     {
@@ -43,35 +60,19 @@ export const textFieldList = [
         category: "Player Names",
         sample: "Player B",
         justify: "flex-start",
-        action: (matchNode: HTMLElement, value) => {
-            matchNode.innerText = value.firstName;
+        listenerFields: ["playerA", "playerB"],
+        requiredFields: ["playerA", "playerB"],
+        action: (matchNode: HTMLElement, _value, currentMatchSettings) => {
+            const playerA = currentMatchSettings?.playerA || {};
+            const playerB = currentMatchSettings?.playerB || {};
+            matchNode.innerText = playerB.firstName || "";
             const jerseyBElements = document.getElementsByClassName("jerseyColorB") as HTMLCollectionOf<HTMLElement>;
             for (const jerseyBEl of jerseyBElements) {
-                jerseyBEl.style.backgroundColor = value.jerseyColor || "transparent";
+                jerseyBEl.style.backgroundColor = playerB.jerseyColor || "transparent";
             }
-            Array.from(document.getElementsByClassName("countryB") as HTMLCollectionOf<HTMLElement>).forEach((countryBEl) => {
-                const countryBFlag = `flags/${value.country.toLowerCase()}.png`;
-                if (value.country.length > 0) {
-                    countryBEl.style.height = "100%";
-                    countryBEl.src = countryBFlag;
-                }
-                else {
-                    countryBEl.style.height = "0px";
-                }
 
-            });
-
-            Array.from(document.getElementsByClassName("imageURLB") as HTMLCollectionOf<HTMLElement>).forEach((imageBEl) => {
-                //console.log("ImageBEl", imageBEl)
-                const BImage = value.imageURL;
-                if (BImage && BImage.length > 0) {
-                    imageBEl.style.height = "100%";
-                    imageBEl.src = BImage;
-                }
-                else {
-                    imageBEl.style.height = "0px";
-                }
-            });
+            setPairedCountryFlagSources(document, playerA, playerB);
+            setPairedPlayerImageSources(document, playerA, playerB);
         }
     },
     {
@@ -94,6 +95,7 @@ export const textFieldList = [
             matchNode.innerText = value.firstName;
         }
     },
+    ...playerMetadataTextFields,
     {
         field: "game1AScore",
         label: "Player A G1 Score",
@@ -237,6 +239,14 @@ export const textFieldList = [
         label: "Player B G9 Score",
         category: "Game Scores",
         sample: 0,
+        justify: "center",
+        action: updateInnerText
+    },
+    {
+        field: "eventName",
+        label: "Event Name",
+        category: "Match",
+        sample: "Open Singles",
         justify: "center",
         action: updateInnerText
     },

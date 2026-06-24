@@ -62,6 +62,7 @@ export function TableItem(props) {
     const currentMatchA = currentMatch.playerA || "TBD";
     const currentMatchB = currentMatch.playerB || "TBD";
     const hasCurrentMatch = props.hasCurrentMatch === true;
+    const isKioskMode = props.tableMode === "kiosk";
 
     return (
         <View
@@ -75,7 +76,14 @@ export function TableItem(props) {
         >
             <View>
                 <View>
-                    <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"}>{props.tableName}</Text>
+                    <View alignItems={"center"} flexDirection={"row"} flexWrap={"wrap"}>
+                        <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"}>{props.tableName}</Text>
+                        {isKioskMode ? (
+                            <View backgroundColor={"blue.50"} borderColor={"blue.100"} borderRadius={999} borderWidth={1} marginLeft={2} paddingX={2} paddingY={0.5}>
+                                <Text color={"blue.800"} fontSize={"2xs"} fontWeight={"bold"}>Kiosk</Text>
+                            </View>
+                        ) : null}
+                    </View>
                     <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>{sportDisplayName}</Text>
                 </View>
             </View>
@@ -100,7 +108,7 @@ export function TableItem(props) {
                         padding={3}
                     >
                         <Text color={"gray.700"} fontSize={"sm"} fontWeight={"medium"}>
-                            No match has been created for this table yet.
+                            {isKioskMode ? "Waiting for the next scheduled match." : "No match has been created for this table yet."}
                         </Text>
                     </View>
                 )}
@@ -127,8 +135,8 @@ export function TableItem(props) {
                     <TableAction
                         isPrimary
                         isLoading={props.isCreatingMatch}
-                        label={"Create match"}
-                        icon={(color) => <MaterialCommunityIcons name="plus-box-outline" size={20} color={color} />}
+                        label={isKioskMode ? "Open kiosk" : "Create match"}
+                        icon={(color) => <MaterialCommunityIcons name={isKioskMode ? "monitor-lock" : "plus-box-outline"} size={20} color={color} />}
                         onPress={() => {
                             props.createMatchForTable(props);
                         }}

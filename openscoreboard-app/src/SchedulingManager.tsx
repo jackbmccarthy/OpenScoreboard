@@ -2,21 +2,23 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable } from 'react-native';
 import { FormControl, Input, Modal, NativeBaseProvider, ScrollView, Select, Spinner, Text, View } from 'native-base';
 import { AntDesign, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import db from '../database';
 import { openScoreboardButtonTextColor, openScoreboardColor, openScoreboardTheme } from '../openscoreboardtheme';
 import LoadingPage from './LoadingPage';
 import { getImportPlayerList, getMyPlayerLists, getPlayerFormatted } from './functions/players';
-import { getScheduledTableMatches } from './functions/tables';
+import { compareScheduledTableMatches, getScheduledTableMatches, sortScheduledTableMatches } from './functions/tables';
 import { getTableInfo } from './functions/scoring';
 import { getTeam } from './functions/teams';
 import { getTeamMatch } from './functions/teammatches';
 import { supportedSports } from './functions/sports';
-import { createCompetitionFromScheduledMatches } from './functions/competitions';
 import {
     createScheduledMatchesForTable,
     createScheduledMatchesForTeamMatch,
     deleteScheduledMatchForSource,
     finishScheduledMatchForSource,
     getScheduledTeamMatchMatches,
+    moveScheduledTableMatch,
+    resolveScheduledMatchForSource,
 } from './functions/scheduling';
 
 const tableCompetitionTypes = [
@@ -42,10 +44,28 @@ const hourOptions = Array.from({ length: 12 }).map((_, index) => `${index + 1}`)
 const minuteOptions = Array.from({ length: 12 }).map((_, index) => `${index * 5}`.padStart(2, "0"));
 const intervalMinuteOptions = ["0", "10", "15", "20", "30", "45", "60"];
 const scheduledSortOptions = [
+    { label: "Queue order", value: "queueAsc" },
     { label: "Soonest first", value: "timeAsc" },
     { label: "Latest first", value: "timeDesc" },
     { label: "Player A-Z", value: "playerAsc" },
     { label: "Score high-low", value: "scoreDesc" },
+];
+const scheduledFilterOptions = [
+    { label: "Upcoming", value: "upcoming" },
+    { label: "Resolved", value: "resolved" },
+    { label: "All matches", value: "all" },
+];
+const bestOfOptions = ["1", "3", "5", "7", "9"];
+const manualRoundOptions = [
+    { label: "No round", value: "" },
+    { label: "Round robin", value: "RR" },
+    { label: "Group stage", value: "GS" },
+    { label: "Round of 32", value: "R32" },
+    { label: "Round of 16", value: "R16" },
+    { label: "Quarter-final", value: "R8" },
+    { label: "Semi-final", value: "R4" },
+    { label: "Final", value: "R2" },
+    { label: "Custom round", value: "custom" },
 ];
 
 function getDateParts(date = new Date()) {
@@ -148,6 +168,24 @@ function getScheduledMatchTime(item) {
     const scheduledMatch = item?.[1] || {};
     const time = new Date(scheduledMatch.startTime || scheduledMatch.scheduledOn || 0).getTime();
     return Number.isNaN(time) ? 0 : time;
+}
+
+function isResolvedScheduledMatch(scheduledMatch) {
+    return scheduledMatch?.isComplete === true ||
+        scheduledMatch?.status === "cancelled" ||
+        scheduledMatch?.status === "complete" ||
+        scheduledMatch?.status === "resolved";
+}
+
+function buildManualPlayer(name) {
+    return {
+        firstName: `${name || ""}`.trim(),
+        lastName: "",
+    };
+}
+
+function getPlayerEntryByID(playerEntries, playerID) {
+    return playerEntries.find((entry) => getEntryID(entry) === playerID);
 }
 
 function toScoreValue(value) {
@@ -369,84 +407,100 @@ function GeneratedMatchCard({ isSelected, match, onToggle }) {
 }
 
 function ScheduledMatchCard({
+    allowResultEntry,
     confirmDelete,
     isLoading,
     item,
     onDelete,
     onEnterResult,
+    onMoveDown,
+    onMoveUp,
+    onResolve,
+    showQueueControls,
 }) {
     const scheduledMatch = item?.[1] || {};
     const scheduledID = item?.[0] || "";
     const gameScores = Array.isArray(scheduledMatch.gameScores) ? scheduledMatch.gameScores : [];
+    const isResolved = isResolvedScheduledMatch(scheduledMatch);
+    const isActive = scheduledMatch.status === "active";
+    const statusLabel = isResolved ? "Resolved" : isActive ? "On table" : "Scheduled";
+    const statusColor = isResolved ? "#16A34A" : isActive ? "#2563EB" : "#EAB308";
 
     return (
         <View
-            backgroundColor={"gray.50"}
+            backgroundColor={"white"}
             borderColor={"gray.200"}
             borderRadius={8}
             borderWidth={1}
             marginTop={2}
             padding={3}
         >
-            <View alignItems={"center"} flexDirection={"row"}>
-                <View flex={1}>
+            <View alignItems={"flex-start"} flexDirection={"row"}>
+                <View flex={1} paddingRight={3}>
                     <Text color={"gray.500"} fontSize={"2xs"} fontWeight={"bold"} textTransform={"uppercase"}>
+                        {showQueueControls ? `Queue ${scheduledMatch.queuePosition || ""} · ` : ""}
                         {scheduledMatch.matchRound || scheduledMatch.formatName || "Scheduled match"}
                     </Text>
-                    <Text color={"gray.900"} fontSize={"sm"} fontWeight={"bold"}>
+                    <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"} marginTop={1}>
                         {scheduledMatch.playerA || "TBD"} vs {scheduledMatch.playerB || "TBD"}
                     </Text>
                     <Text color={"gray.500"} fontSize={"xs"} marginTop={1}>
-                        {formatDateTime(scheduledMatch.startTime)}
+                        {formatDateTime(scheduledMatch.startTime)} · Best of {getScheduledBestOf(scheduledMatch)}
                     </Text>
+                    {scheduledMatch.eventName ? (
+                        <Text color={"gray.500"} fontSize={"xs"} marginTop={1}>{scheduledMatch.eventName}</Text>
+                    ) : null}
                 </View>
-                {scheduledMatch.formatName ? (
-                    <View
-                        backgroundColor={"white"}
-                        borderColor={"gray.200"}
-                        borderRadius={999}
-                        borderWidth={1}
-                        paddingX={2}
-                        paddingY={1}
-                    >
-                        <Text color={"gray.600"} fontSize={"2xs"} fontWeight={"bold"}>{scheduledMatch.formatName}</Text>
-                    </View>
-                ) : null}
+                <View alignItems={"center"} flexDirection={"row"} paddingTop={1}>
+                    <View backgroundColor={statusColor} borderRadius={999} height={10} marginRight={2} width={10} />
+                    <Text color={"gray.700"} fontSize={"xs"} fontWeight={"bold"}>{statusLabel}</Text>
+                </View>
             </View>
-            <View
-                alignItems={"center"}
-                backgroundColor={"white"}
-                borderColor={"gray.200"}
-                borderRadius={8}
-                borderWidth={1}
-                flexDirection={"row"}
-                marginTop={3}
-                padding={2}
-            >
-                <View flex={1}>
-                    <Text color={"gray.500"} fontSize={"2xs"} fontWeight={"bold"} textTransform={"uppercase"}>Match result</Text>
-                    <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"} marginTop={1}>
-                        {toScoreValue(scheduledMatch.AScore)} - {toScoreValue(scheduledMatch.BScore)}
+
+            {isResolved && (toScoreValue(scheduledMatch.AScore) > 0 || toScoreValue(scheduledMatch.BScore) > 0 || gameScores.length > 0) ? (
+                <View backgroundColor={"gray.50"} borderRadius={8} marginTop={3} padding={2}>
+                    <Text color={"gray.700"} fontSize={"sm"} fontWeight={"bold"}>
+                        Final score: {toScoreValue(scheduledMatch.AScore)} - {toScoreValue(scheduledMatch.BScore)}
                     </Text>
                     {gameScores.length > 0 ? (
                         <Text color={"gray.500"} fontSize={"xs"} marginTop={1}>
                             {gameScores.map((gameScore, index) => `G${index + 1}: ${toScoreValue(gameScore.a)}-${toScoreValue(gameScore.b)}`).join("   ")}
                         </Text>
-                    ) : (
-                        <Text color={"gray.500"} fontSize={"xs"} marginTop={1}>
-                            {scheduledMatch.resultMode === "default" ? "Default result" : "No game scores entered"}
-                        </Text>
-                    )}
+                    ) : null}
                 </View>
-                <View alignItems={"flex-end"} flexDirection={"row"} flexWrap={"wrap"} justifyContent={"flex-end"}>
+            ) : null}
+
+            <View alignItems={"center"} flexDirection={"row"} flexWrap={"wrap"} justifyContent={"flex-end"} marginTop={2}>
+                {allowResultEntry && !isResolved ? (
                     <SmallActionButton isPrimary label={"Enter result"} onPress={onEnterResult} />
+                ) : null}
+                {showQueueControls && !isResolved && !isActive ? (
+                    <>
+                        <SmallActionButton
+                            isDisabled={isLoading}
+                            label={"Move up"}
+                            onPress={() => onMoveUp(scheduledID)}
+                        />
+                        <SmallActionButton
+                            isDisabled={isLoading}
+                            label={"Move down"}
+                            onPress={() => onMoveDown(scheduledID)}
+                        />
+                    </>
+                ) : null}
+                {!isResolved ? (
                     <SmallActionButton
-                        isDanger
                         isDisabled={isLoading}
-                        label={confirmDelete ? "Confirm delete" : "Delete"}
-                        onPress={() => onDelete(scheduledID)}
+                        label={"Mark resolved"}
+                        onPress={() => onResolve(scheduledID)}
                     />
-                </View>
+                ) : null}
+                <SmallActionButton
+                    isDanger
+                    isDisabled={isLoading}
+                    label={confirmDelete ? "Confirm remove" : "Remove"}
+                    onPress={() => onDelete(scheduledID)}
+                />
             </View>
         </View>
     );
@@ -690,10 +744,10 @@ export default function SchedulingManager(props) {
     const sourceID = routeParams.sourceID || routeParams.tableID || routeParams.teamMatchID || "";
     const [doneLoading, setDoneLoading] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [tableInfo, setTableInfo] = useState({});
-    const [teamMatch, setTeamMatch] = useState({});
-    const [teamA, setTeamA] = useState({});
-    const [teamB, setTeamB] = useState({});
+    const [tableInfo, setTableInfo] = useState<any>({});
+    const [teamMatch, setTeamMatch] = useState<any>({});
+    const [teamA, setTeamA] = useState<any>({});
+    const [teamB, setTeamB] = useState<any>({});
     const [playerLists, setPlayerLists] = useState([]);
     const [selectedPlayerListID, setSelectedPlayerListID] = useState(routeParams.playerListID || "");
     const [playerEntries, setPlayerEntries] = useState([]);
@@ -713,23 +767,50 @@ export default function SchedulingManager(props) {
     const [startAmPm, setStartAmPm] = useState("AM");
     const [intervalMinutes, setIntervalMinutes] = useState("15");
     const [matchRound, setMatchRound] = useState("");
+    const [manualEventName, setManualEventName] = useState("");
+    const [manualPlayerA, setManualPlayerA] = useState("");
+    const [manualPlayerA2, setManualPlayerA2] = useState("");
+    const [manualPlayerB, setManualPlayerB] = useState("");
+    const [manualPlayerB2, setManualPlayerB2] = useState("");
+    const [manualPlayerAID, setManualPlayerAID] = useState("");
+    const [manualPlayerA2ID, setManualPlayerA2ID] = useState("");
+    const [manualPlayerBID, setManualPlayerBID] = useState("");
+    const [manualPlayerB2ID, setManualPlayerB2ID] = useState("");
+    const [manualIsDoubles, setManualIsDoubles] = useState(false);
+    const [manualBestOf, setManualBestOf] = useState("5");
+    const [manualRoundOption, setManualRoundOption] = useState("");
+    const [manualCustomRound, setManualCustomRound] = useState("");
     const [showGenerator, setShowGenerator] = useState(false);
     const [selectedGeneratedMatches, setSelectedGeneratedMatches] = useState({});
     const [scheduledMatches, setScheduledMatches] = useState([]);
     const [scheduledSearch, setScheduledSearch] = useState("");
     const [scheduledSort, setScheduledSort] = useState("timeAsc");
+    const [scheduledFilter, setScheduledFilter] = useState("upcoming");
     const [resultModalMatch, setResultModalMatch] = useState(null);
     const [confirmDeleteScheduledID, setConfirmDeleteScheduledID] = useState("");
     const [scheduledActionLoadingID, setScheduledActionLoadingID] = useState("");
     const [statusMessage, setStatusMessage] = useState("");
+    const [statusType, setStatusType] = useState("success");
 
     const sportName = routeParams.sportName || tableInfo?.sportName || teamMatch?.sportName || "tableTennis";
     const scoringType = routeParams.scoringType || tableInfo?.scoringType || teamMatch?.scoringType || "";
     const sportDisplayName = supportedSports[sportName]?.displayName || sportName || "Table Tennis";
     const sourceTitle = getSourceTitle(sourceType, tableInfo, teamA, teamB);
-    const isStatusWarning = statusMessage.toLowerCase().startsWith("select");
+    const isKioskMode = sourceType === "table" && tableInfo?.tableMode === "kiosk";
+    const isStatusWarning = statusType === "warning";
+    const isStatusError = statusType === "error";
     const dayOptions = useMemo(() => getDayOptions(startYear, startMonth), [startMonth, startYear]);
     const yearOptions = useMemo(() => getYearOptions(), []);
+    const hasLinkedPlayerList = sourceType === "table" && !!selectedPlayerListID;
+    const manualSelectedPlayerIDs = [
+        manualPlayerAID,
+        manualPlayerBID,
+        ...(manualIsDoubles ? [manualPlayerA2ID, manualPlayerB2ID] : []),
+    ].filter(Boolean);
+    const hasDuplicateManualPlayers = new Set(manualSelectedPlayerIDs).size !== manualSelectedPlayerIDs.length;
+    const manualMatchHasPlayers = hasLinkedPlayerList ?
+        !!manualPlayerAID && !!manualPlayerBID && (!manualIsDoubles || (!!manualPlayerA2ID && !!manualPlayerB2ID))
+        : !!manualPlayerA.trim() && !!manualPlayerB.trim() && (!manualIsDoubles || (!!manualPlayerA2.trim() && !!manualPlayerB2.trim()));
 
     useEffect(() => {
         if (!dayOptions.includes(startDay)) {
@@ -743,11 +824,11 @@ export default function SchedulingManager(props) {
             return;
         }
 
-        const matches = sourceType === "teamMatch" ?
+        const matches: any[] = sourceType === "teamMatch" ?
             await getScheduledTeamMatchMatches(sourceID)
             : await getScheduledTableMatches(sourceID);
 
-        setScheduledMatches(matches.sort((a, b) => {
+        setScheduledMatches(sourceType === "table" ? sortScheduledTableMatches(matches) : matches.sort((a, b) => {
             return new Date(a?.[1]?.startTime || a?.[1]?.scheduledOn || 0).getTime() -
                 new Date(b?.[1]?.startTime || b?.[1]?.scheduledOn || 0).getTime();
         }));
@@ -781,8 +862,11 @@ export default function SchedulingManager(props) {
                     getMyPlayerLists(),
                 ]);
                 setTableInfo(nextTableInfo || {});
+                if (nextTableInfo?.tableMode === "kiosk") {
+                    setScheduledSort("queueAsc");
+                }
                 setPlayerLists(nextPlayerLists || []);
-                setSelectedPlayerListID(routeParams.playerListID || nextTableInfo?.playerListID || nextPlayerLists?.[0]?.[1]?.id || "");
+                setSelectedPlayerListID(routeParams.playerListID || nextTableInfo?.playerListID || "");
             }
 
             await loadScheduledMatches();
@@ -790,6 +874,32 @@ export default function SchedulingManager(props) {
         }
 
         loadSource();
+    }, [sourceID, sourceType]);
+
+    useEffect(() => {
+        if (!sourceID) {
+            return;
+        }
+
+        const targetPath = sourceType === "teamMatch" ? `teamMatches/${sourceID}` : `tables/${sourceID}`;
+        const scheduledMatchesRef = db.ref(`${targetPath}/scheduledMatches`);
+        const handleScheduledMatches = (snapshot) => {
+            const nextScheduledMatches = snapshot.val();
+            const entries: any[] = nextScheduledMatches && typeof nextScheduledMatches === "object" ?
+                Object.entries(nextScheduledMatches) as any[]
+                : [];
+
+            setScheduledMatches(sourceType === "table" ? sortScheduledTableMatches(entries) : entries.sort((a, b) => {
+                return new Date(a?.[1]?.startTime || a?.[1]?.scheduledOn || 0).getTime() -
+                    new Date(b?.[1]?.startTime || b?.[1]?.scheduledOn || 0).getTime();
+            }));
+        };
+
+        scheduledMatchesRef.on("value", handleScheduledMatches as any);
+
+        return () => {
+            scheduledMatchesRef.off("value", handleScheduledMatches as any);
+        };
     }, [sourceID, sourceType]);
 
     useEffect(() => {
@@ -802,6 +912,10 @@ export default function SchedulingManager(props) {
             const players = await getImportPlayerList(selectedPlayerListID);
             setPlayerEntries(players);
             setSelectedPlayerIDs({});
+            setManualPlayerAID("");
+            setManualPlayerA2ID("");
+            setManualPlayerBID("");
+            setManualPlayerB2ID("");
             setPlayerSearch("");
         }
 
@@ -909,11 +1023,22 @@ export default function SchedulingManager(props) {
     }, [generatedMatches]);
     const filteredScheduledMatches = useMemo(() => {
         const normalizedSearch = scheduledSearch.trim().toLowerCase();
+        const matchesForStatus = scheduledMatches.filter((scheduledMatch) => {
+            if (scheduledFilter === "all") {
+                return true;
+            }
+
+            const isResolved = isResolvedScheduledMatch(scheduledMatch?.[1]);
+            return scheduledFilter === "resolved" ? isResolved : !isResolved;
+        });
         const matches = normalizedSearch ?
-            scheduledMatches.filter((scheduledMatch) => getScheduledMatchSearchText(scheduledMatch).includes(normalizedSearch))
-            : scheduledMatches;
+            matchesForStatus.filter((scheduledMatch) => getScheduledMatchSearchText(scheduledMatch).includes(normalizedSearch))
+            : matchesForStatus;
 
         return [...matches].sort((a, b) => {
+            if (scheduledSort === "queueAsc") {
+                return compareScheduledTableMatches(a, b);
+            }
             if (scheduledSort === "timeDesc") {
                 return getScheduledMatchTime(b) - getScheduledMatchTime(a);
             }
@@ -929,7 +1054,11 @@ export default function SchedulingManager(props) {
 
             return getScheduledMatchTime(a) - getScheduledMatchTime(b);
         });
-    }, [scheduledMatches, scheduledSearch, scheduledSort]);
+    }, [scheduledFilter, scheduledMatches, scheduledSearch, scheduledSort]);
+    const upcomingMatchCount = useMemo(() => {
+        return scheduledMatches.filter((scheduledMatch) => !isResolvedScheduledMatch(scheduledMatch?.[1])).length;
+    }, [scheduledMatches]);
+    const resolvedMatchCount = scheduledMatches.length - upcomingMatchCount;
 
     useEffect(() => {
         setSelectedGeneratedMatches(generatedMatches.reduce((selectedMatches, match) => {
@@ -968,8 +1097,13 @@ export default function SchedulingManager(props) {
     }
 
     async function scheduleSelectedMatches() {
+        if (sourceType !== "teamMatch") {
+            return;
+        }
+
         const matchesToCreate = generatedMatches.filter((match) => selectedGeneratedMatches[match.key]);
         if (matchesToCreate.length === 0) {
+            setStatusType("warning");
             setStatusMessage("Select at least one generated match to schedule.");
             return;
         }
@@ -977,40 +1111,109 @@ export default function SchedulingManager(props) {
         setSaving(true);
         setStatusMessage("");
         try {
-            let createdScheduledMatches = [];
-            const formatName = sourceType === "teamMatch" ?
-                teamMatchFormats.find((format) => format.value === teamFormat)?.label
-                : tableCompetitionTypes.find((format) => format.value === competitionType)?.label;
-
-            if (sourceType === "teamMatch") {
-                createdScheduledMatches = await createScheduledMatchesForTeamMatch(sourceID, matchesToCreate, {
-                    competitionType,
-                    formatName,
-                    scoringType,
-                    sportName,
-                });
-            }
-            else {
-                createdScheduledMatches = await createScheduledMatchesForTable(sourceID, matchesToCreate, {
-                    competitionType,
-                    formatName,
-                    scoringType,
-                    sportName,
-                });
-                await createCompetitionFromScheduledMatches({
-                    competitionType,
-                    formatName,
-                    scoringType,
-                    sourceID,
-                    sourceTitle,
-                    sourceType,
-                    sportName,
-                    title: `${sourceTitle} ${formatName}`,
-                }, createdScheduledMatches);
-            }
+            const formatName = teamMatchFormats.find((format) => format.value === teamFormat)?.label;
+            await createScheduledMatchesForTeamMatch(sourceID, matchesToCreate, {
+                competitionType,
+                formatName,
+                scoringType,
+                sportName,
+            });
             await loadScheduledMatches();
+            setStatusType("success");
             setStatusMessage(`Scheduled ${matchesToCreate.length} match${matchesToCreate.length === 1 ? "" : "es"}.`);
             setShowGenerator(false);
+        }
+        catch (error) {
+            console.error("[SchedulingManager] unable to schedule team matches", error);
+            setStatusType("error");
+            setStatusMessage("The selected matches could not be scheduled. Please try again.");
+        }
+        finally {
+            setSaving(false);
+        }
+    }
+
+    async function scheduleManualMatch() {
+        const playerAEntry = getPlayerEntryByID(playerEntries, manualPlayerAID);
+        const playerA2Entry = getPlayerEntryByID(playerEntries, manualPlayerA2ID);
+        const playerBEntry = getPlayerEntryByID(playerEntries, manualPlayerBID);
+        const playerB2Entry = getPlayerEntryByID(playerEntries, manualPlayerB2ID);
+        const cleanPlayerA = manualPlayerA.trim();
+        const cleanPlayerB = manualPlayerB.trim();
+        const resolvedMatchRound = manualRoundOption === "custom" ? manualCustomRound.trim() : manualRoundOption;
+
+        if (!manualMatchHasPlayers) {
+            setStatusType("warning");
+            setStatusMessage(hasLinkedPlayerList ?
+                "Select both players before scheduling the match."
+                : "Enter both player or team names before scheduling the match.");
+            return;
+        }
+
+        if (hasLinkedPlayerList && hasDuplicateManualPlayers) {
+            setStatusType("warning");
+            setStatusMessage("Each position in the matchup must use a different player.");
+            return;
+        }
+
+        setSaving(true);
+        setStatusMessage("");
+        try {
+            await createScheduledMatchesForTable(sourceID, [{
+                bestOf: Number(manualBestOf),
+                eventName: manualEventName.trim(),
+                formatName: "Manual match",
+                isDoubles: manualIsDoubles,
+                matchRound: resolvedMatchRound,
+                playerA: hasLinkedPlayerList ? getEntryPlayer(playerAEntry) : buildManualPlayer(cleanPlayerA),
+                playerA2: manualIsDoubles ?
+                    (hasLinkedPlayerList ? getEntryPlayer(playerA2Entry) : buildManualPlayer(manualPlayerA2))
+                    : undefined,
+                playerAID: hasLinkedPlayerList ? manualPlayerAID : "",
+                playerB: hasLinkedPlayerList ? getEntryPlayer(playerBEntry) : buildManualPlayer(cleanPlayerB),
+                playerB2: manualIsDoubles ?
+                    (hasLinkedPlayerList ? getEntryPlayer(playerB2Entry) : buildManualPlayer(manualPlayerB2))
+                    : undefined,
+                playerBID: hasLinkedPlayerList ? manualPlayerBID : "",
+                startTime: toScheduledDateTime({
+                    amPm: startAmPm,
+                    day: startDay,
+                    hour: startHour,
+                    includeStartTime,
+                    minute: startMinute,
+                    month: startMonth,
+                    year: startYear,
+                }, 0, 0),
+            }], {
+                formatName: "Manual match",
+                scoringType,
+                sourceTitle,
+                sportName,
+            });
+
+            setManualPlayerA("");
+            setManualPlayerA2("");
+            setManualPlayerB("");
+            setManualPlayerB2("");
+            setManualPlayerAID("");
+            setManualPlayerA2ID("");
+            setManualPlayerBID("");
+            setManualPlayerB2ID("");
+            setManualEventName("");
+            setManualIsDoubles(false);
+            setManualRoundOption("");
+            setManualCustomRound("");
+            setIncludeStartTime(false);
+            setScheduledFilter("upcoming");
+            setShowGenerator(false);
+            await loadScheduledMatches();
+            setStatusType("success");
+            setStatusMessage("Manual match added to this table.");
+        }
+        catch (error) {
+            console.error("[SchedulingManager] unable to schedule manual match", error);
+            setStatusType("error");
+            setStatusMessage("The manual match could not be scheduled. Please try again.");
         }
         finally {
             setSaving(false);
@@ -1036,7 +1239,59 @@ export default function SchedulingManager(props) {
             );
             setResultModalMatch(null);
             await loadScheduledMatches();
+            setStatusType("success");
             setStatusMessage("Scheduled match result saved.");
+        }
+        catch (error) {
+            console.error("[SchedulingManager] unable to save scheduled result", error);
+            setStatusType("error");
+            setStatusMessage("The scheduled match result could not be saved.");
+        }
+        finally {
+            setScheduledActionLoadingID("");
+        }
+    }
+
+    async function resolveScheduledMatch(scheduledID) {
+        if (!scheduledID) {
+            return;
+        }
+
+        setScheduledActionLoadingID(scheduledID);
+        setStatusMessage("");
+        try {
+            await resolveScheduledMatchForSource(sourceType, sourceID, scheduledID);
+            await loadScheduledMatches();
+            setStatusType("success");
+            setStatusMessage("Match marked as resolved for this schedule.");
+        }
+        catch (error) {
+            console.error("[SchedulingManager] unable to resolve scheduled match", error);
+            setStatusType("error");
+            setStatusMessage("The scheduled match could not be resolved.");
+        }
+        finally {
+            setScheduledActionLoadingID("");
+        }
+    }
+
+    async function moveScheduledMatch(scheduledID, direction) {
+        if (!isKioskMode || !scheduledID) {
+            return;
+        }
+
+        setScheduledActionLoadingID(scheduledID);
+        setStatusMessage("");
+        try {
+            await moveScheduledTableMatch(sourceID, scheduledID, direction);
+            await loadScheduledMatches();
+            setStatusType("success");
+            setStatusMessage("Kiosk queue order updated.");
+        }
+        catch (error) {
+            console.error("[SchedulingManager] unable to reorder kiosk queue", error);
+            setStatusType("error");
+            setStatusMessage("The kiosk queue could not be reordered.");
         }
         finally {
             setScheduledActionLoadingID("");
@@ -1056,13 +1311,21 @@ export default function SchedulingManager(props) {
         setScheduledActionLoadingID(scheduledID);
         setStatusMessage("");
         try {
-            await deleteScheduledMatchForSource(sourceType, sourceID, scheduledID);
+            await deleteScheduledMatchForSource(sourceType, sourceID, scheduledID, {
+                clearCurrentMatch: sourceType === "table",
+            });
             setConfirmDeleteScheduledID("");
             if (resultModalMatch?.[0] === scheduledID) {
                 setResultModalMatch(null);
             }
             await loadScheduledMatches();
-            setStatusMessage("Scheduled match deleted.");
+            setStatusType("success");
+            setStatusMessage("Match removed from this schedule.");
+        }
+        catch (error) {
+            console.error("[SchedulingManager] unable to remove scheduled match", error);
+            setStatusType("error");
+            setStatusMessage("The match could not be removed from this schedule.");
         }
         finally {
             setScheduledActionLoadingID("");
@@ -1086,7 +1349,9 @@ export default function SchedulingManager(props) {
                     >
                         <Text color={"gray.900"} fontSize={"3xl"} fontWeight={"bold"}>Scheduling Manager</Text>
                         <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                            Generate scheduled matches from competition formats, then push selected matches to this {sourceType === "teamMatch" ? "team match" : "table"}.
+                            {sourceType === "teamMatch" ?
+                                "Generate and manage the match order for this team match."
+                                : "Manage this table's match queue. Add manual matchups, resolve finished work, or remove items without changing a competition."}
                         </Text>
                         <View flexDirection={"row"} flexWrap={"wrap"} marginTop={3}>
                             <View
@@ -1118,8 +1383,10 @@ export default function SchedulingManager(props) {
 
                     <Section
                         icon={<MaterialCommunityIcons name="calendar-clock" size={20} color={openScoreboardColor} />}
-                        title={"Scheduled matches"}
-                        subtitle={"Manage matches already pushed to this source."}
+                        title={sourceType === "teamMatch" ? "Scheduled matches" : "Table match queue"}
+                        subtitle={sourceType === "teamMatch" ?
+                            "Manage matches already pushed to this team match."
+                            : `${upcomingMatchCount} upcoming · ${resolvedMatchCount} resolved`}
                     >
                         <View alignItems={"center"} flexDirection={"row"} flexWrap={"wrap"} marginBottom={3}>
                             <View flexBasis={0} flexGrow={1} minWidth={220} marginRight={3} marginTop={2}>
@@ -1139,30 +1406,38 @@ export default function SchedulingManager(props) {
                                     ))}
                                 </Select>
                             </View>
+                            <View marginRight={3} marginTop={2} minWidth={150}>
+                                <Select selectedValue={scheduledFilter} onValueChange={setScheduledFilter}>
+                                    {scheduledFilterOptions.map((option) => (
+                                        <Select.Item key={option.value} label={option.label} value={option.value} />
+                                    ))}
+                                </Select>
+                            </View>
                             <SmallActionButton
                                 isPrimary
-                                label={"Add scheduled matches"}
+                                label={sourceType === "teamMatch" ? "Add scheduled matches" : "Create manual match"}
                                 onPress={() => setShowGenerator(true)}
                             />
                         </View>
                         <Text color={"gray.500"} fontSize={"xs"} marginBottom={2}>
-                            Showing {filteredScheduledMatches.length} of {scheduledMatches.length} scheduled match{scheduledMatches.length === 1 ? "" : "es"}.
+                            Showing {filteredScheduledMatches.length} of {scheduledMatches.length} match{scheduledMatches.length === 1 ? "" : "es"}.
                         </Text>
                         {statusMessage ? (
                             <View
-                                backgroundColor={isStatusWarning ? "#FFFBEB" : "green.50"}
-                                borderColor={isStatusWarning ? "#FDE68A" : "green.200"}
+                                backgroundColor={isStatusError ? "red.50" : isStatusWarning ? "#FFFBEB" : "green.50"}
+                                borderColor={isStatusError ? "red.200" : isStatusWarning ? "#FDE68A" : "green.200"}
                                 borderRadius={8}
                                 borderWidth={1}
                                 marginBottom={3}
                                 padding={3}
                             >
-                                <Text color={isStatusWarning ? "#92400E" : "green.800"} fontSize={"sm"} fontWeight={"bold"}>{statusMessage}</Text>
+                                <Text color={isStatusError ? "red.800" : isStatusWarning ? "#92400E" : "green.800"} fontSize={"sm"} fontWeight={"bold"}>{statusMessage}</Text>
                             </View>
                         ) : null}
                         {filteredScheduledMatches.length > 0 ? filteredScheduledMatches.map((scheduledMatch) => (
                             <ScheduledMatchCard
                                 key={scheduledMatch?.[0]}
+                                allowResultEntry={sourceType === "teamMatch"}
                                 confirmDelete={confirmDeleteScheduledID === scheduledMatch?.[0]}
                                 isLoading={scheduledActionLoadingID === scheduledMatch?.[0]}
                                 item={scheduledMatch}
@@ -1171,6 +1446,10 @@ export default function SchedulingManager(props) {
                                     setResultModalMatch(scheduledMatch);
                                     setConfirmDeleteScheduledID("");
                                 }}
+                                onMoveDown={(scheduledID) => moveScheduledMatch(scheduledID, "down")}
+                                onMoveUp={(scheduledID) => moveScheduledMatch(scheduledID, "up")}
+                                onResolve={resolveScheduledMatch}
+                                showQueueControls={isKioskMode}
                             />
                         )) : (
                             <View
@@ -1181,7 +1460,9 @@ export default function SchedulingManager(props) {
                                 padding={3}
                             >
                                 <Text color={"gray.600"} fontSize={"sm"}>
-                                    {scheduledMatches.length > 0 ? "No scheduled matches match that search." : "No matches have been scheduled yet."}
+                                    {scheduledMatches.length > 0 ?
+                                        "No matches match the current search and status filter."
+                                        : "No matches are queued for this table yet. Create a manual match to get started."}
                                 </Text>
                             </View>
                         )}
@@ -1190,10 +1471,323 @@ export default function SchedulingManager(props) {
                     <Modal isOpen={showGenerator} onClose={() => setShowGenerator(false)} size={"full"}>
                         <Modal.Content maxWidth={960}>
                             <Modal.CloseButton />
-                            <Modal.Header>Add scheduled matches</Modal.Header>
+                            <Modal.Header>{sourceType === "teamMatch" ? "Add scheduled matches" : "Create manual match"}</Modal.Header>
                             <Modal.Body>
                                 <ScrollView>
                                     <View paddingBottom={3}>
+                    {sourceType !== "teamMatch" ? (
+                        <>
+                            <Section
+                                icon={<MaterialCommunityIcons name="account-switch" size={20} color={openScoreboardColor} />}
+                                title={"Matchup"}
+                                subtitle={hasLinkedPlayerList ?
+                                    "Choose players from the player list linked to this table."
+                                    : "This table has no linked player list, so enter the names exactly as they should appear."}
+                            >
+                                {hasLinkedPlayerList ? (
+                                    playerEntries.length > 0 ? (
+                                        <>
+                                            <View
+                                                backgroundColor={"blue.50"}
+                                                borderColor={"blue.100"}
+                                                borderRadius={8}
+                                                borderWidth={1}
+                                                marginBottom={3}
+                                                padding={3}
+                                            >
+                                                <Text color={"blue.900"} fontSize={"sm"} fontWeight={"bold"}>
+                                                    Linked player list
+                                                </Text>
+                                                <Text color={"blue.800"} fontSize={"xs"} marginTop={1}>
+                                                    The selected player records, including images, country, rating, and other details, will be copied into the match.
+                                                </Text>
+                                            </View>
+                                            <View flexDirection={"row"} flexWrap={"wrap"}>
+                                                <FormControl flexBasis={0} flexGrow={1} minWidth={240} paddingRight={2}>
+                                                    <FormControl.Label>Side A player</FormControl.Label>
+                                                    <Select
+                                                        placeholder={"Select player"}
+                                                        selectedValue={manualPlayerAID}
+                                                        onValueChange={setManualPlayerAID}
+                                                    >
+                                                        {playerEntries.map((entry) => (
+                                                            <Select.Item key={`manual-a-${getEntryID(entry)}`} label={getEntryName(entry)} value={getEntryID(entry)} />
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                                <FormControl flexBasis={0} flexGrow={1} minWidth={240} paddingLeft={2}>
+                                                    <FormControl.Label>Side B player</FormControl.Label>
+                                                    <Select
+                                                        placeholder={"Select player"}
+                                                        selectedValue={manualPlayerBID}
+                                                        onValueChange={setManualPlayerBID}
+                                                    >
+                                                        {playerEntries.map((entry) => (
+                                                            <Select.Item key={`manual-b-${getEntryID(entry)}`} label={getEntryName(entry)} value={getEntryID(entry)} />
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                            </View>
+                                        </>
+                                    ) : (
+                                        <View backgroundColor={"amber.50"} borderColor={"amber.200"} borderRadius={8} borderWidth={1} padding={3}>
+                                            <Text color={"amber.900"} fontSize={"sm"} fontWeight={"bold"}>
+                                                The linked player list does not contain any players.
+                                            </Text>
+                                        </View>
+                                    )
+                                ) : (
+                                    <View flexDirection={"row"} flexWrap={"wrap"}>
+                                        <FormControl flexBasis={0} flexGrow={1} minWidth={240} paddingRight={2}>
+                                            <FormControl.Label>Side A</FormControl.Label>
+                                            <Input
+                                                backgroundColor={"white"}
+                                                borderColor={"gray.300"}
+                                                onChangeText={setManualPlayerA}
+                                                placeholder={"Player or team name"}
+                                                value={manualPlayerA}
+                                            />
+                                        </FormControl>
+                                        <FormControl flexBasis={0} flexGrow={1} minWidth={240} paddingLeft={2}>
+                                            <FormControl.Label>Side B</FormControl.Label>
+                                            <Input
+                                                backgroundColor={"white"}
+                                                borderColor={"gray.300"}
+                                                onChangeText={setManualPlayerB}
+                                                placeholder={"Player or team name"}
+                                                value={manualPlayerB}
+                                            />
+                                        </FormControl>
+                                    </View>
+                                )}
+
+                                <Pressable
+                                    onPress={() => setManualIsDoubles((currentValue) => !currentValue)}
+                                    style={({ pressed }) => ({
+                                        alignItems: "center",
+                                        alignSelf: "flex-start",
+                                        backgroundColor: pressed || manualIsDoubles ? "#EFF6FF" : "#FFFFFF",
+                                        borderColor: manualIsDoubles ? openScoreboardColor : "#D4D4D8",
+                                        borderRadius: 8,
+                                        borderWidth: 1,
+                                        flexDirection: "row",
+                                        marginTop: 12,
+                                        minHeight: 42,
+                                        opacity: pressed ? 0.82 : 1,
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 8,
+                                    })}
+                                >
+                                    <MaterialCommunityIcons
+                                        name={manualIsDoubles ? "checkbox-marked" : "checkbox-blank-outline"}
+                                        size={21}
+                                        color={manualIsDoubles ? openScoreboardColor : "#71717A"}
+                                    />
+                                    <Text color={"gray.900"} fontSize={"sm"} fontWeight={"bold"} marginLeft={2}>Doubles match</Text>
+                                </Pressable>
+
+                                {manualIsDoubles ? (
+                                    <View flexDirection={"row"} flexWrap={"wrap"} marginTop={3}>
+                                        <FormControl flexBasis={0} flexGrow={1} minWidth={240} paddingRight={2}>
+                                            <FormControl.Label>Side A partner</FormControl.Label>
+                                            {hasLinkedPlayerList ? (
+                                                <Select
+                                                    placeholder={"Select partner"}
+                                                    selectedValue={manualPlayerA2ID}
+                                                    onValueChange={setManualPlayerA2ID}
+                                                >
+                                                    {playerEntries.map((entry) => (
+                                                        <Select.Item key={`manual-a2-${getEntryID(entry)}`} label={getEntryName(entry)} value={getEntryID(entry)} />
+                                                    ))}
+                                                </Select>
+                                            ) : (
+                                                <Input
+                                                    backgroundColor={"white"}
+                                                    borderColor={"gray.300"}
+                                                    onChangeText={setManualPlayerA2}
+                                                    placeholder={"Partner name"}
+                                                    value={manualPlayerA2}
+                                                />
+                                            )}
+                                        </FormControl>
+                                        <FormControl flexBasis={0} flexGrow={1} minWidth={240} paddingLeft={2}>
+                                            <FormControl.Label>Side B partner</FormControl.Label>
+                                            {hasLinkedPlayerList ? (
+                                                <Select
+                                                    placeholder={"Select partner"}
+                                                    selectedValue={manualPlayerB2ID}
+                                                    onValueChange={setManualPlayerB2ID}
+                                                >
+                                                    {playerEntries.map((entry) => (
+                                                        <Select.Item key={`manual-b2-${getEntryID(entry)}`} label={getEntryName(entry)} value={getEntryID(entry)} />
+                                                    ))}
+                                                </Select>
+                                            ) : (
+                                                <Input
+                                                    backgroundColor={"white"}
+                                                    borderColor={"gray.300"}
+                                                    onChangeText={setManualPlayerB2}
+                                                    placeholder={"Partner name"}
+                                                    value={manualPlayerB2}
+                                                />
+                                            )}
+                                        </FormControl>
+                                    </View>
+                                ) : null}
+                            </Section>
+
+                            <Section
+                                icon={<MaterialCommunityIcons name="tune-variant" size={20} color={openScoreboardColor} />}
+                                title={"Match details"}
+                                subtitle={"These values are saved directly to the match and can be displayed by scoreboard elements."}
+                            >
+                                <View flexDirection={"row"} flexWrap={"wrap"}>
+                                    <FormControl flexBasis={0} flexGrow={1} minWidth={220} paddingRight={2}>
+                                        <FormControl.Label>Event name</FormControl.Label>
+                                        <Input
+                                            backgroundColor={"white"}
+                                            borderColor={"gray.300"}
+                                            onChangeText={setManualEventName}
+                                            placeholder={"Optional event or division name"}
+                                            value={manualEventName}
+                                        />
+                                        <Text color={"gray.500"} fontSize={"2xs"} marginTop={1}>
+                                            Saved to the Event Name match field.
+                                        </Text>
+                                    </FormControl>
+                                    <FormControl flexBasis={0} flexGrow={1} minWidth={180} paddingX={2}>
+                                        <FormControl.Label>Round</FormControl.Label>
+                                        <Select selectedValue={manualRoundOption} onValueChange={setManualRoundOption}>
+                                            {manualRoundOptions.map((roundOption) => (
+                                                <Select.Item key={roundOption.value || "no-round"} label={roundOption.label} value={roundOption.value} />
+                                            ))}
+                                        </Select>
+                                        {manualRoundOption === "custom" ? (
+                                            <Input
+                                                backgroundColor={"white"}
+                                                borderColor={"gray.300"}
+                                                marginTop={2}
+                                                onChangeText={setManualCustomRound}
+                                                placeholder={"Type a custom round"}
+                                                value={manualCustomRound}
+                                            />
+                                        ) : null}
+                                        <Text color={"gray.500"} fontSize={"2xs"} marginTop={1}>
+                                            Saved to the Round match field.
+                                        </Text>
+                                    </FormControl>
+                                    <FormControl minWidth={130} paddingLeft={2} width={150}>
+                                        <FormControl.Label>Match length</FormControl.Label>
+                                        <Select selectedValue={manualBestOf} onValueChange={setManualBestOf}>
+                                            {bestOfOptions.map((bestOf) => (
+                                                <Select.Item key={bestOf} label={`Best of ${bestOf}`} value={bestOf} />
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                </View>
+
+                                <Pressable
+                                    onPress={() => setIncludeStartTime((currentValue) => !currentValue)}
+                                    style={({ pressed }) => ({
+                                        alignItems: "center",
+                                        alignSelf: "flex-start",
+                                        backgroundColor: pressed || includeStartTime ? "#EFF6FF" : "#FFFFFF",
+                                        borderColor: includeStartTime ? openScoreboardColor : "#D4D4D8",
+                                        borderRadius: 8,
+                                        borderWidth: 1,
+                                        flexDirection: "row",
+                                        marginTop: 12,
+                                        minHeight: 42,
+                                        opacity: pressed ? 0.82 : 1,
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 8,
+                                    })}
+                                >
+                                    <MaterialCommunityIcons
+                                        name={includeStartTime ? "checkbox-marked" : "checkbox-blank-outline"}
+                                        size={21}
+                                        color={includeStartTime ? openScoreboardColor : "#71717A"}
+                                    />
+                                    <Text color={"gray.900"} fontSize={"sm"} fontWeight={"bold"} marginLeft={2}>Set a start time</Text>
+                                </Pressable>
+
+                                {includeStartTime ? (
+                                    <View flexDirection={"row"} flexWrap={"wrap"} marginTop={2}>
+                                        <View marginRight={2} marginTop={2} width={100}>
+                                            <FormControl>
+                                                <FormControl.Label>Month</FormControl.Label>
+                                                <Select selectedValue={startMonth} onValueChange={setStartMonth}>
+                                                    {monthOptions.map((month) => (
+                                                        <Select.Item key={month.value} label={month.label} value={month.value} />
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </View>
+                                        <View marginRight={2} marginTop={2} width={82}>
+                                            <FormControl>
+                                                <FormControl.Label>Day</FormControl.Label>
+                                                <Select selectedValue={startDay} onValueChange={setStartDay}>
+                                                    {dayOptions.map((day) => (
+                                                        <Select.Item key={day} label={day} value={day} />
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </View>
+                                        <View marginRight={2} marginTop={2} width={105}>
+                                            <FormControl>
+                                                <FormControl.Label>Year</FormControl.Label>
+                                                <Select selectedValue={startYear} onValueChange={setStartYear}>
+                                                    {yearOptions.map((year) => (
+                                                        <Select.Item key={year} label={year} value={year} />
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </View>
+                                        <View marginRight={2} marginTop={2} width={82}>
+                                            <FormControl>
+                                                <FormControl.Label>Hour</FormControl.Label>
+                                                <Select selectedValue={startHour} onValueChange={setStartHour}>
+                                                    {hourOptions.map((hour) => (
+                                                        <Select.Item key={hour} label={hour} value={hour} />
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </View>
+                                        <View marginRight={2} marginTop={2} width={92}>
+                                            <FormControl>
+                                                <FormControl.Label>Minute</FormControl.Label>
+                                                <Select selectedValue={startMinute} onValueChange={setStartMinute}>
+                                                    {minuteOptions.map((minute) => (
+                                                        <Select.Item key={minute} label={minute} value={minute} />
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+                                        </View>
+                                        <View marginTop={2} width={88}>
+                                            <FormControl>
+                                                <FormControl.Label>AM/PM</FormControl.Label>
+                                                <Select selectedValue={startAmPm} onValueChange={setStartAmPm}>
+                                                    <Select.Item label="AM" value="AM" />
+                                                    <Select.Item label="PM" value="PM" />
+                                                </Select>
+                                            </FormControl>
+                                        </View>
+                                    </View>
+                                ) : null}
+                            </Section>
+
+                            <View alignItems={"center"} flexDirection={"row"} justifyContent={"flex-end"} marginTop={4}>
+                                <SmallActionButton label={"Cancel"} onPress={() => setShowGenerator(false)} />
+                                <SmallActionButton
+                                    isPrimary
+                                    isDisabled={saving || !manualMatchHasPlayers || hasDuplicateManualPlayers || (manualRoundOption === "custom" && !manualCustomRound.trim())}
+                                    label={saving ? "Scheduling..." : "Add to table schedule"}
+                                    onPress={scheduleManualMatch}
+                                />
+                            </View>
+                        </>
+                    ) : (
+                        <>
                     <Section
                         icon={<MaterialCommunityIcons name="tournament" size={20} color={openScoreboardColor} />}
                         title={"Competition format"}
@@ -1499,6 +2093,8 @@ export default function SchedulingManager(props) {
                             </View>
                         )}
                     </Section>
+                        </>
+                    )}
                                     </View>
                                 </ScrollView>
                             </Modal.Body>

@@ -9,7 +9,7 @@ import { CopyInputRightButton } from './components/CopyButton';
 import { ScorekeeperSessionsPanel } from './components/ScorekeeperSessionsPanel';
 import { getMyPlayerLists } from './functions/players';
 import { getTableScorekeeperTarget } from './functions/scorekeeperSessions';
-import { deleteTable, resetTablePassword, setPlayerListToTable } from './functions/tables';
+import { deleteTable, resetTablePassword, setPlayerListToTable, updateTableMode, updateTableName } from './functions/tables';
 import { supportedSports } from './functions/sports';
 import i18n from './translations/translate';
 
@@ -98,15 +98,18 @@ export default function TableEditor(props) {
     const [sportName, setSportName] = useState(routeParams.sportName || "tableTennis");
     const [scoringType, setScoringType] = useState(routeParams.scoringType || "");
     const [playerListID, setPlayerListID] = useState("");
+    const [tableMode, setTableMode] = useState("standard");
     const [selectedPlayerListPassword, setSelectedPlayerListPassword] = useState("");
     const [myPlayerLists, setMyPlayerLists] = useState([]);
     const [savingTableName, setSavingTableName] = useState(false);
     const [savingPlayerList, setSavingPlayerList] = useState(false);
+    const [savingTableMode, setSavingTableMode] = useState(false);
     const [resettingPassword, setResettingPassword] = useState(false);
     const [showConfirmPasswordReset, setShowConfirmPasswordReset] = useState(false);
     const [showDeleteTable, setShowDeleteTable] = useState(false);
     const [loadingDeleteTable, setLoadingDeleteTable] = useState(false);
     const [statusMessage, setStatusMessage] = useState("");
+    const [statusType, setStatusType] = useState("success");
 
     const tableDisplayName = tableName || "Table";
     const sportDisplayName = supportedSports[sportName]?.displayName || sportName || "Table Tennis";
@@ -147,6 +150,7 @@ export default function TableEditor(props) {
         setAccessPassword(table.password || "");
         setSportName(table.sportName || "tableTennis");
         setScoringType(table.scoringType || "");
+        setTableMode(table.tableMode === "kiosk" ? "kiosk" : "standard");
         setMyPlayerLists(playerLists);
         setSelectedPlayerList(table.playerListID || "", playerLists);
         setTableExists(true);
@@ -154,23 +158,57 @@ export default function TableEditor(props) {
     }
 
     async function saveTableName() {
+        const cleanTableName = tableName.trim();
+        if (!cleanTableName) {
+            setStatusType("error");
+            setStatusMessage("Table name is required.");
+            return;
+        }
+
         setSavingTableName(true);
-        await db.ref(`tables/${tableID}/tableName`).set(tableName);
-        setStatusMessage("Table name saved.");
-        setSavingTableName(false);
+        try {
+            const savedTableName = await updateTableName(tableID, cleanTableName);
+            setTableName(savedTableName);
+            setStatusType("success");
+            setStatusMessage("Table name saved.");
+        } catch (error) {
+            setStatusType("error");
+            setStatusMessage(error instanceof Error ? error.message : "Unable to save table name.");
+        } finally {
+            setSavingTableName(false);
+        }
     }
 
     async function savePlayerList() {
         setSavingPlayerList(true);
         await setPlayerListToTable(tableID, playerListID, myTableID);
+        setStatusType("success");
         setStatusMessage("Player list saved.");
         setSavingPlayerList(false);
+    }
+
+    async function saveTableMode() {
+        setSavingTableMode(true);
+        try {
+            const savedMode = await updateTableMode(tableID, tableMode);
+            setTableMode(savedMode);
+            setStatusType("success");
+            setStatusMessage(savedMode === "kiosk" ? "Kiosk mode enabled." : "Standard table mode enabled.");
+        }
+        catch (error) {
+            setStatusType("error");
+            setStatusMessage(error instanceof Error ? error.message : "Unable to save table mode.");
+        }
+        finally {
+            setSavingTableMode(false);
+        }
     }
 
     async function resetShareAccess() {
         setResettingPassword(true);
         const newPassword = await resetTablePassword(tableID);
         setAccessPassword(newPassword);
+        setStatusType("success");
         setStatusMessage("Share access reset. Existing scoring links have been replaced.");
         setShowConfirmPasswordReset(false);
         setResettingPassword(false);
@@ -226,14 +264,14 @@ export default function TableEditor(props) {
 
                             {statusMessage ? (
                                 <View
-                                    backgroundColor={"green.50"}
-                                    borderColor={"green.200"}
+                                    backgroundColor={statusType === "error" ? "red.50" : "green.50"}
+                                    borderColor={statusType === "error" ? "red.200" : "green.200"}
                                     borderRadius={8}
                                     borderWidth={1}
                                     marginTop={4}
                                     padding={3}
                                 >
-                                    <Text color={"green.800"} fontSize={"sm"} fontWeight={"semibold"}>{statusMessage}</Text>
+                                    <Text color={statusType === "error" ? "red.800" : "green.800"} fontSize={"sm"} fontWeight={"semibold"}>{statusMessage}</Text>
                                 </View>
                             ) : null}
 
@@ -323,6 +361,42 @@ export default function TableEditor(props) {
                             </Section>
 
                             <Section
+                                icon={<MaterialCommunityIcons name="monitor-lock" size={18} color={openScoreboardColor} />}
+                                title={"Table mode"}
+                                subtitle={"Choose whether scorekeepers can create matches or must follow the administrator queue."}
+                            >
+                                <FormControl>
+                                    <FormControl.Label>Scoring behavior</FormControl.Label>
+                                    <Select
+                                        backgroundColor={"white"}
+                                        borderColor={"gray.300"}
+                                        onValueChange={setTableMode}
+                                        selectedValue={tableMode}
+                                    >
+                                        <Select.Item label={"Standard - manual and scheduled matches"} value={"standard"} />
+                                        <Select.Item label={"Kiosk - scheduled matches only"} value={"kiosk"} />
+                                    </Select>
+                                </FormControl>
+                                <Text color={"gray.600"} fontSize={"xs"} marginTop={2}>
+                                    Kiosk mode locks scheduled match details and keeps this scoring URL waiting for the next queued match.
+                                </Text>
+                                <Button
+                                    alignSelf={"flex-start"}
+                                    backgroundColor={"black"}
+                                    borderRadius={8}
+                                    isDisabled={savingTableMode}
+                                    marginTop={3}
+                                    onPress={saveTableMode}
+                                >
+                                    {savingTableMode ? (
+                                        <Spinner color={openScoreboardButtonTextColor} size={"sm"} />
+                                    ) : (
+                                        <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>{i18n.t("save")}</Text>
+                                    )}
+                                </Button>
+                            </Section>
+
+                            <Section
                                 icon={<MaterialCommunityIcons name="monitor-eye" size={18} color={openScoreboardColor} />}
                                 title={"Scorekeeper sessions"}
                                 subtitle={"See scoring pages currently open for this table and send kiosk controls."}
@@ -394,7 +468,7 @@ export default function TableEditor(props) {
                                     <PageAction
                                         isPrimary
                                         icon={(color) => <AntDesign name="calendar" size={18} color={color} />}
-                                        label={"Scheduling Manager"}
+                                        label={"Match schedule"}
                                         onPress={() => {
                                             props.navigation.navigate("SchedulingManager", {
                                                 sourceType: "table",
@@ -402,18 +476,6 @@ export default function TableEditor(props) {
                                                 tableID,
                                                 name: tableDisplayName,
                                                 playerListID,
-                                                sportName,
-                                                scoringType,
-                                            });
-                                        }}
-                                    />
-                                    <PageAction
-                                        icon={(color) => <MaterialCommunityIcons name="calendar-edit" size={18} color={color} />}
-                                        label={"Manual schedule"}
-                                        onPress={() => {
-                                            props.navigation.navigate("ScheduledTableMatches", {
-                                                tableID,
-                                                name: tableDisplayName,
                                                 sportName,
                                                 scoringType,
                                             });

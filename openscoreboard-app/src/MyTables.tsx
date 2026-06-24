@@ -61,7 +61,8 @@ export default function MyTables(props) {
                     db.ref("tables/" + tableID[1] + "/playerListID").get(),
                     db.ref("tables/" + tableID[1] + "/sportName").get(),
                     db.ref("tables/" + tableID[1] + "/scoringType").get(),
-                    db.ref("tables/" + tableID[1] + "/currentMatch").get()
+                    db.ref("tables/" + tableID[1] + "/currentMatch").get(),
+                    db.ref("tables/" + tableID[1] + "/tableMode").get()
                 ])
                 let tableNameSnapShot = tableDataPromise[0]
                 let tablePasswordSnap = tableDataPromise[1]
@@ -69,12 +70,14 @@ export default function MyTables(props) {
                 let tableSportName = tableDataPromise[3]
                 let tableScoringType = tableDataPromise[4]
                 let currentMatchSnap = tableDataPromise[5]
+                let tableModeSnap = tableDataPromise[6]
                 let tableName = tableNameSnapShot.val()
                 let password = tablePasswordSnap.val()
                 let playerListID = tablePlayerListIDSnap.val()
                 let sportName = tableSportName.val()
                 let scoringType = tableScoringType.val()
                 let currentMatchID = currentMatchSnap.val()
+                let tableMode = tableModeSnap.val() === "kiosk" ? "kiosk" : "standard"
                 let currentMatchPreview = { playerA: "TBD", playerB: "TBD" }
                 let hasCurrentMatch = false
 
@@ -100,6 +103,7 @@ export default function MyTables(props) {
                     playerListID: playerListID,
                     sportName: sportName,
                     scoringType: scoringType,
+                    tableMode: tableMode,
                     currentMatchID: currentMatchID,
                     currentMatchPreview: currentMatchPreview,
                     hasCurrentMatch: hasCurrentMatch
@@ -116,6 +120,18 @@ export default function MyTables(props) {
     }
 
     async function createMatchForTable(tableInfo) {
+        if (tableInfo.tableMode === "kiosk") {
+            props.navigation.navigate("TableScoring", {
+                tableID: tableInfo.id,
+                name: tableInfo.tableName,
+                password: tableInfo.password,
+                sportName: tableInfo.sportName ? tableInfo.sportName : "tableTennis",
+                scoringType: tableInfo.scoringType ? tableInfo.scoringType : null,
+                ownerID: getUserPath() || "",
+            })
+            return
+        }
+
         try {
             setCreatingMatchTableID(tableInfo.id)
             await createNewMatch(

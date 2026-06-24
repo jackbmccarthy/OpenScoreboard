@@ -6,7 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getUserPath } from '../database';
 import { openScoreboardButtonTextColor, openScoreboardColor, openScoreboardTheme } from '../openscoreboardtheme';
 import LoadingPage from './LoadingPage';
-import { bracketRoundConfig, createCompetitionGraphic, getMyCompetitions } from './functions/competitions';
+import { archiveCompetition, bracketRoundConfig, createCompetition as createCompetitionRecord, getCompetitionSportLabel, getMyCompetitions, getSupportedCompetitionSports } from './functions/competitions';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 
 function getCompetitionTypeLabel(type) {
@@ -15,115 +15,256 @@ function getCompetitionTypeLabel(type) {
             return "Round robin group";
         case "singleElimination":
             return "Single elimination bracket";
+        case "roundRobinThenSingleElimination":
+            return "Groups + single elimination";
         default:
             return "Competition";
     }
 }
 
-function CompetitionCard({ item, onPress }) {
+function isCompetitionArchived(competition) {
+    return competition?.archived === true || !!competition?.archivedOn;
+}
+
+function getCompetitionStats(competition) {
+    const entrantLabel = competition.participantType === "team" ? "team" : "player";
+    if (competition.type === "roundRobin" || competition.type === "roundRobinThenSingleElimination") {
+        const groups: any[] = Object.values(competition.groups || {});
+        const playerCount = groups.reduce((count, group: any) => count + Object.keys(group.players || {}).length, 0);
+        const matchCount = groups.reduce((count, group: any) => count + Object.keys(group.matches || {}).length, 0);
+        const bestOf = competition.data?.roundRobinBestOf || 5;
+        const baseStats = [
+            `${groups.length || 0} group${groups.length === 1 ? "" : "s"}`,
+            `${playerCount} ${entrantLabel}${playerCount === 1 ? "" : "s"}`,
+            `${matchCount} group match${matchCount === 1 ? "" : "es"}`,
+            `Best of ${bestOf}`,
+        ];
+
+        if (competition.type === "roundRobin") {
+            return baseStats;
+        }
+
+        const rounds = competition.data?.brackets || [];
+        const firstRound = rounds[0] || {};
+        const slotCount = (firstRound.seeds || []).length * 2;
+        return [
+            ...baseStats,
+            `${slotCount} bracket slot${slotCount === 1 ? "" : "s"}`,
+        ];
+    }
+
+    const rounds = competition.data?.brackets || [];
+    const firstRound = rounds[0] || {};
+    const slotCount = (firstRound.seeds || []).length * 2;
+    const matchCount = rounds.reduce((count, round: any) => count + (round.seeds || []).length, 0);
+    const defaultBestOf = competition.data?.bracketDefaultBestOf || 5;
+    const upgradeRound = competition.data?.bracketUpgradeRound || "";
+    const upgradeBestOf = competition.data?.bracketUpgradeBestOf || "";
+
+    return [
+        `Starts at ${competition.data?.largestRound || firstRound.title || "Final"}`,
+        `${slotCount} slot${slotCount === 1 ? "" : "s"}`,
+        `${matchCount} match${matchCount === 1 ? "" : "es"}`,
+        upgradeRound ? `Best of ${defaultBestOf}, ${upgradeBestOf} from ${upgradeRound}` : `Best of ${defaultBestOf}`,
+    ];
+}
+
+function CompetitionCard({
+    archiveLoadingID,
+    confirmArchiveID,
+    item,
+    onArchive,
+    onCancelArchive,
+    onPress,
+    onRequestArchive,
+}) {
+    const myCompetitionID = item?.[0] || "";
     const competition = item?.[1] || {};
+    const archived = isCompetitionArchived(competition);
+    const showArchiveConfirm = confirmArchiveID === myCompetitionID;
+    const stats = getCompetitionStats(competition);
+    const sportLabel = getCompetitionSportLabel(competition.sportName || "tableTennis");
 
     return (
-        <Pressable
-            onPress={onPress}
-            style={({ pressed }) => ({
-                backgroundColor: pressed ? "#F8FAFC" : "#FFFFFF",
-                borderColor: "#E5E7EB",
-                borderRadius: 8,
-                borderWidth: 1,
-                marginBottom: 12,
-                opacity: pressed ? 0.84 : 1,
-                padding: 16,
-                width: "100%",
-            })}
+        <View
+            backgroundColor={"white"}
+            borderColor={"gray.200"}
+            borderRadius={8}
+            borderWidth={1}
+            marginBottom={3}
+            overflow={"hidden"}
+            width={"100%"}
         >
-            <View flexDirection={"row"} justifyContent={"space-between"}>
-                <View flex={1} paddingRight={3}>
-                    <Text color={"gray.500"} fontSize={"2xs"} fontWeight={"bold"} textTransform={"uppercase"}>
-                        {getCompetitionTypeLabel(competition.type)}
-                    </Text>
-                    <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"} marginTop={1}>
-                        {competition.title || "Untitled competition"}
-                    </Text>
-                    <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                        {competition.sourceTitle || "Linked from scheduling manager"}
-                    </Text>
+            <Pressable
+                onPress={onPress}
+                style={({ pressed }) => ({
+                    backgroundColor: pressed ? "#F8FAFC" : "#FFFFFF",
+                    opacity: pressed ? 0.84 : 1,
+                    padding: 16,
+                    width: "100%",
+                })}
+            >
+                <View flexDirection={"row"} justifyContent={"space-between"}>
+                    <View flex={1} paddingRight={3}>
+                        <Text color={"gray.500"} fontSize={"2xs"} fontWeight={"bold"} textTransform={"uppercase"}>
+                            {competition.participantType === "team" ? "Team tournament · " : ""}{getCompetitionTypeLabel(competition.type)} / {sportLabel}
+                        </Text>
+                        <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"} marginTop={1}>
+                            {competition.title || "Untitled competition"}
+                        </Text>
+                        <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
+                            {stats.join(" • ")}
+                        </Text>
+                    </View>
+                    <MaterialCommunityIcons name="pencil-outline" size={20} color={openScoreboardColor} />
                 </View>
-                <View
-                    alignItems={"center"}
-                    backgroundColor={"blue.50"}
-                    borderColor={"blue.100"}
-                    borderRadius={999}
-                    borderWidth={1}
-                    height={32}
-                    justifyContent={"center"}
-                    paddingX={3}
-                >
-                    <Text color={"blue.700"} fontSize={"xs"} fontWeight={"bold"}>
-                        {competition.formatName || "Scheduled"}
-                    </Text>
+                <Text color={"gray.500"} fontSize={"xs"} marginTop={3}>
+                    {archived ?
+                        `Archived ${competition.archivedOn ? new Date(competition.archivedOn).toLocaleString() : ""}`
+                        : `Created ${competition.createdOn ? new Date(competition.createdOn).toLocaleString() : "recently"}`}
+                </Text>
+            </Pressable>
+
+            {!archived ? (
+                <View borderColor={"gray.100"} borderTopWidth={1} padding={3}>
+                    {showArchiveConfirm ? (
+                        <View flexDirection={"row"} flexWrap={"wrap"} justifyContent={"space-between"}>
+                            <View flex={1} minWidth={190} paddingRight={2}>
+                                <Text color={"gray.900"} fontSize={"sm"} fontWeight={"bold"}>Archive this competition?</Text>
+                                <Text color={"gray.600"} fontSize={"xs"} marginTop={1}>
+                                    It will leave the current list and stay available in Archived for reference.
+                                </Text>
+                            </View>
+                            <View alignItems={"center"} flexDirection={"row"} marginTop={2}>
+                                <Button borderRadius={8} marginRight={2} onPress={onCancelArchive} size={"sm"} variant={"ghost"}>
+                                    <Text color={"gray.700"} fontWeight={"bold"}>Cancel</Text>
+                                </Button>
+                                <Button
+                                    backgroundColor={"red.700"}
+                                    borderRadius={8}
+                                    isDisabled={archiveLoadingID === myCompetitionID}
+                                    onPress={onArchive}
+                                    size={"sm"}
+                                >
+                                    {archiveLoadingID === myCompetitionID ? (
+                                        <Spinner color={openScoreboardButtonTextColor} size={"sm"} />
+                                    ) : (
+                                        <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>Archive</Text>
+                                    )}
+                                </Button>
+                            </View>
+                        </View>
+                    ) : (
+                        <View alignItems={"center"} flexDirection={"row"} flexWrap={"wrap"}>
+                            <Button backgroundColor={openScoreboardColor} borderRadius={8} marginRight={2} marginTop={1} onPress={onPress} size={"sm"}>
+                                <View alignItems={"center"} flexDirection={"row"}>
+                                    <MaterialCommunityIcons name="cog-outline" size={16} color={openScoreboardButtonTextColor} />
+                                    <Text color={openScoreboardButtonTextColor} fontSize={"xs"} fontWeight={"bold"} marginLeft={1}>Manage</Text>
+                                </View>
+                            </Button>
+                            <Button borderRadius={8} marginTop={1} onPress={onRequestArchive} size={"sm"} variant={"outline"}>
+                                <View alignItems={"center"} flexDirection={"row"}>
+                                    <MaterialCommunityIcons name="archive-outline" size={16} color={"#B91C1C"} />
+                                    <Text color={"red.700"} fontSize={"xs"} fontWeight={"bold"} marginLeft={1}>Archive</Text>
+                                </View>
+                            </Button>
+                        </View>
+                    )}
                 </View>
-                <MaterialCommunityIcons name="pencil-outline" size={20} color={openScoreboardColor} />
-            </View>
-            <View flexDirection={"row"} flexWrap={"wrap"} marginTop={3}>
-                <View
-                    backgroundColor={"gray.50"}
-                    borderColor={"gray.200"}
-                    borderRadius={999}
-                    borderWidth={1}
-                    marginRight={2}
-                    marginTop={2}
-                    paddingX={3}
-                    paddingY={1}
-                >
-                    <Text color={"gray.600"} fontSize={"xs"} fontWeight={"bold"}>
-                        {competition.sourceTitle ? `Linked to ${competition.sourceTitle}` : "Not linked yet"}
-                    </Text>
-                </View>
-                <View
-                    backgroundColor={competition.showBoard === false ? "red.50" : "green.50"}
-                    borderColor={competition.showBoard === false ? "red.200" : "green.200"}
-                    borderRadius={999}
-                    borderWidth={1}
-                    marginRight={2}
-                    marginTop={2}
-                    paddingX={3}
-                    paddingY={1}
-                >
-                    <Text color={competition.showBoard === false ? "red.700" : "green.700"} fontSize={"xs"} fontWeight={"bold"}>
-                        {competition.showBoard === false ? "Hidden" : "Visible"}
-                    </Text>
-                </View>
-            </View>
-            <Text color={"gray.500"} fontSize={"xs"} marginTop={3}>
-                Created {competition.createdOn ? new Date(competition.createdOn).toLocaleString() : "from scheduled matches"}
+            ) : null}
+        </View>
+    );
+}
+
+function CompetitionTabs({ activeTab, archivedCount, currentCount, setActiveTab }) {
+    const tabs = [
+        { count: currentCount, label: "Current", value: "current" },
+        { count: archivedCount, label: "Archived", value: "archived" },
+    ];
+
+    return (
+        <View
+            backgroundColor={"white"}
+            borderColor={"gray.200"}
+            borderRadius={8}
+            borderWidth={1}
+            flexDirection={"row"}
+            marginBottom={4}
+            padding={1}
+        >
+            {tabs.map((tab) => {
+                const isActive = activeTab === tab.value;
+
+                return (
+                    <Button
+                        key={tab.value}
+                        backgroundColor={isActive ? openScoreboardColor : "white"}
+                        borderRadius={7}
+                        flex={1}
+                        onPress={() => setActiveTab(tab.value)}
+                        variant={"ghost"}
+                    >
+                        <Text color={isActive ? openScoreboardButtonTextColor : openScoreboardColor} fontWeight={"bold"}>
+                            {tab.label} ({tab.count})
+                        </Text>
+                    </Button>
+                );
+            })}
+        </View>
+    );
+}
+
+function EmptyCompetitions({ activeTab }) {
+    return (
+        <View
+            alignItems={"center"}
+            backgroundColor={"white"}
+            borderColor={"gray.200"}
+            borderRadius={8}
+            borderWidth={1}
+            padding={6}
+        >
+            <Spinner color={openScoreboardColor} display={"none"} />
+            <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"}>
+                {activeTab === "archived" ? "No archived competitions" : "No current competitions yet"}
             </Text>
-        </Pressable>
+            <Text color={"gray.600"} fontSize={"sm"} marginTop={2} textAlign={"center"}>
+                {activeTab === "archived" ?
+                    "Archived competitions will appear here after you move them out of the current list."
+                    : "Create a bracket or group competition to get started."}
+            </Text>
+        </View>
     );
 }
 
 function NewCompetitionModal({ isOpen, onClose, onCreated }) {
     const [title, setTitle] = useState("");
     const [type, setType] = useState("singleElimination");
+    const [participantType, setParticipantType] = useState("individual");
+    const [sportName, setSportName] = useState("tableTennis");
     const [largestRound, setLargestRound] = useState("Quarterfinals");
     const [groupCount, setGroupCount] = useState("1");
     const [saving, setSaving] = useState(false);
 
-    async function createGraphic() {
+    async function handleCreateCompetition() {
         if (!title.trim()) {
             return;
         }
 
         setSaving(true);
         try {
-            const competition = await createCompetitionGraphic({
-                groupCount,
+            const competition = await createCompetitionRecord({
+                groupCount: Number(groupCount),
                 largestRound,
+                participantType,
+                sportName,
                 title,
                 type,
             });
             setTitle("");
             setType("singleElimination");
+            setParticipantType("individual");
+            setSportName("tableTennis");
             setLargestRound("Quarterfinals");
             setGroupCount("1");
             onCreated(competition);
@@ -137,10 +278,10 @@ function NewCompetitionModal({ isOpen, onClose, onCreated }) {
         <Modal isOpen={isOpen} onClose={() => onClose(false)} size={"lg"}>
             <Modal.Content>
                 <Modal.CloseButton />
-                <Modal.Header>New bracket or group graphic</Modal.Header>
+                <Modal.Header>New competition</Modal.Header>
                 <Modal.Body>
                     <FormControl>
-                        <FormControl.Label>Graphic name</FormControl.Label>
+                        <FormControl.Label>Competition name</FormControl.Label>
                         <Input
                             backgroundColor={"white"}
                             color={"gray.900"}
@@ -150,22 +291,39 @@ function NewCompetitionModal({ isOpen, onClose, onCreated }) {
                         />
                     </FormControl>
                     <FormControl marginTop={3}>
-                        <FormControl.Label>Graphic type</FormControl.Label>
-                        <Select selectedValue={type} onValueChange={setType}>
-                            <Select.Item label="Single elimination bracket" value="singleElimination" />
-                            <Select.Item label="Round robin group board" value="roundRobin" />
+                        <FormControl.Label>Entrants</FormControl.Label>
+                        <Select selectedValue={participantType} onValueChange={setParticipantType}>
+                            <Select.Item label="Individual players" value="individual" />
+                            <Select.Item label="Teams playing team ties" value="team" />
                         </Select>
                     </FormControl>
-                    {type === "singleElimination" ? (
+                    <FormControl marginTop={3}>
+                        <FormControl.Label>Competition type</FormControl.Label>
+                        <Select selectedValue={type} onValueChange={setType}>
+                            <Select.Item label="Single elimination bracket" value="singleElimination" />
+                            <Select.Item label="Round robin group" value="roundRobin" />
+                            <Select.Item label="Group stage + single elimination" value="roundRobinThenSingleElimination" />
+                        </Select>
+                    </FormControl>
+                    <FormControl marginTop={3}>
+                        <FormControl.Label>Sport</FormControl.Label>
+                        <Select selectedValue={sportName} onValueChange={setSportName}>
+                            {getSupportedCompetitionSports().map((sport) => (
+                                <Select.Item key={sport.value} label={sport.label} value={sport.value} />
+                            ))}
+                        </Select>
+                    </FormControl>
+                    {type === "singleElimination" || type === "roundRobinThenSingleElimination" ? (
                         <FormControl marginTop={3}>
-                            <FormControl.Label>Largest round</FormControl.Label>
+                            <FormControl.Label>Maximum match round</FormControl.Label>
                             <Select selectedValue={largestRound} onValueChange={setLargestRound}>
                                 {bracketRoundConfig.map((round) => (
                                     <Select.Item key={round.name} label={round.name} value={round.name} />
                                 ))}
                             </Select>
                         </FormControl>
-                    ) : (
+                    ) : null}
+                    {type === "roundRobin" || type === "roundRobinThenSingleElimination" ? (
                         <FormControl marginTop={3}>
                             <FormControl.Label>Starting groups</FormControl.Label>
                             <Select selectedValue={groupCount} onValueChange={setGroupCount}>
@@ -174,10 +332,12 @@ function NewCompetitionModal({ isOpen, onClose, onCreated }) {
                                 ))}
                             </Select>
                         </FormControl>
-                    )}
+                    ) : null}
                     <View backgroundColor={"blue.50"} borderColor={"blue.100"} borderRadius={8} borderWidth={1} marginTop={4} padding={3}>
                         <Text color={"blue.900"} fontSize={"sm"}>
-                            This creates the graphic styling and bracket/group structure. You can link scheduled table matches into it from the scheduling flow.
+                            {participantType === "team" ?
+                                "Each competition match becomes a configurable team tie. You will seed teams, submit lineups in stages, and schedule the ready individual matches after creation."
+                                : "This creates the competition structure. You can style how it displays and link scheduled table matches after creation."}
                         </Text>
                     </View>
                 </Modal.Body>
@@ -189,12 +349,12 @@ function NewCompetitionModal({ isOpen, onClose, onCreated }) {
                         backgroundColor={openScoreboardColor}
                         borderRadius={8}
                         isDisabled={saving || !title.trim()}
-                        onPress={createGraphic}
+                        onPress={handleCreateCompetition}
                     >
                         {saving ? (
                             <Spinner color={openScoreboardButtonTextColor} />
                         ) : (
-                            <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>Create graphic</Text>
+                            <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>Create competition</Text>
                         )}
                     </Button>
                 </Modal.Footer>
@@ -204,14 +364,39 @@ function NewCompetitionModal({ isOpen, onClose, onCreated }) {
 }
 
 export default function MyCompetitions(props) {
+    const [activeTab, setActiveTab] = useState("current");
+    const [archiveLoadingID, setArchiveLoadingID] = useState("");
+    const [confirmArchiveID, setConfirmArchiveID] = useState("");
     const [competitions, setCompetitions] = useState([]);
     const [doneLoading, setDoneLoading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const currentCompetitions = competitions.filter((competition) => !isCompetitionArchived(competition?.[1] || {}));
+    const archivedCompetitions = competitions.filter((competition) => isCompetitionArchived(competition?.[1] || {}));
+    const displayedCompetitions = activeTab === "archived" ? archivedCompetitions : currentCompetitions;
 
     async function loadCompetitions() {
         setDoneLoading(false);
         setCompetitions(await getMyCompetitions(getUserPath()));
         setDoneLoading(true);
+    }
+
+    async function handleArchiveCompetition(competition) {
+        const myCompetitionID = competition?.[0] || "";
+        const competitionID = competition?.[1]?.id || "";
+
+        if (!myCompetitionID || !competitionID) {
+            return;
+        }
+
+        setArchiveLoadingID(myCompetitionID);
+        try {
+            await archiveCompetition(myCompetitionID, competitionID);
+            setConfirmArchiveID("");
+            await loadCompetitions();
+        }
+        finally {
+            setArchiveLoadingID("");
+        }
     }
 
     useFocusEffect(
@@ -244,9 +429,9 @@ export default function MyCompetitions(props) {
                         marginBottom={4}
                         padding={4}
                     >
-                        <Text color={"gray.900"} fontSize={"3xl"} fontWeight={"bold"}>Brackets & Groups</Text>
+                        <Text color={"gray.900"} fontSize={"3xl"} fontWeight={"bold"}>My Competitions</Text>
                         <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                            Create bracket and round-robin graphics, edit their layout and styling, then link scheduled table matches so results can update the graphic.
+                            Create individual or team competitions, manage their structure, then schedule matches to tables as needed.
                         </Text>
                         <Button
                             alignSelf={"flex-start"}
@@ -257,39 +442,38 @@ export default function MyCompetitions(props) {
                         >
                             <View alignItems={"center"} flexDirection={"row"}>
                                 <MaterialCommunityIcons name="plus" size={18} color={openScoreboardButtonTextColor} />
-                                <Text color={openScoreboardButtonTextColor} fontWeight={"bold"} marginLeft={2}>Create graphic</Text>
+                                <Text color={openScoreboardButtonTextColor} fontWeight={"bold"} marginLeft={2}>Create competition</Text>
                             </View>
                         </Button>
                     </View>
 
-                    {competitions.length > 0 ? (
+                    <CompetitionTabs
+                        activeTab={activeTab}
+                        archivedCount={archivedCompetitions.length}
+                        currentCount={currentCompetitions.length}
+                        setActiveTab={setActiveTab}
+                    />
+
+                    {displayedCompetitions.length > 0 ? (
                         <View flexDirection={"row"} flexWrap={"wrap"} justifyContent={"space-between"}>
-                            {competitions.map((competition) => (
+                            {displayedCompetitions.map((competition) => (
                                 <View key={competition?.[0]} width={{ base: "100%", md: "48.5%" }}>
                                     <CompetitionCard
+                                        archiveLoadingID={archiveLoadingID}
+                                        confirmArchiveID={confirmArchiveID}
                                         item={competition}
+                                        onArchive={() => handleArchiveCompetition(competition)}
+                                        onCancelArchive={() => setConfirmArchiveID("")}
                                         onPress={() => props.navigation.navigate("CompetitionEditor", {
                                             competitionID: competition?.[1]?.id,
                                         })}
+                                        onRequestArchive={() => setConfirmArchiveID(competition?.[0] || "")}
                                     />
                                 </View>
                             ))}
                         </View>
                     ) : (
-                        <View
-                            alignItems={"center"}
-                            backgroundColor={"white"}
-                            borderColor={"gray.200"}
-                            borderRadius={8}
-                            borderWidth={1}
-                            padding={6}
-                        >
-                            <Spinner color={openScoreboardColor} display={"none"} />
-                            <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"}>No brackets or groups yet</Text>
-                            <Text color={"gray.600"} fontSize={"sm"} marginTop={2} textAlign={"center"}>
-                                Create a bracket or group graphic from scheduled table matches to get started.
-                            </Text>
-                        </View>
+                        <EmptyCompetitions activeTab={activeTab} />
                     )}
                 </View>
             </ScrollView>

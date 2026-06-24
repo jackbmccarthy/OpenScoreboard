@@ -1,6 +1,11 @@
 import db, { getUserPath } from '../../database';
+import { supportedSports } from './sports';
+import { DEFAULT_TEAM_TIE_FORMAT } from './teamTieFormats';
+import { getDefaultTeamTieFormatPreset } from './teamTieFormatPresets';
 
 export const bracketRoundConfig = [
+    { name: "Round of 256", seedsCount: 128 },
+    { name: "Round of 128", seedsCount: 64 },
     { name: "Round of 64", seedsCount: 32 },
     { name: "Round of 32", seedsCount: 16 },
     { name: "Round of 16", seedsCount: 8 },
@@ -9,45 +14,21 @@ export const bracketRoundConfig = [
     { name: "Final", seedsCount: 1 },
 ];
 
-export const defaultCompetitionStyles = {
-    boardStyles: {
-        backgroundColor: "#050816",
-        borderColor: "#1D4ED8",
-        color: "#FFFFFF",
-    },
-    bracketLineStyles: {
-        borderStyle: "solid",
-        color: "#38BDF8",
-        width: 2,
-    },
-    bracketStyles: {
-        backgroundColor: "#0B1220",
-        color: "#FFFFFF",
-        fontSize: 16,
-    },
-    footerStyles: {
-        color: "#CBD5E1",
-        fontSize: 16,
-    },
-    groupHeaderStyles: {
-        backgroundColor: "#0B1220",
-        color: "#FFFFFF",
-        fontSize: 18,
-    },
-    groupPlayerStyles: {
-        backgroundColor: "#FFFFFF",
-        color: "#111827",
-        fontSize: 16,
-    },
-    roundNameStyles: {
-        color: "#93C5FD",
-        fontSize: 18,
-    },
-    titleStyles: {
-        color: "#FFFFFF",
-        fontSize: 36,
-    },
-};
+export function normalizeCompetitionSportName(sportName = "") {
+    return supportedSports[sportName] ? sportName : "tableTennis";
+}
+
+export function getCompetitionSportLabel(sportName = "") {
+    const normalizedSportName = normalizeCompetitionSportName(sportName);
+    return supportedSports[normalizedSportName]?.displayName || "Table Tennis";
+}
+
+export function getSupportedCompetitionSports() {
+    return Object.entries(supportedSports).map(([value, sport]: any) => ({
+        label: sport.displayName || value,
+        value,
+    }));
+}
 
 function getTargetPath(sourceType, sourceID) {
     return sourceType === "teamMatch" ? `teamMatches/${sourceID}` : `tables/${sourceID}`;
@@ -59,6 +40,23 @@ function getRoundTitleForSeedCount(seedCount) {
 
 function getSeedCountForRound(roundName) {
     return bracketRoundConfig.find((round) => round.name === roundName)?.seedsCount || 4;
+}
+
+function removeUndefined(value) {
+    if (Array.isArray(value)) {
+        return value.map(removeUndefined);
+    }
+
+    if (value && typeof value === "object") {
+        return Object.entries(value).reduce((cleanedValue, [key, nextValue]) => {
+            if (typeof nextValue !== "undefined") {
+                cleanedValue[key] = removeUndefined(nextValue);
+            }
+            return cleanedValue;
+        }, {});
+    }
+
+    return value;
 }
 
 function getPlayerKey(name, index) {
@@ -233,44 +231,70 @@ function buildEmptyRoundRobinGroups(groupCount = 1) {
     }, {});
 }
 
-export async function createCompetitionGraphic({
+export function isRoundRobinCompetitionType(type = "") {
+    return type === "roundRobin" || type === "roundRobinThenSingleElimination";
+}
+
+export function isBracketCompetitionType(type = "") {
+    return type === "singleElimination" || type === "roundRobinThenSingleElimination";
+}
+
+export async function createCompetition({
     groupCount = 1,
     largestRound = "Quarterfinals",
+    participantType = "individual",
+    sportName = "tableTennis",
     title,
     type = "singleElimination",
-} = {}) {
+}: any = {}) {
     const timestamp = new Date().toISOString();
     const competitionRef = db.ref("competitions").push();
     const competitionID = competitionRef.key;
-    const cleanTitle = title?.trim() || (type === "roundRobin" ? "Round Robin Group" : "Bracket");
+    const isCombined = type === "roundRobinThenSingleElimination";
+    const hasGroups = isRoundRobinCompetitionType(type);
+    const hasBracket = isBracketCompetitionType(type);
+    const cleanTitle = title?.trim() || (type === "roundRobin" ? "Round Robin Group" : isCombined ? "Group Stage + Bracket" : "Bracket");
+    const resolvedSportName = normalizeCompetitionSportName(sportName);
+    const defaultTeamTiePreset = participantType === "team" ? await getDefaultTeamTieFormatPreset() : null;
     const competition = {
-        ...defaultCompetitionStyles,
         createdOn: timestamp,
         deleted: false,
-        formatName: type === "roundRobin" ? "Round robin group" : "Single elimination bracket",
+        formatName: type === "roundRobin" ? "Round robin group" : isCombined ? "Group stage + single elimination bracket" : "Single elimination bracket",
         id: competitionID,
         ownerID: getUserPath(),
+        participantType: participantType === "team" ? "team" : "individual",
         scoringType: "",
         showBoard: true,
         sourceID: "",
         sourceTitle: "",
         sourceType: "",
-        sportName: "",
+        sportName: resolvedSportName,
         type,
         updatedOn: timestamp,
-        ...(type === "roundRobin" ? {
-            data: {
-                footer: "",
-                title: cleanTitle,
-            },
-            groups: buildEmptyRoundRobinGroups(groupCount),
-        } : {
-            data: {
+        data: {
+            ...(hasBracket ? {
                 brackets: generateEmptyBracket(largestRound),
+                bracketDefaultBestOf: 5,
+                bracketUpgradeBestOf: 7,
+                bracketUpgradeRound: "",
                 largestRound,
-                title: cleanTitle,
-            },
-        }),
+            } : {}),
+            ...(hasGroups ? {
+                advancementPlayersPerGroup: 2,
+                advancementRankingOrder: ["wins", "losses", "pointDifferential", "pointsFor", "pointsAgainst"],
+                footer: "",
+                roundRobinBestOf: 5,
+            } : {}),
+            ...(participantType === "team" ? {
+                teamTieFormat: defaultTeamTiePreset?.format || DEFAULT_TEAM_TIE_FORMAT,
+                teamTieFormatPresetID: defaultTeamTiePreset?.id || "",
+                teamSeedOrder: [],
+            } : {}),
+            title: cleanTitle,
+        },
+        ...(hasGroups ? {
+            groups: buildEmptyRoundRobinGroups(groupCount),
+        } : {}),
     };
 
     await competitionRef.set(competition);
@@ -278,7 +302,9 @@ export async function createCompetitionGraphic({
         createdOn: timestamp,
         formatName: competition.formatName,
         id: competitionID,
+        participantType: competition.participantType,
         sourceTitle: "",
+        sportName: resolvedSportName,
         type: competition.type,
         title: cleanTitle,
     });
@@ -286,26 +312,60 @@ export async function createCompetitionGraphic({
     return competition;
 }
 
-export async function updateCompetitionGraphic(competitionID, updates = {}) {
+export async function createCompetitionGraphic(options = {}) {
+    return createCompetition(options);
+}
+
+export async function updateCompetition(competitionID, updates: any = {}) {
     const timestamp = new Date().toISOString();
-    await db.ref(`competitions/${competitionID}`).update({
+    const cleanUpdates = removeUndefined({
         ...updates,
         updatedOn: timestamp,
     });
 
+    await db.ref(`competitions/${competitionID}`).update({
+        ...cleanUpdates,
+    });
+
     const title = updates?.data?.title;
-    if (title) {
+    const sportName = updates?.sportName || updates?.data?.sportName;
+    if (title || sportName) {
         const myCompetitionsSnapshot = await db.ref(`users/${getUserPath()}/myCompetitions`).get();
         const myCompetitions = myCompetitionsSnapshot.val() || {};
         const matchingEntry = Object.entries(myCompetitions).find(([, value]: any) => value?.id === competitionID);
 
         if (matchingEntry) {
-            await db.ref(`users/${getUserPath()}/myCompetitions/${matchingEntry[0]}`).update({
-                title,
+            await db.ref(`users/${getUserPath()}/myCompetitions/${matchingEntry[0]}`).update(removeUndefined({
+                ...(title ? { title } : {}),
+                ...(sportName ? { sportName: normalizeCompetitionSportName(sportName) } : {}),
                 updatedOn: timestamp,
-            });
+            }));
         }
     }
+}
+
+export async function updateCompetitionGraphic(competitionID, updates = {}) {
+    return updateCompetition(competitionID, updates);
+}
+
+export async function archiveCompetition(myCompetitionID, competitionID) {
+    if (!myCompetitionID || !competitionID) {
+        return;
+    }
+
+    const timestamp = new Date().toISOString();
+    await Promise.all([
+        db.ref(`competitions/${competitionID}`).update({
+            archived: true,
+            archivedOn: timestamp,
+            updatedOn: timestamp,
+        }),
+        db.ref(`users/${getUserPath()}/myCompetitions/${myCompetitionID}`).update({
+            archived: true,
+            archivedOn: timestamp,
+            updatedOn: timestamp,
+        }),
+    ]);
 }
 
 function collectBracketScheduledMatchAssignments(brackets = []) {
@@ -399,6 +459,7 @@ export async function createCompetitionFromScheduledMatches(config, scheduledMat
     const competitionBody = config.competitionType === "roundRobin" ?
         buildRoundRobinCompetition(linkedMatches, title)
         : buildBracketCompetition(linkedMatches, title);
+    const resolvedSportName = normalizeCompetitionSportName(config.sportName || "tableTennis");
     const competition = {
         ...competitionBody,
         createdOn: timestamp,
@@ -411,7 +472,7 @@ export async function createCompetitionFromScheduledMatches(config, scheduledMat
         sourceID: config.sourceID || "",
         sourceTitle: config.sourceTitle || "",
         sourceType: config.sourceType || "",
-        sportName: config.sportName || "",
+        sportName: resolvedSportName,
         type: config.competitionType,
         updatedOn: timestamp,
     };
@@ -422,6 +483,7 @@ export async function createCompetitionFromScheduledMatches(config, scheduledMat
         formatName: competition.formatName,
         id: competitionID,
         sourceTitle: competition.sourceTitle,
+        sportName: resolvedSportName,
         type: competition.type,
         title,
     });
@@ -465,8 +527,25 @@ export async function getCompetition(competitionID) {
     return competitionSnapshot.val();
 }
 
+export function subscribeToCompetition(competitionID, callback) {
+    if (!competitionID) {
+        return () => {};
+    }
+
+    const competitionRef = db.ref(`competitions/${competitionID}`);
+    const handleCompetitionValue = (competitionSnapshot) => {
+        callback(competitionSnapshot.val());
+    };
+
+    competitionRef.on("value", handleCompetitionValue);
+
+    return () => {
+        competitionRef.off("value", handleCompetitionValue);
+    };
+}
+
 function recalculateRoundRobinGroup(group) {
-    const players = Object.entries(group.players || {}).reduce((playerMap, [playerID, player]) => {
+    const players = Object.entries(group.players || {}).reduce((playerMap, [playerID, player]: any) => {
         playerMap[playerID] = {
             ...player,
             losses: 0,
@@ -480,10 +559,16 @@ function recalculateRoundRobinGroup(group) {
             return;
         }
 
+        const winnerID = match.AScore > match.BScore ? match.playerAID : match.playerBID;
+        const loserID = match.AScore > match.BScore ? match.playerBID : match.playerAID;
         const winnerName = match.AScore > match.BScore ? match.playerA : match.playerB;
         const loserName = match.AScore > match.BScore ? match.playerB : match.playerA;
-        const winnerEntry = Object.entries(players).find(([, player]: any) => player.playerName === winnerName);
-        const loserEntry = Object.entries(players).find(([, player]: any) => player.playerName === loserName);
+        const winnerEntry = players[winnerID] ?
+            [winnerID, players[winnerID]]
+            : Object.entries(players).find(([, player]: any) => player.playerName === winnerName);
+        const loserEntry = players[loserID] ?
+            [loserID, players[loserID]]
+            : Object.entries(players).find(([, player]: any) => player.playerName === loserName);
 
         if (winnerEntry) {
             players[winnerEntry[0]].wins += 1;
@@ -519,10 +604,18 @@ function updateBracketResult(competition, scheduledMatchID, summary) {
             seed.BScore = summary.BScore;
             seed.gameScores = summary.gameScores || [];
             seed.isComplete = summary.isComplete === true;
-            const winnerTeamIndex = summary.AScore > summary.BScore ? 0 : 1;
-            seed.winnerTeamIndex = winnerTeamIndex;
+            seed.scheduledStatus = summary.status || (summary.isComplete === true ? "complete" : seed.scheduledStatus || "");
+            const hasWinner = seed.isComplete && Number(summary.AScore) !== Number(summary.BScore);
+            const winnerTeamIndex = Number(summary.AScore) > Number(summary.BScore) ? 0 : 1;
 
-            const nextRound = brackets[roundIndex + 1];
+            if (hasWinner) {
+                seed.winnerTeamIndex = winnerTeamIndex;
+            }
+            else {
+                delete seed.winnerTeamIndex;
+            }
+
+            const nextRound = hasWinner ? brackets[roundIndex + 1] : null;
             if (nextRound) {
                 const nextSeedIndex = Math.floor(seedIndex / 2);
                 const nextTeamIndex = seedIndex % 2;
@@ -542,6 +635,12 @@ function updateBracketResult(competition, scheduledMatchID, summary) {
     };
 }
 
+async function writeCompetitionResultLeaves(competitionID, resultUpdates) {
+    await Promise.all(Object.entries(resultUpdates).map(([path, value]) => {
+        return db.ref(`competitions/${competitionID}/${path}`).set(value);
+    }));
+}
+
 export async function updateCompetitionResultFromScheduledMatch(competitionID, scheduledMatchID, summary) {
     if (!competitionID) {
         return;
@@ -552,19 +651,27 @@ export async function updateCompetitionResultFromScheduledMatch(competitionID, s
         return;
     }
 
-    const timestamp = new Date().toISOString();
+    const shouldUpdateRoundRobin = competition.type === "roundRobin" ||
+        (competition.type === "roundRobinThenSingleElimination" && summary?.groupID);
+    const shouldUpdateBracket = competition.type === "singleElimination" ||
+        (competition.type === "roundRobinThenSingleElimination" && typeof summary?.bracketRoundIndex !== "undefined");
 
-    if (competition.type === "roundRobin") {
+    if (shouldUpdateRoundRobin) {
+        let matchedGroupID = "";
+        let matchedSlotID = "";
         const groups = Object.entries(competition.groups || {}).reduce((groupMap, [groupID, group]: any) => {
             const matches = { ...(group.matches || {}) };
             Object.entries(matches).forEach(([slotID, match]: any) => {
                 if (match.scheduledMatchID === scheduledMatchID) {
+                    matchedGroupID = groupID;
+                    matchedSlotID = slotID;
                     matches[slotID] = {
                         ...match,
                         AScore: summary.AScore,
                         BScore: summary.BScore,
                         gameScores: summary.gameScores || [],
                         isComplete: summary.isComplete === true,
+                        scheduledStatus: summary.status || (summary.isComplete === true ? "complete" : match.scheduledStatus || ""),
                     };
                 }
             });
@@ -575,18 +682,63 @@ export async function updateCompetitionResultFromScheduledMatch(competitionID, s
             return groupMap;
         }, {});
 
-        await db.ref(`competitions/${competitionID}`).update({
-            groups,
-            updatedOn: timestamp,
+        if (!matchedGroupID || !matchedSlotID) {
+            return;
+        }
+
+        const matchedGroup: any = groups[matchedGroupID] || {};
+        const resultUpdates: any = {
+            [`groups/${matchedGroupID}/matches/${matchedSlotID}/AScore`]: summary.AScore,
+            [`groups/${matchedGroupID}/matches/${matchedSlotID}/BScore`]: summary.BScore,
+            [`groups/${matchedGroupID}/matches/${matchedSlotID}/gameScores`]: summary.gameScores || [],
+            [`groups/${matchedGroupID}/matches/${matchedSlotID}/isComplete`]: summary.isComplete === true,
+            [`groups/${matchedGroupID}/matches/${matchedSlotID}/scheduledStatus`]: summary.status || (summary.isComplete === true ? "complete" : ""),
+        };
+
+        Object.entries(matchedGroup.players || {}).forEach(([playerID, player]: any) => {
+            resultUpdates[`groups/${matchedGroupID}/players/${playerID}/wins`] = Number(player.wins) || 0;
+            resultUpdates[`groups/${matchedGroupID}/players/${playerID}/losses`] = Number(player.losses) || 0;
         });
+
+        await writeCompetitionResultLeaves(competitionID, resultUpdates);
         return;
     }
 
-    if (competition.type === "singleElimination") {
+    if (shouldUpdateBracket) {
         const nextCompetition = updateBracketResult(competition, scheduledMatchID, summary);
-        await db.ref(`competitions/${competitionID}`).update({
-            data: nextCompetition.data,
-            updatedOn: timestamp,
+        const currentBrackets = competition.data?.brackets || [];
+        const nextBrackets = nextCompetition.data?.brackets || [];
+        const resultUpdates: any = {};
+        let foundScheduledMatch = false;
+
+        currentBrackets.forEach((round: any, roundIndex) => {
+            (round.seeds || []).forEach((seed: any, seedIndex) => {
+                if (seed.scheduledMatchID !== scheduledMatchID) {
+                    return;
+                }
+
+                foundScheduledMatch = true;
+                const nextSeed = nextBrackets?.[roundIndex]?.seeds?.[seedIndex] || {};
+                const seedPath = `data/brackets/${roundIndex}/seeds/${seedIndex}`;
+                resultUpdates[`${seedPath}/AScore`] = nextSeed.AScore || 0;
+                resultUpdates[`${seedPath}/BScore`] = nextSeed.BScore || 0;
+                resultUpdates[`${seedPath}/gameScores`] = nextSeed.gameScores || [];
+                resultUpdates[`${seedPath}/isComplete`] = nextSeed.isComplete === true;
+                resultUpdates[`${seedPath}/scheduledStatus`] = nextSeed.scheduledStatus || "";
+                resultUpdates[`${seedPath}/winnerTeamIndex`] = typeof nextSeed.winnerTeamIndex === "undefined" ? null : nextSeed.winnerTeamIndex;
+
+                const nextRound = nextBrackets?.[roundIndex + 1];
+                if (nextRound && nextSeed.isComplete === true && typeof nextSeed.winnerTeamIndex !== "undefined") {
+                    const nextSeedIndex = Math.floor(seedIndex / 2);
+                    const nextTeamIndex = seedIndex % 2;
+                    resultUpdates[`data/brackets/${roundIndex + 1}/seeds/${nextSeedIndex}/teams/${nextTeamIndex}`] =
+                        nextRound.seeds?.[nextSeedIndex]?.teams?.[nextTeamIndex] || {};
+                }
+            });
         });
+
+        if (foundScheduledMatch) {
+            await writeCompetitionResultLeaves(competitionID, resultUpdates);
+        }
     }
 }

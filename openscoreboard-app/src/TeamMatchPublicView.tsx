@@ -7,6 +7,7 @@ import { getCombinedPlayerNames } from './functions/players';
 import { getActiveGameNumber, getCurrentGameScore, getMatchData, getMatchScore } from './functions/scoring';
 import { supportedSports } from './functions/sports';
 import { getTeam } from './functions/teams';
+import { getTeamTieSubmissionStatus } from './functions/teamCompetitions';
 
 function toScore(value) {
     const parsed = parseInt(value, 10);
@@ -595,6 +596,7 @@ export default function TeamMatchPublicView(props) {
             .map(([id, matchSummary]) => ({ id, ...matchSummary }))
             .sort((a, b) => new Date(a.startTime || a.scheduledOn || 0).getTime() - new Date(b.startTime || b.scheduledOn || 0).getTime());
     }, [teamMatch.scheduledMatches]);
+    const submissionStatus = getTeamTieSubmissionStatus(teamMatch);
 
     if (!doneLoading) {
         return (
@@ -632,6 +634,32 @@ export default function TeamMatchPublicView(props) {
                                 <TeamScore label={"Team B"} logoURL={teamB?.teamLogoURL} name={teamBName} score={toScore(teamMatch.teamBScore)} />
                             </View>
                         </View>
+                        {teamMatch.competitionID ? (
+                            <View
+                                alignItems={"center"}
+                                backgroundColor={submissionStatus.ready ? "green.50" : "yellow.50"}
+                                borderColor={submissionStatus.ready ? "green.200" : "yellow.200"}
+                                borderRadius={8}
+                                borderWidth={1}
+                                flexDirection={"row"}
+                                justifyContent={"center"}
+                                marginTop={4}
+                                padding={3}
+                            >
+                                <View
+                                    backgroundColor={submissionStatus.ready ? "green.500" : "yellow.400"}
+                                    borderRadius={8}
+                                    height={"9px"}
+                                    marginRight={2}
+                                    width={"9px"}
+                                />
+                                <Text color={"gray.800"} fontSize={"sm"} fontWeight={"bold"} textAlign={"center"}>
+                                    {submissionStatus.ready ?
+                                        "Both team lineups are submitted."
+                                        : `Waiting for ${submissionStatus.waitingFor.join(" and ")} to submit a lineup.`}
+                                </Text>
+                            </View>
+                        ) : null}
                     </View>
 
                     <Section

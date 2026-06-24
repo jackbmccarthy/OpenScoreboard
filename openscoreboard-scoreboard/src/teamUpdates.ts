@@ -13,6 +13,16 @@ const extraMatchListenerFields = [
     "timeOutStartTimeA",
     "timeOutStartTimeB",
 ];
+const teamContextFieldClasses = [
+    "teamAScore",
+    "teamBScore",
+    "teamAName",
+    "teamBName",
+    "teamLogoURLA",
+    "teamLogoURLB",
+    "teamJerseyColorA",
+    "teamJerseyColorB",
+];
 
 function isRecord(value) {
     return value !== null && typeof value === "object";
@@ -40,6 +50,73 @@ function postFieldUpdate(key, fieldValue) {
 
     window.postMessage(fieldData);
     window.dispatchEvent(new CustomEvent("open-scoreboard-field-update", { detail: fieldData }));
+}
+
+function getScoreboardVisibilityContext(matchValues: any = {}) {
+    return {
+        isATimeOutActive: matchValues.isATimeOutActive === true,
+        isBTimeOutActive: matchValues.isBTimeOutActive === true,
+        isInBetweenGames: matchValues.isInBetweenGames === true,
+        isMatchStarted: matchValues.isMatchStarted === true,
+    };
+}
+
+function postScoreboardVisibilityContext(matchValues: any = {}) {
+    window.postMessage(getScoreboardVisibilityContext(matchValues));
+}
+
+function setTeamContextVisibility(isVisible) {
+    for (const className of teamContextFieldClasses) {
+        Array.from(document.getElementsByClassName(className) as HTMLCollectionOf<HTMLElement>).forEach((node) => {
+            node.style.display = isVisible ? "" : "none";
+        });
+    }
+}
+
+async function listenToParentTeamMatch(teamMatchID, addToListenerList) {
+    if (typeof teamMatchID !== "string" || teamMatchID.length === 0) {
+        setTeamContextVisibility(false);
+        return;
+    }
+
+    setTeamContextVisibility(true);
+    const teamAIDRef = db.ref(`teamMatches/${teamMatchID}/teamAID`);
+    const teamBIDRef = db.ref(`teamMatches/${teamMatchID}/teamBID`);
+    const teamAScoreRef = db.ref(`teamMatches/${teamMatchID}/teamAScore`);
+    const teamBScoreRef = db.ref(`teamMatches/${teamMatchID}/teamBScore`);
+    let teamADetailListenerRemovals: Array<() => void> = [];
+    let teamBDetailListenerRemovals: Array<() => void> = [];
+    const replaceTeamDetailListeners = async (side, snapshot) => {
+        const isTeamA = side === "A";
+        const currentRemovals = isTeamA ? teamADetailListenerRemovals : teamBDetailListenerRemovals;
+        currentRemovals.forEach((removeListener) => removeListener());
+        const nextRemovals: Array<() => void> = [];
+
+        if (isTeamA) {
+            teamADetailListenerRemovals = nextRemovals;
+            await updateTeamAID(snapshot, true, () => {}, (removeListener) => nextRemovals.push(removeListener));
+        }
+        else {
+            teamBDetailListenerRemovals = nextRemovals;
+            await updateTeamBID(snapshot, true, () => {}, (removeListener) => nextRemovals.push(removeListener));
+        }
+    };
+    const handleTeamAID = (snapshot) => replaceTeamDetailListeners("A", snapshot);
+    const handleTeamBID = (snapshot) => replaceTeamDetailListeners("B", snapshot);
+    const handleTeamAScore = (snapshot) => updateTeamAScore(snapshot);
+    const handleTeamBScore = (snapshot) => updateTeamBScore(snapshot);
+
+    teamAIDRef.on("value", handleTeamAID);
+    teamBIDRef.on("value", handleTeamBID);
+    teamAScoreRef.on("value", handleTeamAScore);
+    teamBScoreRef.on("value", handleTeamBScore);
+
+    addToListenerList(() => teamAIDRef.off("value", handleTeamAID));
+    addToListenerList(() => teamBIDRef.off("value", handleTeamBID));
+    addToListenerList(() => teamAScoreRef.off("value", handleTeamAScore));
+    addToListenerList(() => teamBScoreRef.off("value", handleTeamBScore));
+    addToListenerList(() => teamADetailListenerRemovals.forEach((removeListener) => removeListener()));
+    addToListenerList(() => teamBDetailListenerRemovals.forEach((removeListener) => removeListener()));
 }
 
 function valuesMatch(previousValue, nextValue) {
@@ -139,7 +216,7 @@ function postDerivedFieldUpdates(matchValues, previousMatchValues = null) {
     }
 }
 
-async function listenToMatch(matchID, isInitialRun, addToListenerList, logLabel) {
+async function listenToMatch(matchID, isInitialRun, addToListenerList, logLabel, inferParentTeamMatch = false) {
     const matchRef = db.ref(`matches/${matchID}`);
     const match = await matchRef.get();
     const matchValues = match.val();
@@ -153,7 +230,11 @@ async function listenToMatch(matchID, isInitialRun, addToListenerList, logLabel)
         matchSettings: matchValues
     }, null, 2));
 
+    postScoreboardVisibilityContext(matchValues);
     postMatchFieldUpdates(matchValues);
+    if (inferParentTeamMatch) {
+        await listenToParentTeamMatch(matchValues.teamMatchID, addToListenerList);
+    }
 
     if (!isInitialRun) {
         return;
@@ -207,8 +288,12 @@ export const updateCurrentMatch = async (currentMatchSnap,isInitialRun, resetLis
     console.log("OpenScoreboard resolved current match", currentMatch);
     //console.log(currentMatch)
     if (typeof currentMatch === "string" && currentMatch.length > 0) {
-        await listenToMatch(currentMatch, true, addToListenerList, "OpenScoreboard current match settings");
+        await listenToMatch(currentMatch, true, addToListenerList, "OpenScoreboard current match settings", true);
+        return;
     }
+
+    postScoreboardVisibilityContext();
+    setTeamContextVisibility(false);
 };
 
 export const updateTeamMatch = async (currentMatchSnap,isInitialRun, resetListeners, addToListenerList ) => {
@@ -222,7 +307,10 @@ export const updateTeamMatch = async (currentMatchSnap,isInitialRun, resetListen
     // console.log(currentMatch, typeof currentMatch === "string", currentMatch.length);
     if (typeof currentMatch === "string" && currentMatch.length > 0) {
         await listenToMatch(currentMatch, isInitialRun, addToListenerList, "OpenScoreboard team match settings");
+        return matchFieldListenerRemovalList;
     }
+
+    postScoreboardVisibilityContext();
     return matchFieldListenerRemovalList;
 };
 export const updateTeamAID = async (TeamASnap,isInitialRun, resetListeners, addToListenerList ) => {
@@ -248,6 +336,14 @@ export const updateTeamAID = async (TeamASnap,isInitialRun, resetListeners, addT
                 }
             });
             addToListenerList(() => { teamLogoRef.off("value"); });
+            let teamJerseyColorRef = db.ref(`teams/${teamAID}/teamJerseyColor`);
+            teamJerseyColorRef.on("value", (teamJerseyColorSnap) => {
+                let teamJerseyColor = teamJerseyColorSnap.val();
+                if (typeof teamJerseyColor === "string") {
+                    postFieldUpdate("teamJerseyColorA", teamJerseyColorSnap.val());
+                }
+            });
+            addToListenerList(() => { teamJerseyColorRef.off("value"); });
         }
         else {
             let teamNameSnap = await db.ref(`teams/${teamAID}/teamName`).get();
@@ -261,6 +357,11 @@ export const updateTeamAID = async (TeamASnap,isInitialRun, resetListeners, addT
             if (typeof teamLogo === "string") {
                 postFieldUpdate("teamLogoURLA", teamLogoSnap.val());
               //  window.postMessage({  });
+            }
+            let teamJerseyColorSnap = await db.ref(`teams/${teamAID}/teamJerseyColor`).get();
+            let teamJerseyColor = teamJerseyColorSnap.val();
+            if (typeof teamJerseyColor === "string") {
+                postFieldUpdate("teamJerseyColorA", teamJerseyColorSnap.val());
             }
 
         }
@@ -290,6 +391,14 @@ export const updateTeamBID = async (TeamBSnap,isInitialRun, resetListeners, addT
                 }
             });
             addToListenerList(() => { teamLogoRef.off("value"); });
+            let teamJerseyColorRef = db.ref(`teams/${teamBID}/teamJerseyColor`);
+            teamJerseyColorRef.on("value", (teamJerseyColorSnap) => {
+                let teamJerseyColor = teamJerseyColorSnap.val();
+                if (typeof teamJerseyColor === "string") {
+                    postFieldUpdate("teamJerseyColorB", teamJerseyColorSnap.val());
+                }
+            });
+            addToListenerList(() => { teamJerseyColorRef.off("value"); });
         }
         else {
             let teamNameSnap = await db.ref(`teams/${teamBID}/teamName`).get();
@@ -302,6 +411,11 @@ export const updateTeamBID = async (TeamBSnap,isInitialRun, resetListeners, addT
             let teamLogo = teamLogoSnap.val();
             if (typeof teamLogo === "string") {
                 postFieldUpdate("teamLogoURLB", teamLogoSnap.val());
+            }
+            let teamJerseyColorSnap = await db.ref(`teams/${teamBID}/teamJerseyColor`).get();
+            let teamJerseyColor = teamJerseyColorSnap.val();
+            if (typeof teamJerseyColor === "string") {
+                postFieldUpdate("teamJerseyColorB", teamJerseyColorSnap.val());
             }
         }
 

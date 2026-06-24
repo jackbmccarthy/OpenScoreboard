@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Button, View, Modal, Text, Spinner, Input } from 'native-base';
+import { Button, View, Modal, Text, Spinner, Input, Select } from 'native-base';
 import { FontAwesome, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
-import db, { getUserPath } from '../../database';
+import { getUserPath } from '../../database';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
-import { deleteTable, resetTablePassword } from '../functions/tables';
+import { deleteTable, resetTablePassword, updateTableMode, updateTableName } from '../functions/tables';
 import i18n from '../translations/translate';
 import { CopyInputRightButton } from '../components/CopyButton';
 import { subFolderPath } from '../../openscoreboard.config';
@@ -53,7 +53,10 @@ export function TableEditModal(props) {
     let [loadingDeleteTable, setLoadingDeleteTable] = useState(false);
     let [savingTableName, setSavingTableName] = useState(false);
     let [resettingPassword, setResettingPassword] = useState(false);
+    let [tableMode, setTableMode] = useState(props.tableMode === "kiosk" ? "kiosk" : "standard");
+    let [savingTableMode, setSavingTableMode] = useState(false);
     let [statusMessage, setStatusMessage] = useState("");
+    let [statusType, setStatusType] = useState("success");
 
     const ownerID = props.ownerID || getUserPath() || "";
     const scoreKeepingURL = `${window.location.origin}${subFolderPath}/scoring/table/${props.id}/${tableName}/${accessPassword}?sportName=${props.sportName}&scoringType=${props.scoringType}&ownerID=${encodeURIComponent(ownerID)}`;
@@ -63,11 +66,26 @@ export function TableEditModal(props) {
     }, []);
 
     async function saveTableName() {
+        const cleanTableName = tableName.trim();
+        if (!cleanTableName) {
+            setStatusType("error");
+            setStatusMessage("Table name is required.");
+            return;
+        }
+
         setSavingTableName(true);
-        await db.ref("tables/" + props.id + "/tableName").set(tableName);
-        setReload(true);
-        setStatusMessage("Table name saved.");
-        setSavingTableName(false);
+        try {
+            const savedTableName = await updateTableName(props.id, cleanTableName);
+            setTableName(savedTableName);
+            setReload(true);
+            setStatusType("success");
+            setStatusMessage("Table name saved.");
+        } catch (error) {
+            setStatusType("error");
+            setStatusMessage(error instanceof Error ? error.message : "Unable to save table name.");
+        } finally {
+            setSavingTableName(false);
+        }
     }
 
     async function resetShareAccess() {
@@ -75,9 +93,28 @@ export function TableEditModal(props) {
         const newPassword = await resetTablePassword(props.id);
         setAccessPassword(newPassword);
         setReload(true);
+        setStatusType("success");
         setStatusMessage("Share access reset. Existing scoring links have been replaced.");
         setShowConfirmPasswordReset(false);
         setResettingPassword(false);
+    }
+
+    async function saveTableMode() {
+        setSavingTableMode(true);
+        try {
+            const savedMode = await updateTableMode(props.id, tableMode);
+            setTableMode(savedMode);
+            setReload(true);
+            setStatusType("success");
+            setStatusMessage(savedMode === "kiosk" ? "Kiosk mode enabled." : "Standard table mode enabled.");
+        }
+        catch (error) {
+            setStatusType("error");
+            setStatusMessage(error instanceof Error ? error.message : "Unable to save table mode.");
+        }
+        finally {
+            setSavingTableMode(false);
+        }
     }
 
     return (
@@ -98,14 +135,14 @@ export function TableEditModal(props) {
                         <View>
                             {statusMessage ? (
                                 <View
-                                    backgroundColor={"green.50"}
-                                    borderColor={"green.200"}
+                                    backgroundColor={statusType === "error" ? "red.50" : "green.50"}
+                                    borderColor={statusType === "error" ? "red.200" : "green.200"}
                                     borderRadius={8}
                                     borderWidth={1}
                                     marginBottom={3}
                                     padding={3}
                                 >
-                                    <Text color={"green.800"} fontSize={"sm"} fontWeight={"semibold"}>{statusMessage}</Text>
+                                    <Text color={statusType === "error" ? "red.800" : "green.800"} fontSize={"sm"} fontWeight={"semibold"}>{statusMessage}</Text>
                                 </View>
                             ) : null}
 
@@ -138,6 +175,33 @@ export function TableEditModal(props) {
                                     </Button>
                                 </View>
                             </ModalSection>
+
+                            <View marginTop={3}>
+                                <ModalSection
+                                    icon={<MaterialCommunityIcons name="monitor-lock" size={18} color={openScoreboardColor} />}
+                                    title={"Table mode"}
+                                    subtitle={"Kiosk tables only accept scheduled matches from administrators."}
+                                >
+                                    <Select selectedValue={tableMode} onValueChange={setTableMode}>
+                                        <Select.Item label={"Standard - manual and scheduled matches"} value={"standard"} />
+                                        <Select.Item label={"Kiosk - scheduled matches only"} value={"kiosk"} />
+                                    </Select>
+                                    <Button
+                                        alignSelf={"flex-start"}
+                                        backgroundColor={"black"}
+                                        borderRadius={8}
+                                        isDisabled={savingTableMode}
+                                        marginTop={3}
+                                        onPress={saveTableMode}
+                                    >
+                                        {savingTableMode ? (
+                                            <Spinner color={openScoreboardButtonTextColor} size={"sm"} />
+                                        ) : (
+                                            <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>{i18n.t("save")}</Text>
+                                        )}
+                                    </Button>
+                                </ModalSection>
+                            </View>
 
                             <View marginTop={3}>
                                 <ModalSection

@@ -13,11 +13,20 @@ function validateCSV(csvString: string) {
     const rows = csvString.split('\n');
 
     for (let i = 0; i < rows.length; i++) {
-        const columns = rows[i].split(',');
+        const row = rows[i].trim();
+        if (!row) {
+            continue;
+        }
+
+        const columns = row.split(',');
+        const firstColumn = `${columns[0] || ""}`.trim().toLowerCase().replace(/\s+/g, "");
+        if (i === 0 && firstColumn === "firstname") {
+            continue;
+        }
 
         // Check if the CSV row has the correct number of columns
-        if (columns.length !== 4) {
-            return `Error: Row ${i + 1} does not have exactly 4 columns.`;
+        if (![4, 8].includes(columns.length)) {
+            return `Error: Row ${i + 1} must have either 4 columns or 8 columns.`;
         }
 
         // Check if the first and second columns have length less than 60
@@ -32,12 +41,21 @@ function validateCSV(csvString: string) {
 
         // Check if the fourth column has a valid value from a predefined array
         const validValues = Object.keys(jsonFlags); // Define your array of valid values
-        if (!validValues.includes(columns[3].toUpperCase())) {
+        if (columns[3] && !validValues.includes(columns[3].toUpperCase())) {
             return `Error: Row ${i + 1}, Column 4 does not have a valid value.`;
         }
     }
 
     return true; // If all checks pass, return true
+}
+
+function normalizeGender(value = "") {
+    return `${value || ""}`.trim().slice(0, 1).toUpperCase();
+}
+
+function normalizeNumberField(value) {
+    const parsedValue = parseInt(`${value || ""}`, 10);
+    return Number.isNaN(parsedValue) ? "" : parsedValue;
 }
 
 function isValidImageUrl(url: string) {
@@ -53,6 +71,9 @@ export function AddNewPlayerModal(props) {
     let [lastName, setLastName] = useState("");
     let [imageURL, setImageURL] = useState("");
     let [country, setCountry] = useState("");
+    let [gender, setGender] = useState("");
+    let [rating, setRating] = useState("");
+    let [ranking, setRanking] = useState("");
     let [isBulkAdd, setIsBulkAdd] = useState(false)
 
     let [csvValue, setCSVValue] = useState("")
@@ -64,7 +85,7 @@ export function AddNewPlayerModal(props) {
 
     const onAddPressed = async () => {
         if (props.isEditing) {
-            let player = newImportedPlayer(firstName, lastName, imageURL, country);
+            let player = newImportedPlayer(firstName, lastName, imageURL, country, props.jerseyColor || "", gender, normalizeNumberField(rating), normalizeNumberField(ranking));
             await editImportedPlayer(props.route.params.playerListID, props.id, player);
             props.onClose();
             props.onConfirmEdit(
@@ -84,7 +105,7 @@ export function AddNewPlayerModal(props) {
                 }
             }
             else {
-                let newPlayer = newImportedPlayer(firstName, lastName, imageURL, country);
+                let newPlayer = newImportedPlayer(firstName, lastName, imageURL, country, "", gender, normalizeNumberField(rating), normalizeNumberField(ranking));
                 let playerID = await addImportedPlayer(props.route.params.playerListID, newPlayer);
                 props.onConfirmAdd({
                     ...newPlayer,
@@ -100,9 +121,21 @@ export function AddNewPlayerModal(props) {
 
         if (csvValidation === true) {
             let splitCSV = csvValue.split("\n")
+                .map((row) => row.trim())
+                .filter(Boolean)
+                .filter((row, index) => !(index === 0 && row.split(",")[0]?.trim().toLowerCase().replace(/\s+/g, "") === "firstname"));
             let playerList = splitCSV.map((player) => {
                 let playerSplit = player.split(",")
-                return newImportedPlayer(playerSplit[0], playerSplit[1], playerSplit[2], playerSplit[3])
+                return newImportedPlayer(
+                    playerSplit[0],
+                    playerSplit[1],
+                    playerSplit[2],
+                    playerSplit[3],
+                    playerSplit[4] || "",
+                    normalizeGender(playerSplit[5]),
+                    normalizeNumberField(playerSplit[6]),
+                    normalizeNumberField(playerSplit[7])
+                )
             })
             playerList.forEach(async (newPlayer) => {
                 let playerID = await addImportedPlayer(props.route.params.playerListID, newPlayer);
@@ -137,6 +170,9 @@ export function AddNewPlayerModal(props) {
         setLastName("");
         setImageURL("");
         setCountry("");
+        setGender("");
+        setRating("");
+        setRanking("");
         setCSVValue("")
     };
 
@@ -152,7 +188,10 @@ export function AddNewPlayerModal(props) {
         setLastName(props.lastName || "");
         setImageURL(props.imageURL || "");
         setCountry(props.country || "");
-    }, [props.firstName, props.lastName, props.imageURL, props.country]);
+        setGender(props.gender || "");
+        setRating(`${props.rating || ""}`);
+        setRanking(`${props.ranking || ""}`);
+    }, [props.firstName, props.lastName, props.imageURL, props.country, props.gender, props.rating, props.ranking]);
 
     return (
         <Modal isOpen={props.isOpen}
@@ -248,6 +287,18 @@ export function AddNewPlayerModal(props) {
                                     {i18n.t("country")}
                                 </FormControl.Label>
                                 <CountrySelect value={country} onChange={setCountry} />
+                                <FormControl.Label>
+                                    Gender
+                                </FormControl.Label>
+                                <Input maxLength={1} value={gender} onChangeText={(text) => setGender(normalizeGender(text))}></Input>
+                                <FormControl.Label>
+                                    Rating
+                                </FormControl.Label>
+                                <Input keyboardType={"numeric"} value={rating} onChangeText={(text) => setRating(`${normalizeNumberField(text)}`)}></Input>
+                                <FormControl.Label>
+                                    Ranking
+                                </FormControl.Label>
+                                <Input keyboardType={"numeric"} value={ranking} onChangeText={(text) => setRanking(`${normalizeNumberField(text)}`)}></Input>
                             </>
                         }
 

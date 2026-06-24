@@ -1,17 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AddIcon, Button, Checkbox, FormControl, Input, NativeBaseProvider, ScrollView, Spinner, Text, View } from 'native-base';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Platform } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import { openScoreboardButtonTextColor, openScoreboardColor, openScoreboardTheme } from "../openscoreboardtheme";
 import { subFolderPath } from '../openscoreboard.config';
 import { newImportedPlayer } from './classes/Player';
-import { ensureTeamManagerPassword, getTeam, resetTeamManagerPassword, updateMyTeam, updateTeam } from './functions/teams';
+import { ensureTeamManagerPassword, getTeam, resetTeamManagerPassword, updateMyTeam, updateTeam, validateTeamManagerPassword } from './functions/teams';
 import { TeamPlayerItem } from './listitems/TeamPlayerItem';
 import CountrySelect from './components/CountrySelect';
 import { CopyInputRightButton } from './components/CopyButton';
 import TeamLogoPreview from './components/TeamLogoPreview';
+import TeamColorField, { isValidTeamColor } from './components/TeamColorField';
 import LoadingPage from './LoadingPage';
 import Unauthorized from './Unauthorized';
 import i18n from './translations/translate';
+import { getTeamCompetitionContests, subscribeToTeamCompetitions } from './functions/teamCompetitions';
 
 function addArchivedMetadata(players) {
     const timestamp = new Date().toISOString();
@@ -30,12 +34,24 @@ function normalizeTeamPlayer(player = {}) {
         lastName: player.lastName || "",
         imageURL: player.imageURL || "",
         country: player.country || "",
+        gender: normalizeGender(player.gender),
+        rating: normalizeNumberField(player.rating),
+        ranking: normalizeNumberField(player.ranking),
         clubName: player.clubName || "",
         jerseyColor: player.jerseyColor || "",
         firstNameInitial: player.firstNameInitial === true,
         lastNameInitial: player.lastNameInitial === true,
         isImported: player.isImported === true,
     };
+}
+
+function normalizeGender(value = "") {
+    return `${value || ""}`.trim().slice(0, 1).toUpperCase();
+}
+
+function normalizeNumberField(value) {
+    const parsedValue = parseInt(`${value || ""}`, 10);
+    return Number.isNaN(parsedValue) ? "" : parsedValue;
 }
 
 function TeamBulkEditRow({ playerID, player, selected, onChange, onToggleSelected }) {
@@ -67,6 +83,15 @@ function TeamBulkEditRow({ playerID, player, selected, onChange, onToggleSelecte
             <View flex={1} minWidth={180}>
                 <CountrySelect value={player.country || ""} onChange={(value) => onChange(playerID, "country", value)} />
             </View>
+            <View flex={0.6} minWidth={90} paddingLeft={2}>
+                <Input maxLength={1} value={player.gender || ""} onChangeText={(value) => onChange(playerID, "gender", normalizeGender(value))} />
+            </View>
+            <View flex={0.8} minWidth={110} paddingLeft={2}>
+                <Input keyboardType={"numeric"} value={`${player.rating || ""}`} onChangeText={(value) => onChange(playerID, "rating", normalizeNumberField(value))} />
+            </View>
+            <View flex={0.8} minWidth={110} paddingLeft={2}>
+                <Input keyboardType={"numeric"} value={`${player.ranking || ""}`} onChangeText={(value) => onChange(playerID, "ranking", normalizeNumberField(value))} />
+            </View>
         </View>
     );
 }
@@ -77,6 +102,148 @@ function getTeamManagerURL(teamID, password) {
     }
 
     return `${window.location.origin}${subFolderPath}/teammanager/${teamID}/${password}`;
+}
+
+function getTeamCompetitionSummary(competition, teamID) {
+    const contests = getTeamCompetitionContests(competition).filter((contest) => {
+        return contest.teamAID === teamID || contest.teamBID === teamID;
+    });
+    const completed = contests.filter((contest) => contest.match.isComplete === true).length;
+    const awaitingLineup = contests.filter((contest) => {
+        return !!contest.match.teamMatchID &&
+            contest.match.isComplete !== true &&
+            (contest.match.teamTieStatus === "waiting-lineups" || contest.match.teamTieStatus === "ready");
+    }).length;
+    const awaitingCreation = contests.filter((contest) => !contest.match.teamMatchID).length;
+
+    return {
+        awaitingCreation,
+        awaitingLineup,
+        completed,
+        contests,
+    };
+}
+
+function TeamCompetitionAccess({ competitions, navigation, password, teamID }) {
+    if (competitions.length === 0) {
+        return null;
+    }
+
+    return (
+        <View
+            backgroundColor={"white"}
+            borderColor={"gray.200"}
+            borderRadius={8}
+            borderWidth={1}
+            marginTop={4}
+            padding={4}
+        >
+            <View alignItems={"center"} flexDirection={"row"}>
+                <View alignItems={"center"} backgroundColor={"blue.50"} borderRadius={8} height={"38px"} justifyContent={"center"} width={"38px"}>
+                    <MaterialCommunityIcons name="tournament" size={21} color={openScoreboardColor} />
+                </View>
+                <View flex={1} marginLeft={3}>
+                    <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"}>Team competitions</Text>
+                    <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
+                        Open your competition page to submit lineups and review assigned team contests.
+                    </Text>
+                </View>
+            </View>
+
+            {competitions.map((competition) => {
+                const summary = getTeamCompetitionSummary(competition, teamID);
+                const title = competition?.data?.title || competition.title || "Competition";
+                const archived = competition.archived === true || !!competition.archivedOn;
+                const needsAttention = summary.awaitingLineup > 0;
+
+                return (
+                    <View
+                        key={competition.id}
+                        alignItems={{ base: "stretch", md: "center" }}
+                        backgroundColor={needsAttention ? "yellow.50" : "gray.50"}
+                        borderColor={needsAttention ? "yellow.200" : "gray.200"}
+                        borderRadius={8}
+                        borderWidth={1}
+                        flexDirection={{ base: "column", md: "row" }}
+                        marginTop={3}
+                        padding={3}
+                    >
+                        <View flex={1} paddingRight={{ base: 0, md: 3 }}>
+                            <View alignItems={"center"} flexDirection={"row"} flexWrap={"wrap"}>
+                                <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"}>{title}</Text>
+                                {archived ? (
+                                    <Text color={"gray.500"} fontSize={"2xs"} fontWeight={"bold"} marginLeft={2}>ARCHIVED</Text>
+                                ) : null}
+                            </View>
+                            <Text color={"gray.600"} fontSize={"xs"} marginTop={1}>
+                                {summary.contests.length} contest{summary.contests.length === 1 ? "" : "s"} - {summary.completed} complete
+                                {summary.awaitingLineup > 0 ? ` - ${summary.awaitingLineup} awaiting your lineup` : ""}
+                                {summary.awaitingCreation > 0 ? ` - ${summary.awaitingCreation} awaiting organizer` : ""}
+                            </Text>
+                        </View>
+                        <Button
+                            alignSelf={{ base: "stretch", md: "center" }}
+                            backgroundColor={openScoreboardColor}
+                            marginTop={{ base: 3, md: 0 }}
+                            onPress={() => navigation.navigate("TeamCompetitionPortal", {
+                                competitionID: competition.id,
+                                password,
+                                teamID,
+                            })}
+                            size={"sm"}
+                        >
+                            <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>Open competition portal</Text>
+                        </Button>
+                    </View>
+                );
+            })}
+        </View>
+    );
+}
+
+function TeamSaveStatus({ message, statusType }) {
+    if (!message) {
+        return null;
+    }
+
+    const isError = statusType === "error";
+
+    return (
+        <View
+            pointerEvents={"none"}
+            style={{
+                alignItems: "center",
+                left: 0,
+                position: (Platform.OS === "web" ? "fixed" : "absolute") as any,
+                right: 0,
+                top: 88,
+                zIndex: 9999,
+            }}
+        >
+            <View
+                alignItems={"center"}
+                backgroundColor={isError ? "red.700" : "green.700"}
+                borderColor={isError ? "red.200" : "green.200"}
+                borderRadius={8}
+                borderWidth={1}
+                flexDirection={"row"}
+                maxWidth={560}
+                paddingX={4}
+                paddingY={3}
+                shadow={5}
+                width={{ base: "92%", md: "auto" }}
+            >
+                <MaterialCommunityIcons
+                    name={isError ? "alert-circle" : "check-circle"}
+                    size={22}
+                    color={openScoreboardButtonTextColor}
+                />
+                <Text color={openScoreboardButtonTextColor} fontSize={"sm"} fontWeight={"bold"} marginLeft={2}>
+                    {message}
+                </Text>
+            </View>
+        </View>
+    );
 }
 
 export default function TeamEditor(props) {
@@ -93,6 +260,7 @@ export default function TeamEditor(props) {
     const [resettingTeamManagerAccess, setResettingTeamManagerAccess] = useState(false);
     const [teamName, setTeamName] = useState("");
     const [teamLogoURL, setTeamLogoURL] = useState("");
+    const [teamJerseyColor, setTeamJerseyColor] = useState("");
     const [teamManagerPassword, setTeamManagerPassword] = useState("");
     const [players, setPlayers] = useState({});
     const [archivedPlayers, setArchivedPlayers] = useState({});
@@ -101,11 +269,17 @@ export default function TeamEditor(props) {
     const [lastName, setLastName] = useState("");
     const [imageURL, setImageURL] = useState("");
     const [country, setCountry] = useState("");
+    const [gender, setGender] = useState("");
+    const [rating, setRating] = useState("");
+    const [ranking, setRanking] = useState("");
     const [bulkEditMode, setBulkEditMode] = useState(false);
     const [bulkPlayers, setBulkPlayers] = useState({});
     const [bulkArchivedPlayers, setBulkArchivedPlayers] = useState({});
     const [bulkSelectedPlayerIDs, setBulkSelectedPlayerIDs] = useState([]);
     const [savingRoster, setSavingRoster] = useState(false);
+    const [saveStatusMessage, setSaveStatusMessage] = useState("");
+    const [saveStatusType, setSaveStatusType] = useState("success");
+    const [teamCompetitions, setTeamCompetitions] = useState<any[]>([]);
 
     useEffect(() => {
         async function loadTeam() {
@@ -120,11 +294,15 @@ export default function TeamEditor(props) {
             }
 
             if (isTeamManagerPage) {
-                if (!team.teamManagerPassword || team.teamManagerPassword !== routePassword) {
+                if (!await validateTeamManagerPassword(teamID, routePassword)) {
                     setUnauthorized(true);
                     setDoneLoading(true);
                     return;
                 }
+                team = {
+                    ...team,
+                    teamManagerPassword: routePassword,
+                };
             }
             else {
                 const password = await ensureTeamManagerPassword(teamID, team);
@@ -137,6 +315,7 @@ export default function TeamEditor(props) {
             editingTeam.current = team || {};
             setTeamName(team?.teamName || "");
             setTeamLogoURL(team?.teamLogoURL || "");
+            setTeamJerseyColor(team?.teamJerseyColor || "");
             setTeamManagerPassword(team?.teamManagerPassword || "");
             setPlayers(team?.players || {});
             setArchivedPlayers(team?.archivedPlayers || {});
@@ -152,33 +331,64 @@ export default function TeamEditor(props) {
         });
     }, [teamName]);
 
+    useEffect(() => {
+        return subscribeToTeamCompetitions(teamID, setTeamCompetitions);
+    }, [teamID]);
+
+    useEffect(() => {
+        if (!saveStatusMessage) {
+            return;
+        }
+
+        const timeout = setTimeout(() => {
+            setSaveStatusMessage("");
+        }, saveStatusType === "error" ? 6500 : 4500);
+
+        return () => clearTimeout(timeout);
+    }, [saveStatusMessage, saveStatusType]);
+
     const addPlayer = () => {
-        setPlayers({ ...players, [uuidv4()]: newImportedPlayer(firstName, lastName, imageURL, country) });
+        setPlayers({ ...players, [uuidv4()]: newImportedPlayer(firstName, lastName, imageURL, country, "", gender, normalizeNumberField(rating), normalizeNumberField(ranking)) });
         setShowAddPlayer(false);
         setFirstName("");
         setLastName("");
         setImageURL("");
         setCountry("");
+        setGender("");
+        setRating("");
+        setRanking("");
     };
 
     const saveTeam = async () => {
+        if (!isValidTeamColor(teamJerseyColor)) {
+            return;
+        }
+
         setSaving(true);
+        setSaveStatusMessage("");
 
         try {
             const nextTeam = {
                 ...editingTeam.current,
                 teamName,
                 teamLogoURL,
-                teamManagerPassword,
+                teamJerseyColor,
                 players: JSON.parse(JSON.stringify(players)),
                 archivedPlayers: JSON.parse(JSON.stringify(archivedPlayers)),
             };
 
             await updateTeam(teamID, nextTeam);
             if (myTeamID) {
-                await updateMyTeam(myTeamID, teamName, teamLogoURL);
+                await updateMyTeam(myTeamID, teamName, teamLogoURL, teamJerseyColor);
             }
             editingTeam.current = nextTeam;
+            setSaveStatusType("success");
+            setSaveStatusMessage("Team details saved.");
+        }
+        catch (error) {
+            console.error("[TeamEditor] failed to save team details", error);
+            setSaveStatusType("error");
+            setSaveStatusMessage("Team details could not be saved. Please try again.");
         }
         finally {
             setSaving(false);
@@ -264,7 +474,12 @@ export default function TeamEditor(props) {
     };
 
     const saveBulkRoster = async () => {
+        if (!isValidTeamColor(teamJerseyColor)) {
+            return;
+        }
+
         setSavingRoster(true);
+        setSaveStatusMessage("");
 
         try {
             const nextArchivedPlayers = {
@@ -275,14 +490,14 @@ export default function TeamEditor(props) {
                 ...editingTeam.current,
                 teamName,
                 teamLogoURL,
-                teamManagerPassword,
+                teamJerseyColor,
                 players: JSON.parse(JSON.stringify(bulkPlayers)),
                 archivedPlayers: JSON.parse(JSON.stringify(nextArchivedPlayers)),
             };
 
             await updateTeam(teamID, nextTeam);
             if (myTeamID) {
-                await updateMyTeam(myTeamID, teamName, teamLogoURL);
+                await updateMyTeam(myTeamID, teamName, teamLogoURL, teamJerseyColor);
             }
             editingTeam.current = nextTeam;
             setPlayers(bulkPlayers);
@@ -290,6 +505,13 @@ export default function TeamEditor(props) {
             setBulkArchivedPlayers({});
             setBulkSelectedPlayerIDs([]);
             setBulkEditMode(false);
+            setSaveStatusType("success");
+            setSaveStatusMessage("Team roster saved.");
+        }
+        catch (error) {
+            console.error("[TeamEditor] failed to save team roster", error);
+            setSaveStatusType("error");
+            setSaveStatusMessage("Team roster could not be saved. Please try again.");
         }
         finally {
             setSavingRoster(false);
@@ -305,9 +527,11 @@ export default function TeamEditor(props) {
     }
 
     const teamManagerURL = getTeamManagerURL(teamID, teamManagerPassword);
+    const teamColorIsValid = isValidTeamColor(teamJerseyColor);
 
     return (
         <NativeBaseProvider theme={openScoreboardTheme}>
+            <TeamSaveStatus message={saveStatusMessage} statusType={saveStatusType} />
             <ScrollView backgroundColor={"white"}>
                 <View alignSelf={"center"} maxWidth={960} padding={4} width={"100%"}>
                     <View
@@ -327,7 +551,7 @@ export default function TeamEditor(props) {
                                     Manage team name, logo, and roster.
                                 </Text>
                             </View>
-                            <Button backgroundColor={openScoreboardColor} isDisabled={saving} marginTop={1} onPress={saveTeam}>
+                            <Button backgroundColor={openScoreboardColor} isDisabled={saving || !teamColorIsValid} marginTop={1} onPress={saveTeam}>
                                 {saving ? (
                                     <Spinner color={openScoreboardButtonTextColor} />
                                 ) : (
@@ -357,6 +581,14 @@ export default function TeamEditor(props) {
                                 </View>
                             ) : null}
                         </FormControl>
+
+                        <View marginTop={3}>
+                            <TeamColorField
+                                label={i18n.t("teamJerseyColor")}
+                                onChange={setTeamJerseyColor}
+                                value={teamJerseyColor}
+                            />
+                        </View>
 
                         {!isTeamManagerPage ? (
                             <View marginTop={4}>
@@ -404,6 +636,13 @@ export default function TeamEditor(props) {
                             </View>
                         ) : null}
                     </View>
+
+                    <TeamCompetitionAccess
+                        competitions={teamCompetitions}
+                        navigation={props.navigation}
+                        password={teamManagerPassword}
+                        teamID={teamID}
+                    />
 
                     <View
                         backgroundColor={"white"}
@@ -467,6 +706,20 @@ export default function TeamEditor(props) {
                                     <FormControl.Label>{i18n.t("country")}</FormControl.Label>
                                     <CountrySelect value={country} onChange={setCountry} />
                                 </FormControl>
+                                <View flexDirection={"row"} flexWrap={"wrap"}>
+                                    <FormControl marginTop={3} paddingRight={2} width={{ base: "100%", md: "33.33%" }}>
+                                        <FormControl.Label>Gender</FormControl.Label>
+                                        <Input maxLength={1} value={gender} onChangeText={(value) => setGender(normalizeGender(value))} />
+                                    </FormControl>
+                                    <FormControl marginTop={3} paddingRight={2} width={{ base: "100%", md: "33.33%" }}>
+                                        <FormControl.Label>Rating</FormControl.Label>
+                                        <Input keyboardType={"numeric"} value={rating} onChangeText={(value) => setRating(`${normalizeNumberField(value)}`)} />
+                                    </FormControl>
+                                    <FormControl marginTop={3} width={{ base: "100%", md: "33.33%" }}>
+                                        <FormControl.Label>Ranking</FormControl.Label>
+                                        <Input keyboardType={"numeric"} value={ranking} onChangeText={(value) => setRanking(`${normalizeNumberField(value)}`)} />
+                                    </FormControl>
+                                </View>
                                 <View flexDirection={"row"} marginTop={3}>
                                     <Button backgroundColor={openScoreboardColor} onPress={addPlayer}>
                                         <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>{i18n.t("add")}</Text>
@@ -479,6 +732,9 @@ export default function TeamEditor(props) {
                                             setLastName("");
                                             setImageURL("");
                                             setCountry("");
+                                            setGender("");
+                                            setRating("");
+                                            setRanking("");
                                         }}
                                         variant={"ghost"}
                                     >
@@ -516,13 +772,16 @@ export default function TeamEditor(props) {
                                     </View>
                                 </View>
                                 <ScrollView horizontal marginTop={2}>
-                                    <View minWidth={820} width={"100%"}>
+                                    <View minWidth={1180} width={"100%"}>
                                         <View flexDirection={"row"} paddingBottom={2}>
                                             <Text color={"gray.500"} fontSize={"xs"} fontWeight={"bold"} minWidth={54} paddingRight={2} textTransform={"uppercase"}>Select</Text>
                                             <Text color={"gray.500"} flex={1} fontSize={"xs"} fontWeight={"bold"} minWidth={130} paddingRight={2} textTransform={"uppercase"}>{i18n.t("firstName")}</Text>
                                             <Text color={"gray.500"} flex={1} fontSize={"xs"} fontWeight={"bold"} minWidth={130} paddingRight={2} textTransform={"uppercase"}>{i18n.t("lastName")}</Text>
                                             <Text color={"gray.500"} flex={1.4} fontSize={"xs"} fontWeight={"bold"} minWidth={180} paddingRight={2} textTransform={"uppercase"}>{i18n.t("imageURL")}</Text>
                                             <Text color={"gray.500"} flex={1} fontSize={"xs"} fontWeight={"bold"} minWidth={180} textTransform={"uppercase"}>{i18n.t("country")}</Text>
+                                            <Text color={"gray.500"} flex={0.6} fontSize={"xs"} fontWeight={"bold"} minWidth={90} paddingLeft={2} textTransform={"uppercase"}>Gender</Text>
+                                            <Text color={"gray.500"} flex={0.8} fontSize={"xs"} fontWeight={"bold"} minWidth={110} paddingLeft={2} textTransform={"uppercase"}>Rating</Text>
+                                            <Text color={"gray.500"} flex={0.8} fontSize={"xs"} fontWeight={"bold"} minWidth={110} paddingLeft={2} textTransform={"uppercase"}>Ranking</Text>
                                         </View>
                                         {Object.entries(bulkPlayers).map(([playerID, player]) => (
                                             <TeamBulkEditRow
@@ -537,7 +796,7 @@ export default function TeamEditor(props) {
                                     </View>
                                 </ScrollView>
                                 <View flexDirection={"row"} marginTop={3}>
-                                    <Button backgroundColor={openScoreboardColor} isDisabled={savingRoster} onPress={saveBulkRoster}>
+                                    <Button backgroundColor={openScoreboardColor} isDisabled={savingRoster || !teamColorIsValid} onPress={saveBulkRoster}>
                                         {savingRoster ? (
                                             <Spinner color={openScoreboardButtonTextColor} />
                                         ) : (
@@ -613,7 +872,7 @@ export default function TeamEditor(props) {
                     </View>
 
                     <View flexDirection={"row"} marginTop={4} paddingBottom={8}>
-                        <Button backgroundColor={openScoreboardColor} isDisabled={saving} onPress={saveTeam}>
+                        <Button backgroundColor={openScoreboardColor} isDisabled={saving || !teamColorIsValid} onPress={saveTeam}>
                             {saving ? (
                                 <Spinner color={openScoreboardButtonTextColor} />
                             ) : (

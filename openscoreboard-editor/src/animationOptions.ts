@@ -92,6 +92,7 @@ export const viewTriggerGroupOptions = [
     { value: 'current-score-fields', name: 'Current Score Fields' },
     { value: 'game-score-fields', name: 'Game Score Fields' },
     { value: 'player-name-fields', name: 'Player Name Fields' },
+    { value: 'player-detail-fields', name: 'Player Detail Fields' },
     { value: 'team-fields', name: 'Team Fields' },
     { value: 'status-fields', name: 'Status Fields' },
     { value: 'timeout-fields', name: 'Timeout Fields' },

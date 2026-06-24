@@ -33,6 +33,10 @@ import ScorekeeperSessions from './src/ScorekeeperSessions';
 import SchedulingManager from './src/SchedulingManager';
 import MyCompetitions from './src/MyCompetitions';
 import CompetitionEditor from './src/CompetitionEditor';
+import MyBracketGroupStyles from './src/MyBracketGroupStyles';
+import BracketGroupStyleEditor from './src/BracketGroupStyleEditor';
+import TeamCompetitionPortal from './src/TeamCompetitionPortal';
+import Tutorials from './src/Tutorials';
 
 export const linkingConfig = {
   screens: {
@@ -55,6 +59,9 @@ export const linkingConfig = {
         embed: (embed) => embed === true || embed === "true",
       },
     },
+    TeamCompetitionPortal: {
+      path: subFolderPath + "/competitions/:competitionID/team/:teamID/:password",
+    },
     VerifyEmail: subFolderPath + "/verify-email",
     Login: subFolderPath + "/login",
     Home: {
@@ -70,9 +77,12 @@ export const linkingConfig = {
         MyTeamMatches: subFolderPath + "/teammatches",
         TeamMatchEditor: subFolderPath + "/teammatches/:myTeamMatchID/edit/:teamMatchID",
         SchedulingManager: subFolderPath + "/scheduling/:sourceType/:sourceID",
-        MyCompetitions: subFolderPath + "/scoreboards/brackets-groups",
-        CompetitionEditor: subFolderPath + "/scoreboards/brackets-groups/:competitionID/edit",
+        MyCompetitions: subFolderPath + "/competitions",
+        CompetitionEditor: subFolderPath + "/competitions/:competitionID/edit",
+        MyBracketGroupStyles: subFolderPath + "/scoreboards/brackets-groups",
+        BracketGroupStyleEditor: subFolderPath + "/scoreboards/brackets-groups/:styleID/edit",
         ScorekeeperSessions: subFolderPath + "/scorekeeper-sessions",
+        Tutorials: subFolderPath + "/tutorials",
         ScheduledTableMatches: subFolderPath + "/scheduledtablematches",
         //QRCodeScreen:subFolderPath+"/qrcode",
         BulkAddPlayer: subFolderPath + "/bulkplayer"
@@ -205,14 +215,18 @@ function ScoreboardNavigation() {
                 <ScoreboardStack.Screen name="MyTeamMatches" component={MyTeamMatches} options={{ title: i18n.t("myTeamMatches") }} />
                 <ScoreboardStack.Screen name="TeamMatchEditor" component={TeamMatchEditor} options={{ title: i18n.t("editTeamMatch") }} />
                 <ScoreboardStack.Screen name="SchedulingManager" component={SchedulingManager} options={{ title: "Scheduling Manager" }} />
-                <ScoreboardStack.Screen name="MyCompetitions" component={MyCompetitions} options={{ title: "Brackets & Groups" }} />
-                <ScoreboardStack.Screen name="CompetitionEditor" component={CompetitionEditor} options={{ title: "Edit Competition Graphic" }} />
+                <ScoreboardStack.Screen name="MyCompetitions" component={MyCompetitions} options={{ title: "Competitions" }} />
+                <ScoreboardStack.Screen name="CompetitionEditor" component={CompetitionEditor} options={{ title: "Edit Competition" }} />
+                <ScoreboardStack.Screen name="MyBracketGroupStyles" component={MyBracketGroupStyles} options={{ title: "Dynamic Brackets & Groups" }} />
+                <ScoreboardStack.Screen name="BracketGroupStyleEditor" component={BracketGroupStyleEditor} options={{ title: "Edit Bracket/Group Style" }} />
                 <ScoreboardStack.Screen name="ScorekeeperSessions" component={ScorekeeperSessions} options={{ title: "Scorekeeper Sessions" }} />
+                <ScoreboardStack.Screen name="Tutorials" component={Tutorials} options={{ title: "Tutorials" }} />
                 <ScoreboardStack.Screen
                   name="TeamMatchPublicView"
                   component={TeamMatchPublicView}
                   options={({ route }) => ({ title: i18n.t("teamMatch"), headerShown: !isEmbeddedRoute(route) })}
                 />
+                <ScoreboardStack.Screen name="TeamCompetitionPortal" component={TeamCompetitionPortal} options={{ title: "Team Competition Portal" }} />
                 <ScoreboardStack.Screen name="ScheduledTableMatches" component={ScheduledTableMatches} options={{ title: i18n.t("scheduledMatches") }} />
                 <ScoreboardStack.Screen name="TableScoring" component={TableScoring} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="TeamMatchScoring" component={TableScoring} ></ScoreboardStack.Screen>
@@ -253,6 +267,7 @@ function ScoreboardNavigation() {
                   component={TeamMatchPublicView}
                   options={({ route }) => ({ title: i18n.t("teamMatch"), headerShown: !isEmbeddedRoute(route) })}
                 />
+                <ScoreboardStack.Screen name="TeamCompetitionPortal" component={TeamCompetitionPortal} options={{ title: "Team Competition Portal" }} />
               </>
 
 
