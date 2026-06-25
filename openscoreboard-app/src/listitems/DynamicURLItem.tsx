@@ -24,7 +24,9 @@ function getTargetInfo(matchInfo) {
             title: teamMatchName,
             targetLabel: i18n.t("teamMatch"),
             targetValue: matchInfo["tableNumber"] ? `${teamMatchName} - Table ${matchInfo["tableNumber"]}` : teamMatchName,
-            scoreKeepingURL: `${window.location.origin}/teamscoring/teammatch/true/${matchInfo.teammatchID}/${matchInfo["tableNumber"]}/?name=${encodeURI(`${matchInfo.teamAName} VS ${matchInfo.teamBName}`)}`,
+            scoreKeepingURL: matchInfo["tableNumber"] ?
+                `${window.location.origin}/teamscoring/teammatch/true/${matchInfo.teammatchID}/${matchInfo["tableNumber"]}/?name=${encodeURI(`${matchInfo.teamAName} VS ${matchInfo.teamBName}`)}` :
+                "",
         };
     }
 
@@ -130,7 +132,7 @@ export function DynamicURLItem(props) {
             </View>
 
             <LinkField label={i18n.t("scoreboardURL")} value={scoreboardURL} />
-            <LinkField label={i18n.t("scoreKeepingURL")} value={targetInfo.scoreKeepingURL} />
+            {targetInfo.scoreKeepingURL ? <LinkField label={i18n.t("scoreKeepingURL")} value={targetInfo.scoreKeepingURL} /> : null}
 
             {showDelete ? (
                 <View
@@ -177,7 +179,10 @@ export function DynamicURLItem(props) {
                         icon={(color) => <MaterialCommunityIcons size={18} color={color} name="email-fast-outline" />}
                         label={"Email"}
                         onPress={() => {
-                            openEmail(emailSubject, `${i18n.t("emailMessage")}:\n${i18n.t("scoreboardURL")}: ${scoreboardURL}\n${i18n.t("scoreKeepingURL")}: ${targetInfo.scoreKeepingURL} `)
+                            openEmail(
+                                emailSubject,
+                                `${i18n.t("emailMessage")}:\n${i18n.t("scoreboardURL")}: ${scoreboardURL}${targetInfo.scoreKeepingURL ? `\n${i18n.t("scoreKeepingURL")}: ${targetInfo.scoreKeepingURL}` : ""} `
+                            )
                         }}
                     />
                     <ActionButton

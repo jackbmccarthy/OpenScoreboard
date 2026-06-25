@@ -1,4 +1,5 @@
 import CryptoJS from  'crypto-js'
+import db from '../../database';
 import { getEditorCssWithFontImports } from '../editorFonts';
 
 const TOP_BAR_ICONS = {
@@ -133,6 +134,79 @@ async function saveEditorProject(editor) {
     editor.clearDirtyCount();
 }
 
+function getSafeFilenamePart(value = "", fallback = "scoreboard") {
+    const safeValue = `${value || ""}`
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .replace(/['"]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80);
+
+    return safeValue || fallback;
+}
+
+function getTimestampSuffix(date = new Date()) {
+    const pad = (value) => `${value}`.padStart(2, "0");
+
+    return [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate()),
+    ].join("") + "-" + [
+        pad(date.getHours()),
+        pad(date.getMinutes()),
+        pad(date.getSeconds()),
+    ].join("");
+}
+
+function getScoreboardID(editor) {
+    const storageOptions = editor.StorageManager.getStorageOptions?.() || {};
+    const storageKey = storageOptions?.remote?.key || storageOptions?.key;
+
+    if (typeof storageKey === "string" && storageKey.length > 0) {
+        return storageKey;
+    }
+
+    if (typeof window !== "undefined") {
+        return new URLSearchParams(window.location.search).get("sid");
+    }
+
+    return null;
+}
+
+async function waitForDatabaseReady() {
+    if (typeof db.ready === "function") {
+        await db.ready();
+    }
+}
+
+async function getScoreboardName(editor) {
+    const scoreboardID = getScoreboardID(editor);
+
+    if (!scoreboardID) {
+        return "";
+    }
+
+    try {
+        await waitForDatabaseReady();
+        const scoreboardNameSnap = await db.ref(`scoreboards/${scoreboardID}/name`).get();
+        return `${scoreboardNameSnap.val() || ""}`.trim();
+    }
+    catch (error) {
+        console.warn("Unable to load scoreboard name for export filename.", error);
+        return "";
+    }
+}
+
+async function getScoreboardExportFilename(editor) {
+    const scoreboardName = await getScoreboardName(editor);
+    const safeScoreboardName = getSafeFilenamePart(scoreboardName || "scoreboard");
+
+    return `${safeScoreboardName}-${getTimestampSuffix()}.opensb`;
+}
+
 export function addTopBarButtons(editor) {
     const toolbarButtonClass = "osb-topbar-command";
     let panelConfig = {
@@ -184,7 +258,7 @@ export function addTopBarButtons(editor) {
                         const element = document.createElement("a");
                         const file = new Blob([encryptedData], { type: 'text/plain' });
                         element.href = URL.createObjectURL(file);
-                        element.download = "myScoreboard.opensb";
+                        element.download = await getScoreboardExportFilename(editor);
 
                         document.body.appendChild(element); // Required for this to work in FireFox
                         element.click();

@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Menu, Text, View } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
+import { isTeamScoreOnlyTeamMatch } from '../classes/TeamMatch';
 
 function getSortedTables(currentMatches = {}) {
     return Object.keys(currentMatches || {})
@@ -181,6 +182,7 @@ export function TeamMatchItem(props) {
     const matchDate = teamMatch.startTime ? new Date(teamMatch.startTime).toLocaleDateString() : "No date";
     const sportLabel = teamMatch.sportDisplayName || teamMatch.sportName || "Team match";
     const tableNumbers = getSortedTables(teamMatch.currentMatches || {});
+    const isScoreOnlyMatch = isTeamScoreOnlyTeamMatch(teamMatch);
 
     return (
         <View
@@ -198,7 +200,9 @@ export function TeamMatchItem(props) {
                         {teamMatch.teamAName || "Team A"} vs {teamMatch.teamBName || "Team B"}
                     </Text>
                     <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                        {sportLabel} - {matchDate} - {tableNumbers.length} {tableNumbers.length === 1 ? "table" : "tables"}
+                        {isScoreOnlyMatch ?
+                            `Team score only - ${matchDate}` :
+                            `${sportLabel} - ${matchDate} - ${tableNumbers.length} ${tableNumbers.length === 1 ? "table" : "tables"}`}
                     </Text>
                 </View>
             </View>
@@ -208,7 +212,7 @@ export function TeamMatchItem(props) {
                 <TeamScoreRow label={"Team B"} name={teamMatch.teamBName} score={teamMatch.teamBScore} />
             </View>
 
-            <View marginTop={3}>
+            {!isScoreOnlyMatch ? <View marginTop={3}>
                 <Text color={"gray.700"} fontSize={"sm"} fontWeight={"bold"}>Tables</Text>
                 <View flexDirection={"row"} flexWrap={"wrap"}>
                     {tableNumbers.map((tableNumber) => (
@@ -223,36 +227,58 @@ export function TeamMatchItem(props) {
                         </Text>
                     ) : null}
                 </View>
-            </View>
+            </View> : null}
 
             <View flexDirection={"row"} flexWrap={"wrap"} justifyContent={"space-between"} marginTop={4}>
-                <TeamMatchMenuAction
-                    isPrimary
-                    icon={(color) => <MaterialCommunityIcons name="scoreboard-outline" size={20} color={color} />}
-                    label={"Scoring"}
-                    tables={tableNumbers}
-                    onPickTable={(tableNumber) => {
-                        props.goToKeepScore(teamMatch.id, tableNumber, teamMatch.sportName, teamMatch.scoringType);
-                    }}
-                />
-                <TeamMatchMenuAction
-                    icon={(color) => <MaterialCommunityIcons name="share-outline" size={19} color={color} />}
-                    label={"Links"}
-                    tables={tableNumbers}
-                    onPickTable={(tableNumber) => {
-                        props.openTeamMatchLink(teamMatch.id, tableNumber, teamMatch.sportName, teamMatch.scoringType);
-                    }}
-                />
-                <TeamMatchAction
-                    icon={(color) => <FontAwesome name="history" size={18} color={color} />}
-                    label={"History"}
-                    onPress={() => {
-                        props.navigation.navigate("ArchivedMatchList", {
-                            teamMatchID: teamMatch.id,
-                            name: `${teamMatch.teamAName} vs ${teamMatch.teamBName}`,
-                        });
-                    }}
-                />
+                {isScoreOnlyMatch ? (
+                    <>
+                        <TeamMatchAction
+                            isPrimary
+                            icon={(color) => <MaterialCommunityIcons name="counter" size={20} color={color} />}
+                            label={"Score"}
+                            onPress={() => {
+                                props.openTeamMatchEdit(teamMatch.id, props.item[0]);
+                            }}
+                        />
+                        <TeamMatchAction
+                            icon={(color) => <MaterialCommunityIcons name="share-outline" size={19} color={color} />}
+                            label={"Links"}
+                            onPress={() => {
+                                props.openTeamMatchLink(teamMatch.id, "", teamMatch.sportName, teamMatch.scoringType);
+                            }}
+                        />
+                    </>
+                ) : (
+                    <>
+                        <TeamMatchMenuAction
+                            isPrimary
+                            icon={(color) => <MaterialCommunityIcons name="scoreboard-outline" size={20} color={color} />}
+                            label={"Scoring"}
+                            tables={tableNumbers}
+                            onPickTable={(tableNumber) => {
+                                props.goToKeepScore(teamMatch.id, tableNumber, teamMatch.sportName, teamMatch.scoringType);
+                            }}
+                        />
+                        <TeamMatchMenuAction
+                            icon={(color) => <MaterialCommunityIcons name="share-outline" size={19} color={color} />}
+                            label={"Links"}
+                            tables={tableNumbers}
+                            onPickTable={(tableNumber) => {
+                                props.openTeamMatchLink(teamMatch.id, tableNumber, teamMatch.sportName, teamMatch.scoringType);
+                            }}
+                        />
+                        <TeamMatchAction
+                            icon={(color) => <FontAwesome name="history" size={18} color={color} />}
+                            label={"History"}
+                            onPress={() => {
+                                props.navigation.navigate("ArchivedMatchList", {
+                                    teamMatchID: teamMatch.id,
+                                    name: `${teamMatch.teamAName} vs ${teamMatch.teamBName}`,
+                                });
+                            }}
+                        />
+                    </>
+                )}
                 <TeamMatchAction
                     icon={(color) => <FontAwesome name="eye" size={17} color={color} />}
                     label={"Public"}

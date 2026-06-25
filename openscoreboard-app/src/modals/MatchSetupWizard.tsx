@@ -19,65 +19,99 @@ import i18n from '../translations/translate';
 
 const bestOfOptions = [1, 3, 5, 7, 9];
 const maxVisibleScheduledMatches = 3;
-const maxVisibleRoundOptions = 12;
 const maxVisibleModalPlayers = 16;
+const commonRoundCategory = "Common";
+const finalRoundCategory = "Finals and medals";
+const knockoutRoundCategory = "Knockout rounds";
+const numberedRoundCategory = "Numbered rounds";
+const groupRoundCategory = "Group and pool play";
+const qualifyingRoundCategory = "Qualifying";
+const bracketRoundCategory = "Bracket and playoff";
+const placementRoundCategory = "Placement";
+const otherRoundCategory = "Other";
+const roundCategoryOrder = [
+    commonRoundCategory,
+    groupRoundCategory,
+    finalRoundCategory,
+    knockoutRoundCategory,
+    numberedRoundCategory,
+    qualifyingRoundCategory,
+    bracketRoundCategory,
+    placementRoundCategory,
+    otherRoundCategory,
+];
 
 const roundStageOptions = [
-    { value: "", label: "None", keywords: ["clear", "no round", "unset"] },
-    { value: "F", label: "Final", keywords: ["championship", "title"] },
-    { value: "GF", label: "Grand Final", keywords: ["grand championship"] },
-    { value: "CF", label: "Championship Final", keywords: ["championship match"] },
-    { value: "3P", label: "Third-place Match", keywords: ["third place", "bronze", "consolation final"] },
-    { value: "BR", label: "Bronze Medal Match", keywords: ["bronze", "third place"] },
-    { value: "SF", label: "Semi-final", keywords: ["semifinal", "semi final", "round of 4", "r4"] },
-    { value: "QF", label: "Quarter-final", keywords: ["quarterfinal", "quarter final", "round of 8", "r8"] },
-    { value: "PQF", label: "Pre-quarter Final", keywords: ["pre quarter", "round before quarter"] },
-    { value: "R256", label: "Round of 256", keywords: ["round 256"] },
-    { value: "R128", label: "Round of 128", keywords: ["round 128"] },
-    { value: "R64", label: "Round of 64", keywords: ["round 64"] },
-    { value: "R32", label: "Round of 32", keywords: ["round 32"] },
-    { value: "R16", label: "Round of 16", keywords: ["round 16", "sweet sixteen"] },
-    { value: "R8", label: "Round of 8", keywords: ["quarter final", "quarterfinal"] },
-    { value: "R4", label: "Round of 4", keywords: ["semi final", "semifinal"] },
-    { value: "R2", label: "Round of 2", keywords: ["final"] },
-    { value: "RD1", label: "Round 1", keywords: ["first round"] },
-    { value: "RD2", label: "Round 2", keywords: ["second round"] },
-    { value: "RD3", label: "Round 3", keywords: ["third round"] },
-    { value: "RD4", label: "Round 4", keywords: ["fourth round"] },
-    { value: "RD5", label: "Round 5", keywords: ["fifth round"] },
-    { value: "RR", label: "Round Robin", keywords: ["round-robin", "league stage"] },
-    { value: "GS", label: "Group Stage", keywords: ["groups"] },
-    { value: "G1", label: "Group Stage 1", keywords: ["group round one"] },
-    { value: "G2", label: "Group Stage 2", keywords: ["group round two"] },
-    { value: "GA", label: "Group A", keywords: ["group stage a"] },
-    { value: "GB", label: "Group B", keywords: ["group stage b"] },
-    { value: "GC", label: "Group C", keywords: ["group stage c"] },
-    { value: "GD", label: "Group D", keywords: ["group stage d"] },
-    { value: "PS", label: "Pool Stage", keywords: ["pools"] },
-    { value: "PA", label: "Pool A", keywords: ["pool stage a"] },
-    { value: "PB", label: "Pool B", keywords: ["pool stage b"] },
-    { value: "PC", label: "Pool C", keywords: ["pool stage c"] },
-    { value: "PD", label: "Pool D", keywords: ["pool stage d"] },
-    { value: "QUAL", label: "Qualification", keywords: ["qualifier", "qualifying"] },
-    { value: "QR1", label: "Qualifying Round 1", keywords: ["qualification round one"] },
-    { value: "QR2", label: "Qualifying Round 2", keywords: ["qualification round two"] },
-    { value: "QR3", label: "Qualifying Round 3", keywords: ["qualification round three"] },
-    { value: "PRE", label: "Preliminary Round", keywords: ["prelim", "preliminary"] },
-    { value: "PI", label: "Play-in", keywords: ["play in"] },
-    { value: "PO", label: "Playoff", keywords: ["playoffs"] },
-    { value: "WB", label: "Winners Bracket", keywords: ["winner bracket", "upper bracket"] },
-    { value: "LB", label: "Losers Bracket", keywords: ["lower bracket", "elimination bracket"] },
-    { value: "ELIM", label: "Elimination Round", keywords: ["knockout", "single elimination"] },
-    { value: "CONS", label: "Consolation Round", keywords: ["consolation bracket"] },
-    { value: "PLACE", label: "Placement Round", keywords: ["placing", "classification"] },
-    { value: "CLASS", label: "Classification Round", keywords: ["placement"] },
-    { value: "XOVER", label: "Crossover Match", keywords: ["cross over"] },
-    { value: "SEED", label: "Seeding Round", keywords: ["seed"] },
-    { value: "EXH", label: "Exhibition", keywords: ["friendly", "scrimmage"] },
+    { value: "", label: "None", category: commonRoundCategory, keywords: ["clear", "no round", "unset"] },
+    { value: "F", label: "Final", category: commonRoundCategory, keywords: ["final short", "championship", "title"] },
+    { value: "Final", label: "Final (spelled out)", category: commonRoundCategory, keywords: ["f", "championship", "title"] },
+    { value: "SF", label: "Semi-final", category: commonRoundCategory, keywords: ["semifinal", "semi final", "round of 4", "r4"] },
+    { value: "QF", label: "Quarter-final", category: commonRoundCategory, keywords: ["quarterfinal", "quarter final", "round of 8", "r8"] },
+    { value: "GS", label: "Group Stage", category: commonRoundCategory, keywords: ["groups"] },
+    { value: "Group Stage", label: "Group Stage (spelled out)", category: commonRoundCategory, keywords: ["gs", "groups"] },
+    { value: "RR", label: "Round Robin", category: commonRoundCategory, keywords: ["round-robin", "league stage"] },
+
+    { value: "G1", label: "Group Stage 1", category: groupRoundCategory, keywords: ["group round one"] },
+    { value: "G2", label: "Group Stage 2", category: groupRoundCategory, keywords: ["group round two"] },
+    { value: "GA", label: "Group A", category: groupRoundCategory, keywords: ["group stage a"] },
+    { value: "GB", label: "Group B", category: groupRoundCategory, keywords: ["group stage b"] },
+    { value: "GC", label: "Group C", category: groupRoundCategory, keywords: ["group stage c"] },
+    { value: "GD", label: "Group D", category: groupRoundCategory, keywords: ["group stage d"] },
+    { value: "PS", label: "Pool Stage", category: groupRoundCategory, keywords: ["pools"] },
+    { value: "Pool Stage", label: "Pool Stage (spelled out)", category: groupRoundCategory, keywords: ["ps", "pools"] },
+    { value: "PA", label: "Pool A", category: groupRoundCategory, keywords: ["pool stage a"] },
+    { value: "PB", label: "Pool B", category: groupRoundCategory, keywords: ["pool stage b"] },
+    { value: "PC", label: "Pool C", category: groupRoundCategory, keywords: ["pool stage c"] },
+    { value: "PD", label: "Pool D", category: groupRoundCategory, keywords: ["pool stage d"] },
+
+    { value: "GF", label: "Grand Final", category: finalRoundCategory, keywords: ["grand championship"] },
+    { value: "CF", label: "Championship Final", category: finalRoundCategory, keywords: ["championship match"] },
+    { value: "3P", label: "Third-place Match", category: finalRoundCategory, keywords: ["third place", "bronze", "consolation final"] },
+    { value: "BR", label: "Bronze Medal Match", category: finalRoundCategory, keywords: ["bronze", "third place"] },
+
+    { value: "Semifinal", label: "Semifinal (spelled out)", category: knockoutRoundCategory, keywords: ["sf", "semi final", "round of 4", "r4"] },
+    { value: "Semi-final", label: "Semi-final (spelled out)", category: knockoutRoundCategory, keywords: ["sf", "semifinal", "semi final", "round of 4", "r4"] },
+    { value: "Quarterfinal", label: "Quarterfinal (spelled out)", category: knockoutRoundCategory, keywords: ["qf", "quarter final", "round of 8", "r8"] },
+    { value: "Quarter-final", label: "Quarter-final (spelled out)", category: knockoutRoundCategory, keywords: ["qf", "quarterfinal", "quarter final", "round of 8", "r8"] },
+    { value: "PQF", label: "Pre-quarter Final", category: knockoutRoundCategory, keywords: ["pre quarter", "round before quarter"] },
+    { value: "R16", label: "Round of 16", category: knockoutRoundCategory, keywords: ["round 16", "sweet sixteen"] },
+    { value: "R8", label: "Round of 8", category: knockoutRoundCategory, keywords: ["quarter final", "quarterfinal"] },
+    { value: "R4", label: "Round of 4", category: knockoutRoundCategory, keywords: ["semi final", "semifinal"] },
+    { value: "R2", label: "Round of 2", category: knockoutRoundCategory, keywords: ["final"] },
+
+    { value: "R256", label: "Round of 256", category: numberedRoundCategory, keywords: ["round 256"] },
+    { value: "R128", label: "Round of 128", category: numberedRoundCategory, keywords: ["round 128"] },
+    { value: "R64", label: "Round of 64", category: numberedRoundCategory, keywords: ["round 64"] },
+    { value: "R32", label: "Round of 32", category: numberedRoundCategory, keywords: ["round 32"] },
+    { value: "RD1", label: "Round 1", category: numberedRoundCategory, keywords: ["first round"] },
+    { value: "RD2", label: "Round 2", category: numberedRoundCategory, keywords: ["second round"] },
+    { value: "RD3", label: "Round 3", category: numberedRoundCategory, keywords: ["third round"] },
+    { value: "RD4", label: "Round 4", category: numberedRoundCategory, keywords: ["fourth round"] },
+    { value: "RD5", label: "Round 5", category: numberedRoundCategory, keywords: ["fifth round"] },
+
+    { value: "QUAL", label: "Qualification", category: qualifyingRoundCategory, keywords: ["qualifier", "qualifying"] },
+    { value: "QR1", label: "Qualifying Round 1", category: qualifyingRoundCategory, keywords: ["qualification round one"] },
+    { value: "QR2", label: "Qualifying Round 2", category: qualifyingRoundCategory, keywords: ["qualification round two"] },
+    { value: "QR3", label: "Qualifying Round 3", category: qualifyingRoundCategory, keywords: ["qualification round three"] },
+    { value: "PRE", label: "Preliminary Round", category: qualifyingRoundCategory, keywords: ["prelim", "preliminary"] },
+
+    { value: "PI", label: "Play-in", category: bracketRoundCategory, keywords: ["play in"] },
+    { value: "PO", label: "Playoff", category: bracketRoundCategory, keywords: ["playoffs"] },
+    { value: "WB", label: "Winners Bracket", category: bracketRoundCategory, keywords: ["winner bracket", "upper bracket"] },
+    { value: "LB", label: "Losers Bracket", category: bracketRoundCategory, keywords: ["lower bracket", "elimination bracket"] },
+    { value: "ELIM", label: "Elimination Round", category: bracketRoundCategory, keywords: ["knockout", "single elimination"] },
+
+    { value: "CONS", label: "Consolation Round", category: placementRoundCategory, keywords: ["consolation bracket"] },
+    { value: "PLACE", label: "Placement Round", category: placementRoundCategory, keywords: ["placing", "classification"] },
+    { value: "CLASS", label: "Classification Round", category: placementRoundCategory, keywords: ["placement"] },
+    { value: "XOVER", label: "Crossover Match", category: placementRoundCategory, keywords: ["cross over"] },
+    { value: "SEED", label: "Seeding Round", category: placementRoundCategory, keywords: ["seed"] },
+
+    { value: "EXH", label: "Exhibition", category: otherRoundCategory, keywords: ["friendly", "scrimmage"] },
 ];
 
 function getRoundOptionSearchText(option) {
-    return `${option.value} ${option.label} ${(option.keywords || []).join(" ")}`.toLowerCase();
+    return `${option.value} ${option.label} ${option.category || ""} ${(option.keywords || []).join(" ")}`.toLowerCase();
 }
 
 function getRoundOptionForValue(value) {
@@ -86,11 +120,15 @@ function getRoundOptionForValue(value) {
     }
 
     const normalizedValue = `${value}`.trim().toLowerCase();
+    const exactValueOption = roundStageOptions.find((option) => option.value.toLowerCase() === normalizedValue);
+
+    if (exactValueOption) {
+        return exactValueOption;
+    }
+
     return roundStageOptions.find((option) => {
-        const normalizedOptionValue = option.value.toLowerCase();
         const normalizedOptionLabel = option.label.toLowerCase();
-        return normalizedOptionValue === normalizedValue ||
-            normalizedOptionLabel === normalizedValue ||
+        return normalizedOptionLabel === normalizedValue ||
             (option.keywords || []).some((keyword) => keyword.toLowerCase() === normalizedValue);
     });
 }
@@ -100,6 +138,29 @@ function getRoundOptionDisplay(option) {
         return "";
     }
     return option.value ? `${option.value} - ${option.label}` : option.label;
+}
+
+function getRoundOptionGroups(options) {
+    const categorySet = new Set(roundCategoryOrder);
+    const orderedGroups = roundCategoryOrder
+        .map((category) => ({
+            category,
+            options: options.filter((option) => (option.category || otherRoundCategory) === category),
+        }))
+        .filter((group) => group.options.length > 0);
+    const uncategorizedOptions = options.filter((option) => !categorySet.has(option.category || otherRoundCategory));
+
+    if (uncategorizedOptions.length === 0) {
+        return orderedGroups;
+    }
+
+    return [
+        ...orderedGroups,
+        {
+            category: otherRoundCategory,
+            options: uncategorizedOptions,
+        },
+    ];
 }
 
 function clonePlayer(player) {
@@ -666,7 +727,7 @@ function MatchRoundSearchSelect({ onChange, value }) {
     const filteredOptions = normalizedSearchText.length > 0 ?
         roundStageOptions.filter((option) => getRoundOptionSearchText(option).includes(normalizedSearchText))
         : roundStageOptions;
-    const visibleOptions = filteredOptions.slice(0, maxVisibleRoundOptions);
+    const optionGroups = getRoundOptionGroups(filteredOptions);
     const selectedDisplayValue = selectedOption ? getRoundOptionDisplay(selectedOption) : value || "";
 
     function selectRound(option) {
@@ -728,28 +789,51 @@ function MatchRoundSearchSelect({ onChange, value }) {
                             placeholder={"Search rounds, like SF, QF, group, pool"}
                             value={searchText}
                         />
-                        <ScrollView style={{ maxHeight: 300 }}>
-                            {visibleOptions.length > 0 ? visibleOptions.map((option) => (
-                                <Pressable
-                                    key={`${option.value}-${option.label}`}
-                                    onPress={() => selectRound(option)}
-                                    style={({ pressed }) => ({
-                                        alignItems: "center",
-                                        backgroundColor: option.value === value ? "#EFF6FF" : pressed ? "#F4F4F5" : "#FFFFFF",
-                                        borderRadius: 8,
-                                        flexDirection: "row",
-                                        minHeight: 38,
-                                        paddingHorizontal: 8,
-                                        paddingVertical: 6,
-                                    })}
-                                >
-                                    <Text color={"blue.700"} fontSize={"xs"} fontWeight={"bold"} minWidth={52}>
-                                        {option.value || "-"}
+                        <Text color={"gray.500"} fontSize={"2xs"} marginBottom={2}>
+                            Browse all round labels by category, or type a custom label if the exact wording is not listed.
+                        </Text>
+                        <ScrollView style={{ maxHeight: 420 }}>
+                            {optionGroups.length > 0 ? optionGroups.map((group) => (
+                                <View key={group.category} marginBottom={2}>
+                                    <Text
+                                        color={"gray.500"}
+                                        fontSize={"2xs"}
+                                        fontWeight={"bold"}
+                                        marginBottom={1}
+                                        marginTop={1}
+                                        textTransform={"uppercase"}
+                                    >
+                                        {group.category}
                                     </Text>
-                                    <Text color={"gray.900"} flex={1} fontSize={"sm"} fontWeight={"bold"} numberOfLines={1}>
-                                        {option.label}
-                                    </Text>
-                                </Pressable>
+                                    {group.options.map((option) => (
+                                        <Pressable
+                                            key={`${option.value}-${option.label}`}
+                                            onPress={() => selectRound(option)}
+                                            style={({ pressed }) => ({
+                                                alignItems: "center",
+                                                backgroundColor: option.value === value ? "#EFF6FF" : pressed ? "#F4F4F5" : "#FFFFFF",
+                                                borderColor: option.value === value ? "#BFDBFE" : "#E5E7EB",
+                                                borderRadius: 8,
+                                                borderWidth: 1,
+                                                flexDirection: "row",
+                                                minHeight: 38,
+                                                marginBottom: 1,
+                                                paddingHorizontal: 8,
+                                                paddingVertical: 6,
+                                            })}
+                                        >
+                                            <Text color={"blue.700"} fontSize={"xs"} fontWeight={"bold"} minWidth={78}>
+                                                {option.value || "-"}
+                                            </Text>
+                                            <Text color={"gray.900"} flex={1} fontSize={"sm"} fontWeight={"bold"} numberOfLines={1}>
+                                                {option.label}
+                                            </Text>
+                                            {option.value === value ? (
+                                                <FontAwesome5 name="check" size={12} color={openScoreboardColor} />
+                                            ) : null}
+                                        </Pressable>
+                                    ))}
+                                </View>
                             )) : (
                                 <Pressable
                                     onPress={selectCustomRound}
@@ -767,11 +851,6 @@ function MatchRoundSearchSelect({ onChange, value }) {
                                 </Pressable>
                             )}
                         </ScrollView>
-                        {filteredOptions.length > visibleOptions.length ? (
-                            <Text color={"gray.500"} fontSize={"2xs"} marginTop={2}>
-                                Showing {visibleOptions.length} of {filteredOptions.length}. Keep typing to narrow the list.
-                            </Text>
-                        ) : null}
                     </Modal.Body>
                     <Modal.Footer>
                         {value ? (

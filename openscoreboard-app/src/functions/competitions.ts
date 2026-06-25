@@ -318,8 +318,12 @@ export async function createCompetitionGraphic(options = {}) {
 
 export async function updateCompetition(competitionID, updates: any = {}) {
     const timestamp = new Date().toISOString();
+    const competitionSnapshot = await db.ref(`competitions/${competitionID}`).get();
+    const competition = competitionSnapshot.val() || {};
+    const userID = getUserPath();
     const cleanUpdates = removeUndefined({
         ...updates,
+        ...(!competition.ownerID && userID ? { ownerID: userID } : {}),
         updatedOn: timestamp,
     });
 

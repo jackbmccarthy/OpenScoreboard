@@ -6,6 +6,7 @@ import { createDynamicURL } from '../functions/dynamicurls';
 import { getMyTables } from '../functions/tables';
 import getMyTeamMatches, { getTeamMatchCurrentMatches } from '../functions/teammatches';
 import { getMyScoreboards } from '../functions/scoreboards';
+import { isTeamScoreOnlyTeamMatch } from '../classes/TeamMatch';
 import i18n from '../translations/translate';
 
 const DYNAMIC_URL_TYPES = {
@@ -48,10 +49,12 @@ export function CreateDynamicURLModal(props) {
     let [scoreboardList, setScoreboardList] = useState([])
 
     const isTableDynamicURL = dynamicURLType === DYNAMIC_URL_TYPES.TABLE;
+    const selectedTeamMatch = teamMatchList.find((teamMatch: any) => teamMatch?.[1]?.id === selectedTeamMatchID)?.[1] || {};
+    const isSelectedTeamScoreOnly = !isTableDynamicURL && isTeamScoreOnlyTeamMatch(selectedTeamMatch);
     const canSave = dynamicURLName.trim().length > 0 && (
         isTableDynamicURL
             ? selectedTableID.length > 0
-            : selectedTeamMatchID.length > 0 && selectedTableNumber.length > 0
+            : selectedTeamMatchID.length > 0 && (isSelectedTeamScoreOnly || selectedTableNumber.length > 0)
     );
 
     async function loadAllOptions() {
@@ -72,7 +75,7 @@ export function CreateDynamicURLModal(props) {
             dynamicURLName.trim(),
             isTableDynamicURL ? selectedTableID : "",
             isTableDynamicURL ? "" : selectedTeamMatchID,
-            isTableDynamicURL ? "0" : selectedTableNumber,
+            isTableDynamicURL || isSelectedTeamScoreOnly ? "" : selectedTableNumber,
             selectedScoreboardID
         );
         props.onClose(true);
@@ -88,8 +91,17 @@ export function CreateDynamicURLModal(props) {
 
     async function loadTableNumbersOnTeamMatch(teamMatchID) {
         setSelectedTableNumber("");
+        const selectedMatch = teamMatchList.find((teamMatch: any) => teamMatch?.[1]?.id === teamMatchID)?.[1] || {};
+        if (isTeamScoreOnlyTeamMatch(selectedMatch)) {
+            setTableNumberList([]);
+            return;
+        }
+
         let tableNumbers = await getTeamMatchCurrentMatches(teamMatchID);
-        setTableNumberList(tableNumbers);
+        setTableNumberList(Object.keys(tableNumbers || {}).filter((tableNumber) => {
+            const parsedTableNumber = parseInt(tableNumber, 10);
+            return !Number.isNaN(parsedTableNumber) && parsedTableNumber > 0;
+        }));
     }
 
     useEffect(() => {
@@ -159,7 +171,7 @@ export function CreateDynamicURLModal(props) {
                     ) : (
                         <FieldSection
                             title={i18n.t("teamMatch")}
-                            subtitle={"Choose the team match and table number this dynamic URL should point to."}
+                            subtitle={"Choose the team match this dynamic URL should point to. Structured team matches also need a table number."}
                         >
                             {teamMatchList.length > 0 ?
                                 <Select
@@ -180,7 +192,22 @@ export function CreateDynamicURLModal(props) {
                                 :
                                 <Text color={"gray.600"}>{i18n.t("noTeamMatchsCannotAssign")}</Text>}
 
-                            {selectedTeamMatchID.length > 0 ? (
+                            {selectedTeamMatchID.length > 0 && isSelectedTeamScoreOnly ? (
+                                <View
+                                    backgroundColor={"blue.50"}
+                                    borderColor={"blue.100"}
+                                    borderRadius={8}
+                                    borderWidth={1}
+                                    marginTop={3}
+                                    padding={3}
+                                >
+                                    <Text color={"blue.800"} fontSize={"sm"} fontWeight={"bold"}>
+                                        Team score only selected. This dynamic URL will follow the team score without a table.
+                                    </Text>
+                                </View>
+                            ) : null}
+
+                            {selectedTeamMatchID.length > 0 && !isSelectedTeamScoreOnly ? (
                                 <>
                                     <FormControl.Label marginTop={3}>{i18n.t("selectTableNumber")}</FormControl.Label>
                                     {tableNumberList.length > 0 ?
@@ -192,9 +219,9 @@ export function CreateDynamicURLModal(props) {
                                                 setSelectedTableNumber(value);
                                             }}
                                         >
-                                            {tableNumberList.map((tableNumber, index) => {
+                                            {tableNumberList.map((tableNumber) => {
                                                 return (
-                                                    <Select.Item key={index} label={`Table ${index}`} value={index.toString()} />
+                                                    <Select.Item key={tableNumber} label={`Table ${tableNumber}`} value={tableNumber.toString()} />
                                                 );
                                             })}
                                         </Select>

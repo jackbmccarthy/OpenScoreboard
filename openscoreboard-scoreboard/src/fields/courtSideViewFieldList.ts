@@ -1,5 +1,10 @@
 import { getCurrentGameScore, getMatchScore } from "../match";
-import { getCombinedPlayersFormatted } from "../players";
+import {
+    getCombinedPlayersFormatted,
+    getCombinedPlayersFormattedWithRating,
+    getPlayerNameFormatted,
+    getPlayerNameFormattedWithRating,
+} from "../players";
 import { hasPairedPlayerImages, setOptionalImageSource } from "./optionalImage";
 import { hasPairedCountryFlags, setCountryFlagSource } from "./countryFlag";
 
@@ -90,10 +95,31 @@ function updatePlayerFields(view: HTMLElement, currentMatchSettings, side: Match
 
     setText(view, ".playerA, .playerB", getPlayerName(player));
     setText(view, ".playerA2, .playerB2", getPlayerName(doublesPlayer));
+    setText(view, ".playerAFirstInitialLastName, .playerBFirstInitialLastName", getPlayerNameFormatted(player, "firstInitialLastName"));
+    setText(view, ".playerA2FirstInitialLastName, .playerB2FirstInitialLastName", getPlayerNameFormatted(doublesPlayer, "firstInitialLastName"));
+    setText(view, ".playerAFirstNameLastInitial, .playerBFirstNameLastInitial", getPlayerNameFormatted(player, "firstNameLastInitial"));
+    setText(view, ".playerA2FirstNameLastInitial, .playerB2FirstNameLastInitial", getPlayerNameFormatted(doublesPlayer, "firstNameLastInitial"));
+    setText(view, ".playerANameWithRating, .playerBNameWithRating", getPlayerNameFormattedWithRating(player, "full"));
+    setText(view, ".playerA2NameWithRating, .playerB2NameWithRating", getPlayerNameFormattedWithRating(doublesPlayer, "full"));
     setText(
         view,
         ".combinedAName, .combinedBName, .courtSideCombinedAName, .courtSideCombinedBName",
         getCombinedPlayersFormatted(player, doublesPlayer),
+    );
+    setText(
+        view,
+        ".combinedAFirstInitialLastName, .combinedBFirstInitialLastName, .courtSideCombinedAFirstInitialLastName, .courtSideCombinedBFirstInitialLastName",
+        getCombinedPlayersFormatted(player, doublesPlayer, "firstInitialLastName"),
+    );
+    setText(
+        view,
+        ".combinedAFirstNameLastInitial, .combinedBFirstNameLastInitial, .courtSideCombinedAFirstNameLastInitial, .courtSideCombinedBFirstNameLastInitial",
+        getCombinedPlayersFormatted(player, doublesPlayer, "firstNameLastInitial"),
+    );
+    setText(
+        view,
+        ".combinedANameWithRating, .combinedBNameWithRating, .courtSideCombinedANameWithRating, .courtSideCombinedBNameWithRating",
+        getCombinedPlayersFormattedWithRating(player, doublesPlayer, "partial"),
     );
 
     view.querySelectorAll<HTMLElement>(".jerseyColorA, .jerseyColorB").forEach((element) => {

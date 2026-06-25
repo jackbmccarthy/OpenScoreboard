@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AddIcon, Button, FormControl, Input, MinusIcon, NativeBaseProvider, ScrollView, Select, Spinner, Text, View } from 'native-base';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { getUserPath } from '../database';
@@ -9,7 +9,8 @@ import { DateTimePicker } from './components/DateTimePicker';
 import { ScorekeeperSessionsPanel } from './components/ScorekeeperSessionsPanel';
 import LoadingPage from './LoadingPage';
 import { TeamMatchLinkModal } from './modals/TeamMatchLinkModal';
-import { addTeamMatchCurrentMatch, archiveTeamMatch, getMyTeamMatch, getTeamMatch, updateTeamMatch } from './functions/teammatches';
+import { TEAM_MATCH_MODES } from './classes/TeamMatch';
+import { addTeamMatchCurrentMatch, archiveTeamMatch, getMyTeamMatch, getTeamMatch, setTeamMatchTeamScore, updateTeamMatch } from './functions/teammatches';
 import { getMyTeams } from './functions/teams';
 import { supportedSports } from './functions/sports';
 import { getTeamMatchScorekeeperTarget } from './functions/scorekeeperSessions';
@@ -164,9 +165,11 @@ export default function TeamMatchEditor(props) {
     const [teamBID, setTeamBID] = useState("");
     const [teamAScore, setTeamAScore] = useState(0);
     const [teamBScore, setTeamBScore] = useState(0);
+    const latestScoresRef = useRef({ a: 0, b: 0 });
     const [startTime, setStartTime] = useState("");
     const [selectedSport, setSelectedSport] = useState("tableTennis");
     const [selectedScoringType, setSelectedScoringType] = useState("");
+    const [selectedTeamMatchMode, setSelectedTeamMatchMode] = useState(TEAM_MATCH_MODES.STRUCTURED);
     const [currentMatches, setCurrentMatches] = useState({});
     const [showLinkModal, setShowLinkModal] = useState(false);
     const [selectedTableID, setSelectedTableID] = useState("");
@@ -185,11 +188,15 @@ export default function TeamMatchEditor(props) {
             setTeamMatch(nextTeamMatch);
             setTeamAID(nextTeamMatch.teamAID || "");
             setTeamBID(nextTeamMatch.teamBID || "");
-            setTeamAScore(toScore(nextTeamMatch.teamAScore));
-            setTeamBScore(toScore(nextTeamMatch.teamBScore));
+            const nextTeamAScore = toScore(nextTeamMatch.teamAScore);
+            const nextTeamBScore = toScore(nextTeamMatch.teamBScore);
+            latestScoresRef.current = { a: nextTeamAScore, b: nextTeamBScore };
+            setTeamAScore(nextTeamAScore);
+            setTeamBScore(nextTeamBScore);
             setStartTime(nextTeamMatch.startTime || myTeamMatch?.startTime || new Date().toISOString().slice(0, 10));
             setSelectedSport(nextTeamMatch.sportName || myTeamMatch?.sportName || "tableTennis");
             setSelectedScoringType(nextTeamMatch.scoringType || myTeamMatch?.scoringType || "");
+            setSelectedTeamMatchMode(nextTeamMatch.teamMatchMode || myTeamMatch?.teamMatchMode || TEAM_MATCH_MODES.STRUCTURED);
             setCurrentMatches(nextTeamMatch.currentMatches || {});
             setDoneLoading(true);
         }
@@ -209,6 +216,7 @@ export default function TeamMatchEditor(props) {
     const teamBName = getTeamName(teamSelectionList, teamBID, "Team B");
     const ownerID = teamMatch.ownerID || getUserPath() || "";
     const sportDisplayName = supportedSports[selectedSport]?.displayName || selectedSport || "Team match";
+    const isScoreOnlyMatch = selectedTeamMatchMode === TEAM_MATCH_MODES.TEAM_SCORE_ONLY;
     const publicViewURL = typeof window === "undefined" ? "" : `${window.location.origin}${subFolderPath}/teammatches/view/${teamMatchID}`;
     const publicEmbedURL = publicViewURL ? `${publicViewURL}?embed=true` : "";
     const sortedTables = Object.entries(currentMatches || {})
@@ -220,25 +228,61 @@ export default function TeamMatchEditor(props) {
             return parseInt(a[0], 10) > parseInt(b[0], 10) ? 1 : -1;
         });
 
+    const setVisibleTeamScores = (nextAScore, nextBScore) => {
+        const safeAScore = Math.max(0, toScore(nextAScore));
+        const safeBScore = Math.max(0, toScore(nextBScore));
+        latestScoresRef.current = { a: safeAScore, b: safeBScore };
+        setTeamAScore(safeAScore);
+        setTeamBScore(safeBScore);
+    };
+
     const saveTeamMatch = async () => {
         setSaving(true);
 
         try {
+            const latestScores = latestScoresRef.current;
             const nextTeamMatch = {
                 ...teamMatch,
                 teamAID,
                 teamBID,
                 startTime,
-                teamAScore: toScore(teamAScore),
-                teamBScore: toScore(teamBScore),
-                currentMatches: currentMatches || {},
+                teamAScore: latestScores.a,
+                teamBScore: latestScores.b,
+                currentMatches: isScoreOnlyMatch ? {} : currentMatches || {},
                 sportName: selectedSport,
                 scoringType: selectedScoringType || "",
+                teamMatchMode: selectedTeamMatchMode,
                 ownerID,
             };
 
             await updateTeamMatch(teamMatchID, myTeamMatchID, nextTeamMatch);
             setTeamMatch(nextTeamMatch);
+        }
+        finally {
+            setSaving(false);
+        }
+    };
+
+    const updateTeamScore = async (side, nextScore) => {
+        const safeScore = Math.max(0, toScore(nextScore));
+        const currentScores = latestScoresRef.current;
+        const nextAScore = side === "A" ? safeScore : currentScores.a;
+        const nextBScore = side === "B" ? safeScore : currentScores.b;
+
+        setVisibleTeamScores(nextAScore, nextBScore);
+
+        if (!isScoreOnlyMatch) {
+            return;
+        }
+
+        setSaving(true);
+        try {
+            await setTeamMatchTeamScore(teamMatchID, nextAScore, nextBScore);
+            setTeamMatch((currentTeamMatch) => ({
+                ...currentTeamMatch,
+                teamAScore: nextAScore,
+                teamBScore: nextBScore,
+            }));
         }
         finally {
             setSaving(false);
@@ -291,8 +335,8 @@ export default function TeamMatchEditor(props) {
                                 <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"} numberOfLines={1}>
                                     {teamAName} vs {teamBName}
                                 </Text>
-                                <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                                    {sportDisplayName} - {startTime ? new Date(startTime).toLocaleDateString() : "No date"}
+                        <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
+                                    {isScoreOnlyMatch ? "Team score only" : sportDisplayName} - {startTime ? new Date(startTime).toLocaleDateString() : "No date"}
                                 </Text>
                             </View>
                             <Button backgroundColor={openScoreboardColor} isDisabled={saving} marginTop={2} onPress={saveTeamMatch}>
@@ -308,16 +352,21 @@ export default function TeamMatchEditor(props) {
                             label={i18n.t("teamA")}
                             score={teamAScore}
                             teamName={teamAName}
-                            onDecrease={() => setTeamAScore(Math.max(0, toScore(teamAScore) - 1))}
-                            onIncrease={() => setTeamAScore(toScore(teamAScore) + 1)}
+                            onDecrease={() => updateTeamScore("A", latestScoresRef.current.a - 1)}
+                            onIncrease={() => updateTeamScore("A", latestScoresRef.current.a + 1)}
                         />
                         <ScoreControl
                             label={i18n.t("teamB")}
                             score={teamBScore}
                             teamName={teamBName}
-                            onDecrease={() => setTeamBScore(Math.max(0, toScore(teamBScore) - 1))}
-                            onIncrease={() => setTeamBScore(toScore(teamBScore) + 1)}
+                            onDecrease={() => updateTeamScore("B", latestScoresRef.current.b - 1)}
+                            onIncrease={() => updateTeamScore("B", latestScoresRef.current.b + 1)}
                         />
+                        {isScoreOnlyMatch ? (
+                            <Text color={"gray.600"} fontSize={"xs"} marginTop={2}>
+                                Score changes save immediately so linked scoreboards can update without player matches.
+                            </Text>
+                        ) : null}
                     </Section>
 
                     <Section title={"Public view"}>
@@ -361,10 +410,20 @@ export default function TeamMatchEditor(props) {
                                     props.navigation.navigate("TeamMatchPublicView", { teamMatchID, embed: true });
                                 }}
                             />
+                            {isScoreOnlyMatch ? (
+                                <PageAction
+                                    icon={(color) => <MaterialCommunityIcons name="share-outline" size={19} color={color} />}
+                                    label={"Scoreboard links"}
+                                    onPress={() => {
+                                        setSelectedTableID("");
+                                        setShowLinkModal(true);
+                                    }}
+                                />
+                            ) : null}
                         </View>
                     </Section>
 
-                    <Section title={"Scheduling"}>
+                    {!isScoreOnlyMatch ? <Section title={"Scheduling"}>
                         <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
                             Generate team-match schedules from roster formats, then push selected matches to this team match.
                         </Text>
@@ -387,9 +446,29 @@ export default function TeamMatchEditor(props) {
                                 }}
                             />
                         </View>
-                    </Section>
+                    </Section> : null}
 
                     <Section title={"Match settings"}>
+                        <FormControl marginTop={3}>
+                            <FormControl.Label>Team match type</FormControl.Label>
+                            <Select
+                                selectedValue={selectedTeamMatchMode}
+                                onValueChange={(mode) => {
+                                    setSelectedTeamMatchMode(mode);
+                                    if (mode === TEAM_MATCH_MODES.TEAM_SCORE_ONLY) {
+                                        setCurrentMatches({});
+                                    }
+                                }}
+                            >
+                                <Select.Item label={"Structured team match"} value={TEAM_MATCH_MODES.STRUCTURED} />
+                                <Select.Item label={"Team score only"} value={TEAM_MATCH_MODES.TEAM_SCORE_ONLY} />
+                            </Select>
+                            <Text color={"gray.600"} fontSize={"xs"} marginTop={1}>
+                                {selectedTeamMatchMode === TEAM_MATCH_MODES.TEAM_SCORE_ONLY ?
+                                    "Manually control the team score without creating player matches or table scoring links." :
+                                    "Create player matches, assign tables, and let completed player matches update the team score."}
+                            </Text>
+                        </FormControl>
                         <FormControl marginTop={3}>
                             <FormControl.Label>{i18n.t("teamA")}</FormControl.Label>
                             <Select selectedValue={teamAID} onValueChange={setTeamAID}>
@@ -441,7 +520,7 @@ export default function TeamMatchEditor(props) {
                         ) : null}
                     </Section>
 
-                    <Section title={"Tables"}>
+                    {!isScoreOnlyMatch ? <Section title={"Tables"}>
                         {sortedTables.length > 0 ? sortedTables.map(([tableNumber]) => (
                             <TableRow
                                 key={tableNumber}
@@ -485,9 +564,9 @@ export default function TeamMatchEditor(props) {
                                 onPress={addTable}
                             />
                         </View>
-                    </Section>
+                    </Section> : null}
 
-                    <Section title={"Scorekeeper sessions"}>
+                    {!isScoreOnlyMatch ? <Section title={"Scorekeeper sessions"}>
                         <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
                             Monitor the scorekeeping pages currently open for each team-match table.
                         </Text>
@@ -512,9 +591,9 @@ export default function TeamMatchEditor(props) {
                                 <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"}>Add a table to monitor scorekeepers.</Text>
                             </View>
                         )}
-                    </Section>
+                    </Section> : null}
 
-                    <Section title={"History"}>
+                    {!isScoreOnlyMatch ? <Section title={"History"}>
                         <View flexDirection={"row"} flexWrap={"wrap"} marginTop={2}>
                             <PageAction
                                 icon={(color) => <FontAwesome name="history" size={18} color={color} />}
@@ -527,7 +606,7 @@ export default function TeamMatchEditor(props) {
                                 }}
                             />
                         </View>
-                    </Section>
+                    </Section> : null}
 
                     <Section title={"Delete"}>
                         {showDeleteConfirm ? (
@@ -591,6 +670,7 @@ export default function TeamMatchEditor(props) {
                     sportName={selectedSport}
                     tableID={selectedTableID}
                     ownerID={ownerID}
+                    isScoreOnly={isScoreOnlyMatch}
                     teamAName={teamAName}
                     teamBName={teamBName}
                     teamMatchID={teamMatchID}

@@ -1,6 +1,11 @@
 import { updateInnerText } from "./updateInnerText";
 import { setPairedPlayerImageSources } from "./optionalImage";
 import { setPairedCountryFlagSources } from "./countryFlag";
+import {
+    getPlayerNameFormatted,
+    getPlayerNameFormattedWithRating,
+    PlayerNameFormat,
+} from "../players";
 
 function createPlayerMetadataField(field, label, sample, playerField, metadataField) {
     return {
@@ -30,6 +35,64 @@ const playerMetadataTextFields = [
     createPlayerMetadataField("rankingB", "Player B Ranking", 2, "playerB", "ranking"),
     createPlayerMetadataField("rankingA2", "Player A2 Ranking", 3, "playerA2", "ranking"),
     createPlayerMetadataField("rankingB2", "Player B2 Ranking", 4, "playerB2", "ranking"),
+];
+
+function syncPrimaryPlayerSideEffects(currentMatchSettings, playerField) {
+    const playerA = currentMatchSettings?.playerA || {};
+    const playerB = currentMatchSettings?.playerB || {};
+
+    if (playerField === "playerA") {
+        Array.from(document.getElementsByClassName("jerseyColorA") as HTMLCollectionOf<HTMLElement>).forEach((jerseyAEl) => {
+            jerseyAEl.style.backgroundColor = playerA.jerseyColor || "transparent";
+        });
+    }
+
+    if (playerField === "playerB") {
+        Array.from(document.getElementsByClassName("jerseyColorB") as HTMLCollectionOf<HTMLElement>).forEach((jerseyBEl) => {
+            jerseyBEl.style.backgroundColor = playerB.jerseyColor || "transparent";
+        });
+    }
+
+    setPairedCountryFlagSources(document, playerA, playerB);
+    setPairedPlayerImageSources(document, playerA, playerB);
+}
+
+function createPlayerNameFormatField(field, label, sample, playerField, format: PlayerNameFormat, withRating = false) {
+    const listenerFields = playerField === "playerA" || playerField === "playerB"
+        ? ["playerA", "playerB"]
+        : [playerField];
+
+    return {
+        field,
+        label,
+        category: "Player Names",
+        sample,
+        justify: "flex-start",
+        listenerFields,
+        requiredFields: listenerFields,
+        action: (matchNode: HTMLElement, _value, currentMatchSettings) => {
+            const player = currentMatchSettings?.[playerField] || {};
+            matchNode.innerText = withRating
+                ? getPlayerNameFormattedWithRating(player, format)
+                : getPlayerNameFormatted(player, format);
+            syncPrimaryPlayerSideEffects(currentMatchSettings, playerField);
+        }
+    };
+}
+
+const playerNameFormatFields = [
+    createPlayerNameFormatField("playerAFirstInitialLastName", "Player A First Initial + Last Name", "A Smith", "playerA", "firstInitialLastName"),
+    createPlayerNameFormatField("playerBFirstInitialLastName", "Player B First Initial + Last Name", "B Jones", "playerB", "firstInitialLastName"),
+    createPlayerNameFormatField("playerA2FirstInitialLastName", "Player A2 First Initial + Last Name", "C Brown", "playerA2", "firstInitialLastName"),
+    createPlayerNameFormatField("playerB2FirstInitialLastName", "Player B2 First Initial + Last Name", "D Wilson", "playerB2", "firstInitialLastName"),
+    createPlayerNameFormatField("playerAFirstNameLastInitial", "Player A First Name + Last Initial", "Alex S", "playerA", "firstNameLastInitial"),
+    createPlayerNameFormatField("playerBFirstNameLastInitial", "Player B First Name + Last Initial", "Blake J", "playerB", "firstNameLastInitial"),
+    createPlayerNameFormatField("playerA2FirstNameLastInitial", "Player A2 First Name + Last Initial", "Casey B", "playerA2", "firstNameLastInitial"),
+    createPlayerNameFormatField("playerB2FirstNameLastInitial", "Player B2 First Name + Last Initial", "Drew W", "playerB2", "firstNameLastInitial"),
+    createPlayerNameFormatField("playerANameWithRating", "Player A Name + Rating", "Alex Smith (2000)", "playerA", "full", true),
+    createPlayerNameFormatField("playerBNameWithRating", "Player B Name + Rating", "Blake Jones (1950)", "playerB", "full", true),
+    createPlayerNameFormatField("playerA2NameWithRating", "Player A2 Name + Rating", "Casey Brown (1850)", "playerA2", "full", true),
+    createPlayerNameFormatField("playerB2NameWithRating", "Player B2 Name + Rating", "Drew Wilson (1800)", "playerB2", "full", true),
 ];
 
 export const textFieldList = [
@@ -95,6 +158,7 @@ export const textFieldList = [
             matchNode.innerText = value.firstName;
         }
     },
+    ...playerNameFormatFields,
     ...playerMetadataTextFields,
     {
         field: "game1AScore",

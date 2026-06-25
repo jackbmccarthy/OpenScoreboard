@@ -24,6 +24,7 @@ export async function getMyDynamicURLs(includeName = false) {
                     let teamNames = await getTeamMatch(myDynURL[1].teammatchID)
                     newItem["teamAID"] = teamNames["teamAID"]
                     newItem["teamBID"] = teamNames["teamBID"]
+                    newItem["teamMatchMode"] = teamNames["teamMatchMode"] || ""
                     newItem["teamMatchStartTime"] = teamNames["startTime"]
                     newItem["teamAName"] = await getTeamName(newItem["teamAID"])
                     newItem["teamBName"] = await getTeamName(newItem["teamBID"])

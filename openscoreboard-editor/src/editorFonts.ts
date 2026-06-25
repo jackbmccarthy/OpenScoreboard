@@ -4,7 +4,7 @@ const openFontsCommand = 'open-fonts';
 const googleFontsServer = import.meta.env.VITE_GOOGLE_FONTS_SERVER_URL || 'https://fonts.googleapis.com';
 const fontLinkAttribute = 'data-osb-google-font';
 const fontPreviewLinkAttribute = 'data-osb-google-font-preview';
-const maxVisibleFonts = 80;
+const fontManagerButtonClass = 'osb-font-manager-button';
 
 type EditorFont = GoogleFontOption & {
     name?: string;
@@ -89,6 +89,25 @@ function setInstalledFonts(editor, fonts: EditorFont[]) {
     editor.getModel?.().set('fonts', fonts);
 }
 
+function mergeInstalledFonts(editor, fontsToInstall: EditorFont[]) {
+    const installedFonts = getInstalledFonts(editor);
+    const installedFamilies = new Set(installedFonts.map((font) => getFontFamily(font).toLowerCase()));
+    const nextFonts = [...installedFonts];
+
+    fontsToInstall.forEach((font) => {
+        const family = getFontFamily(font).toLowerCase();
+
+        if (!family || installedFamilies.has(family)) {
+            return;
+        }
+
+        installedFamilies.add(family);
+        nextFonts.push(font);
+    });
+
+    setInstalledFonts(editor, nextFonts);
+}
+
 function installGoogleFont(editor, font: GoogleFontOption) {
     const fonts = getInstalledFonts(editor);
 
@@ -96,6 +115,67 @@ function installGoogleFont(editor, font: GoogleFontOption) {
         setInstalledFonts(editor, [...fonts, toEditorFont(font)]);
     }
 
+    refreshEditorFontControls(editor);
+}
+
+function getFontSearchTextFromProject(editor, projectData = null) {
+    const parts = [];
+
+    if (projectData) {
+        try {
+            parts.push(JSON.stringify(projectData));
+        }
+        catch (error) {
+            console.warn('Unable to inspect project data for fonts.', error);
+        }
+    }
+
+    try {
+        parts.push(editor.getCss?.() || '');
+        parts.push(editor.getHtml?.() || '');
+        parts.push(JSON.stringify(editor.getProjectData?.() || {}));
+    }
+    catch (error) {
+        console.warn('Unable to inspect editor content for fonts.', error);
+    }
+
+    return parts.join('\n').toLowerCase();
+}
+
+function getGoogleFontsUsedByProject(editor, projectData = null) {
+    const searchText = getFontSearchTextFromProject(editor, projectData);
+
+    if (!searchText) {
+        return [];
+    }
+
+    return googleFontOptions
+        .filter((font) => {
+            const family = font.family.toLowerCase();
+            const quotedFamily = `"${family}"`;
+            const singleQuotedFamily = `'${family}'`;
+            const escapedQuotedFamily = `\\"${family}\\"`;
+
+            return searchText.includes(quotedFamily) ||
+                searchText.includes(singleQuotedFamily) ||
+                searchText.includes(escapedQuotedFamily) ||
+                searchText.includes(`family=${family.replace(/\s+/g, '+')}`) ||
+                searchText.includes(`font-family:${family}`) ||
+                searchText.includes(`font-family: ${family}`) ||
+                searchText.includes(`font-family\\":\\"${family}`) ||
+                searchText.includes(`font-family\\": \\"${family}`);
+        })
+        .map(toEditorFont);
+}
+
+function installFontsUsedByProject(editor, projectData = null) {
+    const fontsUsedByProject = getGoogleFontsUsedByProject(editor, projectData);
+
+    if (!fontsUsedByProject.length) {
+        return;
+    }
+
+    mergeInstalledFonts(editor, fontsUsedByProject);
     refreshEditorFontControls(editor);
 }
 
@@ -184,13 +264,12 @@ function renderFontManager(editor, wrapper: HTMLElement) {
     const category = categorySelect?.value || '';
     const installedFonts = getInstalledFonts(editor);
     const installedFamilies = new Set(installedFonts.map((font) => getFontFamily(font)));
-    const filteredFonts = getFilteredFonts(query, category);
-    const visibleFonts = filteredFonts.slice(0, maxVisibleFonts);
+    const visibleFonts = getFilteredFonts(query, category);
 
     addFontLinksToDocument(document, visibleFonts, fontPreviewLinkAttribute);
 
     if (countElement) {
-        countElement.textContent = `Showing ${visibleFonts.length} of ${filteredFonts.length} fonts`;
+        countElement.textContent = `Showing ${visibleFonts.length} fonts`;
     }
 
     if (installedContainer) {
@@ -335,6 +414,90 @@ function registerStaticFontManager(editor) {
     });
 }
 
+function ensureFontManagerButtonStyles() {
+    if (document.querySelector('[data-osb-font-manager-button-styles]')) {
+        return;
+    }
+
+    const style = document.createElement('style');
+    style.setAttribute('data-osb-font-manager-button-styles', 'true');
+    style.innerHTML = `
+        .gjs-sm-property__font-family .gjs-sm-label {
+            align-items: center;
+            display: flex;
+            gap: 6px;
+        }
+
+        .gjs-sm-property__font-family .gjs-sm-label .gjs-sm-icon {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .${fontManagerButtonClass} {
+            align-items: center;
+            background: #2d5bff;
+            border: 0;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+            display: inline-flex;
+            font-size: 16px;
+            font-weight: 700;
+            height: 20px;
+            justify-content: center;
+            line-height: 1;
+            padding: 0;
+            width: 20px;
+        }
+
+        .${fontManagerButtonClass}:hover {
+            background: #446dff;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+function attachFontManagerButton(editor) {
+    ensureFontManagerButtonStyles();
+
+    const fontProperty = document.querySelector('.gjs-sm-property__font-family');
+    const label = fontProperty?.querySelector('.gjs-sm-label');
+
+    if (!label || label.querySelector(`.${fontManagerButtonClass}`)) {
+        return;
+    }
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = fontManagerButtonClass;
+    button.title = 'Add Google fonts';
+    button.setAttribute('aria-label', 'Add Google fonts');
+    button.textContent = '+';
+    button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        editor.runCommand(openFontsCommand);
+    });
+
+    label.appendChild(button);
+}
+
+function observeFontManagerButton(editor) {
+    const container = document.querySelector('#style-manager-container');
+
+    if (!container || container.getAttribute('data-osb-font-manager-observer')) {
+        return;
+    }
+
+    container.setAttribute('data-osb-font-manager-observer', 'true');
+    const observer = new MutationObserver(() => {
+        window.requestAnimationFrame(() => attachFontManagerButton(editor));
+    });
+
+    observer.observe(container, { childList: true, subtree: true });
+    attachFontManagerButton(editor);
+}
+
 export function loadGoogleFonts(editor) {
     editor.on('storage:start:store', (data) => {
         data.fonts = getInstalledFonts(editor);
@@ -345,14 +508,23 @@ export function loadGoogleFonts(editor) {
         const fonts = data?.fonts || data?.projectData?.fonts;
 
         if (Array.isArray(fonts)) {
-            setInstalledFonts(editor, fonts);
+            mergeInstalledFonts(editor, fonts);
         }
 
+        installFontsUsedByProject(editor, data?.projectData || data);
         refresh();
     });
-    editor.on('project:load canvas:frame:load load', refresh);
+    editor.on('project:load', (projectData) => {
+        installFontsUsedByProject(editor, projectData);
+        refresh();
+    });
+    editor.on('canvas:frame:load load', refresh);
+    editor.on('style:target style:custom styleManager:update selector:custom component:selected component:toggled', () => {
+        window.requestAnimationFrame(() => attachFontManagerButton(editor));
+    });
 
     registerStaticFontManager(editor);
+    window.requestAnimationFrame(() => observeFontManagerButton(editor));
 }
 
 export function getEditorFontImportCss(editor) {

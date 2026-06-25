@@ -13,6 +13,7 @@ export function TeamMatchLinkModal(props) {
     let [showScoreboardURL, setScoreboardURL] = useState(false);
 
     const ownerID = props.ownerID || getUserPath() || "";
+    const isScoreOnly = props.isScoreOnly || !props.tableID;
     const scoreKeepingURL = `${window.location.origin}${subFolderPath}/teamscoring/teammatch/true/${props.id}/${props.tableID}/?name=${encodeURI(`Table ${props.tableID}`)}&sportName=${props.sportName}&scoringType=${props.scoringType}&ownerID=${encodeURIComponent(ownerID)}`;
 
 
@@ -21,9 +22,9 @@ export function TeamMatchLinkModal(props) {
         <Modal isOpen={props.isOpen} onClose={() => { props.onClose(); }}>
             <Modal.Content>
                 <Modal.CloseButton></Modal.CloseButton>
-                <Modal.Header>{i18n.t("getTableLinks")}</Modal.Header>
+                <Modal.Header>{isScoreOnly ? "Team match scoreboard links" : i18n.t("getTableLinks")}</Modal.Header>
                 <Modal.Body>
-                    <View padding={1}>
+                    {!isScoreOnly ? <View padding={1}>
 
                         <FormControl>
                             <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreKeepingURL")}</Text>
@@ -35,11 +36,15 @@ export function TeamMatchLinkModal(props) {
                             />
 
                         </FormControl>
-                    </View>
+                    </View> : (
+                        <Text color={"gray.600"} fontSize={"sm"} marginBottom={3} textAlign={"center"}>
+                            Team score only matches do not use a scorekeeping table. Share a scoreboard URL to show team names, logos, and the manual team score.
+                        </Text>
+                    )}
                     <Text textAlign={"center"} fontSize={"xl"} fontWeight="bold">{i18n.t("scoreboardURLs")}</Text>
 
 
-                    <ScoreboardLinkList isTeamMatch={true} teamMatchID={props.id} tableID={props.tableID} {...props}></ScoreboardLinkList>
+                    <ScoreboardLinkList isTeamMatch={true} teamMatchID={props.id} tableID={props.tableID || ""} {...props}></ScoreboardLinkList>
                     {/* {showScoreboardURL || showScoringURL ?
                         <>
                             {showScoringURL ?
