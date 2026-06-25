@@ -1,11 +1,10 @@
 
 
 
-import React, { Component, useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { ActivityIndicator, Dimensions, Image, ScrollView, Share } from 'react-native';
-import { Button, View, NativeBaseProvider, FlatList, Fab, AddIcon, Input, Text } from 'native-base';
-import { addNewScoreboard, getMyScoreboards, getScoreboardTypesList } from './functions/scoreboards';
+import { Button, View, NativeBaseProvider, FlatList, Input, Text, Select } from 'native-base';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getUserPath } from '../database';
 import LoadingPage from './LoadingPage';
 import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
@@ -21,6 +20,44 @@ import { TeamMatchLinkModal } from './modals/TeamMatchLinkModal';
 import i18n from './translations/translate';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 
+const teamMatchSortOptions = [
+    { label: "Newest date first", value: "dateDesc" },
+    { label: "Oldest date first", value: "dateAsc" },
+];
+
+function getTeamMatchDateValue(teamMatch = {}) {
+    const parsedDate = Date.parse(teamMatch?.startTime || "");
+    return Number.isNaN(parsedDate) ? 0 : parsedDate;
+}
+
+function getTeamMatchSearchText(teamMatchEntry) {
+    const [, teamMatch = {}] = teamMatchEntry || [];
+    return [
+        teamMatch.teamAName,
+        teamMatch.teamBName,
+        teamMatch.sportDisplayName,
+        teamMatch.sportName,
+        teamMatch.scoringType,
+        teamMatch.teamMatchMode === "teamScoreOnly" ? "team score only" : "structured",
+    ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function sortTeamMatches(teamMatches = [], sortBy = "dateDesc") {
+    return [...teamMatches].sort((firstEntry, secondEntry) => {
+        const firstMatch = firstEntry?.[1] || {};
+        const secondMatch = secondEntry?.[1] || {};
+        const dateComparison = getTeamMatchDateValue(firstMatch) - getTeamMatchDateValue(secondMatch);
+
+        if (dateComparison !== 0) {
+            return sortBy === "dateAsc" ? dateComparison : -dateComparison;
+        }
+
+        const firstName = `${firstMatch.teamAName || ""} ${firstMatch.teamBName || ""}`;
+        const secondName = `${secondMatch.teamAName || ""} ${secondMatch.teamBName || ""}`;
+        return firstName.localeCompare(secondName);
+    });
+}
+
 export default function MyTeamMatches(props) {
 
     let [teamMatchList, setTeamMatchList] = useState([])
@@ -34,6 +71,17 @@ export default function MyTeamMatches(props) {
 
     let [teamScoringType, setTeamScoringType] = useState("")
     let [teamSportName, setTeamSportName] = useState("")
+    let [teamMatchSearch, setTeamMatchSearch] = useState("")
+    let [teamMatchSort, setTeamMatchSort] = useState("dateDesc")
+    const filteredTeamMatches = useMemo(() => {
+        const normalizedSearch = teamMatchSearch.trim().toLowerCase();
+        const filteredMatches = normalizedSearch ?
+            teamMatchList.filter((teamMatch) => getTeamMatchSearchText(teamMatch).includes(normalizedSearch)) :
+            teamMatchList;
+
+        return sortTeamMatches(filteredMatches, teamMatchSort);
+    }, [teamMatchList, teamMatchSearch, teamMatchSort]);
+
     const openTeamMatchTableSelection = (teamMatchID, teamMatchIndex) => {
 
         setSelectedTeamMatchID(teamMatchID)
@@ -110,26 +158,72 @@ export default function MyTeamMatches(props) {
                     <View flex={1}>
                         {
                             teamMatchList.length > 0 ?
-                                <FlatList
-                                    data={teamMatchList.sort((a, b) => {
-                                        return new Date(a[1].startTime) > new Date(b[1].startTime) ? -1 : 1
-                                    })}
-                                    keyExtractor={(item) => { return item[0] }}
-                                    renderItem={(item) => {
-                                        return (
+                                <View flex={1}>
+                                    <View
+                                        backgroundColor={"white"}
+                                        borderBottomColor={"gray.200"}
+                                        borderBottomWidth={1}
+                                        padding={4}
+                                    >
+                                        <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"}>
+                                            {i18n.t("myTeamMatches")}
+                                        </Text>
+                                        <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
+                                            Search by team name and sort team events by date.
+                                        </Text>
+                                        <View flexDirection={{ base: "column", md: "row" }} marginTop={3}>
+                                            <View flex={1} marginRight={{ base: 0, md: 2 }}>
+                                                <Input
+                                                    InputLeftElement={(
+                                                        <View marginLeft={3}>
+                                                            <MaterialCommunityIcons name="magnify" size={20} color={"#6B7280"} />
+                                                        </View>
+                                                    )}
+                                                    onChangeText={setTeamMatchSearch}
+                                                    placeholder={"Search by team name"}
+                                                    value={teamMatchSearch}
+                                                />
+                                            </View>
+                                            <View marginLeft={{ base: 0, md: 2 }} marginTop={{ base: 3, md: 0 }} minWidth={{ base: "100%", md: 220 }}>
+                                                <Select selectedValue={teamMatchSort} onValueChange={setTeamMatchSort}>
+                                                    {teamMatchSortOptions.map((option) => (
+                                                        <Select.Item key={option.value} label={option.label} value={option.value} />
+                                                    ))}
+                                                </Select>
+                                            </View>
+                                        </View>
+                                        <Text color={"gray.500"} fontSize={"xs"} marginTop={2}>
+                                            Showing {filteredTeamMatches.length} of {teamMatchList.length} team match{teamMatchList.length === 1 ? "" : "es"}.
+                                        </Text>
+                                    </View>
+                                    {filteredTeamMatches.length > 0 ? (
+                                        <FlatList
+                                            data={filteredTeamMatches}
+                                            keyExtractor={(item) => { return item[0] }}
+                                            renderItem={(item) => {
+                                                return (
 
-                                            <TeamMatchItem {...props}
-                                                goToKeepScore={goToKeepScore}
-                                                openTeamMatchLink={openTeamMatchLink}
-                                                openTeamMatchEdit={openTeamMatchEdit}
-                                                openTeamMatchTableSelection={openTeamMatchTableSelection}
-                                                reloadTeamMatches={loadTeamMatches}
-                                                {...item}></TeamMatchItem>
+                                                    <TeamMatchItem {...props}
+                                                        goToKeepScore={goToKeepScore}
+                                                        openTeamMatchLink={openTeamMatchLink}
+                                                        openTeamMatchEdit={openTeamMatchEdit}
+                                                        openTeamMatchTableSelection={openTeamMatchTableSelection}
+                                                        reloadTeamMatches={loadTeamMatches}
+                                                        {...item}></TeamMatchItem>
 
-                                        )
+                                                )
 
-                                    }}
-                                ></FlatList>
+                                            }}
+                                        ></FlatList>
+                                    ) : (
+                                        <View alignItems={"center"} justifyContent={"center"} padding={6}>
+                                            <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"}>No team matches match your search.</Text>
+                                            <Button marginTop={3} onPress={() => setTeamMatchSearch("")} variant={"outline"}>
+                                                <Text color={"blue.700"} fontWeight={"bold"}>Clear search</Text>
+                                            </Button>
+                                        </View>
+                                    )}
+                                </View>
                                 :
 
                                 <View justifyContent={"center"} alignItems="center">

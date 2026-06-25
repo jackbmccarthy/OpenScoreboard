@@ -1,5 +1,6 @@
 import db, { getUserPath } from '../../database';
 import Match from '../classes/Match';
+import { getTeamMatchMode } from '../classes/TeamMatch';
 import { getCombinedPlayerNames } from './players';
 import { getMatchData, getMatchScore } from './scoring';
 import { supportedSports } from './sports';
@@ -24,6 +25,7 @@ export default async function getMyTeamMatches(userID) {
             return [id, {
                 ...teamMatch,
                 ...item,
+                teamMatchMode: getTeamMatchMode(teamMatch),
                 currentMatches: teamMatch.currentMatches || {},
                 teamAScore: teamMatchScores.a,
                 teamBScore: teamMatchScores.b,
@@ -97,7 +99,8 @@ export async function addNewTeamMatch(teamMatch, options: any = {}) {
         startTime: nextTeamMatch.startTime,
         sportName: nextTeamMatch.sportName,
         sportDisplayName: supportedSports[nextTeamMatch.sportName].displayName,
-        scoringType: nextTeamMatch.scoringType
+        scoringType: nextTeamMatch.scoringType,
+        teamMatchMode: getTeamMatchMode(nextTeamMatch),
     }
 
     const myTeamMatchRef = await db.ref("users" + "/" + getUserPath() + "/" + "myTeamMatches").push(preview)
@@ -124,6 +127,7 @@ export async function updateTeamMatch(teamMatchID, myTeamMatchID, teamMatch) {
         sportName: nextTeamMatch.sportName,
         sportDisplayName: supportedSports[nextTeamMatch.sportName]?.displayName || "",
         scoringType: nextTeamMatch.scoringType || "",
+        teamMatchMode: getTeamMatchMode(nextTeamMatch),
     })
 }
 
@@ -283,11 +287,13 @@ export async function addWinToTeamMatchTeamScore(teamMatchID, AorB) {
 }
 
 export async function setTeamMatchTeamScore(teamMatchID, teamAScore, teamBScore) {
+    const nextTeamAScore = parseInt(teamAScore, 10)
+    const nextTeamBScore = parseInt(teamBScore, 10)
 
-
-    await db.ref(`teamMatches/${teamMatchID}/teamAScore`).set(parseInt(teamAScore))
-
-    await db.ref(`teamMatches/${teamMatchID}/teamBScore`).set(parseInt(teamBScore))
+    await db.ref(`teamMatches/${teamMatchID}`).update({
+        teamAScore: Number.isNaN(nextTeamAScore) ? 0 : nextTeamAScore,
+        teamBScore: Number.isNaN(nextTeamBScore) ? 0 : nextTeamBScore,
+    })
 
     // let teamAScore = await db.ref(`teamMatches/${teamMatchID}/teamAScore`).get()
     // let teamBScore = await db.ref(`teamMatches/${teamMatchID}/teamBScore`).get()

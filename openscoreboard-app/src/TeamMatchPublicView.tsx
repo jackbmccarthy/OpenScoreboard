@@ -8,6 +8,7 @@ import { getActiveGameNumber, getCurrentGameScore, getMatchData, getMatchScore }
 import { supportedSports } from './functions/sports';
 import { getTeam } from './functions/teams';
 import { getTeamTieSubmissionStatus } from './functions/teamCompetitions';
+import { isTeamScoreOnlyTeamMatch } from './classes/TeamMatch';
 
 function toScore(value) {
     const parsed = parseInt(value, 10);
@@ -587,6 +588,7 @@ export default function TeamMatchPublicView(props) {
 
     const teamAName = getTeamDisplayName(teamA, "Team A");
     const teamBName = getTeamDisplayName(teamB, "Team B");
+    const isScoreOnlyMatch = isTeamScoreOnlyTeamMatch(teamMatch);
     const sportDisplayName = supportedSports[teamMatch.sportName]?.displayName || teamMatch.sportName || "Team Match";
     const currentMatches = useMemo(() => {
         return Object.values(currentMatchInfo).sort((a, b) => parseInt(a.tableNumber, 10) > parseInt(b.tableNumber, 10) ? 1 : -1);
@@ -621,7 +623,7 @@ export default function TeamMatchPublicView(props) {
                         padding={4}
                     >
                         <Text color={"gray.500"} fontSize={"xs"} fontWeight={"bold"} textAlign={"center"} textTransform={"uppercase"}>
-                            {sportDisplayName}{teamMatch.startTime ? ` - ${formatDate(teamMatch.startTime)}` : ""}
+                            {isScoreOnlyMatch ? "Team score only" : sportDisplayName}{teamMatch.startTime ? ` - ${formatDate(teamMatch.startTime)}` : ""}
                         </Text>
                         <Text color={"gray.900"} fontSize={"3xl"} fontWeight={"bold"} marginTop={2} textAlign={"center"}>
                             {teamAName} vs {teamBName}
@@ -662,7 +664,7 @@ export default function TeamMatchPublicView(props) {
                         ) : null}
                     </View>
 
-                    <Section
+                    {!isScoreOnlyMatch ? <Section
                         subtitle={"Live table matches and current scores."}
                         title={"Current matches"}
                     >
@@ -677,9 +679,9 @@ export default function TeamMatchPublicView(props) {
                                 <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"}>No current matches have been added.</Text>
                             </View>
                         )}
-                    </Section>
+                    </Section> : null}
 
-                    {scheduledMatches.length > 0 ? (
+                    {!isScoreOnlyMatch && scheduledMatches.length > 0 ? (
                         <Section
                             subtitle={"Upcoming matches for this team match."}
                             title={"Scheduled matches"}
@@ -692,7 +694,7 @@ export default function TeamMatchPublicView(props) {
                         </Section>
                     ) : null}
 
-                    <Section
+                    {!isScoreOnlyMatch ? <Section
                         subtitle={"Completed matches and final match scores."}
                         title={"Previous matches"}
                     >
@@ -712,7 +714,7 @@ export default function TeamMatchPublicView(props) {
                                 <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"}>No previous matches yet.</Text>
                             </View>
                         )}
-                    </Section>
+                    </Section> : null}
                 </View>
             </ScrollView>
         </NativeBaseProvider>

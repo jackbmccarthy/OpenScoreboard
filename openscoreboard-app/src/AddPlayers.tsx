@@ -4,7 +4,7 @@ import { Avatar, Button, Checkbox, FlatList, FormControl, Input, Modal, NativeBa
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { openScoreboardButtonTextColor, openScoreboardColor, openScoreboardTheme } from "../openscoreboardtheme";
 import {
-    addImportedPlayer,
+    addImportedPlayers,
     archiveImportedPlayers,
     getImportPlayerList,
     getPlayerListDetails,
@@ -689,9 +689,7 @@ export default function AddPlayers(props) {
         setIsImportingPlayers(true);
 
         try {
-            for (const player of playersToImport) {
-                await addImportedPlayer(playerListID, player);
-            }
+            await addImportedPlayers(playerListID, playersToImport);
 
             setImportText("");
             setShowImport(false);
@@ -759,10 +757,57 @@ export default function AddPlayers(props) {
         await completeImport(uniquePlayers);
     };
 
+    const renderPlayerCard = ({ item, index }: any) => {
+        const [playerID, player] = item;
+
+        return (
+            <View
+                key={playerID}
+                paddingRight={useTwoColumns && index % 2 === 0 ? 3 : 0}
+                width={useTwoColumns ? "50%" : "100%"}
+            >
+                <PlayerCard
+                    player={player}
+                    isEditing={editingPlayerID === playerID}
+                    draft={editingDraft}
+                    onEdit={() => startCardEdit(playerID, player)}
+                    onDelete={() => removePlayer(playerID)}
+                    onDraftChange={updateCardDraft}
+                    onSave={saveCardEdit}
+                    onCancel={() => {
+                        setEditingPlayerID("");
+                        setEditingDraft({});
+                    }}
+                />
+            </View>
+        );
+    };
+
     return (
         <NativeBaseProvider theme={openScoreboardTheme}>
-            <ScrollView backgroundColor={"white"}>
-                <View alignSelf={"center"} maxWidth={1180} padding={4} width={"100%"}>
+            <FlatList
+                backgroundColor={"white"}
+                columnWrapperStyle={useTwoColumns ? { alignItems: "stretch" } : undefined}
+                data={bulkEditMode ? [] : filteredPlayers}
+                extraData={{ editingDraft, editingPlayerID, useTwoColumns }}
+                initialNumToRender={20}
+                key={`player-list-${useTwoColumns ? "two" : "one"}-${bulkEditMode ? "bulk" : "cards"}`}
+                keyExtractor={(item: any) => item?.[0]}
+                maxToRenderPerBatch={24}
+                numColumns={useTwoColumns ? 2 : 1}
+                removeClippedSubviews
+                renderItem={renderPlayerCard}
+                updateCellsBatchingPeriod={40}
+                windowSize={11}
+                contentContainerStyle={{
+                    alignSelf: "center",
+                    maxWidth: 1180,
+                    padding: 16,
+                    paddingBottom: 40,
+                    width: "100%",
+                }}
+                ListHeaderComponent={(
+                <View width={"100%"}>
                     <View
                         backgroundColor={"white"}
                         borderColor={"gray.200"}
@@ -1106,43 +1151,30 @@ export default function AddPlayers(props) {
                                     </Button>
                                 </View>
                             </View>
-                        ) : (
-                            <View
-                                flexDirection={"row"}
-                                flexWrap={"wrap"}
-                                marginTop={4}
-                            >
-                                {filteredPlayers.length > 0 ? (
-                                    filteredPlayers.map(([playerID, player]) => (
-                                        <View key={playerID} paddingRight={useTwoColumns ? 3 : 0} width={useTwoColumns ? "50%" : "100%"}>
-                                            <PlayerCard
-                                                player={player}
-                                                isEditing={editingPlayerID === playerID}
-                                                draft={editingDraft}
-                                                onEdit={() => startCardEdit(playerID, player)}
-                                                onDelete={() => removePlayer(playerID)}
-                                                onDraftChange={updateCardDraft}
-                                                onSave={saveCardEdit}
-                                                onCancel={() => {
-                                                    setEditingPlayerID("");
-                                                    setEditingDraft({});
-                                                }}
-                                            />
-                                        </View>
-                                    ))
-                                ) : (
-                                    <View alignItems={"center"} padding={6} width={"100%"}>
-                                        <MaterialCommunityIcons name="account-search-outline" size={42} color={openScoreboardColor} />
-                                        <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"} marginTop={3}>
-                                            {playerList.length > 0 ? "No players match your search" : i18n.t("noPlayersInList")}
-                                        </Text>
-                                    </View>
-                                )}
-                            </View>
-                        )}
+                        ) : null}
                     </View>
+                    {!bulkEditMode && filteredPlayers.length > 0 ? (
+                        <View height={4} />
+                    ) : null}
                 </View>
-
+                )}
+                ListEmptyComponent={!bulkEditMode ? (
+                    <View
+                        alignItems={"center"}
+                        backgroundColor={"white"}
+                        borderColor={"gray.200"}
+                        borderRadius={8}
+                        borderWidth={1}
+                        padding={6}
+                        width={"100%"}
+                    >
+                        <MaterialCommunityIcons name="account-search-outline" size={42} color={openScoreboardColor} />
+                        <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"} marginTop={3}>
+                            {playerList.length > 0 ? "No players match your search" : i18n.t("noPlayersInList")}
+                        </Text>
+                    </View>
+                ) : null}
+            />
                 <DuplicateImportModal
                     duplicates={pendingDuplicateImports}
                     isImporting={isImportingPlayers}
@@ -1172,7 +1204,6 @@ export default function AddPlayers(props) {
                         }}
                     />
                 ) : null}
-            </ScrollView>
         </NativeBaseProvider>
     );
 }

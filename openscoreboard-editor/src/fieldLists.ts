@@ -85,6 +85,183 @@ const playerMetadataTextFields = [
     },
 ];
 
+const playerNameFormatTextFields = [
+    {
+        field: "playerAFirstInitialLastName",
+        label: "Player A First Initial + Last Name",
+        category: "Player Names",
+        sample: "A Smith",
+        justify: "flex-start"
+    },
+    {
+        field: "playerBFirstInitialLastName",
+        label: "Player B First Initial + Last Name",
+        category: "Player Names",
+        sample: "B Jones",
+        justify: "flex-start"
+    },
+    {
+        field: "playerA2FirstInitialLastName",
+        label: "Player A2 First Initial + Last Name",
+        category: "Player Names",
+        sample: "C Brown",
+        justify: "flex-start"
+    },
+    {
+        field: "playerB2FirstInitialLastName",
+        label: "Player B2 First Initial + Last Name",
+        category: "Player Names",
+        sample: "D Wilson",
+        justify: "flex-start"
+    },
+    {
+        field: "playerAFirstNameLastInitial",
+        label: "Player A First Name + Last Initial",
+        category: "Player Names",
+        sample: "Alex S",
+        justify: "flex-start"
+    },
+    {
+        field: "playerBFirstNameLastInitial",
+        label: "Player B First Name + Last Initial",
+        category: "Player Names",
+        sample: "Blake J",
+        justify: "flex-start"
+    },
+    {
+        field: "playerA2FirstNameLastInitial",
+        label: "Player A2 First Name + Last Initial",
+        category: "Player Names",
+        sample: "Casey B",
+        justify: "flex-start"
+    },
+    {
+        field: "playerB2FirstNameLastInitial",
+        label: "Player B2 First Name + Last Initial",
+        category: "Player Names",
+        sample: "Drew W",
+        justify: "flex-start"
+    },
+    {
+        field: "playerANameWithRating",
+        label: "Player A Name + Rating",
+        category: "Player Names",
+        sample: "Alex Smith (2000)",
+        justify: "flex-start"
+    },
+    {
+        field: "playerBNameWithRating",
+        label: "Player B Name + Rating",
+        category: "Player Names",
+        sample: "Blake Jones (1950)",
+        justify: "flex-start"
+    },
+    {
+        field: "playerA2NameWithRating",
+        label: "Player A2 Name + Rating",
+        category: "Player Names",
+        sample: "Casey Brown (1850)",
+        justify: "flex-start"
+    },
+    {
+        field: "playerB2NameWithRating",
+        label: "Player B2 Name + Rating",
+        category: "Player Names",
+        sample: "Drew Wilson (1800)",
+        justify: "flex-start"
+    },
+];
+
+const combinedNameFormatTextFields = [
+    {
+        field: "combinedAFirstInitialLastName",
+        label: "Combined A First Initial + Last Name",
+        category: "Player Names",
+        sample: "A Smith / C Brown",
+        justify: "flex-start"
+    },
+    {
+        field: "combinedBFirstInitialLastName",
+        label: "Combined B First Initial + Last Name",
+        category: "Player Names",
+        sample: "B Jones / D Wilson",
+        justify: "flex-start"
+    },
+    {
+        field: "combinedAFirstNameLastInitial",
+        label: "Combined A First Name + Last Initial",
+        category: "Player Names",
+        sample: "Alex S / Casey B",
+        justify: "flex-start"
+    },
+    {
+        field: "combinedBFirstNameLastInitial",
+        label: "Combined B First Name + Last Initial",
+        category: "Player Names",
+        sample: "Blake J / Drew W",
+        justify: "flex-start"
+    },
+    {
+        field: "combinedANameWithRating",
+        label: "Combined A Name + Rating",
+        category: "Player Names",
+        sample: "Smith (2000) / Brown (1850)",
+        justify: "flex-start"
+    },
+    {
+        field: "combinedBNameWithRating",
+        label: "Combined B Name + Rating",
+        category: "Player Names",
+        sample: "Jones (1950) / Wilson (1800)",
+        justify: "flex-start"
+    },
+];
+
+const courtSideCombinedNameFormatTextFields = [
+    {
+        field: "courtSideCombinedAFirstInitialLastName",
+        label: "Court Side A First Initial + Last Name",
+        category: "Court Side",
+        sample: "A Smith / C Brown",
+        justify: "flex-start"
+    },
+    {
+        field: "courtSideCombinedBFirstInitialLastName",
+        label: "Court Side B First Initial + Last Name",
+        category: "Court Side",
+        sample: "B Jones / D Wilson",
+        justify: "flex-start"
+    },
+    {
+        field: "courtSideCombinedAFirstNameLastInitial",
+        label: "Court Side A First Name + Last Initial",
+        category: "Court Side",
+        sample: "Alex S / Casey B",
+        justify: "flex-start"
+    },
+    {
+        field: "courtSideCombinedBFirstNameLastInitial",
+        label: "Court Side B First Name + Last Initial",
+        category: "Court Side",
+        sample: "Blake J / Drew W",
+        justify: "flex-start"
+    },
+    {
+        field: "courtSideCombinedANameWithRating",
+        label: "Court Side A Name + Rating",
+        category: "Court Side",
+        sample: "Smith (2000) / Brown (1850)",
+        justify: "flex-start"
+    },
+    {
+        field: "courtSideCombinedBNameWithRating",
+        label: "Court Side B Name + Rating",
+        category: "Court Side",
+        sample: "Jones (1950) / Wilson (1800)",
+        justify: "flex-start"
+    },
+];
+
 export const textFieldList = [
     {
         field: "playerA",
@@ -114,6 +291,7 @@ export const textFieldList = [
         sample: "Player A2",
         justify: "flex-start"
     },
+    ...playerNameFormatTextFields,
     ...playerMetadataTextFields,
     {
         field: "game1AScore",
@@ -316,6 +494,7 @@ export const currentGameFieldList = [
         sample: "Combined Player B",
         justify: "flex-start"
     },
+    ...combinedNameFormatTextFields,
 ];
 export const teamFieldList = [
     {
@@ -491,5 +670,6 @@ export const courtSideGameFieldList = [
         sample: "Combined Player B",
        // justify: "flex-start"
     },
+    ...courtSideCombinedNameFormatTextFields,
 
 ];

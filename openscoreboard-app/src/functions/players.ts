@@ -189,6 +189,26 @@ export async function addImportedPlayer(playerListID, playerSettings) {
     return playerListRef.key
 
 }
+
+export async function addImportedPlayers(playerListID, playerSettingsList = []) {
+    if (!Array.isArray(playerSettingsList) || playerSettingsList.length === 0) {
+        return []
+    }
+
+    const playerListRef = db.ref(`playerLists/${playerListID}/players`)
+    const updates = {}
+    const playerIDs = []
+
+    playerSettingsList.forEach((playerSettings) => {
+        const newPlayerRef = playerListRef.push()
+        updates[newPlayerRef.key] = { ...playerSettings }
+        playerIDs.push(newPlayerRef.key)
+    })
+
+    await playerListRef.update(updates)
+    await touchPlayerList(playerListID)
+    return playerIDs
+}
 export async function editImportedPlayer(playerListID, playerID, playerSettings) {
     let playerListRef = db.ref(`playerLists/${playerListID}/players/${playerID}`)
     await playerListRef.update({ ...playerSettings })

@@ -1,5 +1,68 @@
 import { getCurrentGameScore, getMatchScore } from "../match";
-import { getCombinedPlayersFormatted } from "../players";
+import {
+    getCombinedPlayersFormatted,
+    getCombinedPlayersFormattedWithRating,
+    PlayerNameFormat,
+} from "../players";
+
+type CourtSide = "A" | "B";
+type MatchSide = "A" | "B";
+
+function isAOnCourtSideA(currentMatchSettings) {
+    return Boolean(currentMatchSettings?.isCourtSideScoreboardFlipped) === Boolean(currentMatchSettings?.isSwitched);
+}
+
+function resolveCourtSide(courtSide: CourtSide, currentMatchSettings): MatchSide {
+    const aOnCourtSideA = isAOnCourtSideA(currentMatchSettings);
+
+    if (courtSide === "A") {
+        return aOnCourtSideA ? "A" : "B";
+    }
+
+    return aOnCourtSideA ? "B" : "A";
+}
+
+function getCombinedCourtSideName(currentMatchSettings, courtSide: CourtSide, format: PlayerNameFormat = "partial", withRating = false) {
+    const side = resolveCourtSide(courtSide, currentMatchSettings);
+    const player = currentMatchSettings?.[`player${side}`];
+    const doublesPlayer = currentMatchSettings?.[`player${side}2`];
+
+    return withRating
+        ? getCombinedPlayersFormattedWithRating(player, doublesPlayer, format)
+        : getCombinedPlayersFormatted(player, doublesPlayer, format);
+}
+
+const courtSideNameRequiredFields = [
+    "playerA",
+    "playerA2",
+    "playerB",
+    "playerB2",
+    "isCourtSideScoreboardFlipped",
+    "isSwitched",
+];
+
+function createCourtSideCombinedNameField(field, label, sample, courtSide: CourtSide, format: PlayerNameFormat = "partial", withRating = false) {
+    return {
+        field,
+        label,
+        category: "Court Side",
+        sample,
+        justify: "flex-start",
+        requiredFields: courtSideNameRequiredFields,
+        action: (matchNode: HTMLElement, _value, currentMatchSettings) => {
+            matchNode.innerText = getCombinedCourtSideName(currentMatchSettings, courtSide, format, withRating);
+        }
+    };
+}
+
+const courtSideCombinedNameFormatFields = [
+    createCourtSideCombinedNameField("courtSideCombinedAFirstInitialLastName", "Court Side A First Initial + Last Name", "A Smith / C Brown", "A", "firstInitialLastName"),
+    createCourtSideCombinedNameField("courtSideCombinedBFirstInitialLastName", "Court Side B First Initial + Last Name", "B Jones / D Wilson", "B", "firstInitialLastName"),
+    createCourtSideCombinedNameField("courtSideCombinedAFirstNameLastInitial", "Court Side A First Name + Last Initial", "Alex S / Casey B", "A", "firstNameLastInitial"),
+    createCourtSideCombinedNameField("courtSideCombinedBFirstNameLastInitial", "Court Side B First Name + Last Initial", "Blake J / Drew W", "B", "firstNameLastInitial"),
+    createCourtSideCombinedNameField("courtSideCombinedANameWithRating", "Court Side A Name + Rating", "Smith (2000) / Brown (1850)", "A", "partial", true),
+    createCourtSideCombinedNameField("courtSideCombinedBNameWithRating", "Court Side B Name + Rating", "Jones (1950) / Wilson (1800)", "B", "partial", true),
+];
 
 export const courtSideGameFieldList = [
     {
@@ -242,23 +305,9 @@ export const courtSideGameFieldList = [
         category: "Court Side",
         sample: "Combined Player A",
         justify: "flex-start",
-        requiredFields: ["playerA", "playerA2", "playerB","playerB2","isCourtSideScoreboardFlipped","isSwitched"],
+        requiredFields: courtSideNameRequiredFields,
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
-            if (currentMatchSettings.isSwitched) {
-                currentMatchSettings.isCourtSideScoreboardFlipped ?
-                    matchNode.innerText = getCombinedPlayersFormatted(currentMatchSettings.playerA, currentMatchSettings.playerA2)
-                    :
-                    matchNode.innerText = getCombinedPlayersFormatted(currentMatchSettings.playerB, currentMatchSettings.playerB2);
-
-
-            }
-            else {
-                !currentMatchSettings.isCourtSideScoreboardFlipped ?
-                    matchNode.innerText = getCombinedPlayersFormatted(currentMatchSettings.playerA, currentMatchSettings.playerA2)
-                    :
-                    matchNode.innerText = getCombinedPlayersFormatted(currentMatchSettings.playerB, currentMatchSettings.playerB2);
-
-            }
+            matchNode.innerText = getCombinedCourtSideName(currentMatchSettings, "A");
         }
     },
     {
@@ -267,25 +316,12 @@ export const courtSideGameFieldList = [
         category: "Player Names",
         sample: "Combined Player B",
         justify: "flex-start",
-        requiredFields: ["playerA", "playerA2", "playerB","playerB2","isCourtSideScoreboardFlipped","isSwitched"],
+        requiredFields: courtSideNameRequiredFields,
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
-            if (currentMatchSettings.isSwitched) {
-                !currentMatchSettings.isCourtSideScoreboardFlipped ?
-                    matchNode.innerText = getCombinedPlayersFormatted(currentMatchSettings.playerA, currentMatchSettings.playerA2)
-                    :
-                    matchNode.innerText = getCombinedPlayersFormatted(currentMatchSettings.playerB, currentMatchSettings.playerB2);
-
-
-            }
-            else {
-                currentMatchSettings.isCourtSideScoreboardFlipped ?
-                    matchNode.innerText = getCombinedPlayersFormatted(currentMatchSettings.playerA, currentMatchSettings.playerA2)
-                    :
-                    matchNode.innerText = getCombinedPlayersFormatted(currentMatchSettings.playerB, currentMatchSettings.playerB2);
-
-            }
+            matchNode.innerText = getCombinedCourtSideName(currentMatchSettings, "B");
         }
     },
+    ...courtSideCombinedNameFormatFields,
     {
         field: "courtSideIsACurrentlyServing",
         label: "A Serving",

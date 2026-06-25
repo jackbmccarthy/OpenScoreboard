@@ -48,10 +48,11 @@ export async function runAllListeners(isInitialRun: boolean, tableID: string | n
         }
 
     }
-    if (teamMatchID !== null && tableNumber !== null && teamMatchID.length > 0) {
+    if (teamMatchID !== null && teamMatchID.length > 0) {
+        const hasTeamMatchTable = typeof tableNumber === "string" && tableNumber.length > 0;
         if (isInitialRun) {
             console.log("Initial Run Inside", isInitialRun);
-            let teamTableRef = db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`);
+            let teamTableRef = hasTeamMatchTable ? db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`) : null;
             let teamAIDRef = db.ref(`teamMatches/${teamMatchID}/teamAID`);
             let teamBIDRef = db.ref(`teamMatches/${teamMatchID}/teamBID`);
             let teamAScoreRef = db.ref(`teamMatches/${teamMatchID}/teamAScore`);
@@ -59,16 +60,23 @@ export async function runAllListeners(isInitialRun: boolean, tableID: string | n
             // let teamAImgURLRef = db.ref(`teamMatches/${teamMatchID}/teamAScore`);
             // let teamBImgURLRef = db.ref(`teamMatches/${teamMatchID}/teamBScore`);
 
-            teamTableRef.on("value",(val)=>{updateTeamMatch(val, isInitialRun, resetListeners, addToListenerList)} );
+            if (teamTableRef) {
+                teamTableRef.on("value",(val)=>{updateTeamMatch(val, isInitialRun, resetListeners, addToListenerList)} );
+            }
+            else {
+                updateTeamMatch({ val: () => "" }, isInitialRun, resetListeners, addToListenerList);
+            }
             teamAIDRef.on("value",(val)=>{updateTeamAID(val, isInitialRun, resetListeners, addToListenerList)} );
             teamBIDRef.on("value",(val)=>{updateTeamBID(val, isInitialRun, resetListeners, addToListenerList)} );
             teamAScoreRef.on("value",(val)=>{updateTeamAScore(val)} );
             teamBScoreRef.on("value",(val)=>{updateTeamBScore(val)});
 
 
-            addToListenerList(() => {
-                teamTableRef.off("value");
-            });
+            if (teamTableRef) {
+                addToListenerList(() => {
+                    teamTableRef.off("value");
+                });
+            }
             addToListenerList(() => {
                 teamAIDRef.off("value");
             });
@@ -84,7 +92,12 @@ export async function runAllListeners(isInitialRun: boolean, tableID: string | n
         }
         else {
             console.log("Initial Run ", isInitialRun);
-            updateTeamMatch(await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).get(), isInitialRun, resetListeners, addToListenerList);
+            if (hasTeamMatchTable) {
+                updateTeamMatch(await db.ref(`teamMatches/${teamMatchID}/currentMatches/${tableNumber}`).get(), isInitialRun, resetListeners, addToListenerList);
+            }
+            else {
+                updateTeamMatch({ val: () => "" }, isInitialRun, resetListeners, addToListenerList);
+            }
             updateTeamAID(await db.ref(`teamMatches/${teamMatchID}/teamAID`).get(), isInitialRun, resetListeners, addToListenerList);
             updateTeamBID(await db.ref(`teamMatches/${teamMatchID}/teamBID`).get(), isInitialRun, resetListeners, addToListenerList);
             updateTeamAScore(await db.ref(`teamMatches/${teamMatchID}/teamAScore`).get());
