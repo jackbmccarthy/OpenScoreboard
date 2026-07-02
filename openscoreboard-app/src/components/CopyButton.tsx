@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { View, Input, Text, Button, FormControl } from 'native-base';
-import { FontAwesome } from '@expo/vector-icons';
-import { TouchableOpacity } from 'react-native';
-import { openScoreboardButtonTextColor } from "../../openscoreboardtheme";
+import { View, Text, Button } from 'native-base';
+import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Pressable } from 'react-native';
+import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { setStringAsync } from 'expo-clipboard';
 import i18n from '../translations/translate';
+
+const URL_ICON_BUTTON_WIDTH = 42;
 
 function copyTextToClipboard(text, setWasCopied) {
     setWasCopied(true)
@@ -40,20 +42,54 @@ export default function CopyButton({ text }) {
 export function CopyInputRightButton({ text }) {
     let [wasCopied, setWasCopied] = useState(false)
 
+    function openTextURL() {
+        if (typeof window !== "undefined") {
+            window.open(text, "_blank", "noopener,noreferrer")
+        }
+    }
+
     return (
-        <Button
-            backgroundColor={"black"}
-            borderLeftRadius={0}
-            borderRightRadius={6}
-            height={"100%"}
-            minW={76}
-            onPress={() => {
-                copyTextToClipboard(text, setWasCopied)
-            }}
-        >
-            <Text color={openScoreboardButtonTextColor} fontSize={"sm"} fontWeight={"bold"}>
-                {wasCopied ? i18n.t("copied") : "Copy"}
-            </Text>
-        </Button>
+        <View flexDirection={"row"} height={"100%"} width={URL_ICON_BUTTON_WIDTH * 2}>
+            <Pressable
+                accessibilityLabel={"Open link in a new tab"}
+                accessibilityRole={"button"}
+                onPress={openTextURL}
+                style={({ hovered, pressed }) => ({
+                    alignItems: "center",
+                    backgroundColor: hovered || pressed ? "#F3F4F6" : "#FFFFFF",
+                    borderBottomColor: "#D1D5DB",
+                    borderBottomWidth: 1,
+                    borderLeftColor: "#D1D5DB",
+                    borderLeftWidth: 1,
+                    borderTopColor: "#D1D5DB",
+                    borderTopWidth: 1,
+                    height: "100%",
+                    justifyContent: "center",
+                    minHeight: 40,
+                    width: URL_ICON_BUTTON_WIDTH,
+                })}
+            >
+                <MaterialCommunityIcons name="open-in-new" color={openScoreboardColor} size={20} />
+            </Pressable>
+            <Pressable
+                accessibilityLabel={"Copy link"}
+                accessibilityRole={"button"}
+                onPress={() => {
+                    copyTextToClipboard(text, setWasCopied)
+                }}
+                style={({ hovered, pressed }) => ({
+                    alignItems: "center",
+                    backgroundColor: hovered || pressed || wasCopied ? "#111827" : "#000000",
+                    borderBottomRightRadius: 6,
+                    borderTopRightRadius: 6,
+                    height: "100%",
+                    justifyContent: "center",
+                    minHeight: 40,
+                    width: URL_ICON_BUTTON_WIDTH,
+                })}
+            >
+                <MaterialCommunityIcons name={wasCopied ? "check" : "content-copy"} color={openScoreboardButtonTextColor} size={20} />
+            </Pressable>
+        </View>
     )
 }

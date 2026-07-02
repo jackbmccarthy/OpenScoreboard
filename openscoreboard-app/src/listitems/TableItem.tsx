@@ -1,9 +1,10 @@
 import React from 'react';
-import { Text, Button, View } from 'native-base';
-import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
+import { Text, View } from 'native-base';
+import { openScoreboardColor } from "../../openscoreboardtheme";
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { supportedSports } from '../functions/sports';
 import { getUserPath } from '../../database';
+import { MetadataPill, ResourceAction, ResourceCard } from '../components/ListPage';
 
 function MatchPlayerPreview({ label, name }) {
     return (
@@ -24,38 +25,6 @@ function MatchPlayerPreview({ label, name }) {
     );
 }
 
-function TableAction({ label, icon, onPress, isPrimary = false, isLoading = false }) {
-    return (
-        <View width={{ base: "48.5%", md: "31.5%" }} marginBottom={2}>
-            <Button
-                backgroundColor={isPrimary ? openScoreboardColor : "white"}
-                borderColor={isPrimary ? openScoreboardColor : "blue.100"}
-                borderWidth={1}
-                justifyContent={"flex-start"}
-                minHeight={44}
-                onPress={onPress}
-                paddingX={3}
-                isLoading={isLoading}
-                isDisabled={isLoading}
-                variant={isPrimary ? "solid" : "outline"}
-                width={"100%"}
-            >
-                <View alignItems={"center"} flexDir={"row"} width={"100%"}>
-                    {icon(isPrimary ? openScoreboardButtonTextColor : openScoreboardColor)}
-                    <Text
-                        color={isPrimary ? openScoreboardButtonTextColor : "blue.700"}
-                        fontSize={"sm"}
-                        fontWeight={"semibold"}
-                        marginLeft={2}
-                    >
-                        {label}
-                    </Text>
-                </View>
-            </Button>
-        </View>
-    );
-}
-
 export function TableItem(props) {
     const sportDisplayName = supportedSports[props.sportName]?.displayName || "Table Tennis";
     const currentMatch = props.currentMatchPreview || {};
@@ -65,29 +34,69 @@ export function TableItem(props) {
     const isKioskMode = props.tableMode === "kiosk";
 
     return (
-        <View
-            backgroundColor={"white"}
-            borderColor={"gray.200"}
-            borderRadius={8}
-            borderWidth={1}
-            marginX={3}
-            marginY={2}
-            padding={4}
+        <ResourceCard
+            icon={(color) => <MaterialCommunityIcons name={isKioskMode ? "monitor-lock" : "table-tennis"} size={23} color={color} />}
+            meta={(
+                <>
+                    <MetadataPill label={"Sport"} value={sportDisplayName} />
+                    <MetadataPill label={"Mode"} value={isKioskMode ? "Kiosk" : "Standard"} />
+                    <MetadataPill label={"Status"} value={hasCurrentMatch ? "Active match" : "Waiting"} />
+                </>
+            )}
+            title={props.tableName}
+            subtitle={isKioskMode ? "Kiosk table" : "Standard scoring table"}
+            actions={(
+                <>
+                    {hasCurrentMatch ? (
+                        <ResourceAction
+                            isPrimary
+                            label={"Live scoring"}
+                            icon={(color) => <MaterialCommunityIcons name="scoreboard-outline" size={20} color={color} />}
+                            onPress={() => {
+                                props.navigation.navigate("TableScoring", {
+                                    tableID: props.id,
+                                    name: props.tableName,
+                                    password: props.password,
+                                    sportName: props.sportName ? props.sportName : "tableTennis",
+                                    scoringType: props.scoringType ? props.scoringType : null,
+                                    ownerID: getUserPath() || "",
+                                });
+                            }}
+                        />
+                    ) : (
+                        <ResourceAction
+                            isPrimary
+                            isLoading={props.isCreatingMatch}
+                            label={isKioskMode ? "Open kiosk" : "Create match"}
+                            icon={(color) => <MaterialCommunityIcons name={isKioskMode ? "monitor-lock" : "plus-box-outline"} size={20} color={color} />}
+                            onPress={() => {
+                                props.createMatchForTable(props);
+                            }}
+                        />
+                    )}
+                    <ResourceAction
+                        label={"Manage"}
+                        icon={(color) => <Ionicons name="settings-outline" size={19} color={color} />}
+                        onPress={() => {
+                            props.navigation.navigate("TableEditor", {
+                                tableID: props.id,
+                                myTableID: props.myTableID,
+                                name: props.tableName,
+                                sportName: props.sportName,
+                                scoringType: props.scoringType,
+                            });
+                        }}
+                    />
+                    <ResourceAction
+                        label={"Share"}
+                        icon={(color) => <Ionicons name="share-social-outline" size={19} color={color} />}
+                        onPress={() => {
+                            props.openLinkModal(props.id, props.index);
+                        }}
+                    />
+                </>
+            )}
         >
-            <View>
-                <View>
-                    <View alignItems={"center"} flexDirection={"row"} flexWrap={"wrap"}>
-                        <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"}>{props.tableName}</Text>
-                        {isKioskMode ? (
-                            <View backgroundColor={"blue.50"} borderColor={"blue.100"} borderRadius={999} borderWidth={1} marginLeft={2} paddingX={2} paddingY={0.5}>
-                                <Text color={"blue.800"} fontSize={"2xs"} fontWeight={"bold"}>Kiosk</Text>
-                            </View>
-                        ) : null}
-                    </View>
-                    <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>{sportDisplayName}</Text>
-                </View>
-            </View>
-
             <View marginTop={4}>
                 <Text color={"gray.700"} fontSize={"sm"} fontWeight={"bold"}>Current match</Text>
                 {hasCurrentMatch ? (
@@ -114,55 +123,6 @@ export function TableItem(props) {
                 )}
             </View>
 
-            <View flexDir={"row"} flexWrap={"wrap"} justifyContent={"space-between"} marginTop={4}>
-                {hasCurrentMatch ? (
-                    <TableAction
-                        isPrimary
-                        label={"Live scoring"}
-                        icon={(color) => <MaterialCommunityIcons name="scoreboard-outline" size={20} color={color} />}
-                        onPress={() => {
-                            props.navigation.navigate("TableScoring", {
-                                tableID: props.id,
-                                name: props.tableName,
-                                password: props.password,
-                                sportName: props.sportName ? props.sportName : "tableTennis",
-                                scoringType: props.scoringType ? props.scoringType : null,
-                                ownerID: getUserPath() || "",
-                            });
-                        }}
-                    />
-                ) : (
-                    <TableAction
-                        isPrimary
-                        isLoading={props.isCreatingMatch}
-                        label={isKioskMode ? "Open kiosk" : "Create match"}
-                        icon={(color) => <MaterialCommunityIcons name={isKioskMode ? "monitor-lock" : "plus-box-outline"} size={20} color={color} />}
-                        onPress={() => {
-                            props.createMatchForTable(props);
-                        }}
-                    />
-                )}
-                <TableAction
-                    label={"Manage"}
-                    icon={(color) => <Ionicons name="settings-outline" size={19} color={color} />}
-                    onPress={() => {
-                        props.navigation.navigate("TableEditor", {
-                            tableID: props.id,
-                            myTableID: props.myTableID,
-                            name: props.tableName,
-                            sportName: props.sportName,
-                            scoringType: props.scoringType,
-                        });
-                    }}
-                />
-                <TableAction
-                    label={"Share"}
-                    icon={(color) => <Ionicons name="share-social-outline" size={19} color={color} />}
-                    onPress={() => {
-                        props.openLinkModal(props.id, props.index);
-                    }}
-                />
-            </View>
-        </View>
+        </ResourceCard>
     );
 }

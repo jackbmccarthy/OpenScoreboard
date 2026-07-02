@@ -3,26 +3,25 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Button, View, NativeBaseProvider, FlatList, Input, Text, Select } from 'native-base';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Checkbox, View, NativeBaseProvider, FlatList, Text } from 'native-base';
 import { getUserPath } from '../database';
 import LoadingPage from './LoadingPage';
-import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 
-import getMyTeamMatches from './functions/teammatches';
-import { LinearGradient } from 'expo-linear-gradient';
+import getMyTeamMatches, { archiveTeamMatch } from './functions/teammatches';
 import { SelectTeamMatchTableModal } from './modals/SelectTeamMatchTableModal';
 import { TeamMatchItem } from './listitems/TeamMatchItem';
 import { NewTeamMatchModal } from './modals/NewTeamMatchModal';
-import { TableLinkModal } from './modals/TableLinkModal';
 import { TeamMatchLinkModal } from './modals/TeamMatchLinkModal';
 import i18n from './translations/translate';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
+import { BulkActionToolbar, EmptyState, ListPageHeader, ListToolbar, PageScaffold } from './components/ListPage';
+import { compareByCreatedDesc } from './functions/listSorting';
 
 const teamMatchSortOptions = [
-    { label: "Newest date first", value: "dateDesc" },
-    { label: "Oldest date first", value: "dateAsc" },
+    { label: "Recently created", value: "createdDesc" },
+    { label: "Match date newest", value: "dateDesc" },
+    { label: "Match date oldest", value: "dateAsc" },
 ];
 
 function getTeamMatchDateValue(teamMatch = {}) {
@@ -42,19 +41,22 @@ function getTeamMatchSearchText(teamMatchEntry) {
     ].filter(Boolean).join(" ").toLowerCase();
 }
 
-function sortTeamMatches(teamMatches = [], sortBy = "dateDesc") {
+function sortTeamMatches(teamMatches = [], sortBy = "createdDesc") {
     return [...teamMatches].sort((firstEntry, secondEntry) => {
         const firstMatch = firstEntry?.[1] || {};
         const secondMatch = secondEntry?.[1] || {};
         const dateComparison = getTeamMatchDateValue(firstMatch) - getTeamMatchDateValue(secondMatch);
+        const firstName = `${firstMatch.teamAName || ""} ${firstMatch.teamBName || ""}`;
+        const secondName = `${secondMatch.teamAName || ""} ${secondMatch.teamBName || ""}`;
 
-        if (dateComparison !== 0) {
+        if (sortBy === "dateAsc" || sortBy === "dateDesc") {
+            if (dateComparison === 0) {
+                return firstName.localeCompare(secondName);
+            }
             return sortBy === "dateAsc" ? dateComparison : -dateComparison;
         }
 
-        const firstName = `${firstMatch.teamAName || ""} ${firstMatch.teamBName || ""}`;
-        const secondName = `${secondMatch.teamAName || ""} ${secondMatch.teamBName || ""}`;
-        return firstName.localeCompare(secondName);
+        return compareByCreatedDesc(firstEntry, secondEntry) || firstName.localeCompare(secondName);
     });
 }
 
@@ -72,7 +74,10 @@ export default function MyTeamMatches(props) {
     let [teamScoringType, setTeamScoringType] = useState("")
     let [teamSportName, setTeamSportName] = useState("")
     let [teamMatchSearch, setTeamMatchSearch] = useState("")
-    let [teamMatchSort, setTeamMatchSort] = useState("dateDesc")
+    let [teamMatchSort, setTeamMatchSort] = useState("createdDesc")
+    let [selectedTeamMatchIDs, setSelectedTeamMatchIDs] = useState([])
+    let [confirmBulkArchive, setConfirmBulkArchive] = useState(false)
+    let [bulkArchiveLoading, setBulkArchiveLoading] = useState(false)
     const filteredTeamMatches = useMemo(() => {
         const normalizedSearch = teamMatchSearch.trim().toLowerCase();
         const filteredMatches = normalizedSearch ?
@@ -81,6 +86,52 @@ export default function MyTeamMatches(props) {
 
         return sortTeamMatches(filteredMatches, teamMatchSort);
     }, [teamMatchList, teamMatchSearch, teamMatchSort]);
+    const selectedTeamMatchSet = useMemo(() => new Set(selectedTeamMatchIDs), [selectedTeamMatchIDs]);
+
+    const toggleTeamMatchSelection = (myTeamMatchID) => {
+        setConfirmBulkArchive(false)
+        setSelectedTeamMatchIDs((currentIDs) => {
+            if (currentIDs.includes(myTeamMatchID)) {
+                return currentIDs.filter((id) => id !== myTeamMatchID)
+            }
+
+            return [...currentIDs, myTeamMatchID]
+        })
+    }
+
+    const selectVisibleTeamMatches = () => {
+        setConfirmBulkArchive(false)
+        setSelectedTeamMatchIDs((currentIDs) => {
+            const nextIDs = new Set(currentIDs)
+            filteredTeamMatches.forEach((teamMatch) => {
+                if (teamMatch?.[0]) {
+                    nextIDs.add(teamMatch[0])
+                }
+            })
+            return Array.from(nextIDs)
+        })
+    }
+
+    const clearSelectedTeamMatches = () => {
+        setConfirmBulkArchive(false)
+        setSelectedTeamMatchIDs([])
+    }
+
+    const archiveSelectedTeamMatches = async () => {
+        if (selectedTeamMatchIDs.length === 0) {
+            return
+        }
+
+        setBulkArchiveLoading(true)
+        try {
+            await Promise.all(selectedTeamMatchIDs.map((myTeamMatchID) => archiveTeamMatch(myTeamMatchID)))
+            clearSelectedTeamMatches()
+            await loadTeamMatches()
+        }
+        finally {
+            setBulkArchiveLoading(false)
+        }
+    }
 
     const openTeamMatchTableSelection = (teamMatchID, teamMatchIndex) => {
 
@@ -124,7 +175,12 @@ export default function MyTeamMatches(props) {
 
     async function loadTeamMatches() {
         setDoneLoading(false)
-        setTeamMatchList(await getMyTeamMatches(getUserPath()))
+        const nextTeamMatches = await getMyTeamMatches(getUserPath())
+        setTeamMatchList(nextTeamMatches)
+        setSelectedTeamMatchIDs((currentIDs) => {
+            const activeIDs = new Set(nextTeamMatches.map((teamMatch) => teamMatch?.[0]).filter(Boolean))
+            return currentIDs.filter((id) => activeIDs.has(id))
+        })
         setDoneLoading(true)
     }
 
@@ -158,88 +214,110 @@ export default function MyTeamMatches(props) {
                     <View flex={1}>
                         {
                             teamMatchList.length > 0 ?
-                                <View flex={1}>
-                                    <View
-                                        backgroundColor={"white"}
-                                        borderBottomColor={"gray.200"}
-                                        borderBottomWidth={1}
-                                        padding={4}
-                                    >
-                                        <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"}>
-                                            {i18n.t("myTeamMatches")}
-                                        </Text>
-                                        <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                                            Search by team name and sort team events by date.
-                                        </Text>
-                                        <View flexDirection={{ base: "column", md: "row" }} marginTop={3}>
-                                            <View flex={1} marginRight={{ base: 0, md: 2 }}>
-                                                <Input
-                                                    InputLeftElement={(
-                                                        <View marginLeft={3}>
-                                                            <MaterialCommunityIcons name="magnify" size={20} color={"#6B7280"} />
-                                                        </View>
-                                                    )}
-                                                    onChangeText={setTeamMatchSearch}
-                                                    placeholder={"Search by team name"}
-                                                    value={teamMatchSearch}
-                                                />
-                                            </View>
-                                            <View marginLeft={{ base: 0, md: 2 }} marginTop={{ base: 3, md: 0 }} minWidth={{ base: "100%", md: 220 }}>
-                                                <Select selectedValue={teamMatchSort} onValueChange={setTeamMatchSort}>
-                                                    {teamMatchSortOptions.map((option) => (
-                                                        <Select.Item key={option.value} label={option.label} value={option.value} />
-                                                    ))}
-                                                </Select>
-                                            </View>
-                                        </View>
-                                        <Text color={"gray.500"} fontSize={"xs"} marginTop={2}>
-                                            Showing {filteredTeamMatches.length} of {teamMatchList.length} team match{teamMatchList.length === 1 ? "" : "es"}.
-                                        </Text>
-                                    </View>
+                                <PageScaffold>
+                                    <ListPageHeader
+                                        actionIcon={"plus"}
+                                        actionLabel={i18n.t("createOne")}
+                                        description={"Manage team contests, table assignments, score-only events, public views, and scoring links."}
+                                        onAction={() => setShowNewTeamMatchModal(true)}
+                                        title={i18n.t("myTeamMatches")}
+                                    />
+                                    <ListToolbar
+                                        countLabel={`Showing ${filteredTeamMatches.length} of ${teamMatchList.length} team match${teamMatchList.length === 1 ? "" : "es"}.`}
+                                        onSearchChange={setTeamMatchSearch}
+                                        onSortChange={setTeamMatchSort}
+                                        searchPlaceholder={"Search by team name"}
+                                        searchValue={teamMatchSearch}
+                                        sortOptions={teamMatchSortOptions}
+                                        sortValue={teamMatchSort}
+                                    />
+                                    <BulkActionToolbar
+                                        actionIcon={"archive-outline"}
+                                        actionLabel={"Archive selected"}
+                                        confirmActionLabel={"Archive team matches"}
+                                        confirmMessage={`Archive ${selectedTeamMatchIDs.length} selected team match${selectedTeamMatchIDs.length === 1 ? "" : "es"}? They will be removed from this active list and kept in archived team matches.`}
+                                        isConfirming={confirmBulkArchive}
+                                        isLoading={bulkArchiveLoading}
+                                        onAction={() => setConfirmBulkArchive(true)}
+                                        onCancelConfirm={() => setConfirmBulkArchive(false)}
+                                        onClearSelection={clearSelectedTeamMatches}
+                                        onConfirmAction={archiveSelectedTeamMatches}
+                                        onSelectVisible={selectVisibleTeamMatches}
+                                        selectedCount={selectedTeamMatchIDs.length}
+                                        visibleCount={filteredTeamMatches.length}
+                                    />
                                     {filteredTeamMatches.length > 0 ? (
                                         <FlatList
                                             data={filteredTeamMatches}
                                             keyExtractor={(item) => { return item[0] }}
                                             renderItem={(item) => {
+                                                const myTeamMatchID = item.item?.[0]
+                                                const isSelected = selectedTeamMatchSet.has(myTeamMatchID)
                                                 return (
-
-                                                    <TeamMatchItem {...props}
-                                                        goToKeepScore={goToKeepScore}
-                                                        openTeamMatchLink={openTeamMatchLink}
-                                                        openTeamMatchEdit={openTeamMatchEdit}
-                                                        openTeamMatchTableSelection={openTeamMatchTableSelection}
-                                                        reloadTeamMatches={loadTeamMatches}
-                                                        {...item}></TeamMatchItem>
+                                                    <View>
+                                                        <View
+                                                            alignItems={"center"}
+                                                            backgroundColor={isSelected ? "blue.50" : "white"}
+                                                            borderColor={isSelected ? "blue.200" : "gray.200"}
+                                                            borderRadius={8}
+                                                            borderWidth={1}
+                                                            flexDirection={"row"}
+                                                            marginX={3}
+                                                            marginTop={2}
+                                                            padding={3}
+                                                        >
+                                                            <Checkbox
+                                                                accessibilityLabel={`Select ${item.item?.[1]?.teamAName || "Team A"} vs ${item.item?.[1]?.teamBName || "Team B"}`}
+                                                                isChecked={isSelected}
+                                                                onChange={() => toggleTeamMatchSelection(myTeamMatchID)}
+                                                                value={myTeamMatchID}
+                                                            >
+                                                                <Text color={"gray.700"} fontSize={"sm"} fontWeight={"bold"}>
+                                                                    Select for bulk actions
+                                                                </Text>
+                                                            </Checkbox>
+                                                        </View>
+                                                        <TeamMatchItem {...props}
+                                                            goToKeepScore={goToKeepScore}
+                                                            openTeamMatchLink={openTeamMatchLink}
+                                                            openTeamMatchEdit={openTeamMatchEdit}
+                                                            openTeamMatchTableSelection={openTeamMatchTableSelection}
+                                                            reloadTeamMatches={loadTeamMatches}
+                                                            {...item}></TeamMatchItem>
+                                                    </View>
 
                                                 )
 
                                             }}
                                         ></FlatList>
                                     ) : (
-                                        <View alignItems={"center"} justifyContent={"center"} padding={6}>
-                                            <Text color={"gray.900"} fontSize={"xl"} fontWeight={"bold"}>No team matches match your search.</Text>
-                                            <Button marginTop={3} onPress={() => setTeamMatchSearch("")} variant={"outline"}>
-                                                <Text color={"blue.700"} fontWeight={"bold"}>Clear search</Text>
-                                            </Button>
-                                        </View>
+                                        <EmptyState
+                                            actionLabel={"Clear search"}
+                                            description={"Try searching by another team name."}
+                                            icon={"account-search-outline"}
+                                            onAction={() => setTeamMatchSearch("")}
+                                            title={"No team matches match your search"}
+                                        />
                                     )}
-                                </View>
+                                </PageScaffold>
                                 :
 
-                                <View justifyContent={"center"} alignItems="center">
-                                    <View>
-                                        <Text fontSize={"xl"} fontWeight="bold">{i18n.t("noTeamMatches")}</Text>
-                                        <View padding={2}>
-                                            <Button
-                                                onPress={() => {
-                                                    setShowNewTeamMatchModal(true)
-                                                }}
-                                            >
-                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
-                                            </Button>
-                                        </View>
-                                    </View>
-                                </View>
+                                <PageScaffold>
+                                    <ListPageHeader
+                                        actionIcon={"plus"}
+                                        actionLabel={i18n.t("createOne")}
+                                        description={"Create structured team matches or score-only team events."}
+                                        onAction={() => setShowNewTeamMatchModal(true)}
+                                        title={i18n.t("myTeamMatches")}
+                                    />
+                                    <EmptyState
+                                        actionLabel={i18n.t("createOne")}
+                                        description={"Create a team match to manage team score, player matches, tables, and public links."}
+                                        icon={"account-group-outline"}
+                                        onAction={() => setShowNewTeamMatchModal(true)}
+                                        title={i18n.t("noTeamMatches")}
+                                    />
+                                </PageScaffold>
                         }
                     </View>
 

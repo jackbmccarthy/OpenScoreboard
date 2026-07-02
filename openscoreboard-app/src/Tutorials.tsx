@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { NativeBaseProvider, Pressable, ScrollView, Text, View } from 'native-base';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { openScoreboardColor, openScoreboardTheme } from '../openscoreboardtheme';
@@ -104,6 +104,32 @@ const tutorialSections = [
         ],
         relatedRoutes: [
             { label: "Open My Teams", route: "MyTeams" },
+        ],
+    },
+    {
+        id: "team-matches",
+        title: "Team Matches",
+        subtitle: "Track team-versus-team contests, tables, and match history.",
+        icon: "account-group-outline",
+        purpose: "Team matches let two teams play a contest where the team score is tracked across player matches, table assignments, or simple score-only updates.",
+        create: [
+            "Open Team Matches and create a structured team match or a score-only team event.",
+            "Choose the teams, sport, scoring format, and whether player matches or team-score-only controls are needed.",
+            "Assign tables or scoring links when individual player matches should be scored live.",
+            "Use the public display links when viewers need the current team score and match history.",
+        ],
+        useFor: [
+            "Leagues or exhibitions where two teams play several player matches.",
+            "Score-only events where the organizer only needs to increment team totals.",
+            "Team match history that should explain how the team score was earned.",
+        ],
+        tips: [
+            "Use team competitions when team matches are part of a bracket or group structure.",
+            "Use a score-only team match when the event does not need individual player match scoring.",
+        ],
+        relatedRoutes: [
+            { label: "Open Team Matches", route: "MyTeamMatches" },
+            { label: "Open Teams", route: "MyTeams" },
         ],
     },
     {
@@ -435,8 +461,9 @@ function TutorialTopic({ navigation, section, isExpanded, onToggle }) {
 }
 
 export default function Tutorials(props) {
+    const requestedSectionID = props.route?.params?.sectionID || "";
     const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-        "getting-started": true,
+        [requestedSectionID || "getting-started"]: true,
     });
     const topicGroups = useMemo(() => ([
         {
@@ -445,7 +472,7 @@ export default function Tutorials(props) {
         },
         {
             title: "Score",
-            ids: ["tables-scoring", "player-lists", "teams", "scheduling", "scorekeeper-sessions"],
+            ids: ["tables-scoring", "player-lists", "teams", "team-matches", "scheduling", "scorekeeper-sessions"],
         },
         {
             title: "Display",
@@ -473,6 +500,17 @@ export default function Tutorials(props) {
             return nextSections;
         });
     }
+
+    useEffect(() => {
+        if (!requestedSectionID) {
+            return;
+        }
+
+        setExpandedSections((currentSections) => ({
+            ...currentSections,
+            [requestedSectionID]: true,
+        }));
+    }, [requestedSectionID]);
 
     return (
         <NativeBaseProvider theme={openScoreboardTheme}>

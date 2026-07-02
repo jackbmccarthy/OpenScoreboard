@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Button, FormControl, Input, Modal, NativeBaseProvider, ScrollView, Select, Spinner, Text, View } from 'native-base';
@@ -17,6 +17,16 @@ import {
 } from './functions/dynamicBracketGroups';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 import { CopyInputRightButton } from './components/CopyButton';
+import { EmptyState, ListPageHeader, ListToolbar, PageScaffold } from './components/ListPage';
+import { compareByCreatedDesc } from './functions/listSorting';
+
+const displaySearchSortOptions = [
+    { label: "Recently created", value: "createdDesc" },
+    { label: "Name A-Z", value: "nameAsc" },
+    { label: "Name Z-A", value: "nameDesc" },
+    { label: "Dynamic URLs first", value: "displaysFirst" },
+    { label: "Styles first", value: "stylesFirst" },
+];
 
 function getDisplayTypeLabel(type) {
     return type === "roundRobin" ? "Round robin group" : "Single elimination bracket";
@@ -60,6 +70,61 @@ function openDisplayURL(url) {
     if (typeof window !== "undefined") {
         window.open(url, "_blank", "noopener,noreferrer");
     }
+}
+
+function getDisplaySearchText(displayEntry) {
+    const [, display = {}] = displayEntry || [];
+
+    return [
+        display.id,
+        display.title,
+        display.displayType,
+        display.competitionTitle,
+        display.styleTitle,
+        getDisplayTypeLabel(display.displayType),
+        getCameraModeLabel(display.cameraMode),
+        "dynamic url stable production",
+    ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function getStyleSearchText(styleEntry) {
+    const [, style = {}] = styleEntry || [];
+
+    return [
+        style.id,
+        style.title,
+        style.displayType,
+        getStyleTitle(style),
+        getDisplayTypeLabel(style.displayType),
+        "style reusable display",
+    ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function sortDisplayEntries(entries, sortBy) {
+    return [...entries].sort((firstEntry, secondEntry) => {
+        const firstTypeRank = firstEntry.entryType === "display" ? 0 : 1;
+        const secondTypeRank = secondEntry.entryType === "display" ? 0 : 1;
+        const firstTitle = `${firstEntry.entryType === "display" ? firstEntry.entry?.[1]?.title : getStyleTitle(firstEntry.entry?.[1])}`.toLowerCase();
+        const secondTitle = `${secondEntry.entryType === "display" ? secondEntry.entry?.[1]?.title : getStyleTitle(secondEntry.entry?.[1])}`.toLowerCase();
+
+        if (sortBy === "nameDesc") {
+            return secondTitle.localeCompare(firstTitle);
+        }
+
+        if (sortBy === "nameAsc") {
+            return firstTitle.localeCompare(secondTitle);
+        }
+
+        if (sortBy === "displaysFirst") {
+            return firstTypeRank - secondTypeRank || firstTitle.localeCompare(secondTitle);
+        }
+
+        if (sortBy === "stylesFirst") {
+            return secondTypeRank - firstTypeRank || firstTitle.localeCompare(secondTitle);
+        }
+
+        return compareByCreatedDesc(firstEntry.entry, secondEntry.entry) || firstTitle.localeCompare(secondTitle);
+    });
 }
 
 function DynamicDisplayCard({ item, onDelete, onEdit }) {
@@ -461,10 +526,29 @@ export default function MyBracketGroupStyles(props) {
     const [competitions, setCompetitions] = useState([]);
     const [doneLoading, setDoneLoading] = useState(false);
     const [dynamicDisplays, setDynamicDisplays] = useState([]);
-    const [editDisplay, setEditDisplay] = useState(null);
     const [showCreateDisplayModal, setShowCreateDisplayModal] = useState(false);
     const [showCreateStyleModal, setShowCreateStyleModal] = useState(false);
+    const [displaySearch, setDisplaySearch] = useState("");
+    const [displaySort, setDisplaySort] = useState("createdDesc");
     const [styles, setStyles] = useState([]);
+    const displayEntries = useMemo(() => {
+        const entries = [
+            ...dynamicDisplays.map((entry) => ({ entry, entryType: "display" })),
+            ...styles.map((entry) => ({ entry, entryType: "style" })),
+        ];
+        const normalizedSearch = displaySearch.trim().toLowerCase();
+        const filteredEntries = normalizedSearch ?
+            entries.filter(({ entry, entryType }) => {
+                return entryType === "display" ?
+                    getDisplaySearchText(entry).includes(normalizedSearch) :
+                    getStyleSearchText(entry).includes(normalizedSearch);
+            }) :
+            entries;
+
+        return sortDisplayEntries(filteredEntries, displaySort);
+    }, [displaySearch, displaySort, dynamicDisplays, styles]);
+    const visibleDynamicDisplays = displayEntries.filter((entry) => entry.entryType === "display").map((entry) => entry.entry);
+    const visibleStyles = displayEntries.filter((entry) => entry.entryType === "style").map((entry) => entry.entry);
 
     async function loadPage() {
         setDoneLoading(false);
@@ -500,57 +584,67 @@ export default function MyBracketGroupStyles(props) {
     return (
         <NativeBaseProvider theme={openScoreboardTheme}>
             <ScrollView backgroundColor={"gray.50"}>
-                <View padding={4}>
-                    <View backgroundColor={"white"} borderColor={"gray.200"} borderRadius={8} borderWidth={1} marginBottom={4} padding={4}>
-                        <Text color={"gray.900"} fontSize={"3xl"} fontWeight={"bold"}>Dynamic Brackets & Groups</Text>
-                        <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                            Create stable production URLs that dynamically point to the competition and display style you choose.
-                        </Text>
-                        <View flexDirection={"row"} flexWrap={"wrap"} marginTop={4}>
-                            <Button backgroundColor={openScoreboardColor} borderRadius={8} marginRight={2} marginTop={2} onPress={() => setShowCreateDisplayModal(true)}>
-                                <View alignItems={"center"} flexDirection={"row"}>
-                                    <MaterialCommunityIcons name="link-plus" size={18} color={openScoreboardButtonTextColor} />
-                                    <Text color={openScoreboardButtonTextColor} fontWeight={"bold"} marginLeft={2}>Create dynamic URL</Text>
-                                </View>
-                            </Button>
-                            <Button borderRadius={8} marginTop={2} onPress={() => setShowCreateStyleModal(true)} variant={"outline"}>
-                                <View alignItems={"center"} flexDirection={"row"}>
-                                    <MaterialCommunityIcons name="palette-outline" size={18} color={openScoreboardColor} />
-                                    <Text color={openScoreboardColor} fontWeight={"bold"} marginLeft={2}>Create style</Text>
-                                </View>
-                            </Button>
-                        </View>
-                    </View>
+                <PageScaffold>
+                    <ListPageHeader
+                        actionIcon={"link-plus"}
+                        actionLabel={"Create dynamic URL"}
+                        description={"Create stable production URLs that dynamically point to the competition and display style you choose."}
+                        onAction={() => setShowCreateDisplayModal(true)}
+                        onSecondaryAction={() => setShowCreateStyleModal(true)}
+                        secondaryActionIcon={"palette-outline"}
+                        secondaryActionLabel={"Create style"}
+                        title={"Dynamic Brackets & Groups"}
+                    />
+                    {dynamicDisplays.length > 0 || styles.length > 0 ? (
+                        <ListToolbar
+                            countLabel={`Showing ${displayEntries.length} of ${dynamicDisplays.length + styles.length} bracket/group resource${dynamicDisplays.length + styles.length === 1 ? "" : "s"}.`}
+                            onSearchChange={setDisplaySearch}
+                            onSortChange={setDisplaySort}
+                            searchPlaceholder={"Search display URLs, competitions, styles, or camera behavior"}
+                            searchValue={displaySearch}
+                            sortOptions={displaySearchSortOptions}
+                            sortValue={displaySort}
+                        />
+                    ) : null}
 
-                    <Text color={"gray.900"} fontSize={"2xl"} fontWeight={"bold"} marginBottom={3}>Dynamic display URLs</Text>
-                    {dynamicDisplays.length > 0 ? (
-                        <View flexDirection={"row"} flexWrap={"wrap"} justifyContent={"space-between"}>
-                            {dynamicDisplays.map((display) => (
+                    <Text color={"gray.900"} fontSize={"2xl"} fontWeight={"bold"} marginBottom={3} marginX={3}>Dynamic display URLs</Text>
+                    {visibleDynamicDisplays.length > 0 ? (
+                        <View flexDirection={"row"} flexWrap={"wrap"} justifyContent={"space-between"} marginX={3}>
+                            {visibleDynamicDisplays.map((display) => (
                                 <View key={display?.[0]} width={{ base: "100%", lg: "48.5%" }}>
-                                    <DynamicDisplayCard
-                                        item={display}
-                                        onDelete={async () => {
-                                            await deleteDynamicBracketGroupDisplay(display?.[0]);
-                                            loadPage();
-                                        }}
-                                        onEdit={() => setEditDisplay({
-                                            ...(display?.[1] || {}),
-                                            myID: display?.[0],
-                                        })}
-                                    />
+	                                    <DynamicDisplayCard
+	                                        item={display}
+	                                        onDelete={async () => {
+	                                            await deleteDynamicBracketGroupDisplay(display?.[0]);
+	                                            loadPage();
+	                                        }}
+	                                        onEdit={() => props.navigation.navigate("DynamicBracketGroupDisplayEditor", {
+	                                            displayID: display?.[1]?.id,
+	                                            myDisplayID: display?.[0],
+	                                        })}
+	                                    />
                                 </View>
                             ))}
                         </View>
+                    ) : dynamicDisplays.length > 0 && displaySearch.trim().length > 0 ? (
+                        <EmptyState
+                            actionLabel={"Clear search"}
+                            description={"Try another display URL name, competition, style, or camera behavior."}
+                            icon={"link-variant-off"}
+                            onAction={() => setDisplaySearch("")}
+                            title={"No dynamic display URLs match your search"}
+                        />
                     ) : (
-                        <View alignItems={"center"} backgroundColor={"white"} borderColor={"gray.200"} borderRadius={8} borderWidth={1} marginBottom={4} padding={6}>
-                            <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"}>No dynamic bracket/group URLs yet</Text>
-                            <Text color={"gray.600"} fontSize={"sm"} marginTop={2} textAlign={"center"}>
-                                Create one stable URL for your TV or stream, then update the competition or style whenever you need.
-                            </Text>
-                        </View>
+                        <EmptyState
+                            actionLabel={"Create dynamic URL"}
+                            description={"Create one stable URL for your TV or stream, then update the competition or style whenever you need."}
+                            icon={"link-plus"}
+                            onAction={() => setShowCreateDisplayModal(true)}
+                            title={"No dynamic bracket/group URLs yet"}
+                        />
                     )}
 
-                    <View alignItems={"center"} flexDirection={"row"} justifyContent={"space-between"} marginBottom={3} marginTop={4}>
+                    <View alignItems={"center"} flexDirection={"row"} justifyContent={"space-between"} marginBottom={3} marginTop={4} marginX={3}>
                         <View flex={1} paddingRight={3}>
                             <Text color={"gray.900"} fontSize={"2xl"} fontWeight={"bold"}>Reusable display styles</Text>
                             <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
@@ -561,9 +655,9 @@ export default function MyBracketGroupStyles(props) {
                             <Text color={openScoreboardColor} fontWeight={"bold"}>New style</Text>
                         </Button>
                     </View>
-                    {styles.length > 0 ? (
-                        <View flexDirection={"row"} flexWrap={"wrap"} justifyContent={"space-between"}>
-                            {styles.map((style) => (
+                    {visibleStyles.length > 0 ? (
+                        <View flexDirection={"row"} flexWrap={"wrap"} justifyContent={"space-between"} marginX={3}>
+                            {visibleStyles.map((style) => (
                                 <View key={style?.[0]} width={{ base: "100%", md: "48.5%" }}>
                                     <StyleCard
                                         item={style}
@@ -574,27 +668,34 @@ export default function MyBracketGroupStyles(props) {
                                 </View>
                             ))}
                         </View>
+                    ) : styles.length > 0 && displaySearch.trim().length > 0 ? (
+                        <EmptyState
+                            actionLabel={"Clear search"}
+                            description={"Try another style name or display type."}
+                            icon={"palette-outline"}
+                            onAction={() => setDisplaySearch("")}
+                            title={"No display styles match your search"}
+                        />
                     ) : (
-                        <View alignItems={"center"} backgroundColor={"white"} borderColor={"gray.200"} borderRadius={8} borderWidth={1} padding={6}>
-                            <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"}>No custom styles yet</Text>
-                            <Text color={"gray.600"} fontSize={"sm"} marginTop={2} textAlign={"center"}>
-                                Dynamic displays can use the default style until you create a custom one.
-                            </Text>
-                        </View>
+                        <EmptyState
+                            actionLabel={"Create style"}
+                            description={"Dynamic displays can use the default style until you create a custom one."}
+                            icon={"palette-outline"}
+                            onAction={() => setShowCreateStyleModal(true)}
+                            title={"No custom styles yet"}
+                        />
                     )}
-                </View>
+                </PageScaffold>
             </ScrollView>
             <DynamicDisplayModal
                 competitions={competitions}
-                display={editDisplay}
-                isOpen={showCreateDisplayModal || !!editDisplay}
+                display={null}
+                isOpen={showCreateDisplayModal}
                 onClose={() => {
                     setShowCreateDisplayModal(false);
-                    setEditDisplay(null);
                 }}
                 onSaved={() => {
                     setShowCreateDisplayModal(false);
-                    setEditDisplay(null);
                     loadPage();
                 }}
                 styles={styles}

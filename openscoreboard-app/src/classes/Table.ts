@@ -10,6 +10,7 @@ class Table {
     this.creatorID = creatorID;
     this.id = uuidv4();
     this.password = uuidv4()
+    this.createdOn = new Date().toISOString()
     this.currentMatch = ""
     this.previousMatches = {}
     this.playerList = {}
