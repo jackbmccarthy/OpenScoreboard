@@ -48,13 +48,16 @@ export async function getMyDynamicURLs(includeName = false) {
 }
 
 export async function createDynamicURL(dynamicURLName, tableID, teammatchID, tableNumber, scoreboardID) {
+    const timestamp = new Date().toISOString()
     let newDynamicURL = await db.ref(`dynamicurls`).push({
         dynamicURLName: dynamicURLName,
         tableID: tableID,
         teammatchID: teammatchID,
         tableNumber: tableNumber,
         owner: getUserPath(),
-        scoreboardID: scoreboardID
+        scoreboardID: scoreboardID,
+        createdOn: timestamp,
+        updatedOn: timestamp
     })
     db.ref(`users/${getUserPath()}/mydynamicurls`).push({
         id: newDynamicURL.key,
@@ -62,13 +65,17 @@ export async function createDynamicURL(dynamicURLName, tableID, teammatchID, tab
         tableID: tableID,
         teammatchID: teammatchID,
         tableNumber: tableNumber,
-        scoreboardID: scoreboardID
+        scoreboardID: scoreboardID,
+        createdOn: timestamp,
+        updatedOn: timestamp
     })
 
 }
 export async function updateDynamicURL(myDynamicURLID, dynamicURLName, tableID, teammatchID, tableNumber, scoreboardID) {
-    let realDynamicURLIDSnap = await db.ref(`users/${getUserPath()}/mydynamicurls/${myDynamicURLID}/id`).get()
-    let realDynamicID = realDynamicURLIDSnap.val()
+    const timestamp = new Date().toISOString()
+    let existingDynamicURLSnap = await db.ref(`users/${getUserPath()}/mydynamicurls/${myDynamicURLID}`).get()
+    let existingDynamicURL = existingDynamicURLSnap.val() || {}
+    let realDynamicID = existingDynamicURL.id
 
     db.ref(`users/${getUserPath()}/mydynamicurls/${myDynamicURLID}`).set({
         id: realDynamicID,
@@ -76,7 +83,9 @@ export async function updateDynamicURL(myDynamicURLID, dynamicURLName, tableID, 
         tableID: tableID,
         teammatchID: teammatchID,
         tableNumber: tableNumber,
-        scoreboardID: scoreboardID
+        scoreboardID: scoreboardID,
+        createdOn: existingDynamicURL.createdOn || timestamp,
+        updatedOn: timestamp
     })
     let newDynamicURL = await db.ref(`dynamicurls/${realDynamicID}`).set({
         dynamicURLName: dynamicURLName,
@@ -84,7 +93,9 @@ export async function updateDynamicURL(myDynamicURLID, dynamicURLName, tableID, 
         teammatchID: teammatchID,
         tableNumber: tableNumber,
         owner: getUserPath(),
-        scoreboardID: scoreboardID
+        scoreboardID: scoreboardID,
+        createdOn: existingDynamicURL.createdOn || timestamp,
+        updatedOn: timestamp
     })
 }
 

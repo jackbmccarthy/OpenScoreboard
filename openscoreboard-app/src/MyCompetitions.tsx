@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Button, FormControl, Input, Modal, NativeBaseProvider, ScrollView, Select, Spinner, Text, View } from 'native-base';
@@ -8,6 +8,15 @@ import { openScoreboardButtonTextColor, openScoreboardColor, openScoreboardTheme
 import LoadingPage from './LoadingPage';
 import { archiveCompetition, bracketRoundConfig, createCompetition as createCompetitionRecord, getCompetitionSportLabel, getMyCompetitions, getSupportedCompetitionSports } from './functions/competitions';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
+import { EmptyState, ListPageHeader, ListToolbar, PageScaffold } from './components/ListPage';
+import { compareByCreatedDesc } from './functions/listSorting';
+
+const competitionSortOptions = [
+    { label: "Recently created", value: "createdDesc" },
+    { label: "Name A-Z", value: "nameAsc" },
+    { label: "Name Z-A", value: "nameDesc" },
+    { label: "Team events first", value: "teamsFirst" },
+];
 
 function getCompetitionTypeLabel(type) {
     switch (type) {
@@ -67,6 +76,45 @@ function getCompetitionStats(competition) {
         `${matchCount} match${matchCount === 1 ? "" : "es"}`,
         upgradeRound ? `Best of ${defaultBestOf}, ${upgradeBestOf} from ${upgradeRound}` : `Best of ${defaultBestOf}`,
     ];
+}
+
+function getCompetitionSearchText(competitionEntry) {
+    const [, competition = {}] = competitionEntry || [];
+
+    return [
+        competition.id,
+        competition.title,
+        competition.data?.title,
+        competition.type,
+        competition.participantType === "team" ? "team tournament team competition" : "individual player competition",
+        getCompetitionTypeLabel(competition.type),
+        getCompetitionSportLabel(competition.sportName || "tableTennis"),
+        getCompetitionStats(competition).join(" "),
+        isCompetitionArchived(competition) ? "archived" : "current",
+    ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function sortCompetitions(competitionEntries, sortBy) {
+    return [...competitionEntries].sort((firstEntry, secondEntry) => {
+        const firstCompetition = firstEntry?.[1] || {};
+        const secondCompetition = secondEntry?.[1] || {};
+        const firstName = `${firstCompetition.title || firstCompetition.data?.title || ""}`.toLowerCase();
+        const secondName = `${secondCompetition.title || secondCompetition.data?.title || ""}`.toLowerCase();
+
+        if (sortBy === "nameAsc") {
+            return firstName.localeCompare(secondName);
+        }
+
+        if (sortBy === "nameDesc") {
+            return secondName.localeCompare(firstName);
+        }
+
+        if (sortBy === "teamsFirst") {
+            return Number(secondCompetition.participantType === "team") - Number(firstCompetition.participantType === "team") || firstName.localeCompare(secondName);
+        }
+
+        return compareByCreatedDesc(firstEntry, secondEntry) || firstName.localeCompare(secondName);
+    });
 }
 
 function CompetitionCard({
@@ -190,6 +238,7 @@ function CompetitionTabs({ activeTab, archivedCount, currentCount, setActiveTab 
             borderWidth={1}
             flexDirection={"row"}
             marginBottom={4}
+            marginX={3}
             padding={1}
         >
             {tabs.map((tab) => {
@@ -368,11 +417,21 @@ export default function MyCompetitions(props) {
     const [archiveLoadingID, setArchiveLoadingID] = useState("");
     const [confirmArchiveID, setConfirmArchiveID] = useState("");
     const [competitions, setCompetitions] = useState([]);
+    const [competitionSearch, setCompetitionSearch] = useState("");
+    const [competitionSort, setCompetitionSort] = useState("createdDesc");
     const [doneLoading, setDoneLoading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const currentCompetitions = competitions.filter((competition) => !isCompetitionArchived(competition?.[1] || {}));
     const archivedCompetitions = competitions.filter((competition) => isCompetitionArchived(competition?.[1] || {}));
-    const displayedCompetitions = activeTab === "archived" ? archivedCompetitions : currentCompetitions;
+    const displayedCompetitions = useMemo(() => {
+        const tabCompetitions = activeTab === "archived" ? archivedCompetitions : currentCompetitions;
+        const normalizedSearch = competitionSearch.trim().toLowerCase();
+        const filteredCompetitions = normalizedSearch ?
+            tabCompetitions.filter((competition) => getCompetitionSearchText(competition).includes(normalizedSearch)) :
+            tabCompetitions;
+
+        return sortCompetitions(filteredCompetitions, competitionSort);
+    }, [activeTab, archivedCompetitions, competitionSearch, competitionSort, currentCompetitions]);
 
     async function loadCompetitions() {
         setDoneLoading(false);
@@ -420,32 +479,14 @@ export default function MyCompetitions(props) {
     return (
         <NativeBaseProvider theme={openScoreboardTheme}>
             <ScrollView backgroundColor={"gray.50"}>
-                <View padding={4}>
-                    <View
-                        backgroundColor={"white"}
-                        borderColor={"gray.200"}
-                        borderRadius={8}
-                        borderWidth={1}
-                        marginBottom={4}
-                        padding={4}
-                    >
-                        <Text color={"gray.900"} fontSize={"3xl"} fontWeight={"bold"}>My Competitions</Text>
-                        <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                            Create individual or team competitions, manage their structure, then schedule matches to tables as needed.
-                        </Text>
-                        <Button
-                            alignSelf={"flex-start"}
-                            backgroundColor={openScoreboardColor}
-                            borderRadius={8}
-                            marginTop={4}
-                            onPress={() => setShowCreateModal(true)}
-                        >
-                            <View alignItems={"center"} flexDirection={"row"}>
-                                <MaterialCommunityIcons name="plus" size={18} color={openScoreboardButtonTextColor} />
-                                <Text color={openScoreboardButtonTextColor} fontWeight={"bold"} marginLeft={2}>Create competition</Text>
-                            </View>
-                        </Button>
-                    </View>
+                <PageScaffold>
+                    <ListPageHeader
+                        actionIcon={"plus"}
+                        actionLabel={"Create competition"}
+                        description={"Create individual or team competitions, manage their structure, then schedule matches to tables as needed."}
+                        onAction={() => setShowCreateModal(true)}
+                        title={"My Competitions"}
+                    />
 
                     <CompetitionTabs
                         activeTab={activeTab}
@@ -453,9 +494,20 @@ export default function MyCompetitions(props) {
                         currentCount={currentCompetitions.length}
                         setActiveTab={setActiveTab}
                     />
+                    {competitions.length > 0 ? (
+                        <ListToolbar
+                            countLabel={`Showing ${displayedCompetitions.length} of ${activeTab === "archived" ? archivedCompetitions.length : currentCompetitions.length} ${activeTab} competition${(activeTab === "archived" ? archivedCompetitions.length : currentCompetitions.length) === 1 ? "" : "s"}.`}
+                            onSearchChange={setCompetitionSearch}
+                            onSortChange={setCompetitionSort}
+                            searchPlaceholder={"Search competitions by title, type, sport, or entrants"}
+                            searchValue={competitionSearch}
+                            sortOptions={competitionSortOptions}
+                            sortValue={competitionSort}
+                        />
+                    ) : null}
 
                     {displayedCompetitions.length > 0 ? (
-                        <View flexDirection={"row"} flexWrap={"wrap"} justifyContent={"space-between"}>
+                        <View flexDirection={"row"} flexWrap={"wrap"} justifyContent={"space-between"} marginX={3}>
                             {displayedCompetitions.map((competition) => (
                                 <View key={competition?.[0]} width={{ base: "100%", md: "48.5%" }}>
                                     <CompetitionCard
@@ -472,10 +524,26 @@ export default function MyCompetitions(props) {
                                 </View>
                             ))}
                         </View>
+                    ) : competitions.length > 0 && competitionSearch.trim().length > 0 ? (
+                        <EmptyState
+                            actionLabel={"Clear search"}
+                            description={"Try another title, competition type, sport, or entrant type."}
+                            icon={"tournament"}
+                            onAction={() => setCompetitionSearch("")}
+                            title={"No competitions match your search"}
+                        />
                     ) : (
-                        <EmptyCompetitions activeTab={activeTab} />
+                        <EmptyState
+                            actionLabel={activeTab === "archived" ? "" : "Create competition"}
+                            description={activeTab === "archived" ?
+                                "Archived competitions will appear here after you move them out of the current list." :
+                                "Create a bracket, group, or team competition to get started."}
+                            icon={activeTab === "archived" ? "archive-outline" : "tournament"}
+                            onAction={activeTab === "archived" ? undefined : () => setShowCreateModal(true)}
+                            title={activeTab === "archived" ? "No archived competitions" : "No current competitions yet"}
+                        />
                     )}
-                </View>
+                </PageScaffold>
             </ScrollView>
             <NewCompetitionModal
                 isOpen={showCreateModal}

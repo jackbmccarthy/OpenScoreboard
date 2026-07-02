@@ -79,8 +79,11 @@ export async function getTeamMatchCurrentMatch(teamMatchID, tableNumber) {
 export async function addNewTeamMatch(teamMatch, options: any = {}) {
 
     const ownerID = getUserPath()
+    const timestamp = new Date().toISOString()
     const nextTeamMatch = {
         ...teamMatch,
+        createdOn: teamMatch.createdOn || timestamp,
+        updatedOn: teamMatch.updatedOn || timestamp,
         ownerID: teamMatch.ownerID || ownerID,
     }
     let pushedTeamMatch = await db.ref(`teamMatches`).push(nextTeamMatch)
@@ -100,6 +103,8 @@ export async function addNewTeamMatch(teamMatch, options: any = {}) {
         sportName: nextTeamMatch.sportName,
         sportDisplayName: supportedSports[nextTeamMatch.sportName].displayName,
         scoringType: nextTeamMatch.scoringType,
+        createdOn: nextTeamMatch.createdOn,
+        updatedOn: nextTeamMatch.updatedOn,
         teamMatchMode: getTeamMatchMode(nextTeamMatch),
     }
 

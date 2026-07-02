@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Input, NativeBaseProvider, ScrollView, Spinner, Text, View } from 'native-base';
+import { Button, NativeBaseProvider, ScrollView, Spinner, Text, View } from 'native-base';
 import { getArchivedMatchesForTable, getArchivedMatchesForTeamMatch, getMatchData } from './functions/scoring';
 import LoadingPage from './LoadingPage';
 import { ArchivedMatchItem } from './listitems/ArchivedMatchItem';
 import i18n from './translations/translate';
-import { openScoreboardTheme } from '../openscoreboardtheme';
+import { openScoreboardButtonTextColor, openScoreboardColor, openScoreboardTheme } from '../openscoreboardtheme';
 import { getTableName } from './functions/tables';
+import { EmptyState, ListPageHeader, ListToolbar, PageScaffold } from './components/ListPage';
 
 const PAGE_SIZE = 12;
 
@@ -134,116 +135,82 @@ export default function ArchivedMatchList(props) {
                     <ScrollView
                         backgroundColor={"gray.50"}
                         flex={1}
-                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 40, paddingTop: 12 }}
+                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
                     >
-                        {archivedMatchList.length > 0 ? (
-                            <View alignSelf={"center"} maxW={1180} paddingX={3} width={"100%"}>
-                                <View marginBottom={3}>
-                                    <Text color={"gray.900"} fontSize={"2xl"} fontWeight={"bold"}>
-                                        {archiveTitle || i18n.t("archivedMatches")}
-                                    </Text>
-                                    <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                                        {i18n.t("archivedMatches")}
-                                    </Text>
-                                </View>
-                                <View
-                                    backgroundColor={"white"}
-                                    borderColor={"gray.200"}
-                                    borderRadius={8}
-                                    borderWidth={1}
-                                    marginBottom={3}
-                                    padding={3}
-                                >
-                                    <Input
-                                        backgroundColor={"white"}
-                                        borderColor={"gray.300"}
-                                        color={"gray.900"}
-                                        placeholder={"Search by player name"}
-                                        placeholderTextColor={"#6B7280"}
-                                        value={searchText}
-                                        onChangeText={(text) => {
+                        <PageScaffold>
+                            <ListPageHeader
+                                description={"Review completed matches, game scores, match totals, and historical results for this scoring target."}
+                                title={archiveTitle || i18n.t("archivedMatches")}
+                            />
+                            {archivedMatchList.length > 0 ? (
+                                <>
+                                    <ListToolbar
+                                        countLabel={`Showing ${Math.min(visibleCount, filteredArchivedMatchList.length)} of ${filteredArchivedMatchList.length} archived match${filteredArchivedMatchList.length === 1 ? "" : "es"}.${isHydratingMatches ? " Loading scores..." : ""}`}
+                                        onSearchChange={(text) => {
                                             setSearchText(text);
                                             setVisibleCount(PAGE_SIZE);
                                         }}
+                                        searchPlaceholder={"Search by player name"}
+                                        searchValue={searchText}
                                     />
-                                    <View alignItems={"center"} flexDir={"row"} justifyContent={"space-between"} marginTop={2}>
-                                        <Text color={"gray.600"} fontSize={"xs"} fontWeight={"medium"}>
-                                            Showing {Math.min(visibleCount, filteredArchivedMatchList.length)} of {filteredArchivedMatchList.length}
-                                        </Text>
-                                        {isHydratingMatches ? (
-                                            <View alignItems={"center"} flexDir={"row"}>
-                                                <Spinner color={openScoreboardTheme.colors.primary[600]} size={"sm"} />
-                                                <Text color={"gray.500"} fontSize={"xs"} marginLeft={2}>Loading scores</Text>
-                                            </View>
-                                        ) : null}
-                                    </View>
-                                </View>
 
-                                {visibleArchivedMatchList.length > 0 ? (
-                                    <View
-                                        flexDir={"row"}
-                                        flexWrap={"wrap"}
-                                        justifyContent={"space-between"}
-                                        width={"100%"}
-                                    >
-                                        {visibleArchivedMatchList.map((match, index) => (
-                                            <ArchivedMatchItem key={match[0]} index={index} item={match} />
-                                        ))}
-                                    </View>
-                                ) : isHydratingMatches ? (
-                                    <View
-                                        alignItems={"center"}
-                                        backgroundColor={"white"}
-                                        borderColor={"gray.200"}
-                                        borderRadius={8}
-                                        borderWidth={1}
-                                        flexDir={"row"}
-                                        justifyContent={"center"}
-                                        padding={4}
-                                    >
-                                        <Spinner color={openScoreboardTheme.colors.primary[600]} size={"sm"} />
-                                        <Text color={"gray.600"} fontSize={"sm"} marginLeft={2}>Loading scores</Text>
-                                    </View>
-                                ) : (
-                                    <View
-                                        backgroundColor={"white"}
-                                        borderColor={"gray.200"}
-                                        borderRadius={8}
-                                        borderWidth={1}
-                                        padding={4}
-                                    >
-                                        <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"}>No matches found</Text>
-                                        <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>Try a different player name.</Text>
-                                    </View>
-                                )}
-
-                                {visibleCount < filteredArchivedMatchList.length ? (
-                                    <View alignItems={"center"} marginTop={2}>
-                                        <Button
-                                            backgroundColor={"black"}
-                                            borderRadius={8}
-                                            onPress={() => setVisibleCount((currentCount) => currentCount + PAGE_SIZE)}
+                                    {visibleArchivedMatchList.length > 0 ? (
+                                        <View
+                                            flexDir={"row"}
+                                            flexWrap={"wrap"}
+                                            justifyContent={"space-between"}
+                                            marginX={3}
+                                            width={"auto"}
                                         >
-                                            <Text color={"white"} fontWeight={"bold"}>Load More</Text>
-                                        </Button>
-                                    </View>
-                                ) : null}
-                            </View>
-                        ) : (
-                            <View flex={1} justifyContent={"center"} alignItems="center" padding={4}>
-                                <View
-                                    backgroundColor={"white"}
-                                    borderColor={"gray.200"}
-                                    borderRadius={8}
-                                    borderWidth={1}
-                                    padding={4}
-                                    width={"100%"}
-                                    maxW={420}
-                                >
-                                    <Text color={"gray.900"} fontSize={"xl"} fontWeight="bold">{i18n.t("noArchivedMatchesTable")}</Text>
-                                </View>
-                            </View>
-                        )}
+                                            {visibleArchivedMatchList.map((match, index) => (
+                                                <ArchivedMatchItem key={match[0]} index={index} item={match} />
+                                            ))}
+                                        </View>
+                                    ) : isHydratingMatches ? (
+                                        <View
+                                            alignItems={"center"}
+                                            backgroundColor={"white"}
+                                            borderColor={"gray.200"}
+                                            borderRadius={8}
+                                            borderWidth={1}
+                                            flexDir={"row"}
+                                            justifyContent={"center"}
+                                            marginX={3}
+                                            padding={4}
+                                        >
+                                            <Spinner color={openScoreboardColor} size={"sm"} />
+                                            <Text color={"gray.600"} fontSize={"sm"} marginLeft={2}>Loading scores</Text>
+                                        </View>
+                                    ) : (
+                                        <EmptyState
+                                            actionLabel={"Clear search"}
+                                            description={"Try a different player name."}
+                                            icon={"archive-search-outline"}
+                                            onAction={() => setSearchText("")}
+                                            title={"No matches found"}
+                                        />
+                                    )}
+
+                                    {visibleCount < filteredArchivedMatchList.length ? (
+                                        <View alignItems={"center"} marginTop={2}>
+                                            <Button
+                                                backgroundColor={openScoreboardColor}
+                                                borderRadius={8}
+                                                onPress={() => setVisibleCount((currentCount) => currentCount + PAGE_SIZE)}
+                                            >
+                                                <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>Load More</Text>
+                                            </Button>
+                                        </View>
+                                    ) : null}
+                                </>
+                            ) : (
+                                <EmptyState
+                                    description={"Completed matches for this table or team match will appear here after they are archived."}
+                                    icon={"archive-outline"}
+                                    title={i18n.t("noArchivedMatchesTable")}
+                                />
+                            )}
+                        </PageScaffold>
                     </ScrollView>
 
                 </View>

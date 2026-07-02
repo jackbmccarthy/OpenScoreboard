@@ -17,10 +17,13 @@ export function newTeamMatch(teamAID, teamBID, startTime, sportName, scoringType
     const teamMatchMode = options.teamMatchMode === TEAM_MATCH_MODES.TEAM_SCORE_ONLY ?
         TEAM_MATCH_MODES.TEAM_SCORE_ONLY :
         TEAM_MATCH_MODES.STRUCTURED;
+    const timestamp = new Date().toISOString();
 
     return {
         teamAID: teamAID,
         teamBID: teamBID,
+        createdOn: timestamp,
+        updatedOn: timestamp,
         teamMatchMode,
         startTime: startTime,
         teamAScore: 0,

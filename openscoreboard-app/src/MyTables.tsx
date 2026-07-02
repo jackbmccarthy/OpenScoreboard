@@ -1,10 +1,9 @@
 
 
-import React, { useEffect, useState } from 'react';
-import { Button, View, NativeBaseProvider, ScrollView, Text } from 'native-base';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, NativeBaseProvider, ScrollView } from 'native-base';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import db, { getUserPath } from '../database';
-import { openScoreboardButtonTextColor, openScoreboardColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import CreateNewTableModal from './modals/CreateNewTableModal';
 import { TableItem } from './listitems/TableItem';
@@ -14,6 +13,58 @@ import i18n from './translations/translate';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
 import { getCombinedPlayerNames } from './functions/players';
 import { createNewMatch } from './functions/scoring';
+import { EmptyState, ListPageHeader, ListToolbar, PageScaffold, ResourceAction, ResourceCard } from './components/ListPage';
+import { compareByCreatedDesc } from './functions/listSorting';
+
+const tableSortOptions = [
+    { label: "Recently created", value: "createdDesc" },
+    { label: "Name A-Z", value: "nameAsc" },
+    { label: "Name Z-A", value: "nameDesc" },
+    { label: "Active matches first", value: "activeFirst" },
+    { label: "Waiting first", value: "waitingFirst" },
+    { label: "Kiosk first", value: "kioskFirst" },
+];
+
+function getTableSearchText(table) {
+    return [
+        table.tableName,
+        table.sportName,
+        table.scoringType,
+        table.tableMode,
+        table.currentMatchPreview?.playerA,
+        table.currentMatchPreview?.playerB,
+        table.hasCurrentMatch ? "active current match live scoring" : "waiting no match",
+    ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function sortTables(tables, sortBy) {
+    return [...tables].sort((firstTable, secondTable) => {
+        const firstName = `${firstTable.tableName || ""}`.toLowerCase();
+        const secondName = `${secondTable.tableName || ""}`.toLowerCase();
+
+        if (sortBy === "nameDesc") {
+            return secondName.localeCompare(firstName);
+        }
+
+        if (sortBy === "nameAsc") {
+            return firstName.localeCompare(secondName);
+        }
+
+        if (sortBy === "activeFirst") {
+            return Number(secondTable.hasCurrentMatch === true) - Number(firstTable.hasCurrentMatch === true) || firstName.localeCompare(secondName);
+        }
+
+        if (sortBy === "waitingFirst") {
+            return Number(firstTable.hasCurrentMatch === true) - Number(secondTable.hasCurrentMatch === true) || firstName.localeCompare(secondName);
+        }
+
+        if (sortBy === "kioskFirst") {
+            return Number(secondTable.tableMode === "kiosk") - Number(firstTable.tableMode === "kiosk") || firstName.localeCompare(secondName);
+        }
+
+        return compareByCreatedDesc(firstTable, secondTable);
+    });
+}
 
 
 
@@ -26,9 +77,20 @@ export default function MyTables(props) {
     let [showCreateTable, setShowCreateTable] = useState(false)
     let [showLinkModal, setShowLinkModal] = useState(false)
     let [creatingMatchTableID, setCreatingMatchTableID] = useState("")
+    let [tableSearch, setTableSearch] = useState("")
+    let [tableSort, setTableSort] = useState("createdDesc")
 
     let [selectedTableID, setSelectedTableID] = useState("")
     let [selectedTableIndex, setSelectedTableIndex] = useState(0)
+    const visibleTables = useMemo(() => {
+        const normalizedSearch = tableSearch.trim().toLowerCase();
+        const filteredTables = normalizedSearch ?
+            tableList.filter((table) => getTableSearchText(table).includes(normalizedSearch)) :
+            tableList;
+
+        return sortTables(filteredTables, tableSort);
+    }, [tableList, tableSearch, tableSort]);
+
     const openLinkModal = (tableID, tableIndex) => {
         setSelectedTableID(tableID)
         setSelectedTableIndex(tableIndex)
@@ -62,7 +124,9 @@ export default function MyTables(props) {
                     db.ref("tables/" + tableID[1] + "/sportName").get(),
                     db.ref("tables/" + tableID[1] + "/scoringType").get(),
                     db.ref("tables/" + tableID[1] + "/currentMatch").get(),
-                    db.ref("tables/" + tableID[1] + "/tableMode").get()
+                    db.ref("tables/" + tableID[1] + "/tableMode").get(),
+                    db.ref("tables/" + tableID[1] + "/createdOn").get(),
+                    db.ref("tables/" + tableID[1] + "/createdAt").get()
                 ])
                 let tableNameSnapShot = tableDataPromise[0]
                 let tablePasswordSnap = tableDataPromise[1]
@@ -71,6 +135,8 @@ export default function MyTables(props) {
                 let tableScoringType = tableDataPromise[4]
                 let currentMatchSnap = tableDataPromise[5]
                 let tableModeSnap = tableDataPromise[6]
+                let createdOnSnap = tableDataPromise[7]
+                let createdAtSnap = tableDataPromise[8]
                 let tableName = tableNameSnapShot.val()
                 let password = tablePasswordSnap.val()
                 let playerListID = tablePlayerListIDSnap.val()
@@ -104,6 +170,8 @@ export default function MyTables(props) {
                     sportName: sportName,
                     scoringType: scoringType,
                     tableMode: tableMode,
+                    createdOn: createdOnSnap.val(),
+                    createdAt: createdAtSnap.val(),
                     currentMatchID: currentMatchID,
                     currentMatchPreview: currentMatchPreview,
                     hasCurrentMatch: hasCurrentMatch
@@ -181,85 +249,75 @@ export default function MyTables(props) {
                     <ScrollView
                         backgroundColor={"gray.50"}
                         flex={1}
-                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 32, paddingTop: 8 }}
+                        contentContainerStyle={{ flexGrow: 1, paddingBottom: 32 }}
                     >
-                        <View width={"100%"} maxW={1040} alignSelf={"center"}>
-                            <View
-                                alignItems={"center"}
-                                backgroundColor={"white"}
-                                borderColor={"gray.200"}
-                                borderRadius={8}
-                                borderWidth={1}
-                                flexDirection={"row"}
-                                marginX={3}
-                                marginY={2}
-                                padding={3}
-                            >
-                                <View
-                                    alignItems={"center"}
-                                    backgroundColor={"blue.50"}
-                                    borderRadius={999}
-                                    height={38}
-                                    justifyContent={"center"}
-                                    marginRight={3}
-                                    width={38}
-                                >
-                                    <MaterialCommunityIcons name="monitor-eye" size={20} color={openScoreboardColor} />
-                                </View>
-                                <View flex={1} paddingRight={3}>
-                                    <Text color={"gray.900"} fontSize={"md"} fontWeight={"bold"}>Production scorekeeper monitor</Text>
-                                    <Text color={"gray.600"} fontSize={"xs"} marginTop={0.5}>
-                                        View live scoring kiosks and block duplicate scorekeepers.
-                                    </Text>
-                                </View>
-                                <Button
-                                    backgroundColor={openScoreboardColor}
-                                    borderRadius={8}
-                                    onPress={() => props.navigation.navigate("ScorekeeperSessions")}
-                                >
-                                    <Text color={openScoreboardButtonTextColor} fontSize={"sm"} fontWeight={"bold"}>Open</Text>
-                                </Button>
-                            </View>
-                        </View>
-
-                        {tableList.length > 0 ? (
-                            <View width={"100%"} maxW={1040} alignSelf={"center"}>
-                                {tableList.map((table, index) => (
-                                    <TableItem
-                                        key={table.id || table.myTableID}
-                                        index={index}
-                                        {...props}
-                                        openLinkModal={openLinkModal}
-                                        createMatchForTable={createMatchForTable}
-                                        isCreatingMatch={creatingMatchTableID === table.id}
-                                        {...table}
+                        <PageScaffold>
+                            <ListPageHeader
+                                actionIcon={"plus"}
+                                actionLabel={i18n.t("createOne")}
+                                description={"Manage table scoring links, kiosk mode, live matches, and table-specific settings."}
+                                onAction={() => setShowCreateTable(true)}
+                                title={i18n.t("myTables")}
+                            />
+                            <ResourceCard
+                                icon={(color) => <MaterialCommunityIcons name="monitor-eye" size={22} color={color} />}
+                                title={"Production scorekeeper monitor"}
+                                subtitle={"View live scoring kiosks and block duplicate scorekeepers."}
+                                actions={(
+                                    <ResourceAction
+                                        isPrimary
+                                        icon={(color) => <MaterialCommunityIcons name="open-in-new" size={18} color={color} />}
+                                        label={"Open monitor"}
+                                        onPress={() => props.navigation.navigate("ScorekeeperSessions")}
                                     />
-                                ))}
-                            </View>
-                        ) : (
-                            <View flex={1} justifyContent={"center"} alignItems="center" padding={4}>
-                                <View
-                                    backgroundColor={"white"}
-                                    borderColor={"gray.200"}
-                                    borderRadius={8}
-                                    borderWidth={1}
-                                    padding={4}
-                                    width={"100%"}
-                                    maxW={420}
-                                >
-                                    <Text color={"gray.900"} fontSize={"xl"} fontWeight="bold">{i18n.t("noTables")}</Text>
-                                    <View marginTop={3}>
-                                        <Button
-                                            onPress={() => {
-                                                setShowCreateTable(true)
-                                            }}
-                                        >
-                                            <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
-                                        </Button>
-                                    </View>
+                                )}
+                            />
+                            {tableList.length > 0 ? (
+                                <ListToolbar
+                                    countLabel={`Showing ${visibleTables.length} of ${tableList.length} table${tableList.length === 1 ? "" : "s"}.`}
+                                    onSearchChange={setTableSearch}
+                                    onSortChange={setTableSort}
+                                    searchPlaceholder={"Search tables, players, sport, or mode"}
+                                    searchValue={tableSearch}
+                                    sortOptions={tableSortOptions}
+                                    sortValue={tableSort}
+                                />
+                            ) : null}
+                            {tableList.length > 0 && visibleTables.length > 0 ? (
+                                <View>
+                                    {visibleTables.map((table) => {
+                                        const originalIndex = tableList.findIndex((currentTable) => currentTable.id === table.id);
+                                        return (
+                                            <TableItem
+                                                key={table.id || table.myTableID}
+                                                index={originalIndex >= 0 ? originalIndex : 0}
+                                                {...props}
+                                                openLinkModal={openLinkModal}
+                                                createMatchForTable={createMatchForTable}
+                                                isCreatingMatch={creatingMatchTableID === table.id}
+                                                {...table}
+                                            />
+                                        );
+                                    })}
                                 </View>
-                            </View>
-                        )}
+                            ) : tableList.length > 0 ? (
+                                <EmptyState
+                                    actionLabel={"Clear search"}
+                                    description={"Try a different table name, player name, sport, or mode."}
+                                    icon={"table-search"}
+                                    onAction={() => setTableSearch("")}
+                                    title={"No tables match your search"}
+                                />
+                            ) : (
+                                <EmptyState
+                                    actionLabel={i18n.t("createOne")}
+                                    description={"Create a table or court to start scoring matches."}
+                                    icon={"table-plus"}
+                                    onAction={() => setShowCreateTable(true)}
+                                    title={i18n.t("noTables")}
+                                />
+                            )}
+                        </PageScaffold>
                     </ScrollView>
 
 

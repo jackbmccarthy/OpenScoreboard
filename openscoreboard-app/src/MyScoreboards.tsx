@@ -2,11 +2,10 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
-import { Button, View, NativeBaseProvider, ScrollView, Text, Input } from 'native-base';
+import { View, NativeBaseProvider, ScrollView } from 'native-base';
 import { deleteMyScoreboard, getMyScoreboards } from './functions/scoreboards';
 import { getUserPath } from '../database';
 import LoadingPage from './LoadingPage';
-import { openScoreboardButtonTextColor } from "../openscoreboardtheme";
 import { openScoreboardTheme } from "../openscoreboardtheme";
 import { NewScoreBoardModal } from './modals/NewScoreBoardModal';
 import { ScoreboardItem } from './listitems/ScoreboardItem';
@@ -14,6 +13,15 @@ import { ScoreboardMessageModal } from './modals/ScoreboardMessageModal';
 import { EditScoreboardSettingsModal } from './modals/EditScoreboardSettingsModal';
 import i18n from './translations/translate';
 import { HeaderActions, HeaderIconButton } from './components/HeaderActions';
+import { EmptyState, ListPageHeader, ListToolbar, PageScaffold } from './components/ListPage';
+import { compareByCreatedDesc } from './functions/listSorting';
+
+const scoreboardSortOptions = [
+    { label: "Recently created", value: "createdDesc" },
+    { label: "Name A-Z", value: "nameAsc" },
+    { label: "Name Z-A", value: "nameDesc" },
+    { label: "Type A-Z", value: "typeAsc" },
+];
 
 function getScoreboardTypeLabel(type) {
     if (!type) {
@@ -45,6 +53,29 @@ function scoreboardMatchesSearch(scoreboardEntry, searchText) {
     return searchableText.includes(normalizedSearch);
 }
 
+function sortScoreboards(scoreboards, sortBy) {
+    return [...scoreboards].sort((firstEntry, secondEntry) => {
+        const firstScoreboard = firstEntry?.[1] || {};
+        const secondScoreboard = secondEntry?.[1] || {};
+        const firstName = `${firstScoreboard.name || ""}`.toLowerCase();
+        const secondName = `${secondScoreboard.name || ""}`.toLowerCase();
+
+        if (sortBy === "nameAsc") {
+            return firstName.localeCompare(secondName);
+        }
+
+        if (sortBy === "nameDesc") {
+            return secondName.localeCompare(firstName);
+        }
+
+        if (sortBy === "typeAsc") {
+            return getScoreboardTypeLabel(firstScoreboard.type).localeCompare(getScoreboardTypeLabel(secondScoreboard.type)) || firstName.localeCompare(secondName);
+        }
+
+        return compareByCreatedDesc(firstEntry, secondEntry) || firstName.localeCompare(secondName);
+    });
+}
+
 export default function MyScoreboards(props) {
 
     let [scoreboardList, setScoreboardList] = useState([])
@@ -57,12 +88,14 @@ export default function MyScoreboards(props) {
     let [selectedScoreboardIndex, setSelectedScoreboardIndex] = useState(0)
     let [showScoreboardSettings, setShowScoreboardSettings] = useState(false)
     let [searchText, setSearchText] = useState("")
+    let [scoreboardSort, setScoreboardSort] = useState("createdDesc")
     const { width } = useWindowDimensions()
     const useTwoColumns = width >= 760
 
     const filteredScoreboards = useMemo(() => {
-        return scoreboardList.filter((scoreboard) => scoreboardMatchesSearch(scoreboard, searchText))
-    }, [scoreboardList, searchText])
+        const filteredList = scoreboardList.filter((scoreboard) => scoreboardMatchesSearch(scoreboard, searchText));
+        return sortScoreboards(filteredList, scoreboardSort);
+    }, [scoreboardList, scoreboardSort, searchText])
 
     const openScoreboardSettings = (scoreboardID) => {
         const index = scoreboardList.findIndex((scoreboard) => {
@@ -104,35 +137,25 @@ export default function MyScoreboards(props) {
                 <View width={"100%"} height={"100%"}>
                     <View flex={1}>
                         <ScrollView backgroundColor={"gray.50"}>
-                            <View
-                                alignSelf={"center"}
-                                maxWidth={1180}
-                                padding={4}
-                                width={"100%"}
-                            >
-                                <View
-                                    backgroundColor={"white"}
-                                    borderColor={"gray.200"}
-                                    borderRadius={8}
-                                    borderWidth={1}
-                                    padding={4}
-                                >
-                                    <Text color={"gray.900"} fontSize={"2xl"} fontWeight={"bold"}>
-                                        My Scoreboards
-                                    </Text>
-                                    <Text color={"gray.600"} fontSize={"sm"} marginTop={1}>
-                                        Manage every scoreboard saved under your account. Open a design, adjust settings, or find a specific scoreboard by name or type.
-                                    </Text>
-                                    <Text color={"gray.500"} fontSize={"xs"} fontWeight={"bold"} marginTop={3} textTransform={"uppercase"}>
-                                        {scoreboardList.length} {scoreboardList.length === 1 ? "scoreboard" : "scoreboards"}
-                                    </Text>
-                                    <Input
-                                        marginTop={3}
-                                        placeholder={"Search scoreboards by name or type"}
-                                        value={searchText}
-                                        onChangeText={setSearchText}
+                            <PageScaffold>
+                                <ListPageHeader
+                                    actionIcon={"plus"}
+                                    actionLabel={i18n.t("createOne")}
+                                    description={"Manage every scoreboard saved under your account. Open a design, adjust settings, or find a specific scoreboard by name or type."}
+                                    onAction={() => setShowNewScoreboardModal(true)}
+                                    title={"My Scoreboards"}
+                                />
+                                {scoreboardList.length > 0 ? (
+                                    <ListToolbar
+                                        countLabel={`Showing ${filteredScoreboards.length} of ${scoreboardList.length} scoreboard${scoreboardList.length === 1 ? "" : "s"}.`}
+                                        onSearchChange={setSearchText}
+                                        onSortChange={setScoreboardSort}
+                                        searchPlaceholder={"Search scoreboards by name or type"}
+                                        searchValue={searchText}
+                                        sortOptions={scoreboardSortOptions}
+                                        sortValue={scoreboardSort}
                                     />
-                                </View>
+                                ) : null}
 
                                 {scoreboardList.length > 0 && filteredScoreboards.length > 0 ? (
                                     <View
@@ -163,36 +186,15 @@ export default function MyScoreboards(props) {
                                         })}
                                     </View>
                                 ) : (
-                                    <View
-                                        alignItems={"center"}
-                                        backgroundColor={"white"}
-                                        borderColor={"gray.200"}
-                                        borderRadius={8}
-                                        borderWidth={1}
-                                        marginTop={4}
-                                        padding={6}
-                                    >
-                                        <Text color={"gray.900"} fontSize={"xl"} fontWeight="bold">
-                                            {scoreboardList.length > 0 ? "No scoreboards match your search" : i18n.t("noScoreboards")}
-                                        </Text>
-                                        {scoreboardList.length > 0 ? (
-                                            <Button marginTop={3} onPress={() => setSearchText("")} variant={"outline"}>
-                                                <Text color={"blue.700"} fontWeight={"bold"}>Clear search</Text>
-                                            </Button>
-                                        ) : (
-                                            <View padding={2}>
-                                            <Button
-                                                onPress={() => {
-                                                    setShowNewScoreboardModal(true)
-                                                }}
-                                            >
-                                                <Text color={openScoreboardButtonTextColor}>{i18n.t("createOne")}</Text>
-                                            </Button>
-                                            </View>
-                                        )}
-                                    </View>
+                                    <EmptyState
+                                        actionLabel={scoreboardList.length > 0 ? "Clear search" : i18n.t("createOne")}
+                                        description={scoreboardList.length > 0 ? "Try searching by another scoreboard name or type." : "Create a scoreboard design for tables, team matches, streams, or venue displays."}
+                                        icon={scoreboardList.length > 0 ? "scoreboard-outline" : "scoreboard"}
+                                        onAction={() => scoreboardList.length > 0 ? setSearchText("") : setShowNewScoreboardModal(true)}
+                                        title={scoreboardList.length > 0 ? "No scoreboards match your search" : i18n.t("noScoreboards")}
+                                    />
                                 )}
-                            </View>
+                            </PageScaffold>
                         </ScrollView>
                     </View>
 

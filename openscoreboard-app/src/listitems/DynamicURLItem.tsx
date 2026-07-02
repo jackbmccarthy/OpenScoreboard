@@ -168,13 +168,13 @@ export function DynamicURLItem(props) {
                 </View>
             ) : (
                 <View flexDirection={"row"} flexWrap={"wrap"} marginTop={2}>
-                    <ActionButton
-                        icon={(color) => <FontAwesome size={16} color={color} name="edit" />}
-                        label={"Edit"}
-                        onPress={() => {
-                            props.openEditDynamicURLModal(props.item[0], { ...matchInfo });
-                        }}
-                    />
+	                    <ActionButton
+	                        icon={(color) => <FontAwesome size={16} color={color} name="edit" />}
+	                        label={"Manage"}
+	                        onPress={() => {
+	                            props.onManage?.();
+	                        }}
+	                    />
                     <ActionButton
                         icon={(color) => <MaterialCommunityIcons size={18} color={color} name="email-fast-outline" />}
                         label={"Email"}

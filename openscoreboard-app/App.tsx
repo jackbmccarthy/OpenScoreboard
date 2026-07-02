@@ -1,4 +1,4 @@
-import React, { Component, useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ArchivedMatchList from './src/ArchivedMatchList';
 import { createNativeStackNavigator, } from '@react-navigation/native-stack';
 import { LinkingOptions, NavigationContainer } from '@react-navigation/native';
@@ -20,10 +20,10 @@ import MyPlayerLists from './src/MyPlayerLists';
 import VerifyEmail from './src/VerifyEmail';
 //import QRCodeScreen from './src/QRCode';
 import MyDynamicURLs from './src/MyDynamicURLs';
+import DynamicURLEditor from './src/DynamicURLEditor';
 import BulkAddPlayer from './src/BulkAddPlayers';
 import PlayerRegistration from './src/PlayerRegistration';
 import i18n from './src/translations/translate';
-import TableLiveScoringLink from './src/TableLiveScoringLink';
 import { HeaderActions } from './src/components/HeaderActions';
 import TeamEditor from './src/TeamEditor';
 import TeamMatchEditor from './src/TeamMatchEditor';
@@ -34,9 +34,11 @@ import SchedulingManager from './src/SchedulingManager';
 import MyCompetitions from './src/MyCompetitions';
 import CompetitionEditor from './src/CompetitionEditor';
 import MyBracketGroupStyles from './src/MyBracketGroupStyles';
+import DynamicBracketGroupDisplayEditor from './src/DynamicBracketGroupDisplayEditor';
 import BracketGroupStyleEditor from './src/BracketGroupStyleEditor';
 import TeamCompetitionPortal from './src/TeamCompetitionPortal';
 import Tutorials from './src/Tutorials';
+import { AppDrawer, HeaderBackAndMenu } from './src/components/AppDrawer';
 
 export const linkingConfig = {
   screens: {
@@ -79,7 +81,10 @@ export const linkingConfig = {
         SchedulingManager: subFolderPath + "/scheduling/:sourceType/:sourceID",
         MyCompetitions: subFolderPath + "/competitions",
         CompetitionEditor: subFolderPath + "/competitions/:competitionID/edit",
+        DynamicURLS: subFolderPath + "/scoreboards/dynamic-urls",
+        DynamicURLEditor: subFolderPath + "/scoreboards/dynamic-urls/:myDynamicURLID/edit",
         MyBracketGroupStyles: subFolderPath + "/scoreboards/brackets-groups",
+        DynamicBracketGroupDisplayEditor: subFolderPath + "/scoreboards/brackets-groups/displays/:myDisplayID/edit",
         BracketGroupStyleEditor: subFolderPath + "/scoreboards/brackets-groups/:styleID/edit",
         ScorekeeperSessions: subFolderPath + "/scorekeeper-sessions",
         Tutorials: subFolderPath + "/tutorials",
@@ -95,8 +100,23 @@ export const linkingConfig = {
 console.log(linkingConfig)
 const ScoreboardStack = createNativeStackNavigator()
 
+const HIDE_APP_DRAWER_ROUTES = new Set([
+  "TableScoring",
+  "TeamMatchScoring",
+  "PlayerRegistration",
+  "TeamManager",
+  "TeamMatchPublicView",
+  "TeamCompetitionPortal",
+  "Login",
+  "VerifyEmail",
+]);
+
 function isEmbeddedRoute(route) {
   return route?.params?.embed === true || route?.params?.embed === "true"
+}
+
+function shouldShowAppDrawer(route) {
+  return !HIDE_APP_DRAWER_ROUTES.has(route?.name || "")
 }
 
 function ScoreboardNavigation() {
@@ -105,6 +125,8 @@ function ScoreboardNavigation() {
   let [isSignedIn, setIsSignedIn] = useState(false)
   let [needsEmailVerification, setNeedsEmailVerification] = useState(false)
   let [hasLoadedLogin, setHasLoadedLogin] = useState(false)
+  let [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const navigationRef = useRef<any>(null)
 
 
   function isUnverifiedPasswordUser(user) {
@@ -174,10 +196,10 @@ function ScoreboardNavigation() {
     return (
 
 
-      <NavigationContainer linking={{ config: linkingConfig, }}>
+      <NavigationContainer ref={navigationRef} linking={{ config: linkingConfig, }}>
 
 
-        <ScoreboardStack.Navigator screenOptions={({ navigation }) => ({
+        <ScoreboardStack.Navigator screenOptions={({ navigation, route }) => ({
           contentStyle: {
             backgroundColor: "white"
           },
@@ -195,6 +217,13 @@ function ScoreboardNavigation() {
           },
 
           headerRight: () => <HeaderActions navigation={navigation} />,
+          headerLeft: isSignedIn && shouldShowAppDrawer(route) ? ({ canGoBack }) => (
+            <HeaderBackAndMenu
+              canGoBack={canGoBack}
+              onBack={() => navigation.goBack()}
+              onOpenMenu={() => setIsDrawerOpen(true)}
+            />
+          ) : undefined,
           headerTintColor: "white"
         })} >
 
@@ -218,6 +247,7 @@ function ScoreboardNavigation() {
                 <ScoreboardStack.Screen name="MyCompetitions" component={MyCompetitions} options={{ title: "Competitions" }} />
                 <ScoreboardStack.Screen name="CompetitionEditor" component={CompetitionEditor} options={{ title: "Edit Competition" }} />
                 <ScoreboardStack.Screen name="MyBracketGroupStyles" component={MyBracketGroupStyles} options={{ title: "Dynamic Brackets & Groups" }} />
+                <ScoreboardStack.Screen name="DynamicBracketGroupDisplayEditor" component={DynamicBracketGroupDisplayEditor} options={{ title: "Manage Dynamic Display" }} />
                 <ScoreboardStack.Screen name="BracketGroupStyleEditor" component={BracketGroupStyleEditor} options={{ title: "Edit Bracket/Group Style" }} />
                 <ScoreboardStack.Screen name="ScorekeeperSessions" component={ScorekeeperSessions} options={{ title: "Scorekeeper Sessions" }} />
                 <ScoreboardStack.Screen name="Tutorials" component={Tutorials} options={{ title: "Tutorials" }} />
@@ -234,11 +264,10 @@ function ScoreboardNavigation() {
                 <ScoreboardStack.Screen name="MyPlayerLists" component={MyPlayerLists} options={{ title: i18n.t("playerLists") }} ></ScoreboardStack.Screen>
                 {/* <ScoreboardStack.Screen name="QRCodeScreen" component={QRCodeScreen}  ></ScoreboardStack.Screen> */}
                 <ScoreboardStack.Screen name="DynamicURLS" component={MyDynamicURLs} options={{ title: i18n.t("dynamicURLs") }} ></ScoreboardStack.Screen>
+                <ScoreboardStack.Screen name="DynamicURLEditor" component={DynamicURLEditor} options={{ title: "Manage Dynamic URL" }} />
                 <ScoreboardStack.Screen name="BulkAddPlayer" component={BulkAddPlayer} options={{ title: "Bulk Add Player" }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="PlayerRegistration" component={PlayerRegistration} options={{ headerShown: false }} ></ScoreboardStack.Screen>
                 <ScoreboardStack.Screen name="TeamManager" component={TeamEditor} options={{ headerShown: false }} ></ScoreboardStack.Screen>
-                <ScoreboardStack.Screen name="TableLiveScoringLink" component={TableLiveScoringLink} options={{ title: i18n.t("tableLiveScoring") }} ></ScoreboardStack.Screen>
-
               </ScoreboardStack.Group>
 
             </>
@@ -273,6 +302,11 @@ function ScoreboardNavigation() {
 
           }
         </ScoreboardStack.Navigator>
+        <AppDrawer
+          isOpen={isSignedIn && isDrawerOpen}
+          navigationRef={navigationRef}
+          onClose={() => setIsDrawerOpen(false)}
+        />
 
       </NavigationContainer>
 

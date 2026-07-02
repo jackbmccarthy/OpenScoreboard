@@ -7,6 +7,7 @@ const rootDir = fileURLToPath(new URL('.', import.meta.url))
 export default {
   envDir: '..',
   server: {
+    host: '0.0.0.0',
     port:3001,
     strictPort:true,
     fs: {
