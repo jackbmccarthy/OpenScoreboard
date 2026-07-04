@@ -7,6 +7,7 @@ import {
 } from "../players";
 import { hasPairedPlayerImages, setOptionalImageSource } from "./optionalImage";
 import { hasPairedCountryFlags, setCountryFlagSource } from "./countryFlag";
+import { resolveCourtSide } from "./courtSide";
 
 type CourtSide = "A" | "B";
 type MatchSide = "A" | "B";
@@ -37,20 +38,6 @@ const courtSideViewListenerFields = [
     "isBRedCarded",
     ...gameFields,
 ];
-
-function isAOnCourtSideA(currentMatchSettings) {
-    return Boolean(currentMatchSettings?.isCourtSideScoreboardFlipped) === Boolean(currentMatchSettings?.isSwitched);
-}
-
-function resolveCourtSide(courtSide: CourtSide, currentMatchSettings): MatchSide {
-    const aOnCourtSideA = isAOnCourtSideA(currentMatchSettings);
-
-    if (courtSide === "A") {
-        return aOnCourtSideA ? "A" : "B";
-    }
-
-    return aOnCourtSideA ? "B" : "A";
-}
 
 function getPlayer(currentMatchSettings, side: MatchSide, doublesPlayer = false) {
     return currentMatchSettings?.[`player${side}${doublesPlayer ? "2" : ""}`] || {};

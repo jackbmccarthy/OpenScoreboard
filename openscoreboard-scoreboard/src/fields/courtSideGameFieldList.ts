@@ -4,23 +4,9 @@ import {
     getCombinedPlayersFormattedWithRating,
     PlayerNameFormat,
 } from "../players";
+import { isCourtSideServing, resolveCourtSide } from "./courtSide";
 
 type CourtSide = "A" | "B";
-type MatchSide = "A" | "B";
-
-function isAOnCourtSideA(currentMatchSettings) {
-    return Boolean(currentMatchSettings?.isCourtSideScoreboardFlipped) === Boolean(currentMatchSettings?.isSwitched);
-}
-
-function resolveCourtSide(courtSide: CourtSide, currentMatchSettings): MatchSide {
-    const aOnCourtSideA = isAOnCourtSideA(currentMatchSettings);
-
-    if (courtSide === "A") {
-        return aOnCourtSideA ? "A" : "B";
-    }
-
-    return aOnCourtSideA ? "B" : "A";
-}
 
 function getCombinedCourtSideName(currentMatchSettings, courtSide: CourtSide, format: PlayerNameFormat = "partial", withRating = false) {
     const side = resolveCourtSide(courtSide, currentMatchSettings);
@@ -112,15 +98,9 @@ export const courtSideGameFieldList = [
 
     ],
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
-            const courtSideAScores = getCurrentGameScore(currentMatchSettings);
-            if (currentMatchSettings.isSwitched) {
-                matchNode.innerText = (currentMatchSettings.isCourtSideScoreboardFlipped ? courtSideAScores?.a : courtSideAScores?.b) || 0;
-
-            }
-            else {
-                matchNode.innerText = (!currentMatchSettings.isCourtSideScoreboardFlipped ? courtSideAScores?.a : courtSideAScores?.b) || 0;
-
-            }
+            const currentGameScore = getCurrentGameScore(currentMatchSettings);
+            const scoreKey = resolveCourtSide("A", currentMatchSettings).toLowerCase();
+            matchNode.innerText = currentGameScore?.[scoreKey] || 0;
         }
     },
     {
@@ -171,15 +151,9 @@ export const courtSideGameFieldList = [
 
     ],
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
-            const courtSideBScores = getCurrentGameScore(currentMatchSettings);
-            if (currentMatchSettings.isSwitched) {
-                matchNode.innerText = (!currentMatchSettings.isCourtSideScoreboardFlipped ? courtSideBScores?.a : courtSideBScores?.b) || 0;
-
-            }
-            else {
-                matchNode.innerText = (currentMatchSettings.isCourtSideScoreboardFlipped ? courtSideBScores?.a : courtSideBScores?.b) || 0;
-
-            }
+            const currentGameScore = getCurrentGameScore(currentMatchSettings);
+            const scoreKey = resolveCourtSide("B", currentMatchSettings).toLowerCase();
+            matchNode.innerText = currentGameScore?.[scoreKey] || 0;
         }
     },
     {
@@ -230,14 +204,9 @@ export const courtSideGameFieldList = [
 
     ],
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
-            const courtSideAMatchScore = getMatchScore(currentMatchSettings);
-            if (currentMatchSettings.isSwitched) {
-                matchNode.innerText = !currentMatchSettings.isCourtSideScoreboardFlipped ? courtSideAMatchScore.b?.toString() : courtSideAMatchScore.a?.toString() || "0";
-            }
-            else {
-                matchNode.innerText = currentMatchSettings.isCourtSideScoreboardFlipped ? courtSideAMatchScore.b?.toString() : courtSideAMatchScore.a?.toString() || "0";
-
-            }
+            const matchScore = getMatchScore(currentMatchSettings);
+            const scoreKey = resolveCourtSide("A", currentMatchSettings).toLowerCase();
+            matchNode.innerText = matchScore?.[scoreKey]?.toString() || "0";
         }
     },
     {
@@ -288,14 +257,9 @@ export const courtSideGameFieldList = [
 
     ],
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
-            const courtSideBMatchScore = getMatchScore(currentMatchSettings);
-            if (currentMatchSettings.isSwitched) {
-                matchNode.innerText = currentMatchSettings.isCourtSideScoreboardFlipped ? courtSideBMatchScore.b?.toString() : courtSideBMatchScore.a?.toString() || "0";
-            }
-            else {
-                matchNode.innerText = !currentMatchSettings.isCourtSideScoreboardFlipped ? courtSideBMatchScore.b?.toString() : courtSideBMatchScore.a?.toString() || "0";
-
-            }
+            const matchScore = getMatchScore(currentMatchSettings);
+            const scoreKey = resolveCourtSide("B", currentMatchSettings).toLowerCase();
+            matchNode.innerText = matchScore?.[scoreKey]?.toString() || "0";
         }
     },
     //combinedAName
@@ -329,19 +293,7 @@ export const courtSideGameFieldList = [
         sample: "",
         requiredFields: ["isCourtSideScoreboardFlipped","isSwitched","isACurrentlyServing" ],
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
-            if (currentMatchSettings.isSwitched) {
-                !currentMatchSettings.isCourtSideScoreboardFlipped ?
-                    matchNode.style.opacity = currentMatchSettings.isACurrentlyServing ? "0" : "1"
-                    :
-                    matchNode.style.opacity = currentMatchSettings.isACurrentlyServing ? "1" : "0";
-
-            }
-            else {
-                currentMatchSettings.isCourtSideScoreboardFlipped ?
-                    matchNode.style.opacity = currentMatchSettings.isACurrentlyServing ? "0" : "1"
-                    :
-                    matchNode.style.opacity = currentMatchSettings.isACurrentlyServing ? "1" : "0";
-            }
+            matchNode.style.opacity = isCourtSideServing("A", currentMatchSettings) ? "1" : "0";
         }
     },
     {
@@ -351,20 +303,7 @@ export const courtSideGameFieldList = [
         sample: "",
         requiredFields: ["isCourtSideScoreboardFlipped","isSwitched","isACurrentlyServing" ],
         action: (matchNode: HTMLElement, value, currentMatchSettings) => {
-            if (currentMatchSettings.isSwitched) {
-                !currentMatchSettings.isCourtSideScoreboardFlipped ?
-                    matchNode.style.opacity = currentMatchSettings.isACurrentlyServing ? "1" : "0"
-                    :
-                    matchNode.style.opacity = currentMatchSettings.isACurrentlyServing ? "0" : "1";
-
-            }
-            else {
-                currentMatchSettings.isCourtSideScoreboardFlipped ?
-                    matchNode.style.opacity = currentMatchSettings.isACurrentlyServing ? "1" : "0"
-                    :
-                    matchNode.style.opacity = currentMatchSettings.isACurrentlyServing ? "0" : "1";
-
-            }
+            matchNode.style.opacity = isCourtSideServing("B", currentMatchSettings) ? "1" : "0";
         }
     }
 ];
