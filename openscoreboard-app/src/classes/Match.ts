@@ -51,6 +51,8 @@ export default class Match {
             pointsToWinGame: 11,
             initialServerPlayerField: "",
             initialReceiverPlayerField: "",
+            game2InitialServerPlayerField: "",
+            game2InitialReceiverPlayerField: "",
             currentServerPlayerField: "",
             currentReceiverPlayerField: "",
 

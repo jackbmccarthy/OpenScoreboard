@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView } from 'react-native';
+import { Keyboard, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { Button, Input, Text, View, Modal, Divider, Spinner } from 'native-base';
 import { openScoreboardButtonTextColor, openScoreboardColor } from "../../openscoreboardtheme";
 import { clearPlayer, getCurrentGameNumber, getCurrentGameScore, resetDoublesServicePlayerFields, setBestOf, setInitialMatchServer, setInitialReceiverPlayerField, setInitialServerPlayerField, setIsDoubles, setRoundName, start2MinuteWarmUp, startGame, stop2MinuteWarmUp, updateCurrentPlayer, updateScheduledMatch, updateService } from '../functions/scoring';
@@ -109,6 +109,92 @@ const roundStageOptions = [
 
     { value: "EXH", label: "Exhibition", category: otherRoundCategory, keywords: ["friendly", "scrimmage"] },
 ];
+
+function useVisibleViewportMetrics() {
+    const { height } = useWindowDimensions();
+    const initialLayoutHeight = typeof window !== "undefined" ?
+        Math.max(height, window.innerHeight || 0, window.screen?.height || 0)
+        : height;
+    const [metrics, setMetrics] = useState({
+        height,
+        keyboardOpen: false,
+        layoutHeight: initialLayoutHeight,
+        offsetTop: 0,
+    });
+
+    useEffect(() => {
+        let isMounted = true;
+
+        function readVisibleMetrics() {
+            const visualViewport = typeof window !== "undefined" ? window.visualViewport : null;
+            const viewportHeight = visualViewport?.height || height;
+            const offsetTop = visualViewport?.offsetTop || 0;
+            const browserLayoutHeight = typeof window !== "undefined" ?
+                Math.max(window.innerHeight || 0, window.screen?.height || 0)
+                : height;
+
+            if (isMounted) {
+                setMetrics((currentMetrics) => ({
+                    height: viewportHeight || height,
+                    keyboardOpen: viewportHeight < height - 120,
+                    layoutHeight: Math.max(currentMetrics.layoutHeight || 0, height, viewportHeight || 0, browserLayoutHeight),
+                    offsetTop,
+                }));
+            }
+        }
+
+        readVisibleMetrics();
+
+        const visualViewport = typeof window !== "undefined" ? window.visualViewport : null;
+        visualViewport?.addEventListener("resize", readVisibleMetrics);
+        visualViewport?.addEventListener("scroll", readVisibleMetrics);
+
+        const focusInListener = () => {
+            requestAnimationFrame(readVisibleMetrics);
+            setTimeout(readVisibleMetrics, 250);
+        };
+        const focusOutListener = () => {
+            requestAnimationFrame(readVisibleMetrics);
+            setTimeout(readVisibleMetrics, 250);
+        };
+
+        if (typeof window !== "undefined") {
+            window.addEventListener("focusin", focusInListener);
+            window.addEventListener("focusout", focusOutListener);
+        }
+
+        const keyboardShowSubscription = Keyboard.addListener("keyboardDidShow", (event) => {
+            const keyboardHeight = event?.endCoordinates?.height || 0;
+            setMetrics((currentMetrics) => ({
+                height: Math.max(320, height - keyboardHeight),
+                keyboardOpen: true,
+                layoutHeight: Math.max(currentMetrics.layoutHeight || 0, height, initialLayoutHeight),
+                offsetTop: currentMetrics.offsetTop || 0,
+            }));
+        });
+        const keyboardHideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+            readVisibleMetrics();
+        });
+
+        return () => {
+            isMounted = false;
+            visualViewport?.removeEventListener("resize", readVisibleMetrics);
+            visualViewport?.removeEventListener("scroll", readVisibleMetrics);
+            if (typeof window !== "undefined") {
+                window.removeEventListener("focusin", focusInListener);
+                window.removeEventListener("focusout", focusOutListener);
+            }
+            keyboardShowSubscription.remove();
+            keyboardHideSubscription.remove();
+        };
+    }, [height]);
+
+    return {
+        ...metrics,
+        height: Math.max(320, metrics.height || height),
+        layoutHeight: Math.max(320, metrics.layoutHeight || height),
+    };
+}
 
 function getRoundOptionSearchText(option) {
     return `${option.value} ${option.label} ${option.category || ""} ${(option.keywords || []).join(" ")}`.toLowerCase();
@@ -936,12 +1022,44 @@ function PlayerSearchOption({ onPress, player }) {
 }
 
 function PlayerSearchModal({ importPlayers, isOpen, onClose, onSelectPlayer, selectedPlayer }) {
+    const { height, width } = useWindowDimensions();
+    const visibleViewportMetrics = useVisibleViewportMetrics();
+    const visibleViewportHeight = visibleViewportMetrics.height;
+    const stableLayoutHeight = visibleViewportMetrics.layoutHeight;
     const [searchText, setSearchText] = useState("");
     const normalizedSearchText = searchText.trim().toLowerCase();
     const filteredPlayers = normalizedSearchText.length > 0 ?
         importPlayers.filter(([, player]) => getPlayerFormatted(player).toLowerCase().includes(normalizedSearchText))
         : importPlayers;
     const visiblePlayers = filteredPlayers.slice(0, maxVisibleModalPlayers);
+    const isCompactPortrait = width < 640 && stableLayoutHeight > width;
+    const keyboardInset = isCompactPortrait ? Math.max(0, Math.floor(stableLayoutHeight - visibleViewportHeight - (visibleViewportMetrics.offsetTop || 0))) : 0;
+    const modalMaxHeight = isCompactPortrait ?
+        visibleViewportMetrics.keyboardOpen ?
+            Math.max(300, Math.floor(visibleViewportHeight - 8))
+            : Math.max(320, Math.min(560, Math.floor(stableLayoutHeight * 0.68)))
+        : undefined;
+    const modalTop = isCompactPortrait ?
+        visibleViewportMetrics.keyboardOpen ?
+            Math.max(4, Math.floor((visibleViewportMetrics.offsetTop || 0) + 4))
+            : Math.max(18, Math.floor(stableLayoutHeight * 0.08))
+        : 0;
+    const modalBodyMaxHeight = modalMaxHeight ? Math.max(180, modalMaxHeight - 112) : undefined;
+    const compactModalStyle = modalMaxHeight ? {
+        elevation: 9999,
+        left: "2.5%",
+        marginBottom: 0,
+        marginTop: 0,
+        maxHeight: modalMaxHeight,
+        overflow: "hidden",
+        position: "fixed",
+        right: "2.5%",
+        top: modalTop,
+        zIndex: 2147483647,
+    } : undefined;
+    const playerListMaxHeight = isCompactPortrait ?
+        Math.max(120, Math.min(300, (modalBodyMaxHeight || 320) - (visibleViewportMetrics.keyboardOpen ? 92 : 72)))
+        : 320;
 
     useEffect(() => {
         if (!isOpen) {
@@ -955,10 +1073,24 @@ function PlayerSearchModal({ importPlayers, isOpen, onClose, onSelectPlayer, sel
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose}>
-            <Modal.Content maxWidth={460} width={"92%"}>
+        <Modal
+            avoidKeyboard={!isCompactPortrait}
+            isOpen={isOpen}
+            justifyContent={isCompactPortrait ? "flex-start" : "center"}
+            onClose={onClose}
+            paddingTop={0}
+        >
+            <Modal.Content
+                maxWidth={460}
+                width={"92%"}
+                style={compactModalStyle}
+            >
                 <Modal.Header>Import Player</Modal.Header>
-                <Modal.Body>
+                <View
+                    overflow={"hidden"}
+                    padding={3}
+                    style={modalBodyMaxHeight ? { maxHeight: modalBodyMaxHeight } : undefined}
+                >
                     <Input
                         autoFocus
                         backgroundColor={"white"}
@@ -971,7 +1103,21 @@ function PlayerSearchModal({ importPlayers, isOpen, onClose, onSelectPlayer, sel
                         placeholder={"Search by player name"}
                         value={searchText}
                     />
-                    <ScrollView style={{ maxHeight: 320 }}>
+                    <ScrollView
+                        keyboardShouldPersistTaps={"handled"}
+                        nestedScrollEnabled
+                        scrollEventThrottle={16}
+                        style={{
+                            flexGrow: 0,
+                            maxHeight: playerListMaxHeight,
+                            overscrollBehavior: "contain",
+                            touchAction: "pan-y",
+                            WebkitOverflowScrolling: "touch",
+                        }}
+                        contentContainerStyle={{
+                            paddingBottom: isCompactPortrait ? visibleViewportMetrics.keyboardOpen ? Math.max(32, Math.min(96, keyboardInset + 12)) : 16 : 0,
+                        }}
+                    >
                         {visiblePlayers.length > 0 ? visiblePlayers.map(([playerID, player]) => (
                             <View
                                 key={`import-player-${playerID}`}
@@ -997,7 +1143,7 @@ function PlayerSearchModal({ importPlayers, isOpen, onClose, onSelectPlayer, sel
                             Showing {visiblePlayers.length} of {filteredPlayers.length}. Keep typing to narrow the list.
                         </Text>
                     ) : null}
-                </Modal.Body>
+                </View>
                 <Modal.Footer>
                     <Button backgroundColor={openScoreboardColor} borderRadius={8} onPress={onClose}>
                         <Text color={openScoreboardButtonTextColor} fontWeight={"bold"}>Done</Text>
@@ -1108,6 +1254,47 @@ function WizardPlayerSelector({ matchProps, onChangePlayer, playerField, selecte
         }, selectedPlayer?.isImported === true));
     }
 
+    function renderManualNameInputs() {
+        if (entryMode !== "manual" && hasImportPlayers) {
+            return null;
+        }
+
+        return (
+            <View flexDirection={"row"} marginBottom={2}>
+                <Input
+                    backgroundColor={"white"}
+                    borderColor={"gray.300"}
+                    borderRadius={8}
+                    flex={1}
+                    fontSize={"sm"}
+                    marginRight={1}
+                    minHeight={38}
+                    onChangeText={(firstName) => {
+                        setManualFirstName(firstName);
+                        updateManualPlayer({ firstName });
+                    }}
+                    placeholder={"First name"}
+                    value={manualFirstName}
+                />
+                <Input
+                    backgroundColor={"white"}
+                    borderColor={"gray.300"}
+                    borderRadius={8}
+                    flex={1}
+                    fontSize={"sm"}
+                    marginLeft={1}
+                    minHeight={38}
+                    onChangeText={(lastName) => {
+                        setManualLastName(lastName);
+                        updateManualPlayer({ lastName });
+                    }}
+                    placeholder={"Last name"}
+                    value={manualLastName}
+                />
+            </View>
+        );
+    }
+
     return (
         <View>
             <View
@@ -1188,6 +1375,7 @@ function WizardPlayerSelector({ matchProps, onChangePlayer, playerField, selecte
                     </Text>
                 </Pressable>
             </View>
+            {renderManualNameInputs()}
             {!effectiveJerseyColor ? (
                 <View backgroundColor={"amber.50"} borderColor={"amber.200"} borderRadius={8} borderWidth={1} marginBottom={2} padding={2}>
                     <Text color={"amber.900"} fontSize={"xs"} fontWeight={"semibold"}>
@@ -1232,41 +1420,6 @@ function WizardPlayerSelector({ matchProps, onChangePlayer, playerField, selecte
                             No importable players are linked to this table yet. Enter a player name for this match.
                         </Text>
                     )}
-
-                    {entryMode === "manual" || !hasImportPlayers ? (
-                        <View flexDirection={"row"}>
-                            <Input
-                                backgroundColor={"white"}
-                                borderColor={"gray.300"}
-                                borderRadius={8}
-                                flex={1}
-                                fontSize={"sm"}
-                                marginRight={1}
-                                minHeight={38}
-                                onChangeText={(firstName) => {
-                                    setManualFirstName(firstName);
-                                    updateManualPlayer({ firstName });
-                                }}
-                                placeholder={"First name"}
-                                value={manualFirstName}
-                            />
-                            <Input
-                                backgroundColor={"white"}
-                                borderColor={"gray.300"}
-                                borderRadius={8}
-                                flex={1}
-                                fontSize={"sm"}
-                                marginLeft={1}
-                                minHeight={38}
-                                onChangeText={(lastName) => {
-                                    setManualLastName(lastName);
-                                    updateManualPlayer({ lastName });
-                                }}
-                                placeholder={"Last name"}
-                                value={manualLastName}
-                            />
-                        </View>
-                    ) : null}
                 </View>
             )}
 
@@ -2367,18 +2520,57 @@ export function MatchSetup(props) {
 }
 
 export function MatchSetupWizard(props) {
+    const { height, width } = useWindowDimensions();
+    const visibleViewportMetrics = useVisibleViewportMetrics();
+    const visibleViewportHeight = visibleViewportMetrics.height;
+    const stableLayoutHeight = visibleViewportMetrics.layoutHeight;
+    const isCompactPortrait = width < 640 && stableLayoutHeight > width;
+    const keyboardInset = isCompactPortrait ? Math.max(0, Math.floor(stableLayoutHeight - visibleViewportHeight - (visibleViewportMetrics.offsetTop || 0))) : 0;
+    const modalMaxHeight = isCompactPortrait ? Math.max(420, Math.min(620, Math.floor(stableLayoutHeight * 0.78))) : undefined;
+    const modalTop = isCompactPortrait ?
+        visibleViewportMetrics.keyboardOpen ?
+            Math.max(4, Math.floor((visibleViewportMetrics.offsetTop || 0) + 4))
+            : Math.max(14, Math.floor(stableLayoutHeight * 0.06))
+        : 0;
+    const compactModalStyle = modalMaxHeight ? {
+        elevation: 9999,
+        left: "2.5%",
+        marginBottom: 0,
+        marginTop: 0,
+        maxHeight: modalMaxHeight,
+        overflow: "hidden",
+        position: "fixed",
+        right: "2.5%",
+        top: modalTop,
+        zIndex: 2147483647,
+    } : undefined;
 
 
     return (
         <Modal
+            avoidKeyboard={!isCompactPortrait}
             closeOnOverlayClick={false}
+            justifyContent={isCompactPortrait ? "flex-start" : "center"}
             isKeyboardDismissable={false}
             isOpen={props.isOpen}
             onClose={props.onClose}
+            paddingTop={0}
         >
-            <Modal.Content maxWidth={640} width={"95%"}>
+            <Modal.Content
+                maxWidth={640}
+                width={"95%"}
+                style={compactModalStyle}
+            >
                 <Modal.Header>{i18n.t("matchSetup")}</Modal.Header>
-                <Modal.Body padding={3}>
+                <Modal.Body
+                    padding={3}
+                    _scrollview={{
+                        keyboardShouldPersistTaps: "handled",
+                        contentContainerStyle: {
+                            paddingBottom: isCompactPortrait ? visibleViewportMetrics.keyboardOpen ? Math.max(120, keyboardInset + 96) : 24 : 0,
+                        },
+                    }}
+                >
                     <MatchSetup {...props} />
                 </Modal.Body>
 

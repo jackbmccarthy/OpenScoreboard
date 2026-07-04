@@ -83,11 +83,64 @@ function getRotatedServicePlayerFields(initialServerPlayerField, initialReceiver
     }
 }
 
-function getTableTennisServicePlayerFields(initialServerPlayerField, initialReceiverPlayerField, gameNumber, combinedPoints, serveChangePoints, pointsToWinGame) {
-    const gameServiceOffset = Math.max(0, (Number(gameNumber) || 1) - 1)
-    const serviceTurnCount = gameServiceOffset + getServiceTurnCount(combinedPoints, serveChangePoints, pointsToWinGame)
+function getAlternatedOpeningServicePlayerFields(initialServerPlayerField, initialReceiverPlayerField, rotationCount) {
+    const safeRotationCount = Math.max(0, Number(rotationCount) || 0)
 
-    return getRotatedServicePlayerFields(initialServerPlayerField, initialReceiverPlayerField, serviceTurnCount)
+    if (safeRotationCount % 2 === 0) {
+        return {
+            currentServerPlayerField: initialServerPlayerField,
+            currentReceiverPlayerField: initialReceiverPlayerField,
+        }
+    }
+
+    return {
+        currentServerPlayerField: getPartnerPlayerField(initialServerPlayerField) || initialServerPlayerField,
+        currentReceiverPlayerField: getPartnerPlayerField(initialReceiverPlayerField) || initialReceiverPlayerField,
+    }
+}
+
+function getTableTennisOpeningServicePlayerFields(match: any = {}, initialServerIsA, gameNumber) {
+    const safeGameNumber = Math.max(1, Number(gameNumber) || 1)
+    const isOddGame = safeGameNumber % 2 === 1
+
+    if (isOddGame) {
+        return getAlternatedOpeningServicePlayerFields(
+            match.initialServerPlayerField,
+            match.initialReceiverPlayerField,
+            Math.floor((safeGameNumber - 1) / 2)
+        )
+    }
+
+    const hasSecondGameServerPlayerField = isPlayerFieldOnSide(match.game2InitialServerPlayerField, !initialServerIsA)
+    const hasSecondGameReceiverPlayerField = isPlayerFieldOnSide(match.game2InitialReceiverPlayerField, initialServerIsA)
+
+    if (!hasSecondGameServerPlayerField || !hasSecondGameReceiverPlayerField) {
+        return {
+            currentServerPlayerField: "",
+            currentReceiverPlayerField: "",
+        }
+    }
+
+    return getAlternatedOpeningServicePlayerFields(
+        match.game2InitialServerPlayerField,
+        match.game2InitialReceiverPlayerField,
+        Math.floor((safeGameNumber - 2) / 2)
+    )
+}
+
+function getTableTennisServicePlayerFields(match: any = {}, initialServerIsA, gameNumber, combinedPoints, serveChangePoints, pointsToWinGame) {
+    const openingServicePlayerFields = getTableTennisOpeningServicePlayerFields(match, initialServerIsA, gameNumber)
+    const serviceTurnCount = getServiceTurnCount(combinedPoints, serveChangePoints, pointsToWinGame)
+
+    if (!openingServicePlayerFields.currentServerPlayerField || !openingServicePlayerFields.currentReceiverPlayerField) {
+        return openingServicePlayerFields
+    }
+
+    return getRotatedServicePlayerFields(
+        openingServicePlayerFields.currentServerPlayerField,
+        openingServicePlayerFields.currentReceiverPlayerField,
+        serviceTurnCount
+    )
 }
 
 async function updateTableTennisServiceState(matchID, isACurrentlyServing, serviceContext: any = {}) {
@@ -98,8 +151,8 @@ async function updateTableTennisServiceState(matchID, isACurrentlyServing, servi
     const hasInitialReceiverPlayerField = isPlayerFieldOnSide(match.initialReceiverPlayerField, !initialServerIsA)
     const servicePlayerFields = hasInitialServerPlayerField && hasInitialReceiverPlayerField ?
         getTableTennisServicePlayerFields(
-            match.initialServerPlayerField,
-            match.initialReceiverPlayerField,
+            match,
+            initialServerIsA,
             serviceContext.gameNumber,
             serviceContext.combinedPoints,
             serviceContext.changeServeEveryXPoints,
@@ -115,6 +168,22 @@ async function updateTableTennisServiceState(matchID, isACurrentlyServing, servi
         currentServerPlayerField: servicePlayerFields.currentServerPlayerField,
         currentReceiverPlayerField: servicePlayerFields.currentReceiverPlayerField,
     })
+}
+
+export function shouldSelectSecondGameDoublesServicePlayers(match: any = {}) {
+    const currentGameNumber = getCurrentGameNumber(match)
+    const initialServerIsA = match.isAInitialServer === true
+    const hasInitialServerPlayerField = isPlayerFieldOnSide(match.initialServerPlayerField, initialServerIsA)
+    const hasInitialReceiverPlayerField = isPlayerFieldOnSide(match.initialReceiverPlayerField, !initialServerIsA)
+    const hasSecondGameServerPlayerField = isPlayerFieldOnSide(match.game2InitialServerPlayerField, !initialServerIsA)
+    const hasSecondGameReceiverPlayerField = isPlayerFieldOnSide(match.game2InitialReceiverPlayerField, initialServerIsA)
+
+    return match.sportName === "tableTennis" &&
+        match.isDoubles === true &&
+        currentGameNumber === 2 &&
+        hasInitialServerPlayerField &&
+        hasInitialReceiverPlayerField &&
+        (!hasSecondGameServerPlayerField || !hasSecondGameReceiverPlayerField)
 }
 
 async function updateServicePlayers(matchID, servicePlayerUpdates: any = {}) {
@@ -620,10 +689,24 @@ export async function setInitialReceiverPlayerField(matchID, playerField) {
     })
 }
 
+export async function setGame2InitialServerPlayerField(matchID, playerField) {
+    await db.ref(`matches/${matchID}`).update({
+        game2InitialServerPlayerField: playerField,
+    })
+}
+
+export async function setGame2InitialReceiverPlayerField(matchID, playerField) {
+    await db.ref(`matches/${matchID}`).update({
+        game2InitialReceiverPlayerField: playerField,
+    })
+}
+
 export async function resetDoublesServicePlayerFields(matchID) {
     await db.ref(`matches/${matchID}`).update({
         initialServerPlayerField: "",
         initialReceiverPlayerField: "",
+        game2InitialServerPlayerField: "",
+        game2InitialReceiverPlayerField: "",
         currentServerPlayerField: "",
         currentReceiverPlayerField: "",
     })

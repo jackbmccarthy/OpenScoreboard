@@ -189,21 +189,28 @@ export function ScoringSide(props) {
 
     function RoleBadge({ label, variant }) {
         const isServer = variant === "server";
+        const badgeSize = isCompact ? 14 : 16;
 
         return (
             <View
                 alignItems={"center"}
                 backgroundColor={isServer ? "white" : "blue.100"}
                 borderColor={isServer ? "white" : "blue.200"}
-                borderRadius={999}
                 borderWidth={1}
-                height={isCompact ? 16 : 18}
                 justifyContent={"center"}
                 marginRight={1}
-                minWidth={isCompact ? 16 : 18}
-                paddingX={1}
+                style={{
+                    borderRadius: badgeSize / 2,
+                    height: badgeSize,
+                    minWidth: badgeSize,
+                    paddingHorizontal: 3,
+                }}
             >
-                <Text color={isServer ? openScoreboardColor : "blue.800"} fontSize={"2xs"} fontWeight={"bold"} lineHeight={"xs"}>
+                <Text
+                    color={isServer ? openScoreboardColor : "blue.800"}
+                    fontWeight={"bold"}
+                    style={{ fontSize: 8, lineHeight: 10 }}
+                >
                     {label}
                 </Text>
             </View>
