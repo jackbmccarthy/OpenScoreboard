@@ -24,14 +24,14 @@ import { GameWonConfirmationModal } from './modals/GameWonConfirmationModal';
 import { MatchFinishedModal } from './modals/MatchFinishedModal';
 import { addWinToTeamMatchTeamScore, archiveMatchForTeamMatch, createTeamMatchNewMatch, getImportTeamMembersList, getTeamMatchCurrentMatch, removeTeamMatchCurrentMatch } from './functions/teammatches';
 import Unauthorized from './Unauthorized';
-import { getPlayerListIDForTable, getTableInfo, getTablePassword, isPendingScheduledTableMatch, setScheduledTableMatchToCurrentMatch, sortScheduledTableMatches } from './functions/tables';
+import { getActivePlayerListIDForTable, getPlayerListIDFromScoringRoute, getTableInfo, getTablePassword, isPendingScheduledTableMatch, setScheduledTableMatchToCurrentMatch, sortScheduledTableMatches } from './functions/tables';
 import { ScoringSidePickleball } from './components/ScoringSidePickleball';
 import Match from './classes/Match';
 import { getScorekeeperTargetFromRoute, startScorekeeperSession } from './functions/scorekeeperSessions';
 import { resetScheduledMatchForSource, updateScheduledMatchScoresForSource } from './functions/scheduling';
 import { KioskQueueScreen } from './components/KioskQueueScreen';
 import { getImportPlayerList, getPlayerFormatted } from './functions/players';
-import { isCompactScoringPage, isEmbeddedScoringPage, isOpenScoreboardLiveSource, isWatchBridgeEnabled, publishWatchState, publishWatchStatus, publishWhenBridgeReady, subscribeToWatchActions } from './functions/watchBridge';
+import { isCompactScoringPage, isEmbeddedScoringPage, isOpenScoreboardLiveSource, isWatchBridgeEnabled, publishWatchState, publishWatchStatus, subscribeToWatchActions } from './functions/watchBridge';
 
 
 export default function TableScoring(props) {
@@ -53,6 +53,9 @@ export default function TableScoring(props) {
     let watchAvailablePlayersRef = useRef<any[]>([])
     let watchUIStateRef = useRef<any>({})
     let watchActionInFlightRef = useRef(false)
+    let watchPlayerListLoadTokenRef = useRef(0)
+    let activeWatchPlayerListIDRef = useRef(getPlayerListIDFromScoringRoute(props.route.params))
+    let doneLoadingRef = useRef(false)
 
     let [doneLoading, setDoneLoading] = useState(false)
     let [matchSettings, setMatchSettings] = useState<any>({})
@@ -83,6 +86,7 @@ export default function TableScoring(props) {
     let [startingKioskMatch, setStartingKioskMatch] = useState(false)
     let [kioskStatusMessage, setKioskStatusMessage] = useState("")
     let [watchAvailablePlayers, setWatchAvailablePlayers] = useState<any[]>([])
+    let [activeWatchPlayerListID, setActiveWatchPlayerListID] = useState(activeWatchPlayerListIDRef.current)
 
     useEffect(() => {
         matchSettingsRef.current = matchSettings || {}
@@ -91,6 +95,14 @@ export default function TableScoring(props) {
     useEffect(() => {
         watchAvailablePlayersRef.current = watchAvailablePlayers || []
     }, [watchAvailablePlayers])
+
+    useEffect(() => {
+        activeWatchPlayerListIDRef.current = activeWatchPlayerListID || ""
+    }, [activeWatchPlayerListID])
+
+    useEffect(() => {
+        doneLoadingRef.current = doneLoading
+    }, [doneLoading])
 
     useEffect(() => {
         watchUIStateRef.current = {
@@ -621,76 +633,121 @@ export default function TableScoring(props) {
     const activeTeamMatchID = matchSettings.teamMatchID || parentTeamMatchIDRef.current || teamMatchIDRef.current || ""
     const isTeamMatchContext = isTeamMatchRef.current || activeTeamMatchID.length > 0
 
-    useEffect(() => {
+    function getRequestedWatchPlayerListID(event: Event | null = null) {
+        const detail = event ? (event as CustomEvent<any>).detail : null
+        return detail?.target?.playerListID || detail?.target?.playerListId || ""
+    }
+
+    function setWatchPlayerEntries(nextEntries: any[], nextPlayerListID = "") {
+        watchAvailablePlayersRef.current = nextEntries
+        activeWatchPlayerListIDRef.current = nextPlayerListID
+        setActiveWatchPlayerListID(nextPlayerListID)
+        setWatchAvailablePlayers(nextEntries)
+    }
+
+    function getActiveTeamMatchIDForWatch() {
+        const current = matchSettingsRef.current || {}
+        return current.teamMatchID || parentTeamMatchIDRef.current || teamMatchIDRef.current || ""
+    }
+
+    async function loadWatchAvailablePlayers(requestedPlayerListID = "") {
         if (!isWatchBridgeEnabled()) {
-            return
+            return watchAvailablePlayersRef.current
         }
 
-        let isMounted = true
+        const loadToken = watchPlayerListLoadTokenRef.current + 1
+        watchPlayerListLoadTokenRef.current = loadToken
 
-        async function loadWatchPlayers() {
-            try {
-                if (isTeamMatchContext && activeTeamMatchID) {
-                    const [teamAPlayers, teamBPlayers] = await Promise.all([
-                        getImportTeamMembersList("playerA", activeTeamMatchID),
-                        getImportTeamMembersList("playerB", activeTeamMatchID),
-                    ])
-                    if (!isMounted) {
-                        return
-                    }
-                    setWatchAvailablePlayers([
-                        ...teamAPlayers.map(([playerID, player]: any) => ({
-                            id: player?.id || playerID,
-                            player: { ...player, id: player?.id || playerID },
-                            statePlayer: {
-                                id: player?.id || playerID,
-                                name: getPlayerFormatted(player),
-                                team: "A",
-                            },
-                        })),
-                        ...teamBPlayers.map(([playerID, player]: any) => ({
-                            id: player?.id || playerID,
-                            player: { ...player, id: player?.id || playerID },
-                            statePlayer: {
-                                id: player?.id || playerID,
-                                name: getPlayerFormatted(player),
-                                team: "B",
-                            },
-                        })),
-                    ].filter((entry) => entry.statePlayer.id && entry.statePlayer.name))
-                    return
+        try {
+            const activeTeamMatchIDForWatch = getActiveTeamMatchIDForWatch()
+            const isTeamMatchContextForWatch = isTeamMatchRef.current || activeTeamMatchIDForWatch.length > 0
+
+            if (isTeamMatchContextForWatch && activeTeamMatchIDForWatch) {
+                const [teamAPlayers, teamBPlayers] = await Promise.all([
+                    getImportTeamMembersList("playerA", activeTeamMatchIDForWatch),
+                    getImportTeamMembersList("playerB", activeTeamMatchIDForWatch),
+                ])
+                if (loadToken !== watchPlayerListLoadTokenRef.current) {
+                    return watchAvailablePlayersRef.current
                 }
 
-                if (props.route.params.tableID) {
-                    const playerListID = await getPlayerListIDForTable(props.route.params.tableID)
-                    const players = playerListID ? await getImportPlayerList(playerListID) : []
-                    if (!isMounted) {
-                        return
-                    }
-                    setWatchAvailablePlayers(players.map(([playerID, player]: any) => ({
+                const nextEntries = [
+                    ...teamAPlayers.map(([playerID, player]: any) => ({
                         id: player?.id || playerID,
                         player: { ...player, id: player?.id || playerID },
                         statePlayer: {
                             id: player?.id || playerID,
                             name: getPlayerFormatted(player),
+                            team: "A",
                         },
-                    })).filter((entry) => entry.statePlayer.id && entry.statePlayer.name))
-                }
+                    })),
+                    ...teamBPlayers.map(([playerID, player]: any) => ({
+                        id: player?.id || playerID,
+                        player: { ...player, id: player?.id || playerID },
+                        statePlayer: {
+                            id: player?.id || playerID,
+                            name: getPlayerFormatted(player),
+                            team: "B",
+                        },
+                    })),
+                ].filter((entry) => entry.statePlayer.id && entry.statePlayer.name)
+
+                setWatchPlayerEntries(nextEntries, "")
+                return nextEntries
             }
-            catch (error) {
-                console.error("[watchBridge] failed to load selectable players", error)
-                if (isMounted) {
-                    setWatchAvailablePlayers([])
-                }
+
+            if (!props.route.params.tableID) {
+                setWatchPlayerEntries([], "")
+                return []
             }
+
+            const playerListID = await getActivePlayerListIDForTable(
+                props.route.params.tableID,
+                props.route.params,
+                requestedPlayerListID,
+            )
+
+            if (loadToken !== watchPlayerListLoadTokenRef.current) {
+                return watchAvailablePlayersRef.current
+            }
+
+            if (playerListID !== activeWatchPlayerListIDRef.current) {
+                setWatchPlayerEntries([], playerListID)
+            }
+
+            const players = playerListID ? await getImportPlayerList(playerListID) : []
+            if (loadToken !== watchPlayerListLoadTokenRef.current) {
+                return watchAvailablePlayersRef.current
+            }
+
+            const nextEntries = players.map(([playerID, player]: any) => ({
+                id: player?.id || playerID,
+                player: { ...player, id: player?.id || playerID },
+                statePlayer: {
+                    id: player?.id || playerID,
+                    name: getPlayerFormatted(player),
+                },
+            })).filter((entry) => entry.statePlayer.id && entry.statePlayer.name)
+
+            setWatchPlayerEntries(nextEntries, playerListID)
+            return nextEntries
+        }
+        catch (error) {
+            console.error("[watchBridge] failed to load selectable players", error)
+            if (loadToken === watchPlayerListLoadTokenRef.current) {
+                setWatchPlayerEntries([], "")
+            }
+            return []
+        }
+    }
+
+    useEffect(() => {
+        if (!isWatchBridgeEnabled()) {
+            return
         }
 
-        loadWatchPlayers()
-
-        return () => {
-            isMounted = false
-        }
-    }, [activeTeamMatchID, isTeamMatchContext, props.route.params.tableID])
+        loadWatchAvailablePlayers()
+    }, [activeTeamMatchID, isTeamMatchContext, props.route.params.tableID, props.route.params.playerListID, props.route.params.playerListId])
 
     function getFinishedGameScoresForWatch(match) {
         return Array.from({ length: 9 }).reduce((scores, _, index) => {
@@ -1249,7 +1306,35 @@ export default function TableScoring(props) {
             return
         }
 
-        return publishWhenBridgeReady(buildCurrentWatchState)
+        let isDisposed = false
+
+        const publishFreshWatchState = async (event: Event | null = null) => {
+            publishWatchStatus("loading")
+            await loadWatchAvailablePlayers(getRequestedWatchPlayerListID(event))
+            if (isDisposed) {
+                return
+            }
+            publishWatchStatus(doneLoadingRef.current ? "ready" : "loading")
+            publishWatchState(buildCurrentWatchState())
+        }
+
+        publishFreshWatchState()
+
+        const bridgeReadyListener = (event: Event) => {
+            publishFreshWatchState(event)
+        }
+        const stateRequestListener = (event: Event) => {
+            publishFreshWatchState(event)
+        }
+
+        window.addEventListener("openscoreboard-watch-bridge-ready", bridgeReadyListener)
+        window.addEventListener("openscoreboard-watch-state-request", stateRequestListener)
+
+        return () => {
+            isDisposed = true
+            window.removeEventListener("openscoreboard-watch-bridge-ready", bridgeReadyListener)
+            window.removeEventListener("openscoreboard-watch-state-request", stateRequestListener)
+        }
     }, [])
 
     useEffect(() => {
@@ -1267,6 +1352,8 @@ export default function TableScoring(props) {
         showGameWonConfirmationModal,
         showInBetweenGamesModal,
         showMatchSetupWizard,
+        activeWatchPlayerListID,
+        watchAvailablePlayers,
     ])
 
     useEffect(() => {

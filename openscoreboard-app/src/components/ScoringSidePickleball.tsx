@@ -260,8 +260,11 @@ export function ScoringSidePickleball(props) {
     }
 
     function renderPlayerNameContent(player, playerField) {
-        const isServer = props.isDoubles === true && props.currentServerPlayerField === playerField;
-        const isReceiver = props.isDoubles === true && props.currentReceiverPlayerField === playerField;
+        const hasServicePlayerFields = props.isDoubles === true &&
+            `${props.currentServerPlayerField || ""}`.trim().length > 0 &&
+            `${props.currentReceiverPlayerField || ""}`.trim().length > 0;
+        const isServer = hasServicePlayerFields && props.currentServerPlayerField === playerField;
+        const isReceiver = hasServicePlayerFields && props.currentReceiverPlayerField === playerField;
 
         return (
             <View alignItems={"center"} flexDirection={"row"} justifyContent={"center"} width={"100%"}>

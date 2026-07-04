@@ -50,22 +50,6 @@ function getServicePlayerUpdates(currentServerPlayerField = "", currentReceiverP
     }
 }
 
-function getServerPlayerFieldForSide(isAServing, isSecondServer = false) {
-    if (isAServing) {
-        return isSecondServer ? "playerA2" : "playerA"
-    }
-
-    return isSecondServer ? "playerB2" : "playerB"
-}
-
-function getDefaultReceiverPlayerFieldForSide(isAServing, isSecondServer = false) {
-    if (isAServing) {
-        return isSecondServer ? "playerB2" : "playerB"
-    }
-
-    return isSecondServer ? "playerA2" : "playerA"
-}
-
 function isPlayerFieldOnSide(playerField, isASide) {
     return isASide ? playerField === "playerA" || playerField === "playerA2" : playerField === "playerB" || playerField === "playerB2"
 }
@@ -110,20 +94,22 @@ async function updateTableTennisServiceState(matchID, isACurrentlyServing, servi
     const matchSnapshot = await db.ref(`matches/${matchID}`).get()
     const match = matchSnapshot.val() || {}
     const initialServerIsA = typeof serviceContext.isAInitialServer === "boolean" ? serviceContext.isAInitialServer : match.isAInitialServer === true
-    const initialServerPlayerField = isPlayerFieldOnSide(match.initialServerPlayerField, initialServerIsA) ?
-        match.initialServerPlayerField
-        : getServerPlayerFieldForSide(initialServerIsA, false)
-    const initialReceiverPlayerField = isPlayerFieldOnSide(match.initialReceiverPlayerField, !initialServerIsA) ?
-        match.initialReceiverPlayerField
-        : getDefaultReceiverPlayerFieldForSide(initialServerIsA, false)
-    const servicePlayerFields = getTableTennisServicePlayerFields(
-        initialServerPlayerField,
-        initialReceiverPlayerField,
-        serviceContext.gameNumber,
-        serviceContext.combinedPoints,
-        serviceContext.changeServeEveryXPoints,
-        serviceContext.pointsToWinGame
-    )
+    const hasInitialServerPlayerField = isPlayerFieldOnSide(match.initialServerPlayerField, initialServerIsA)
+    const hasInitialReceiverPlayerField = isPlayerFieldOnSide(match.initialReceiverPlayerField, !initialServerIsA)
+    const servicePlayerFields = hasInitialServerPlayerField && hasInitialReceiverPlayerField ?
+        getTableTennisServicePlayerFields(
+            match.initialServerPlayerField,
+            match.initialReceiverPlayerField,
+            serviceContext.gameNumber,
+            serviceContext.combinedPoints,
+            serviceContext.changeServeEveryXPoints,
+            serviceContext.pointsToWinGame
+        )
+        : {
+            currentServerPlayerField: "",
+            currentReceiverPlayerField: "",
+        }
+
     await db.ref(`matches/${matchID}`).update({
         isACurrentlyServing,
         currentServerPlayerField: servicePlayerFields.currentServerPlayerField,
@@ -781,10 +767,10 @@ export async function clearPlayer(matchID, player) {
     await db.ref(`matches/${matchID}/${player}`).set(getNewPlayer())
 }
 
-export async function start2MinuteWarmUp(matchID,) {
+export async function start2MinuteWarmUp(matchID, warmUpStartTime = new Date().toISOString()) {
     await Promise.all([
         db.ref(`matches/${matchID}/isWarmUpStarted`).set(true),
-        db.ref(`matches/${matchID}/warmUpStartTime`).set(new Date().toISOString())
+        db.ref(`matches/${matchID}/warmUpStartTime`).set(warmUpStartTime)
     ])
 
 }

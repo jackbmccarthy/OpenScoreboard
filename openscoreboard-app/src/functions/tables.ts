@@ -142,6 +142,42 @@ export async function getPlayerListIDForTable(tableID) {
   }
 }
 
+function normalizePlayerListID(value) {
+  return typeof value === "string" ? value.trim() : ""
+}
+
+export function getPlayerListIDFromScoringRoute(routeParams: any = {}) {
+  if (typeof window !== "undefined") {
+    const searchParams = new URLSearchParams(window.location.search)
+    const playerListID = normalizePlayerListID(searchParams.get("playerListID"))
+    const playerListId = normalizePlayerListID(searchParams.get("playerListId"))
+
+    if (playerListID) {
+      return playerListID
+    }
+
+    if (playerListId) {
+      return playerListId
+    }
+  }
+
+  return normalizePlayerListID(routeParams?.playerListID) || normalizePlayerListID(routeParams?.playerListId)
+}
+
+export async function getActivePlayerListIDForTable(tableID, routeParams: any = {}, requestedPlayerListID = "") {
+  const routePlayerListID = getPlayerListIDFromScoringRoute(routeParams)
+
+  if (routePlayerListID) {
+    return routePlayerListID
+  }
+
+  if (normalizePlayerListID(requestedPlayerListID)) {
+    return normalizePlayerListID(requestedPlayerListID)
+  }
+
+  return tableID ? await getPlayerListIDForTable(tableID) : ""
+}
+
 export async function getMyTables() {
   let myTablesSnap = await db.ref("users" + "/" + getUserPath() + "/" + "myTables").get()
   let myTables = myTablesSnap.val()

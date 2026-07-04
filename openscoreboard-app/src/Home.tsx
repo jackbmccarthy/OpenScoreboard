@@ -424,68 +424,79 @@ function PreviewRow({ entry, fallbackRoute, navigation }) {
         <Pressable
             accessibilityLabel={`Open ${entry.title}`}
             accessibilityRole={"button"}
-            alignItems={"center"}
+            alignItems={"stretch"}
             borderColor={"gray.100"}
             borderTopWidth={1}
-            flexDirection={"row"}
+            flexDirection={"column"}
             isDisabled={!canOpen}
             onPress={openEntry}
             paddingY={3}
             _hover={{ backgroundColor: "gray.50" }}
             _pressed={{ backgroundColor: "blue.50" }}
         >
-            <View
-                alignItems={"center"}
-                backgroundColor={"blue.50"}
-                borderColor={"blue.100"}
-                borderRadius={8}
-                borderWidth={1}
-                height={38}
-                justifyContent={"center"}
-                marginRight={3}
-                width={38}
-            >
-                <MaterialCommunityIcons name={(entry.icon || "dots-horizontal-circle-outline") as any} size={20} color={openScoreboardColor} />
-            </View>
-            <View flex={1} minWidth={0}>
-                <Text color={"gray.900"} fontSize={"sm"} fontWeight={"bold"} numberOfLines={1}>{entry.title}</Text>
-                <Text color={"gray.600"} fontSize={"xs"} marginTop={0.5} numberOfLines={1}>{entry.subtitle}</Text>
-            </View>
-            {entry.meta ? (
+            <View alignItems={"center"} flexDirection={"row"} width={"100%"}>
                 <View
-                    backgroundColor={"gray.50"}
-                    borderColor={"gray.200"}
-                    borderRadius={999}
+                    alignItems={"center"}
+                    backgroundColor={"blue.50"}
+                    borderColor={"blue.100"}
+                    borderRadius={8}
                     borderWidth={1}
-                    marginLeft={2}
-                    paddingX={2}
-                    paddingY={1}
+                    height={34}
+                    justifyContent={"center"}
+                    marginRight={2}
+                    width={34}
                 >
-                    <Text color={"gray.600"} fontSize={"2xs"} fontWeight={"bold"}>{entry.meta}</Text>
+                    <MaterialCommunityIcons name={(entry.icon || "dots-horizontal-circle-outline") as any} size={18} color={openScoreboardColor} />
+                </View>
+                <View flex={1} minWidth={0}>
+                    <Text color={"gray.900"} fontSize={"sm"} fontWeight={"bold"} numberOfLines={2}>{entry.title}</Text>
+                    <Text color={"gray.600"} fontSize={"xs"} marginTop={0.5} numberOfLines={1}>{entry.subtitle}</Text>
+                </View>
+                <View alignItems={"center"} height={28} justifyContent={"center"} marginLeft={2} width={22}>
+                    <MaterialCommunityIcons
+                        name={(hasExternalURL ? "open-in-new" : "chevron-right") as any}
+                        size={18}
+                        color={openScoreboardColor}
+                    />
+                </View>
+            </View>
+            {(entry.meta || quickActions.length > 0) ? (
+                <View alignItems={"center"} flexDirection={"row"} flexWrap={"wrap"} marginTop={2}>
+                    {entry.meta ? (
+                        <View
+                            backgroundColor={"gray.50"}
+                            borderColor={"gray.200"}
+                            borderRadius={999}
+                            borderWidth={1}
+                            marginBottom={1}
+                            marginRight={2}
+                            paddingX={2}
+                            paddingY={1}
+                        >
+                            <Text color={"gray.600"} fontSize={"2xs"} fontWeight={"bold"}>{entry.meta}</Text>
+                        </View>
+                    ) : null}
+                    {quickActions.map((quickAction) => (
+                        <Button
+                            key={`${entry.id}-${quickAction.label}`}
+                            borderRadius={8}
+                            marginBottom={1}
+                            marginRight={2}
+                            minHeight={8}
+                            onPress={(event) => openQuickAction(quickAction, event)}
+                            paddingX={2}
+                            paddingY={1}
+                            size={"xs"}
+                            variant={"outline"}
+                        >
+                            <View alignItems={"center"} flexDirection={"row"}>
+                                <MaterialCommunityIcons name={(quickAction.icon || "scoreboard-outline") as any} size={14} color={openScoreboardColor} />
+                                <Text color={openScoreboardColor} fontSize={"xs"} fontWeight={"bold"} marginLeft={1}>{quickAction.label}</Text>
+                            </View>
+                        </Button>
+                    ))}
                 </View>
             ) : null}
-            {quickActions.map((quickAction) => (
-                <Button
-                    key={`${entry.id}-${quickAction.label}`}
-                    borderRadius={8}
-                    marginLeft={2}
-                    onPress={(event) => openQuickAction(quickAction, event)}
-                    size={"sm"}
-                    variant={"outline"}
-                >
-                    <View alignItems={"center"} flexDirection={"row"}>
-                        <MaterialCommunityIcons name={(quickAction.icon || "scoreboard-outline") as any} size={15} color={openScoreboardColor} />
-                        <Text color={openScoreboardColor} fontSize={"xs"} fontWeight={"bold"} marginLeft={1}>{quickAction.label}</Text>
-                    </View>
-                </Button>
-            ))}
-            <View alignItems={"center"} height={28} justifyContent={"center"} marginLeft={2} width={24}>
-                <MaterialCommunityIcons
-                    name={(hasExternalURL ? "open-in-new" : "chevron-right") as any}
-                    size={18}
-                    color={openScoreboardColor}
-                />
-            </View>
         </Pressable>
     );
 }

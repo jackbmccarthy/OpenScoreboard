@@ -4,46 +4,50 @@ const { Text, View } = require("native-base");
 
 
 export default function CountDownTimerText(props) {
-    //let [startTime, setStartTime] = useState(new Date())
-    let [isTimeUp, setIsTimeUp] = useState(false)
     let gameBreakCounterInterval = useRef()
+    let didFinishRef = useRef(false)
     let [counter, setCounter] = useState(props.counterStart)
 
 
     const startCountDownTimer = (startTime) => {
-        if (startTime.length === 0) {
-            startTime = new Date().toISOString()
-        }
-        gameBreakCounterInterval.current = setInterval(() => {
-            let timeDifference = new Date().getTime() - new Date(startTime).getTime();
+        const normalizedStartTime = startTime || new Date().toISOString()
+        const updateCounter = () => {
+            let timeDifference = new Date().getTime() - new Date(normalizedStartTime).getTime();
             let timeElapsed = Math.floor(timeDifference / 1000);
             let timeLeft = props.counterStart - timeElapsed;
-            if (timeLeft < 0) {
-                stopCountDownTimer();
-                setIsTimeUp(true)
-                setCounter(60)
+            if (timeLeft <= 0) {
+                stopCountDownTimer(true);
+                setCounter(0)
             }
             else {
                 setCounter(timeLeft);
             }
 
-        }, 1000);
+        }
+
+        updateCounter()
+        gameBreakCounterInterval.current = setInterval(updateCounter, 1000);
 
     };
-    const stopCountDownTimer = () => {
+    const stopCountDownTimer = (notify = false) => {
         clearInterval(gameBreakCounterInterval.current);
-        if (typeof props.onFinish !== "undefined") {
+        if (notify && !didFinishRef.current && typeof props.onFinish !== "undefined") {
+            didFinishRef.current = true
             props.onFinish()
         }
     };
 
     useEffect(() => {
+        stopCountDownTimer(false)
+        didFinishRef.current = false
 
         if (props.isOpen === true) {
             startCountDownTimer(props.startTime)
 
         }
-    }, [props.isOpen])
+
+        return () => stopCountDownTimer(false)
+    }, [props.counterStart, props.isOpen, props.startTime])
 
     if (props.isOpen) {
         return (

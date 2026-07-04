@@ -5,7 +5,7 @@ import { openScoreboardButtonTextColor, openScoreboardColor } from "../../opensc
 import { clearPlayer, getCurrentGameNumber, getCurrentGameScore, resetDoublesServicePlayerFields, setBestOf, setInitialMatchServer, setInitialReceiverPlayerField, setInitialServerPlayerField, setIsDoubles, setRoundName, start2MinuteWarmUp, startGame, stop2MinuteWarmUp, updateCurrentPlayer, updateScheduledMatch, updateService } from '../functions/scoring';
 import { getCombinedPlayerNames, getImportPlayerList, getPlayerFormatted, sortPlayers } from '../functions/players';
 import CountDownTimerText from '../components/CountDownTimerText';
-import { getPlayerListIDForTable, getScheduledTableMatches } from '../functions/tables';
+import { getActivePlayerListIDForTable, getScheduledTableMatches } from '../functions/tables';
 import JerseyColorOptions from '../components/JerseyColorOptions';
 import { getImportTeamMembersList, getTeamJerseyColorForMatchPlayer } from '../functions/teammatches';
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -551,7 +551,6 @@ function getWizardSteps(isSingles, isScheduling, isKioskScheduledMatch = false, 
             ...scheduledColorSteps,
             { type: "serve" },
             ...doublesServiceOrderSteps,
-            { type: "warmup" },
             { type: "start" },
         ];
     }
@@ -567,7 +566,7 @@ function getWizardSteps(isSingles, isScheduling, isKioskScheduledMatch = false, 
         ...scheduledColorSteps,
         isScheduling ? { type: "scheduleDone" } : { type: "serve" },
         ...doublesServiceOrderSteps,
-        ...(!isScheduling ? [{ type: "warmup" }, { type: "start" }] : []),
+        ...(!isScheduling ? [{ type: "start" }] : []),
     ];
 }
 
@@ -1048,7 +1047,7 @@ function WizardPlayerSelector({ matchProps, onChangePlayer, playerField, selecte
                     if (isMounted) {
                         setDefaultJerseyColor("");
                     }
-                    const playerListID = await getPlayerListIDForTable(matchProps.route.params.tableID);
+                    const playerListID = await getActivePlayerListIDForTable(matchProps.route.params.tableID, matchProps.route.params);
                     if (playerListID && playerListID.length > 0) {
                         playerList = await getImportPlayerList(playerListID);
                     }
@@ -1070,7 +1069,7 @@ function WizardPlayerSelector({ matchProps, onChangePlayer, playerField, selecte
         return () => {
             isMounted = false;
         };
-    }, [matchProps.isTeamMatch, matchProps.route?.params?.tableID, matchProps.teamMatchID, playerField]);
+    }, [matchProps.isTeamMatch, matchProps.route?.params?.tableID, matchProps.route?.params?.playerListID, matchProps.route?.params?.playerListId, matchProps.teamMatchID, playerField]);
 
     function selectImportPlayer(playerID, player) {
         const playerForMatch = normalizePlayerForMatch({ ...player, id: playerID, jerseyColor: player?.jerseyColor || defaultJerseyColor }, true);
@@ -1400,8 +1399,9 @@ export function MatchSetup(props) {
     let [selectedInitialServerPlayerField, setSelectedInitialServerPlayerField] = useState(props.initialServerPlayerField || props.currentServerPlayerField || "");
     let [selectedInitialReceiverPlayerField, setSelectedInitialReceiverPlayerField] = useState(props.initialReceiverPlayerField || props.currentReceiverPlayerField || "");
     let [loadingServicePlayerOrder, setLoadingServicePlayerOrder] = useState(false);
-    let [showWarmUpTimer, setShowWarmUpTimer] = useState(false);
-    let [warmUpStartTimeCounter, setWarmUpStartTimeCounter] = useState(new Date());
+    let [showWarmUpTimer, setShowWarmUpTimer] = useState(props.isWarmUpStarted === true && props.isWarmUpFinished !== true);
+    let [warmUpStartTimeCounter, setWarmUpStartTimeCounter] = useState(props.warmUpStartTime || "");
+    let [warmUpFinished, setWarmUpFinished] = useState(props.isWarmUpFinished === true);
     let [showLoadingScheduledMatch, setLoadingScheduledMatch] = useState(false)
     let [showScheduledMatches, setShowScheduledMatches] = useState(false)
     let [loadingScheduledMatches, setLoadingScheduledMatches] = useState(false)
@@ -1504,6 +1504,18 @@ export function MatchSetup(props) {
     }, [props.initialReceiverPlayerField, props.currentReceiverPlayerField])
 
     useEffect(() => {
+        setWarmUpFinished(props.isWarmUpFinished === true)
+        if (props.isWarmUpFinished === true) {
+            setShowWarmUpTimer(false)
+            return
+        }
+        if (props.isWarmUpStarted === true && props.warmUpStartTime) {
+            setWarmUpStartTimeCounter(props.warmUpStartTime)
+            setShowWarmUpTimer(true)
+        }
+    }, [props.isWarmUpFinished, props.isWarmUpStarted, props.warmUpStartTime])
+
+    useEffect(() => {
         if (canUseScheduledMatches) {
             loadScheduleMatches(props.preferScheduledMatches !== false)
         }
@@ -1555,11 +1567,11 @@ export function MatchSetup(props) {
         }
 
         if (currentStep.type === "servePlayer") {
-            return loadingServicePlayerOrder || selectedInitialServerPlayerField.length === 0;
+            return loadingServicePlayerOrder;
         }
 
         if (currentStep.type === "receivePlayer") {
-            return loadingServicePlayerOrder || selectedInitialReceiverPlayerField.length === 0;
+            return loadingServicePlayerOrder;
         }
 
         if (currentStep.type === "scheduleDone" || currentStep.type === "start") {
@@ -1611,6 +1623,105 @@ export function MatchSetup(props) {
             ...getPlayerForStep(playerField),
             jerseyColor: color || "",
         });
+    }
+
+    function shouldShowWarmUpControls() {
+        if (props.isScheduling || showScheduledMatches || !currentStep) {
+            return false;
+        }
+
+        return ["colors", "serve", "servePlayer", "receivePlayer", "start"].includes(currentStep.type);
+    }
+
+    async function startWarmUpTimer() {
+        const startTime = new Date().toISOString();
+        setWarmUpFinished(false);
+        setWarmUpStartTimeCounter(startTime);
+        setShowWarmUpTimer(true);
+        await start2MinuteWarmUp(props.matchID, startTime);
+    }
+
+    async function finishWarmUpTimer() {
+        if (warmUpFinished || props.isWarmUpFinished === true) {
+            return;
+        }
+
+        setWarmUpFinished(true);
+        setShowWarmUpTimer(false);
+        await stop2MinuteWarmUp(props.matchID);
+    }
+
+    function renderWarmUpPanel() {
+        if (!shouldShowWarmUpControls()) {
+            return null;
+        }
+
+        const isComplete = warmUpFinished || props.isWarmUpFinished === true;
+        const isRunning = showWarmUpTimer && !isComplete;
+
+        return (
+            <View
+                backgroundColor={isComplete ? "green.50" : isRunning ? "blue.50" : "amber.50"}
+                borderColor={isComplete ? "green.200" : isRunning ? "blue.200" : "amber.200"}
+                borderRadius={8}
+                borderWidth={1}
+                marginBottom={3}
+                padding={3}
+            >
+                <View alignItems={"center"} flexDirection={"row"}>
+                    <View
+                        alignItems={"center"}
+                        backgroundColor={"white"}
+                        borderColor={isComplete ? "green.200" : isRunning ? "blue.200" : "amber.200"}
+                        borderRadius={8}
+                        borderWidth={1}
+                        height={38}
+                        justifyContent={"center"}
+                        marginRight={3}
+                        width={52}
+                    >
+                        {isRunning ? (
+                            <CountDownTimerText
+                                counterStart={120}
+                                fontSize={"lg"}
+                                isOpen={isRunning}
+                                onFinish={finishWarmUpTimer}
+                                startTime={warmUpStartTimeCounter || props.warmUpStartTime || ""}
+                            />
+                        ) : (
+                            <Ionicons
+                                name={isComplete ? "checkmark-circle" : "timer-outline"}
+                                size={22}
+                                color={isComplete ? "#15803D" : "#B45309"}
+                            />
+                        )}
+                    </View>
+                    <View flex={1} minWidth={0}>
+                        <Text color={isComplete ? "green.800" : isRunning ? "blue.900" : "amber.900"} fontSize={"sm"} fontWeight={"bold"}>
+                            {isComplete ? "Warm-up complete" : isRunning ? "Warm-up running" : "Start match warm-up"}
+                        </Text>
+                        <Text color={"gray.600"} fontSize={"xs"} marginTop={0.5}>
+                            {isComplete ? "The match can start when the setup is ready." : isRunning ? "Continue setup while the timer keeps counting down." : "Start the two-minute timer once the players begin warming up."}
+                        </Text>
+                    </View>
+                    {!isRunning && !isComplete ? (
+                        <Button
+                            backgroundColor={openScoreboardColor}
+                            borderRadius={8}
+                            marginLeft={2}
+                            minHeight={9}
+                            onPress={startWarmUpTimer}
+                            paddingX={3}
+                            paddingY={1}
+                        >
+                            <Text color={openScoreboardButtonTextColor} fontSize={"xs"} fontWeight={"bold"}>
+                                Start
+                            </Text>
+                        </Button>
+                    ) : null}
+                </View>
+            </View>
+        );
     }
 
     async function savePlayerStep(playerStep) {
@@ -1974,7 +2085,7 @@ export function MatchSetup(props) {
         return (
             <WizardCard
                 title={"Who serves first?"}
-                description={"Choose the side that will start serving this match."}
+                description={"Optional: choose the side that will start serving this match, or press Next to keep the current default."}
                 icon={<FontAwesome5 name="table-tennis" size={20} color={openScoreboardColor} />}
             >
                 <Text color={"gray.900"} fontSize={"lg"} fontWeight={"bold"} marginBottom={3}>
@@ -2062,7 +2173,7 @@ export function MatchSetup(props) {
         return (
             <WizardCard
                 title={"Which player serves first?"}
-                description={"Choose the doubles player who starts the match from the right side."}
+                description={"Optional: choose the doubles player who starts the match from the right side, or press Next to skip player-level service tracking."}
                 icon={<MaterialCommunityIcons name="table-tennis" size={22} color={openScoreboardColor} />}
             >
                 <View flexDirection={"row"} justifyContent={"space-between"}>
@@ -2095,7 +2206,7 @@ export function MatchSetup(props) {
         return (
             <WizardCard
                 title={"Who receives first?"}
-                description={"Choose the opponent who receives the first serve."}
+                description={"Optional: choose the opponent who receives the first serve, or press Next to skip player-level service tracking."}
                 icon={<MaterialCommunityIcons name="arrow-decision-outline" size={22} color={openScoreboardColor} />}
             >
                 <View flexDirection={"row"} justifyContent={"space-between"}>
@@ -2117,40 +2228,6 @@ export function MatchSetup(props) {
                             Saving receiving player...
                         </Text>
                     ) : null}
-                </View>
-            </WizardCard>
-        );
-    }
-
-    function renderWarmupStep() {
-        return (
-            <WizardCard
-                title={"Warmup (optional)"}
-                description={"Start a two-minute warmup timer, or press Next to skip."}
-                icon={<Ionicons name="timer-outline" size={22} color={openScoreboardColor} />}
-            >
-                <View>
-                    {showWarmUpTimer ?
-                        <View alignItems={"center"} backgroundColor={"gray.50"} borderColor={"gray.200"} borderRadius={8} borderWidth={1} justifyContent="center" padding={3}>
-                            <CountDownTimerText fontSize={"5xl"} startTime={warmUpStartTimeCounter} isOpen={showWarmUpTimer} counterStart={120} onFinish={() => {
-                                stop2MinuteWarmUp(props.matchID);
-                                setShowWarmUpTimer(false);
-                            }}></CountDownTimerText>
-                        </View>
-                        :
-                        <ChoiceButton
-                            icon={(color) => <Ionicons name="timer-outline" size={21} color={color} />}
-                            isDisabled={props.isWarmUpFinished}
-                            label={props.isWarmUpFinished ? i18n.t("warmUpComplete") : i18n.t("startTwoMinuteWarmUp")}
-                            selected={!props.isWarmUpFinished}
-                            onPress={() => {
-                                setShowWarmUpTimer(true);
-                                setWarmUpStartTimeCounter(new Date());
-                                start2MinuteWarmUp(props.matchID);
-
-                            }}
-                        />
-                    }
                 </View>
             </WizardCard>
         );
@@ -2193,9 +2270,12 @@ export function MatchSetup(props) {
                 icon={<MaterialCommunityIcons name="play-circle-outline" size={24} color={openScoreboardColor} />}
             >
                 <ScoringGradientButton
-                    onPress={() => {
-                        startGame(props.matchID, getCurrentGameNumber(props));
-                        updateService(props.matchID, initialServerIsA, 1, 0, props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType);
+                    onPress={async () => {
+                        await startGame(props.matchID, getCurrentGameNumber(props));
+                        await updateService(props.matchID, initialServerIsA, 1, 0, props.changeServeEveryXPoints, props.pointsToWinGame, props.sportName, props.scoringType);
+                        if (showWarmUpTimer && !warmUpFinished && props.isWarmUpFinished !== true) {
+                            await finishWarmUpTimer();
+                        }
                         props.onClose();
                         setPageNumber(1)
                     }}
@@ -2248,6 +2328,7 @@ export function MatchSetup(props) {
     return (
         <>
             <WizardProgress pageNumber={pageNumber} totalSteps={totalSteps} />
+            {renderWarmUpPanel()}
             {currentStep?.type === "welcome" ? renderWelcomeStep() : null}
             {currentStep?.type === "format" ? renderFormatStep() : null}
             {currentStep?.type === "round" ? renderRoundStep() : null}
@@ -2256,7 +2337,6 @@ export function MatchSetup(props) {
             {currentStep?.type === "serve" ? renderServeStep() : null}
             {currentStep?.type === "servePlayer" ? renderServePlayerStep() : null}
             {currentStep?.type === "receivePlayer" ? renderReceivePlayerStep() : null}
-            {currentStep?.type === "warmup" ? renderWarmupStep() : null}
             {currentStep?.type === "scheduleDone" ? renderSchedulingDoneStep() : null}
             {currentStep?.type === "start" ? renderStartStep() : null}
 
